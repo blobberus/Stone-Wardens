@@ -1,0 +1,94 @@
+# Stone Wardens — campaign site (CLAUDE.md)
+
+Password-gated D&D 5e (**2024 rules / SRD 5.2**) campaign site on GitHub Pages for repo
+`blobberus/Stone-Wardens`. The original brief is `The Stone Wardens - A Fallen Firmament Campaign(1).md`.
+Tabs: **Map**, **Characters**, **Journal**, **Compendium** (SRD + custom library), **Warden's Library**
+(renders PDFs/DOCX from `wardens-library/`), **Settings**.
+
+## Hard rules
+- **No build step.** Plain HTML/CSS + native ES modules. No npm deps at runtime; libs are vendored in `vendor/`
+  (leaflet 1.9.4, marked 18, dompurify 3, js-yaml 5 [`load`/`dump`], mammoth 1.13 browser build = global `mammoth`).
+- All paths relative (site is served from `/Stone-Wardens/`). Never use absolute `/` URLs.
+- Windows box: Git Bash cannot write inside `Documents` (Controlled Folder Access). Use the Write/Edit tools or
+  PowerShell for writes in the repo; scratch work goes to the session scratchpad.
+- Local tools: Python 3.11 (`python -I`). No global Node; a portable Node may exist in the session scratchpad
+  for `node --check file.js`.
+- Copyright: only SRD 5.2 (CC-BY-4.0) text verbatim. Non-SRD content = **stubs**: names, levels, mechanics
+  and short summaries in our own words (`srd/stubs/`). Keep the attribution in `srd/LICENSE-SRD.md`.
+- Commit/push as you go with clear messages. Pages deploy workflow ignores `content/**` and `wardens-library/**`.
+
+## Layout
+```
+index.html            app shell (gate + sidebar + view containers); loads assets/js/main.js
+setup.html            owner tool: encrypts a GitHub token with the site password -> vault.json
+vault.json            {v,kdf,cipher,data,repo} AES-GCM ciphertext of {token}; password never stored
+assets/css/           tokens.css (design tokens) base.css (components) shell.css + one css per view
+assets/img/           icons.svg (sprite, <symbol id="i-NAME">), placeholder-map.svg
+assets/js/main.js     boot: gate -> store.load -> register views -> router.start
+assets/js/core/       shared infrastructure (see contracts below) — views must not reimplement these
+assets/js/views/<v>/  one folder per tab: map, characters, journal, compendium, wardens-library, settings
+srd/                  generated SRD 5.2 JSON (tools/build_srd.py) + srd/stubs/*.json; read-only at runtime
+content/              ALL user data, written by the site through the GitHub API
+  characters/<id>.json  locations/<id>.json  map/config.json (+ uploaded map image)
+  journal/<chapter-slug>/_chapter.json + <note-slug>.md      (notes outside chapters: journal/*.md)
+  library/<kind>/<id>.json   kinds: weapon armor gear magic-item spell feat ability species class subclass
+                             background location-type
+wardens-library/      campaign documents (pdf/docx/md/txt/images) shown read-only in Warden's Library
+tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
+```
+
+## Data flow
+- Auth: `vault.json` decrypted with password (PBKDF2-SHA256 600k -> AES-256-GCM) gives a fine-grained PAT
+  (Contents R/W on this repo only). Kept in sessionStorage (localStorage if "remember device").
+- Reads: GitHub git-trees API (one recursive call) + blobs by sha, cached in IndexedDB by sha.
+- Writes: Git Data API batch commit (tree with base_tree -> commit -> update ref; retry on non-fast-forward).
+  Conflict check: if remote sha != the sha we loaded, user chooses overwrite/keep theirs.
+- Every edit is saved immediately as a local draft (localStorage) -> survives reloads. "Save" (Ctrl+S) commits
+  all dirty docs. `beforeunload` warns when uncommitted. Optional auto-commit (Settings). Auto-pull on focus/2 min.
+- Sandbox mode (`?sandbox`, or no vault on localhost): same API backed by IndexedDB only.
+- JSON docs are pretty-printed (2 spaces). Ids: `slug-xxxx` (`util.uid(name)`), filename = id.
+
+## Core contracts (`assets/js/core/`)
+- `dom.js`: `h(tag, attrs, ...children)` (attrs: class, style obj/str, onX handlers, data-*, value/checked props;
+  children: string|Node|array|null), `$`, `$$`, `clear(el)`.
+- `util.js`: `uid(name)`, `slugify`, `debounce`, `escapeHtml`, `fmtMod(n)` (+2/−1), `clone`, `sortBy`, `byName`.
+- `ui.js`: `toast(msg,{type})`, `openModal({title, body, actions:[{label,kind,onClick}], wide}) -> {close, el}`
+  (onClick returning false keeps it open), `confirmDialog(msg,{okLabel,danger}) -> Promise<bool>`,
+  `promptDialog(title,{label,value}) -> Promise<string|null>`, `pickFromList({title, items, render, search,
+  multi}) -> Promise<item|item[]|null>`, `icon(name, size?)`, form helpers `field(label, control, hint?)`,
+  `input(props)`, `textarea(props)`, `select(options, value, onchange)`, `checkbox(checked, onchange, label)`,
+  `markdownEditor({value, onInput, rows})` (textarea + [[link]] autocomplete + preview toggle).
+  NEVER use window.alert/confirm/prompt.
+- `store.js` (singleton `store`): `load()`, `list(dir, {recursive})` -> `[{path, data}]`, `get(path)`,
+  `put(path, data)` (object -> JSON; string -> text), `remove(path)`, `putBinary(path, blob)`,
+  `fileUrl(path) -> Promise<objectURL>`, `fileBlob(path)`, `files(prefix)` -> `[{path,size,sha}]` (any type),
+  `on(fn) -> unsubscribe` (events `{type:'put'|'remove'|'load'|'saved'|'pulled', path?}`),
+  `isDirty(path?)`, `dirtyPaths()`, `save(message?)`, `pull()`, `mode` ('github'|'sandbox').
+- `router.js`: hash routes `#/<view>/<...parts>?query`. `registerView({id, title, icon, order, mount(el),
+  show(route), hide?()})` — mount once (lazy), views stay mounted (map is never re-created).
+  `navigate(href)`, `href(view, ...parts)`, `current()` -> `{view, parts, query}`.
+- `links.js`: `registerLinkType(prefix, {label, resolve(target, anchor) -> {href,title,exists}|null,
+  suggest(q) -> [{label, value}]})`. `resolveLink(raw)`; un-prefixed `[[X]]` -> journal note, else first exact
+  name match across types, else unresolved (click offers to create note).
+  Prefixes: `map:` locations, `char:` characters (`[[char:Name#hp]]` anchors a sheet section/stat),
+  `note:` journal, `doc:` warden's library, compendium kinds: `weapon: armor: gear: item: spell: feat:
+  ability: species: class: subclass: background:`.
+- `markdown.js`: Obsidian-flavoured: `[[wikilinks|alias]]`, `[[x#heading]]`, `![[embed]]` (notes/images),
+  `> [!type]± title` callouts, `==highlight==`, `%%comment%%`, `#tags`, task lists, tables, GFM autolinks,
+  YAML frontmatter. `renderMarkdown(src) -> safe HTML`, `renderInto(el, src)` (wires links/embeds/folds),
+  `parseFrontmatter(text) -> {data, body}`, `stringifyFrontmatter(data, body)`, `extractLinks(src)`.
+  Use it for every user description (pins, custom items, abilities) so links are hyperlinked by default.
+- `compendium.js`: merged SRD + stubs + custom: `KINDS`, `entries(kind)` -> Promise<array>, `cached(kind)` (sync,
+  after `preloadAll()`), `entry(kind, id)`, `findByName(kind, name)`, `saveCustom(kind, obj)`, `removeCustom`,
+  `srd(name)` raw loader (`srd('rules')`, `srd('features')`). Every entry has `kind` and
+  `origin: 'srd'|'stub'|'custom'` (`source` = book name for stubs). Custom overrides same id.
+- `settings.js`: `getSetting(k)`, `setSetting(k,v)` (playerName, autoCommit, theme, sidebarCollapsed).
+
+## UI / CSS conventions
+- Use tokens from `tokens.css` only (`--bg --surface --surface-2 --ink --ink-muted --accent --accent-ink
+  --danger --ok --border --font-display --font-body --font-mono --radius --shadow --space-1..6`).
+- Shared classes (base.css): `.btn .btn-primary .btn-ghost .btn-danger .btn-sm .btn-icon`, `.input .select
+  .textarea .field`, `.card .panel .badge .chip .table .toolbar .tabs .tab .muted .stack .row .grid
+  .empty-state .prose` (rendered markdown) `.callout`.
+- Each view owns `assets/css/<view>.css`, classes prefixed by view (`.map-`, `.ch-`, `.jr-`, `.cp-`, `.wl-`).
+- Design direction: medieval manuscript but highly readable (D&D wiki clarity). See `docs/design.md`.

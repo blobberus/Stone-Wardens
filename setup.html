@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Setup · The Stone Wardens</title>
+  <!-- FONTS -->
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/shell.css">
+  <style>
+    .setup { max-width: 46rem; margin: 0 auto; padding: var(--space-6) var(--space-4); }
+    .setup ol { padding-left: 1.4em; }
+    .setup li { margin-bottom: .4em; }
+    .setup .panel { margin-top: var(--space-4); }
+    .setup .out { white-space: pre-wrap; word-break: break-all; font-family: var(--font-mono); font-size: var(--text-xs); max-height: 12rem; overflow: auto; }
+  </style>
+</head>
+<body>
+  <main class="setup prose">
+    <h1>Set the site password</h1>
+    <p>Owner-only setup. This page encrypts a GitHub token with the site password and stores the
+      <em>ciphertext</em> as <code>vault.json</code> in the repo. The password itself is never saved anywhere.
+      Anyone who knows the password can read and save campaign data. Everything here runs in your browser.</p>
+    <h2>1. Create a fine-grained token</h2>
+    <ol>
+      <li>Open <a class="external" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → Settings → Developer settings → Fine-grained tokens → Generate new token</a>.</li>
+      <li><strong>Repository access:</strong> Only select repositories → <code id="repo-name">Stone-Wardens</code>.</li>
+      <li><strong>Permissions → Repository → Contents:</strong> Read and write. (Metadata: read is added automatically.) Nothing else.</li>
+      <li>Pick an expiration. When it expires, come back here and run setup again with a new token.</li>
+    </ol>
+    <h2>2. Encrypt it with the site password</h2>
+    <form id="setup-form" class="stack panel">
+      <div class="row">
+        <label class="field"><span class="field-label">Owner</span><input class="input" id="owner" required></label>
+        <label class="field"><span class="field-label">Repository</span><input class="input" id="repo" required></label>
+        <label class="field"><span class="field-label">Branch</span><input class="input" id="branch" value="main" required></label>
+      </div>
+      <label class="field"><span class="field-label">GitHub token</span><input class="input" id="token" type="password" autocomplete="off" required placeholder="github_pat_…"></label>
+      <label class="field"><span class="field-label">Site password</span><input class="input" id="pw1" type="password" autocomplete="new-password" required minlength="8">
+        <span class="field-hint">Because the encrypted file is public, use a long passphrase (4+ words or 12+ characters).</span></label>
+      <label class="field"><span class="field-label">Repeat password</span><input class="input" id="pw2" type="password" autocomplete="new-password" required></label>
+      <div class="row">
+        <button class="btn btn-primary" type="submit" id="go">Check token, encrypt &amp; commit vault.json</button>
+        <button class="btn btn-ghost" type="button" id="download">Only download vault.json</button>
+      </div>
+      <p id="msg" role="status"></p>
+      <div id="out" class="out" hidden></div>
+    </form>
+    <p class="muted">After committing, GitHub Pages redeploys in about a minute. Then open <a href="./">the site</a> and enter the password.</p>
+  </main>
+  <script type="module">
+    import { createVault, guessRepo } from './assets/js/core/vault.js';
+    import { b64encode, utf8 } from './assets/js/core/util.js';
+    const $ = (id) => document.getElementById(id);
+    const g = guessRepo();
+    $('owner').value = g.owner; $('repo').value = g.repo; $('branch').value = g.branch;
+    $('repo-name').textContent = g.repo;
+    const msg = (t, bad) => { $('msg').textContent = t; $('msg').style.color = bad ? 'var(--danger)' : ''; };
+    const api = async (method, path, token, body) => {
+      const res = await fetch(`https://api.github.com${path}`, {
+        method, headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}`, 'X-GitHub-Api-Version': '2022-11-28' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = res.status === 204 ? null : await res.json().catch(() => null);
+      if (!res.ok) throw new Error(`${res.status}: ${data?.message || res.statusText}`);
+      return data;
+    };
+    async function build() {
+      if ($('pw1').value !== $('pw2').value) throw new Error('The two passwords differ.');
+      if ($('pw1').value.length < 8) throw new Error('Use at least 8 characters (longer is much better).');
+      const repo = { owner: $('owner').value.trim(), repo: $('repo').value.trim(), branch: $('branch').value.trim() || 'main' };
+      const token = $('token').value.trim();
+      return { repo, token, vault: await createVault($('pw1').value, { token }, repo) };
+    }
+    $('download').onclick = async () => {
+      try {
+        const { vault } = await build();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(vault, null, 2)], { type: 'application/json' }));
+        a.download = 'vault.json'; a.click();
+        msg('Downloaded. Commit it to the root of the repository.');
+      } catch (e) { msg(e.message, true); }
+    };
+    $('setup-form').onsubmit = async (e) => {
+      e.preventDefault();
+      $('go').disabled = true;
+      try {
+        msg('Encrypting…');
+        const { repo, token, vault } = await build();
+        const base = `/repos/${repo.owner}/${repo.repo}`;
+        msg('Checking the token can read the repository…');
+        await api('GET', `${base}/git/ref/heads/${repo.branch}`, token);
+        let sha;
+        try { sha = (await api('GET', `${base}/contents/vault.json?ref=${repo.branch}`, token)).sha; } catch { /* new file */ }
+        msg('Committing vault.json…');
+        await api('PUT', `${base}/contents/vault.json`, token, {
+          message: 'Set site password (encrypted vault)', branch: repo.branch, sha,
+          content: b64encode(utf8.encode(JSON.stringify(vault, null, 2) + '\n')),
+        });
+        $('token').value = ''; $('pw1').value = ''; $('pw2').value = '';
+        msg('Done. vault.json is committed. Give Pages a minute, then open the site.');
+      } catch (err) {
+        msg(`${err.message} — check the token has Contents: Read and write on this repository.`, true);
+      } finally { $('go').disabled = false; }
+    };
+  </script>
+</body>
+</html>

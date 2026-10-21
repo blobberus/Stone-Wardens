@@ -1,0 +1,219 @@
+// Boot: password gate -> load repo content -> mount the tabbed shell.
+import { store } from './core/store.js';
+import { GitHubBackend } from './core/github.js';
+import { SandboxBackend } from './core/sandbox.js';
+import { fetchVault, openVault, saveAuth, loadAuth, clearAuth } from './core/vault.js';
+import { registerView, start, allViews, onRoute } from './core/router.js';
+import { applyTheme, getSetting, setSetting } from './core/settings.js';
+import { h, $, clear } from './core/dom.js';
+import { icon, toast, choiceDialog } from './core/ui.js';
+import { preloadAll } from './core/compendium.js';
+
+const VIEW_IDS = ['map', 'characters', 'journal', 'compendium', 'wardens-library', 'settings'];
+const isLocalhost = ['localhost', '127.0.0.1', ''].includes(location.hostname);
+
+applyTheme();
+boot();
+
+async function boot() {
+  const params = new URLSearchParams(location.search);
+  if (params.has('sandbox')) return enter(new SandboxBackend(), 'sandbox');
+  const saved = loadAuth();
+  if (saved?.token) {
+    try { return await enter(new GitHubBackend(saved), `${saved.owner}/${saved.repo}`); }
+    catch (e) {
+      console.error(e);
+      if (e.status === 401) clearAuth();
+      return showGate(e.message);
+    }
+  }
+  return showGate();
+}
+
+// ---------- gate ----------
+
+async function showGate(error) {
+  const gate = $('#gate');
+  const form = $('#gate-form');
+  const pass = $('#gate-pass');
+  const err = $('.gate-error', gate);
+  const note = $('.gate-note', gate);
+  const btn = $('.gate-enter', gate);
+  gate.hidden = false;
+  $('#app').hidden = true;
+  const showError = (msg) => { err.textContent = msg; err.hidden = !msg; };
+  showError(error || '');
+
+  const vault = await fetchVault();
+  if (!vault) {
+    pass.disabled = true;
+    btn.disabled = true;
+    clear(note).append(
+      'This site has not been set up yet. The repo owner needs to open ',
+      h('a', { href: 'setup.html' }, 'setup'),
+      ' to create the password.',
+      isLocalhost ? h('span', null, ' Or try the ', h('a', { href: '?sandbox' }, 'local sandbox'), '.') : null,
+    );
+    return;
+  }
+  pass.focus();
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    if (!pass.value) return;
+    btn.disabled = true;
+    btn.textContent = 'Unlocking…';
+    showError('');
+    try {
+      const secret = await openVault(vault, pass.value);
+      const auth = { branch: 'main', ...vault.repo, ...secret };
+      saveAuth(auth, $('#gate-remember').checked);
+      pass.value = '';
+      await enter(new GitHubBackend(auth), `${auth.owner}/${auth.repo}`);
+    } catch (ex) {
+      console.error(ex);
+      showError(ex.message === 'bad-password' ? 'That is not the password. The wardens keep their counsel.' : ex.message);
+      pass.select();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Enter';
+    }
+  };
+}
+
+// ---------- app ----------
+
+async function enter(backend, scope) {
+  store.use(backend, scope);
+  $('#gate').hidden = true;
+  const app = $('#app');
+  app.hidden = false;
+  const viewsEl = $('#views');
+  const loading = h('div', { class: 'app-loading' }, h('p', null, 'Unrolling the maps…'));
+  viewsEl.append(loading);
+  try {
+    await store.load();
+  } catch (e) {
+    loading.remove();
+    app.hidden = true;
+    throw e;
+  }
+  loading.remove();
+  preloadAll().catch((e) => console.warn(e));
+  await loadViews();
+  buildSidebar();
+  wireSaving();
+  start(viewsEl, { defaultView: 'map' });
+  if (store.mode === 'sandbox') toast('Sandbox mode: changes stay in this browser only.', { timeout: 6000 });
+  else if (store.isDirty()) toast(`Restored ${store.dirtyPaths().length} unsaved change(s) from your last visit.`, { timeout: 6000 });
+}
+
+async function loadViews() {
+  await Promise.all(VIEW_IDS.map(async (id, i) => {
+    try {
+      const mod = await import(`./views/${id}/index.js`);
+      registerView({ order: i * 10, ...mod.default });
+    } catch (e) {
+      console.error(`[main] view ${id} failed to load`, e);
+      registerView({
+        id, order: i * 10, title: id.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), icon: 'warning',
+        mount: (el) => el.append(h('div', { class: 'empty-state' }, h('h2', null, 'This tab failed to load'), h('p', { class: 'muted' }, String(e.message || e)))),
+      });
+    }
+  }));
+}
+
+function buildSidebar() {
+  const sb = $('#sidebar');
+  const top = $('.sb-tabs:not(.sb-tabs-bottom)', sb);
+  const bottom = $('.sb-tabs-bottom', sb);
+  clear(top); clear(bottom);
+  for (const v of allViews()) {
+    const a = h('a', { class: 'sb-tab', href: `#/${v.id}`, 'data-view': v.id, title: v.title }, icon(v.icon || 'file'), h('span', { class: 'sb-label' }, v.title));
+    (v.id === 'settings' ? bottom : top).append(h('li', null, a));
+  }
+  const collapsed = getSetting('sidebarCollapsed');
+  sb.classList.toggle('is-collapsed', !!collapsed);
+  $('.sb-toggle', sb).onclick = () => {
+    if (matchMedia('(max-width: 760px)').matches) { sb.classList.toggle('is-open'); return; }
+    const c = !sb.classList.contains('is-collapsed');
+    sb.classList.toggle('is-collapsed', c);
+    setSetting('sidebarCollapsed', c);
+    window.dispatchEvent(new Event('resize')); // lets the map re-measure
+  };
+  onRoute((r) => {
+    sb.querySelectorAll('.sb-tab').forEach((a) => a.classList.toggle('is-active', a.dataset.view === r.view));
+    sb.classList.remove('is-open');
+  });
+}
+
+// ---------- saving ----------
+
+function wireSaving() {
+  const status = $('.sb-status');
+  const text = $('.sb-status-text');
+  const btn = $('.sb-save');
+  let lastError = null;
+
+  const update = () => {
+    const n = store.dirtyPaths().length;
+    let state = n ? 'dirty' : 'clean';
+    let label = n ? `${n} unsaved change${n === 1 ? '' : 's'}` : 'All changes saved';
+    if (store.saving) { state = 'saving'; label = 'Saving…'; }
+    else if (lastError && n) { state = 'error'; label = 'Save failed — retry'; }
+    if (store.mode === 'sandbox') label += ' (sandbox)';
+    status.dataset.state = state;
+    text.textContent = label;
+    status.title = n ? store.dirtyPaths().map((p) => p.replace(/^content\//, '')).join('\n') : '';
+    btn.disabled = !n || store.saving;
+  };
+
+  const save = async () => {
+    if (!store.isDirty() || store.saving) return;
+    try {
+      lastError = null;
+      const r = await store.save();
+      if (r.cancelled) return;
+      toast(store.mode === 'sandbox' ? 'Saved locally.' : 'Saved to the repository.', { type: 'success' });
+    } catch (e) {
+      console.error(e);
+      lastError = e;
+      toast(`Could not save: ${e.message}`, { type: 'error' });
+    } finally { update(); }
+  };
+
+  store.conflictResolver = (paths) => choiceDialog(
+    h('div', { class: 'stack' },
+      h('p', null, 'Another Warden changed these since you opened them:'),
+      h('ul', null, paths.map((p) => h('li', null, h('code', null, p.replace(/^content\//, ''))))),
+      h('p', { class: 'muted' }, 'Overwrite replaces their version with yours. Keep theirs discards your edits to these files.')),
+    [
+      { label: 'Cancel', value: 'cancel', kind: 'ghost' },
+      { label: 'Keep theirs', value: 'theirs', kind: 'ghost' },
+      { label: 'Overwrite with mine', value: 'overwrite', kind: 'primary' },
+    ],
+    { title: 'Changes collided' },
+  ).then((v) => v || 'cancel');
+
+  store.on((ev) => {
+    if (ev.type === 'error') { lastError = ev.error; toast(`Auto-save failed: ${ev.error.message}`, { type: 'error' }); }
+    update();
+  });
+  btn.onclick = save;
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
+  });
+  window.addEventListener('beforeunload', (e) => {
+    if (store.isDirty()) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // Pick up other players' changes.
+  let lastPull = Date.now();
+  const pull = async () => {
+    if (store.saving || document.visibilityState !== 'visible') return;
+    lastPull = Date.now();
+    try { await store.pull(); } catch (e) { console.warn('[pull]', e); }
+  };
+  setInterval(pull, 120000);
+  window.addEventListener('focus', () => { if (Date.now() - lastPull > 30000) pull(); });
+  update();
+}

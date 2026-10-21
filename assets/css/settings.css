@@ -1,0 +1,4 @@
+.set-page { max-width: 44rem; margin: 0 auto; padding: var(--space-5) var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); }
+.set-head h1 { margin: 0; }
+.set-section h2 { margin: 0; }
+.set-section details ul { margin: var(--space-2) 0 0; padding-left: 1.2em; font-size: var(--text-sm); }

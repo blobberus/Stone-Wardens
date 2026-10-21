@@ -1,0 +1,302 @@
+// Shared UI primitives: icons, toasts, modals, dialogs, pickers, form controls, markdown editor.
+import { h, clear } from './dom.js';
+import { suggestLinks } from './links.js';
+import { renderInto } from './markdown.js';
+
+const overlays = () => document.getElementById('overlays') || document.body;
+
+export function icon(name, size) {
+  const svg = h('svg', { class: 'icon', 'aria-hidden': 'true', ...(size ? { width: size, height: size } : {}) });
+  svg.append(h('use', { href: `assets/img/icons.svg#i-${name}` }));
+  return svg;
+}
+
+// ---------- toasts ----------
+
+let toastBox = null;
+export function toast(message, { type = 'info', timeout = 3500 } = {}) {
+  if (!toastBox || !toastBox.isConnected) toastBox = overlays().appendChild(h('div', { class: 'toasts', role: 'status', 'aria-live': 'polite' }));
+  const t = h('div', { class: `toast toast-${type}` }, message);
+  toastBox.append(t);
+  const close = () => t.remove();
+  if (timeout) setTimeout(close, type === 'error' ? timeout * 2 : timeout);
+  t.addEventListener('click', close);
+  return close;
+}
+
+// ---------- modal ----------
+
+const modalStack = [];
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && modalStack.length) { e.preventDefault(); modalStack[modalStack.length - 1].dismiss(); }
+});
+
+/**
+ * openModal({title, body, actions:[{label, kind:'primary'|'ghost'|'danger', onClick}], wide, onClose})
+ * An action's onClick returning false (or a promise of false) keeps the modal open.
+ */
+export function openModal({ title, body, actions = [], wide = false, onClose, className = '' } = {}) {
+  const box = h('div', { class: ['modal', wide && 'modal-wide', className], role: 'dialog', 'aria-modal': 'true', 'aria-label': title || 'Dialog' });
+  const backdrop = h('div', { class: 'modal-backdrop' }, box);
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    backdrop.remove();
+    modalStack.splice(modalStack.indexOf(api), 1);
+    onClose?.();
+  };
+  const api = { close, el: box, dismiss: close };
+  const head = h('header', { class: 'modal-head' },
+    h('h2', null, title || ''),
+    h('button', { class: 'btn-icon modal-close', type: 'button', 'aria-label': 'Close', onclick: close }, icon('close')));
+  const content = h('div', { class: 'modal-body' }, body);
+  box.append(head, content);
+  if (actions.length) {
+    box.append(h('footer', { class: 'modal-foot' }, actions.map((a) => h('button', {
+      class: ['btn', a.kind ? `btn-${a.kind}` : ''],
+      type: 'button',
+      onclick: async () => { const r = await a.onClick?.(api); if (r !== false) close(); },
+    }, a.label))));
+  }
+  backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) close(); });
+  overlays().append(backdrop);
+  modalStack.push(api);
+  queueMicrotask(() => (box.querySelector('[autofocus], input, textarea, select') || box.querySelector('.modal-foot .btn-primary'))?.focus());
+  return api;
+}
+
+export function confirmDialog(message, { title = 'Are you sure?', okLabel = 'Confirm', cancelLabel = 'Cancel', danger = false } = {}) {
+  return new Promise((resolve) => {
+    let result = false;
+    openModal({
+      title,
+      body: h('p', null, message),
+      actions: [
+        { label: cancelLabel, kind: 'ghost' },
+        { label: okLabel, kind: danger ? 'danger' : 'primary', onClick: () => { result = true; } },
+      ],
+      onClose: () => resolve(result),
+    });
+  });
+}
+
+/** Three-way choice dialog. choices: [{label, value, kind}] -> resolves value (or null on dismiss). */
+export function choiceDialog(message, choices, { title = 'Choose' } = {}) {
+  return new Promise((resolve) => {
+    let result = null;
+    openModal({
+      title,
+      body: typeof message === 'string' ? h('p', null, message) : message,
+      actions: choices.map((c) => ({ label: c.label, kind: c.kind, onClick: () => { result = c.value; } })),
+      onClose: () => resolve(result),
+    });
+  });
+}
+
+export function promptDialog(title, { label = '', value = '', placeholder = '', okLabel = 'OK', multiline = false } = {}) {
+  return new Promise((resolve) => {
+    let result = null;
+    const control = multiline
+      ? h('textarea', { class: 'textarea', rows: 6, value, placeholder })
+      : h('input', { class: 'input', value, placeholder, autofocus: true });
+    const m = openModal({
+      title,
+      body: field(label, control),
+      actions: [
+        { label: 'Cancel', kind: 'ghost' },
+        { label: okLabel, kind: 'primary', onClick: () => { result = control.value; } },
+      ],
+      onClose: () => resolve(result),
+    });
+    if (!multiline) control.addEventListener('keydown', (e) => { if (e.key === 'Enter') { result = control.value; m.close(); } });
+  });
+}
+
+/**
+ * pickFromList({title, items, render(item) -> Node|string, search(item) -> string, multi, selected, empty})
+ * Resolves the chosen item (or array when multi), or null when dismissed.
+ */
+export function pickFromList({ title = 'Choose', items = [], render = (x) => x.name, search = (x) => x.name, multi = false, selected = [], empty = 'Nothing matches.', extra = null } = {}) {
+  return new Promise((resolve) => {
+    let result = null;
+    const chosen = new Set(selected);
+    const q = h('input', { class: 'input picker-search', type: 'search', placeholder: 'Search…', autofocus: true });
+    const list = h('ul', { class: 'picker-list', role: 'listbox' });
+    let active = 0;
+    let shown = [];
+    const draw = () => {
+      const term = q.value.trim().toLowerCase();
+      shown = items.filter((it) => !term || String(search(it) || '').toLowerCase().includes(term)).slice(0, 300);
+      active = Math.min(active, Math.max(0, shown.length - 1));
+      clear(list);
+      if (!shown.length) list.append(h('li', { class: 'picker-empty muted' }, empty));
+      shown.forEach((it, i) => {
+        const li = h('li', {
+          class: ['picker-item', chosen.has(it) && 'is-selected', i === active && 'is-active'],
+          role: 'option',
+          onclick: () => pick(it),
+        }, multi ? h('span', { class: 'picker-check' }, chosen.has(it) ? '✓' : '') : null, render(it));
+        list.append(li);
+      });
+    };
+    const m = openModal({
+      title,
+      wide: true,
+      className: 'modal-picker',
+      body: h('div', { class: 'picker' }, q, extra, list),
+      actions: multi ? [
+        { label: 'Cancel', kind: 'ghost' },
+        { label: 'Done', kind: 'primary', onClick: () => { result = items.filter((x) => chosen.has(x)); } },
+      ] : [],
+      onClose: () => resolve(result),
+    });
+    function pick(it) {
+      if (multi) { chosen.has(it) ? chosen.delete(it) : chosen.add(it); draw(); return; }
+      result = it;
+      m.close();
+    }
+    q.addEventListener('input', () => { active = 0; draw(); });
+    q.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') { active = Math.min(active + 1, shown.length - 1); draw(); e.preventDefault(); }
+      if (e.key === 'ArrowUp') { active = Math.max(active - 1, 0); draw(); e.preventDefault(); }
+      if (e.key === 'Enter' && shown[active]) { pick(shown[active]); e.preventDefault(); }
+      list.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
+    });
+    draw();
+  });
+}
+
+// ---------- form controls ----------
+
+export function field(label, control, hint) {
+  return h('label', { class: 'field' },
+    label ? h('span', { class: 'field-label' }, label) : null,
+    control,
+    hint ? h('span', { class: 'field-hint' }, hint) : null);
+}
+
+export const input = (props = {}) => h('input', { class: 'input', type: 'text', ...props });
+export const textarea = (props = {}) => h('textarea', { class: 'textarea', rows: 4, ...props });
+
+/** options: array of strings or {value, label}. */
+export function select(options, value, onchange, props = {}) {
+  const el = h('select', { class: 'select', ...props, onchange: (e) => onchange?.(e.target.value, e) },
+    options.map((o) => {
+      const opt = typeof o === 'object' ? o : { value: o, label: o };
+      return h('option', { value: opt.value, selected: String(opt.value) === String(value), disabled: opt.disabled }, opt.label ?? opt.value);
+    }));
+  return el;
+}
+
+export function checkbox(checked, onchange, label) {
+  const box = h('input', { type: 'checkbox', checked: !!checked, onchange: (e) => onchange?.(e.target.checked, e) });
+  return label ? h('label', { class: 'checkbox' }, box, h('span', null, label)) : box;
+}
+
+export function numberInput(value, onchange, props = {}) {
+  return h('input', {
+    class: 'input input-number', type: 'number', inputmode: 'numeric', value: value ?? '', ...props,
+    onchange: (e) => onchange?.(e.target.value === '' ? null : Number(e.target.value), e),
+  });
+}
+
+// ---------- markdown editor with [[link]] autocomplete ----------
+
+/**
+ * markdownEditor({value, onInput(value), rows, placeholder, preview:false, autosize:true})
+ * Returns an element with .value getter/setter, .focus(), .textarea, .setPreview(bool).
+ */
+export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'Write in Markdown. [[ links to notes, map:places, char:characters…', preview = false } = {}) {
+  const ta = h('textarea', { class: 'textarea md-input', rows, placeholder, value, spellcheck: true });
+  const pv = h('div', { class: 'md-preview prose', hidden: true });
+  const suggest = h('ul', { class: 'md-suggest', hidden: true, role: 'listbox' });
+  const toggle = h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => setPreview(pv.hidden) }, 'Preview');
+  const wrap = (before, after = before) => () => {
+    const { selectionStart: s, selectionEnd: e } = ta;
+    const sel = ta.value.slice(s, e);
+    ta.setRangeText(before + sel + after, s, e, 'end');
+    if (!sel) ta.selectionStart = ta.selectionEnd = s + before.length;
+    ta.focus();
+    fire();
+  };
+  const tool = (label, title, fn) => h('button', { class: 'btn btn-ghost btn-sm', type: 'button', title, onclick: fn }, label);
+  const toolbar = h('div', { class: 'md-toolbar' },
+    tool(h('b', null, 'B'), 'Bold', wrap('**')),
+    tool(h('i', null, 'I'), 'Italic', wrap('*')),
+    tool(h('mark', null, 'H'), 'Highlight', wrap('==')),
+    tool('[[ ]]', 'Link', wrap('[[', ']]')),
+    tool('☐', 'Task', wrap('- [ ] ', '')),
+    tool('❝', 'Callout', wrap('> [!note] ', '')),
+    h('span', { class: 'md-toolbar-spacer' }),
+    toggle);
+  const el = h('div', { class: 'md-editor' }, toolbar, ta, pv, suggest);
+
+  function fire() { onInput?.(ta.value); autosize(); }
+  function autosize() {
+    ta.style.height = 'auto';
+    ta.style.height = `${Math.max(ta.scrollHeight + 2, rows * 22)}px`;
+  }
+  function setPreview(on) {
+    pv.hidden = !on;
+    ta.hidden = on;
+    toggle.textContent = on ? 'Edit' : 'Preview';
+    toggle.classList.toggle('is-active', on);
+    if (on) renderInto(pv, ta.value);
+  }
+
+  // [[ autocomplete
+  let items = [];
+  let active = 0;
+  function context() {
+    const upto = ta.value.slice(0, ta.selectionStart);
+    const m = /\[\[([^\]\n|]*)$/.exec(upto);
+    return m ? { query: m[1], start: ta.selectionStart - m[1].length } : null;
+  }
+  function updateSuggest() {
+    const c = context();
+    if (!c) { suggest.hidden = true; return; }
+    items = suggestLinks(c.query);
+    active = 0;
+    drawSuggest();
+  }
+  function drawSuggest() {
+    clear(suggest);
+    suggest.hidden = !items.length;
+    items.forEach((it, i) => suggest.append(h('li', {
+      class: ['md-suggest-item', i === active && 'is-active'],
+      onmousedown: (e) => { e.preventDefault(); apply(it); },
+    }, h('span', null, it.label), h('span', { class: 'muted' }, it.kind))));
+  }
+  function apply(it) {
+    const c = context();
+    if (!c) return;
+    const after = ta.value.slice(ta.selectionStart);
+    const closing = after.startsWith(']]') ? '' : ']]';
+    ta.setRangeText(it.insert + (it.partial ? '' : closing), c.start, ta.selectionStart, 'end');
+    if (!it.partial && !closing) ta.selectionStart = ta.selectionEnd = ta.selectionStart + 2;
+    suggest.hidden = true;
+    fire();
+    if (it.partial) updateSuggest();
+  }
+  ta.addEventListener('input', () => { fire(); updateSuggest(); });
+  ta.addEventListener('keydown', (e) => {
+    if (!suggest.hidden && items.length) {
+      if (e.key === 'ArrowDown') { active = (active + 1) % items.length; drawSuggest(); e.preventDefault(); return; }
+      if (e.key === 'ArrowUp') { active = (active - 1 + items.length) % items.length; drawSuggest(); e.preventDefault(); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { apply(items[active]); e.preventDefault(); return; }
+      if (e.key === 'Escape') { suggest.hidden = true; e.stopPropagation(); return; }
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') { e.preventDefault(); wrap('**')(); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') { e.preventDefault(); wrap('*')(); }
+  });
+  ta.addEventListener('blur', () => setTimeout(() => { suggest.hidden = true; }, 150));
+
+  Object.defineProperty(el, 'value', { get: () => ta.value, set: (v) => { ta.value = v; autosize(); if (!pv.hidden) renderInto(pv, v); } });
+  el.textarea = ta;
+  el.focus = () => ta.focus();
+  el.setPreview = setPreview;
+  requestAnimationFrame(autosize);
+  if (preview) setPreview(true);
+  return el;
+}
