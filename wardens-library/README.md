@@ -1,5 +1,4 @@
 # Warden's Library
 
-Put campaign documents in this folder (PDF, Word `.docx`, Markdown, text, images).
-They appear in the **Warden's Library** tab of the site, rendered in the browser.
-Sub-folders become shelves. You can upload files on GitHub (Add file → Upload files) or from the site itself.
+Handouts, lore and house rules for the party. PDFs, Word documents, Markdown, text and images in this folder
+show up in the Warden's Library tab; sub-folders become shelves. Add files here on GitHub, or use **Add documents** on the site.

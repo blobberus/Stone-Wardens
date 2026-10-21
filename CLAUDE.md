@@ -11,6 +11,7 @@ Tabs: **Map**, **Characters**, **Journal**, **Compendium** (SRD + custom library
 - All paths relative (site is served from `/Stone-Wardens/`). Never use absolute `/` URLs.
 - Windows box: Git Bash cannot write inside `Documents` (Controlled Folder Access). Use the Write/Edit tools or
   PowerShell for writes in the repo; scratch work goes to the session scratchpad.
+- Commit from PowerShell with `git commit -F <msgfile>` (PowerShell 5.1 mangles quotes in `-m` here-strings).
 - Local tools: Python 3.11 (`python -I`). No global Node; a portable Node may exist in the session scratchpad
   for `node --check file.js`.
 - Copyright: only SRD 5.2 (CC-BY-4.0) text verbatim. Non-SRD content = **stubs**: names, levels, mechanics
@@ -54,7 +55,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 - `util.js`: `uid(name)`, `slugify`, `debounce`, `escapeHtml`, `fmtMod(n)` (+2/−1), `clone`, `sortBy`, `byName`.
 - `ui.js`: `toast(msg,{type})`, `openModal({title, body, actions:[{label,kind,onClick}], wide}) -> {close, el}`
   (onClick returning false keeps it open), `confirmDialog(msg,{okLabel,danger}) -> Promise<bool>`,
-  `promptDialog(title,{label,value}) -> Promise<string|null>`, `pickFromList({title, items, render, search,
+  `promptDialog(title,{label,value}) -> Promise<string|null>`, `choiceDialog(msg, [{label,value,kind}]) -> value|null`, `pickFromList({title, items, render, search,
   multi}) -> Promise<item|item[]|null>`, `icon(name, size?)`, form helpers `field(label, control, hint?)`,
   `input(props)`, `textarea(props)`, `select(options, value, onchange)`, `checkbox(checked, onchange, label)`,
   `markdownEditor({value, onInput, rows})` (textarea + [[link]] autocomplete + preview toggle).
