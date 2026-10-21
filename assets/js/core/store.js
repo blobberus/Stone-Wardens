@@ -103,7 +103,13 @@ class Store {
     const next = new Map(files.map((f) => [f.path, f]));
     const changed = [];
     for (const p of this.remote.keys()) {
-      if (!next.has(p) && !this.drafts[p] && this.docs.delete(p)) changed.push(p);
+      if (next.has(p) || this.drafts[p]) continue;
+      this.docs.delete(p);
+      changed.push(p);
+    }
+    // Files not mirrored as docs (binaries, wardens-library/…) also count when added or replaced.
+    for (const f of files) {
+      if (!(f.path.startsWith(PRELOAD) && isTextPath(f.path)) && this.remote.get(f.path)?.sha !== f.sha) changed.push(f.path);
     }
     const toLoad = files.filter((f) => {
       if (!f.path.startsWith(PRELOAD) || !isTextPath(f.path) || this.drafts[f.path]) return false;

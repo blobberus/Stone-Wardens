@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stone Wardens — design system preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&family=Alegreya:ital,wght@0,400;0,500;0,700;1,400;1,700&family=Cinzel:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="../assets/css/base.css">
+<link rel="stylesheet" href="../assets/css/shell.css">
+<style>
+  /* preview-only scaffolding */
+  body { overflow: auto; }
+  .pv { max-width: 1180px; margin: 0 auto; padding: 24px clamp(16px, 3vw, 40px) 96px; }
+  .pv-bar { position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 12px; padding: 10px clamp(16px, 3vw, 40px); background: var(--bg); border-bottom: 1px solid var(--border); }
+  .pv-bar h1 { font-size: 1.25rem; margin: 0; }
+  .pv-sec { margin-top: 56px; }
+  .pv-sec > h2 { font-size: var(--text-xl); margin-bottom: 16px; }
+  .pv-note { font: 400 var(--text-sm)/1.45 var(--font-ui); color: var(--ink-muted); margin: -8px 0 16px; }
+  .pv-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 24px; align-items: start; }
+  .pv-sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .pv-sw div { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--surface); font: 400 13px/1.3 var(--font-ui); }
+  .pv-sw i { display: block; height: 44px; }
+  .pv-sw span { display: block; padding: 6px 8px; color: var(--ink-muted); }
+  .pv-static.modal-backdrop { position: relative; inset: auto; z-index: auto; min-height: 460px; border-radius: var(--radius); animation: none; }
+  .pv-static .modal { animation: none; }
+  .pv-static.toasts { position: static; width: min(400px, 100%); }
+  .pv-static .toast { animation: none; }
+  .pv-static.drawer { position: relative; height: 420px; width: 100%; animation: none; box-shadow: var(--shadow); }
+  .pv-static.gate { position: relative; inset: auto; z-index: auto; min-height: 660px; border-radius: var(--radius); }
+  .pv-app { height: 600px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .pv-app .views { height: 100%; }
+  @media (max-width: 759px) { .pv-app { position: relative; } .pv-app .sidebar { position: absolute; } .pv-app .views { height: calc(100% - var(--topbar-h)); } }
+  .pv-icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 4px; }
+  .pv-icons div { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 4px; border-radius: var(--radius-sm); font: 400 12px/1.2 var(--font-ui); color: var(--ink-muted); }
+  .pv-icons div:hover { background: var(--surface-2); }
+  .pv-icons .icon { width: 24px; height: 24px; color: var(--ink); }
+  .pv-pins { display: flex; flex-wrap: wrap; gap: 14px; }
+  .pv-pin { display: flex; flex-direction: column; align-items: center; gap: 4px; font: 400 12px/1.2 var(--font-ui); color: var(--ink-muted); width: 72px; }
+  .pv-pin b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--pin, var(--pin-ink)); box-shadow: 0 1px 3px rgb(0 0 0 / .35); }
+  .pv-pin b svg { width: 16px; height: 16px; transform: rotate(45deg); color: var(--pin-glyph); }
+  .pv-map { width: 100%; height: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+</style>
+</head>
+<body>
+<div class="pv-bar">
+  <h1>Stone Wardens · design system</h1>
+  <span class="spacer"></span>
+  <button class="btn btn-sm" type="button" id="pv-theme"><svg class="icon"><use href="../assets/img/icons.svg#i-moon"/></svg><span>Night basalt</span></button>
+</div>
+
+<main class="pv">
+  <p class="pv-note" style="margin:0">Serve the repo over http (e.g. <code>python -m http.server</code> in the repo root, then open <code>/docs/preview.html</code>): the icon sprite does not load from <code>file://</code>.</p>
+
+  <!-- ============ Shell ============ -->
+  <section class="pv-sec">
+    <h2>App shell</h2>
+    <p class="pv-note">Labelled sidebar on the vellum ground; the toggle folds it into a 60px icon rail. Below 760px it becomes a top bar that opens as a full-screen sheet.</p>
+    <div class="app pv-app" id="pv-app">
+      <nav class="sidebar" id="pv-sidebar">
+        <div class="sb-brand"><button class="btn-icon sb-toggle" aria-label="Toggle menu" type="button"><svg class="icon"><use href="../assets/img/icons.svg#i-menu"/></svg></button><span class="sb-title">Stone Wardens</span></div>
+        <ul class="sb-tabs">
+          <li><a class="sb-tab" href="#" title="Map"><svg class="icon"><use href="../assets/img/icons.svg#i-map"/></svg><span class="sb-label">Map</span></a></li>
+          <li><a class="sb-tab is-active" href="#" title="Characters" aria-current="page"><svg class="icon"><use href="../assets/img/icons.svg#i-characters"/></svg><span class="sb-label">Characters</span></a></li>
+          <li><a class="sb-tab" href="#" title="Journal"><svg class="icon"><use href="../assets/img/icons.svg#i-journal"/></svg><span class="sb-label">Journal</span></a></li>
+          <li><a class="sb-tab" href="#" title="Compendium"><svg class="icon"><use href="../assets/img/icons.svg#i-compendium"/></svg><span class="sb-label">Compendium</span></a></li>
+          <li><a class="sb-tab" href="#" title="Warden's Library"><svg class="icon"><use href="../assets/img/icons.svg#i-library"/></svg><span class="sb-label">Warden’s Library</span></a></li>
+        </ul>
+        <div class="sb-spacer"></div>
+        <ul class="sb-tabs sb-tabs-bottom"><li><a class="sb-tab" href="#" title="Settings"><svg class="icon"><use href="../assets/img/icons.svg#i-settings"/></svg><span class="sb-label">Settings</span></a></li></ul>
+        <div class="sb-footer">
+          <div class="sb-status" data-state="dirty"><span class="sb-dot"></span><span class="sb-status-text">3 unsaved changes</span></div>
+          <button class="btn btn-primary btn-sm sb-save" type="button">Save</button>
+        </div>
+      </nav>
+      <main class="views">
+        <section class="view" data-view="characters">
+          <header class="view-head">
+            <h1 class="view-title">Characters</h1>
+            <div class="view-actions"><button class="btn" type="button"><svg class="icon"><use href="../assets/img/icons.svg#i-upload"/></svg>Import</button><button class="btn btn-primary" type="button"><svg class="icon"><use href="../assets/img/icons.svg#i-plus"/></svg>New character</button></div>
+            <p class="view-sub">Five wardens · average level 4 · last edited by Mira, 2 hours ago</p>
+          </header>
+          <div class="grid" style="--grid-min: 220px">
+            <a class="card" href="#"><div class="row row-between"><h3 class="card-title">Brannoc Vell</h3><span class="badge num">Lv 5</span></div><p class="card-sub">Dwarf · Cleric (Life) · Acolyte</p><div class="row" style="margin-top:12px"><span class="badge"><svg class="icon"><use href="../assets/img/icons.svg#i-heart"/></svg><span class="num">38 / 44</span></span><span class="badge"><svg class="icon"><use href="../assets/img/icons.svg#i-shield"/></svg><span class="num">AC 18</span></span></div></a>
+            <a class="card" href="#"><div class="row row-between"><h3 class="card-title">Ysolde Marrow</h3><span class="badge num">Lv 4</span></div><p class="card-sub">Human · Wizard (Evoker) · Sage</p><div class="row" style="margin-top:12px"><span class="badge"><svg class="icon"><use href="../assets/img/icons.svg#i-heart"/></svg><span class="num">22 / 26</span></span><span class="badge"><svg class="icon"><use href="../assets/img/icons.svg#i-shield"/></svg><span class="num">AC 12</span></span></div></a>
+            <a class="card" href="#"><div class="row row-between"><h3 class="card-title">Tamsin Reed</h3><span class="badge num">Lv 4</span></div><p class="card-sub">Halfling · Rogue (Thief) · Criminal</p><div class="row" style="margin-top:12px"><span class="badge badge-danger"><svg class="icon"><use href="../assets/img/icons.svg#i-heart"/></svg><span class="num">6 / 27</span></span><span class="badge"><svg class="icon"><use href="../assets/img/icons.svg#i-shield"/></svg><span class="num">AC 15</span></span></div></a>
+          </div>
+        </section>
+      </main>
+    </div>
+  </section>
+
+  <!-- ============ Palette & type ============ -->
+  <section class="pv-sec">
+    <h2>Pigments and type</h2>
+    <div class="pv-sw">
+      <div><i style="background:var(--bg)"></i><span>--bg vellum</span></div>
+      <div><i style="background:var(--surface)"></i><span>--surface</span></div>
+      <div><i style="background:var(--surface-2)"></i><span>--surface-2</span></div>
+      <div><i style="background:var(--ink)"></i><span>--ink iron-gall</span></div>
+      <div><i style="background:var(--ink-muted)"></i><span>--ink-muted</span></div>
+      <div><i style="background:var(--accent)"></i><span>--accent rubric</span></div>
+      <div><i style="background:var(--link)"></i><span>--link lapis</span></div>
+      <div><i style="background:var(--gold)"></i><span>--gold leaf</span></div>
+      <div><i style="background:var(--ok)"></i><span>--ok</span></div>
+      <div><i style="background:var(--warn)"></i><span>--warn</span></div>
+      <div><i style="background:var(--danger)"></i><span>--danger</span></div>
+      <div><i style="background:var(--border-strong)"></i><span>--border-strong</span></div>
+    </div>
+    <div class="pv-cols" style="margin-top:24px">
+      <div class="stack">
+        <p style="font:600 var(--text-2xl)/1.1 var(--font-display);letter-spacing:.02em;color:var(--accent)">The Starfall at Greywater</p>
+        <p style="font:600 var(--text-xl)/1.15 var(--font-display);letter-spacing:.02em">Characters</p>
+        <p style="font:700 var(--text-lg)/1.25 var(--font-body)">Card title in Alegreya bold</p>
+        <p>Body text in Alegreya at 17px: the wardens came down from the scarp at dusk, when the fallen star still smouldered in the barley and the stones of the old ring had begun to hum.</p>
+        <p class="ui" style="font-size:var(--text-sm)">Interface text in Alegreya Sans at 16px: labels, buttons, controls.</p>
+        <p class="ui muted" style="font-size:var(--text-xs)">Meta at 14px · edited 2 hours ago</p>
+      </div>
+      <div class="stack">
+        <p class="muted ui" style="font-size:var(--text-sm)">Sizes: 14 · 16 · 17 · 20 · 24 · 30. Cinzel only at 20px and up.</p>
+        <p class="num ui">Tabular figures: 1,204 gp · 38 / 44 HP · +5 · −1</p>
+        <p>Text with <a href="#">a link</a>, <mark>a highlight</mark>, <strong>strong</strong>, <em>emphasis</em> and <kbd>Ctrl</kbd> + <kbd>S</kbd>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Controls ============ -->
+  <section class="pv-sec">
+    <h2>Buttons and fields</h2>
+    <div class="stack stack-lg">
+      <div class="row">
+        <button class="btn btn-primary" type="button"><svg class="icon"><use href="../assets/img/icons.svg#i-save"/></svg>Save changes</button>
+        <button class="btn" type="button">Cancel</button>
+        <button class="btn btn-ghost" type="button"><svg class="icon"><use href="../assets/img/icons.svg#i-d20"/></svg>Roll initiative</button>
+        <button class="btn btn-danger" type="button"><svg class="icon"><use href="../assets/img/icons.svg#i-trash"/></svg>Delete character</button>
+        <button class="btn" type="button" disabled>Disabled</button>
+        <button class="btn btn-primary is-loading" type="button" aria-busy="true">Saving</button>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary btn-sm" type="button">Small primary</button>
+        <button class="btn btn-sm" type="button"><svg class="icon"><use href="../assets/img/icons.svg#i-plus"/></svg>Add item</button>
+        <button class="btn-icon" type="button" aria-label="Edit"><svg class="icon"><use href="../assets/img/icons.svg#i-edit"/></svg></button>
+        <button class="btn btn-icon" type="button" aria-label="More"><svg class="icon"><use href="../assets/img/icons.svg#i-more"/></svg></button>
+        <button class="btn-icon btn-sm" type="button" aria-label="Close"><svg class="icon"><use href="../assets/img/icons.svg#i-close"/></svg></button>
+      </div>
+      <div class="pv-cols">
+        <div class="stack">
+          <label class="field"><span>Character name</span><input class="input" value="Ysolde Marrow"></label>
+          <label class="field"><span class="field-label">Species</span><select class="select"><option>Human</option><option>Dwarf</option><option>Elf</option><option>Halfling</option></select><span class="field-hint">From the SRD and your custom library.</span></label>
+          <label class="field"><span>Armor Class</span><input class="input" type="number" value="12" aria-invalid="true"><span class="field-error">Armor Class must be between 1 and 30.</span></label>
+        </div>
+        <div class="stack">
+          <label class="field"><span>Backstory</span><textarea class="textarea" placeholder="Where did this warden come from?">Raised in the scriptorium at Hollin Ford, Ysolde copied star charts until the night the charts stopped matching the sky.</textarea></label>
+          <label class="checkbox"><input type="checkbox" checked> <span>Inspiration</span></label>
+          <label class="checkbox"><input type="checkbox"> <span>Show to other players</span></label>
+          <label class="search"><svg class="icon"><use href="../assets/img/icons.svg#i-search"/></svg><input class="input" type="search" placeholder="Search spells, items, notes"></label>
+        </div>
+      </div>
+      <div class="row">
+        <span class="badge">Concentration</span><span class="badge badge-accent">Ritual</span><span class="badge badge-ok">Prepared</span><span class="badge badge-warn">Attuned 3 / 3</span><span class="badge badge-danger">Unconscious</span><span class="badge badge-info">SRD 5.2</span>
+        <span class="chip">Evocation</span><button class="chip is-active" type="button" aria-pressed="true">Level 3</button><button class="chip" type="button">Wizard<span class="chip-x" aria-label="Remove"><svg class="icon"><use href="../assets/img/icons.svg#i-close"/></svg></span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Tabs, toolbar, table ============ -->
+  <section class="pv-sec">
+    <h2>Reference table</h2>
+    <div class="tabs" role="tablist"><button class="tab is-active" role="tab" aria-selected="true">Spells <span class="badge num">319</span></button><button class="tab" role="tab">Weapons</button><button class="tab" role="tab">Armor</button><button class="tab" role="tab">Magic items</button><button class="tab" role="tab">Feats</button><button class="tab" role="tab">Custom</button></div>
+    <div class="toolbar">
+      <label class="search"><svg class="icon"><use href="../assets/img/icons.svg#i-search"/></svg><input class="input" type="search" placeholder="Filter spells"></label>
+      <select class="select" aria-label="Class"><option>All classes</option><option>Wizard</option><option>Cleric</option></select>
+      <button class="btn" type="button"><svg class="icon"><use href="../assets/img/icons.svg#i-filter"/></svg>Filters</button>
+      <span class="spacer"></span>
+      <span class="muted ui num" style="font-size:var(--text-sm)">6 of 319</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Name</th><th class="num">Level</th><th>School</th><th>Casting time</th><th>Range</th><th>Components</th></tr></thead>
+        <tbody>
+          <tr class="is-clickable"><td class="cell-name"><a href="#">Fire Bolt</a></td><td class="num">Cantrip</td><td>Evocation</td><td>Action</td><td>120 feet</td><td>V, S</td></tr>
+          <tr class="is-clickable"><td class="cell-name"><a href="#">Shield</a></td><td class="num">1</td><td>Abjuration</td><td>Reaction</td><td>Self</td><td>V, S</td></tr>
+          <tr class="is-clickable is-selected"><td class="cell-name"><a href="#">Cure Wounds</a></td><td class="num">1</td><td>Abjuration</td><td>Action</td><td>Touch</td><td>V, S</td></tr>
+          <tr class="is-clickable"><td class="cell-name"><a href="#">Misty Step</a></td><td class="num">2</td><td>Conjuration</td><td>Bonus action</td><td>Self</td><td>V</td></tr>
+          <tr class="is-clickable"><td class="cell-name"><a href="#">Fireball</a></td><td class="num">3</td><td>Evocation</td><td>Action</td><td>150 feet</td><td>V, S, M</td></tr>
+          <tr class="is-clickable"><td class="cell-name"><a href="#">Counterspell</a></td><td class="num">3</td><td>Abjuration</td><td>Reaction</td><td>60 feet</td><td>S</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ Prose ============ -->
+  <section class="pv-sec">
+    <h2>Prose (rendered markdown)</h2>
+    <div class="pv-cols" style="grid-template-columns: minmax(0, 2fr) minmax(0, 1fr)">
+      <article class="prose has-initial">
+        <h1>Session 4 · The Starfall</h1>
+        <p>We reached <a class="wikilink" href="#">Greywater Ford</a> two days after the sky broke. <a class="wikilink" href="#">Brannoc</a> swore the light came down beyond the old ring, and the miller’s boy said the same, though he called it a lantern carried by nobody. Nobody has asked the <a class="wikilink is-unresolved" href="#">Abbess of the Scarp</a> yet. #session <a class="tag" href="#">#starfall</a> <a class="tag" href="#">#greywater</a></p>
+        <h2>What we found</h2>
+        <ul><li>A crater the width of a barn, the soil turned to <mark>black glass</mark> at the rim.</li><li>Three standing stones knocked flat; the fourth still upright and warm to the touch.</li><li>Tracks leading north toward the <a class="wikilink" href="#">map: Ashen Scarp</a>.</li></ul>
+        <blockquote><p>“The stones were never a wall. They were a lock.” — the miller, half asleep</p></blockquote>
+        <div class="callout" data-callout="note"><div class="callout-title"><span>Rules note</span></div><div class="callout-content"><p>Touching the warm stone calls for a DC 13 Constitution saving throw; on a failure the creature has the Poisoned condition until the end of its next turn.</p></div></div>
+        <div class="callout is-collapsible" data-callout="warning"><div class="callout-title"><span>The star is not dead</span></div><div class="callout-content"><p>Ysolde’s detect magic reading pulsed twice while we watched. Something inside is still awake.</p></div></div>
+        <div class="callout is-collapsible is-collapsed" data-callout="question"><div class="callout-title"><span>Who moved the fourth stone? (click)</span></div><div class="callout-content"><p>It sits a hand’s width off its socket.</p></div></div>
+        <h3>Loot</h3>
+        <table><thead><tr><th>Item</th><th>Holder</th><th>Value</th></tr></thead><tbody><tr><td><a class="wikilink" href="#">item: Potion of Healing</a></td><td>Tamsin</td><td>50 gp</td></tr><tr><td>Star-glass shard</td><td>Ysolde</td><td>—</td></tr><tr><td>Silver ring, unmarked</td><td>Brannoc</td><td>25 gp</td></tr></tbody></table>
+        <h3>To do</h3>
+        <ul><li class="task-list-item"><input type="checkbox" checked disabled> Buy rope and lamp oil in Greywater</li><li class="task-list-item"><input type="checkbox" disabled> Ask the Abbess about the ring</li><li class="task-list-item"><input type="checkbox" disabled> Copy the crater sketch into the <a class="external" href="https://example.org">shared map</a></li></ul>
+        <hr>
+        <div class="embed"><div class="embed-title"><svg class="icon"><use href="../assets/img/icons.svg#i-file"/></svg><a href="#">The Old Ring (lore)</a></div><div class="prose"><p>Seven stones on the scarp road, raised before the abbey. Locals leave salt on the lintel at midwinter.</p></div></div>
+        <p>Inline <code>[[char:Ysolde#spells]]</code> links to a sheet section.</p>
+        <pre><code>> [!tip] Short rest
+> Spend Hit Dice to heal.</code></pre>
+      </article>
+      <div class="stack">
+        <div class="callout" data-callout="tip"><div class="callout-title"><span>Tip</span></div><div class="callout-content"><p>Prepared spells reset after a long rest.</p></div></div>
+        <div class="callout" data-callout="success"><div class="callout-title"><span>Success</span></div><div class="callout-content"><p>The party reached level 4.</p></div></div>
+        <div class="callout" data-callout="info"><div class="callout-title"><span>Info</span></div></div>
+        <div class="callout" data-callout="abstract"><div class="callout-title"><span>Abstract</span></div></div>
+        <div class="callout" data-callout="todo"><div class="callout-title"><span>Todo</span></div></div>
+        <div class="callout" data-callout="failure"><div class="callout-title"><span>Failure</span></div></div>
+        <div class="callout" data-callout="danger"><div class="callout-title"><span>Danger</span></div></div>
+        <div class="callout" data-callout="bug"><div class="callout-title"><span>Bug</span></div></div>
+        <div class="callout" data-callout="example"><div class="callout-title"><span>Example</span></div></div>
+        <div class="callout" data-callout="quote"><div class="callout-title"><span>Quote</span></div><div class="callout-content"><p>Every stone remembers the sky.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Editor ============ -->
+  <section class="pv-sec">
+    <h2>Markdown editor</h2>
+    <div class="pv-cols">
+      <div class="md-editor">
+        <div class="md-toolbar">
+          <button class="btn-icon" type="button" aria-label="Link"><svg class="icon"><use href="../assets/img/icons.svg#i-link"/></svg></button>
+          <button class="btn-icon" type="button" aria-label="Image"><svg class="icon"><use href="../assets/img/icons.svg#i-image"/></svg></button>
+          <button class="btn-icon" type="button" aria-label="Callout"><svg class="icon"><use href="../assets/img/icons.svg#i-info"/></svg></button>
+          <span class="spacer"></span>
+          <button class="btn-icon" type="button" aria-label="Preview" aria-pressed="false"><svg class="icon"><use href="../assets/img/icons.svg#i-eye"/></svg></button>
+        </div>
+        <textarea class="md-input" rows="7">We reached [[Greywater Ford]] two days after the sky broke. [[Bra</textarea>
+        <ul class="md-suggest" style="left:16px; top:118px">
+          <li class="md-suggest-item is-active">Brannoc Vell<span class="md-suggest-kind">char</span></li>
+          <li class="md-suggest-item">Bramble Hollow<span class="md-suggest-kind">map</span></li>
+          <li class="md-suggest-item">Brass Lantern<span class="md-suggest-kind">item</span></li>
+        </ul>
+      </div>
+      <div class="md-editor"><div class="md-toolbar"><span class="ui muted" style="padding:0 6px;font-size:14px">Preview</span></div><div class="md-preview prose"><p>We reached <a class="wikilink" href="#">Greywater Ford</a> two days after the sky broke.</p></div></div>
+    </div>
+  </section>
+
+  <!-- ============ Overlays ============ -->
+  <section class="pv-sec">
+    <h2>Overlays</h2>
+    <div class="pv-cols">
+      <div class="modal-backdrop pv-static">
+        <div class="modal" role="dialog" aria-labelledby="pv-m1">
+          <header class="modal-head"><h2 id="pv-m1">Add to inventory</h2><button class="btn-icon modal-close" type="button" aria-label="Close"><svg class="icon"><use href="../assets/img/icons.svg#i-close"/></svg></button></header>
+          <div class="modal-body">
+            <div class="picker">
+              <label class="search picker-search"><svg class="icon"><use href="../assets/img/icons.svg#i-search"/></svg><input class="input" type="search" value="rope"></label>
+              <ul class="picker-list">
+                <li class="picker-item is-selected"><div class="picker-item-main"><span class="picker-item-title">Rope (50 feet)</span><span class="muted">Adventuring gear · 1 gp · 5 lb.</span></div></li>
+                <li class="picker-item is-active"><div class="picker-item-main"><span class="picker-item-title">Grappling Hook</span><span class="muted">Adventuring gear · 2 gp · 4 lb.</span></div></li>
+                <li class="picker-item"><div class="picker-item-main"><span class="picker-item-title">Rope of Climbing</span><span class="muted">Magic item · Uncommon</span></div></li>
+              </ul>
+            </div>
+          </div>
+          <footer class="modal-foot"><button class="btn" type="button">Cancel</button><button class="btn btn-primary" type="button">Add 1 item</button></footer>
+        </div>
+      </div>
+      <div class="stack stack-lg">
+        <div class="toasts pv-static">
+          <div class="toast toast-success"><svg class="icon"><use href="../assets/img/icons.svg#i-check"/></svg><span class="toast-msg">Saved 3 changes to the repository.</span><button class="btn-icon" type="button" aria-label="Dismiss"><svg class="icon"><use href="../assets/img/icons.svg#i-close"/></svg></button></div>
+          <div class="toast toast-info"><svg class="icon"><use href="../assets/img/icons.svg#i-info"/></svg><span class="toast-msg">Pulled 2 new notes from Mira.</span></div>
+          <div class="toast toast-error"><svg class="icon"><use href="../assets/img/icons.svg#i-warning"/></svg><span class="toast-msg">Couldn’t save: the token was rejected. Your drafts are kept on this device.</span></div>
+        </div>
+        <div class="modal-backdrop pv-static" style="min-height:280px">
+          <div class="modal" role="alertdialog">
+            <header class="modal-head"><h2>Delete Tamsin Reed?</h2></header>
+            <div class="modal-body"><p>The sheet and its inventory are removed on the next save. Journal links to her will show as unresolved.</p></div>
+            <footer class="modal-foot"><button class="btn" type="button">Keep</button><button class="btn btn-danger" type="button">Delete character</button></footer>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pv-cols" style="margin-top:24px">
+      <aside class="drawer pv-static">
+        <header class="drawer-head"><h2>Greywater Ford</h2><button class="btn-icon" type="button" aria-label="Close"><svg class="icon"><use href="../assets/img/icons.svg#i-close"/></svg></button></header>
+        <div class="drawer-body stack"><div class="row"><span class="badge">Village</span><span class="badge badge-accent">Visited</span></div><div class="prose"><p>A mill town on the slow river. The crater lies an hour north, past <a class="wikilink" href="#">the Old Ring</a>.</p></div></div>
+        <footer class="drawer-foot"><button class="btn" type="button">Edit pin</button><button class="btn btn-primary" type="button">Open note</button></footer>
+      </aside>
+      <div class="empty-state">
+        <svg class="icon"><use href="../assets/img/icons.svg#i-scroll"/></svg>
+        <h3>No notes in this chapter yet</h3>
+        <p>Write what happened at the table; [[links]] to characters and places are made as you type.</p>
+        <div class="row"><button class="btn btn-primary" type="button"><svg class="icon"><use href="../assets/img/icons.svg#i-plus"/></svg>New note</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Gate ============ -->
+  <section class="pv-sec">
+    <h2>Gate</h2>
+    <div class="gate pv-static">
+      <form class="gate-card" onsubmit="return false">
+        <div class="gate-mark"><svg viewBox="0 0 48 48" aria-hidden="true"><use href="../assets/img/icons.svg#i-emblem"/></svg></div>
+        <h1 class="gate-title">The Stone Wardens</h1><p class="gate-sub">A Fallen Firmament Campaign</p>
+        <label class="field"><span>Password</span><input class="input" type="password" autocomplete="current-password"></label>
+        <label class="checkbox"><input type="checkbox"> <span>Remember this device</span></label>
+        <button class="btn btn-primary gate-enter" type="submit">Enter</button>
+        <p class="gate-error">That password did not open the vault.</p><p class="gate-note muted">Sandbox mode: changes stay in this browser.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============ Icons ============ -->
+  <section class="pv-sec">
+    <h2>Icons</h2>
+    <div class="pv-icons" id="pv-icons"></div>
+    <h2 style="margin-top:32px">Map markers</h2>
+    <p class="pv-note">mk-* glyphs at 16px inside 28px pins, one per pin pigment.</p>
+    <div class="pv-pins" id="pv-pins"></div>
+  </section>
+
+  <section class="pv-sec">
+    <h2>Placeholder map</h2>
+    <img class="pv-map" src="../assets/img/placeholder-map.svg" alt="Blank parchment map with a compass rose and a cartouche reading Terra Incognita" width="4000" height="3000">
+  </section>
+</main>
+
+<script>
+  const root = document.documentElement;
+  const btn = document.getElementById('pv-theme');
+  btn.addEventListener('click', () => {
+    const dark = root.dataset.theme !== 'dark';
+    if (dark) root.dataset.theme = 'dark'; else delete root.dataset.theme;
+    btn.querySelector('span').textContent = dark ? 'Day vellum' : 'Night basalt';
+    btn.querySelector('use').setAttribute('href', '../assets/img/icons.svg#i-' + (dark ? 'sun' : 'moon'));
+  });
+  if (location.hash === '#dark') btn.click();
+  document.querySelector('#pv-sidebar .sb-toggle').addEventListener('click', () => {
+    document.getElementById('pv-sidebar').classList.toggle(matchMedia('(max-width: 759px)').matches ? 'is-open' : 'is-collapsed');
+  });
+  document.querySelectorAll('.callout.is-collapsible > .callout-title').forEach((t) =>
+    t.addEventListener('click', () => t.parentElement.classList.toggle('is-collapsed')));
+  const icons = 'menu map characters journal compendium library settings save plus minus edit trash search close chevron-left chevron-right chevron-down chevron-up link lock unlock upload download eye filter external check undo refresh copy logout sort grip more pin warning info clock moon sun d20 sword shield heart star scroll book-open folder file file-pdf file-doc image level-up user users coins backpack sparkle tag layers compass'.split(' ');
+  document.getElementById('pv-icons').innerHTML = icons.map((n) => `<div><svg class="icon"><use href="../assets/img/icons.svg#i-${n}"/></svg>${n}</div>`).join('')
+    + `<div><svg class="icon" viewBox="0 0 48 48" style="color:var(--accent);--emblem-star:var(--gold)"><use href="../assets/img/icons.svg#i-emblem"/></svg>emblem</div>`;
+  const marks = 'city town village temple danger dungeon ruins castle port camp cave forest mountain landmark tavern shop portal battle quest custom'.split(' ');
+  const pins = ['ink', 'rubric', 'vermilion', 'lapis', 'verdigris', 'green', 'ochre', 'gold', 'murrey', 'slate', 'umber'];
+  document.getElementById('pv-pins').innerHTML = marks.map((m, i) => `<div class="pv-pin"><b style="--pin: var(--pin-${pins[i % pins.length]})"><svg><use href="../assets/img/icons.svg#mk-${m}"/></svg></b>${m}</div>`).join('');
+</script>
+</body>
+</html>

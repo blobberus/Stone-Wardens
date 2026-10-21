@@ -46,7 +46,10 @@ export async function entries(kind) {
     if (!file) return [];
     try {
       const data = await srd(file);
-      return (Array.isArray(data) ? data : Object.values(data)).map((e) => ({ ...e, kind, origin }));
+      // A record's own `kind` (weapons: 'melee'|'ranged') would be shadowed by the compendium kind: keep it as weaponKind.
+      return (Array.isArray(data) ? data : Object.values(data)).map((e) => ({
+        ...e, ...(e.kind && e.kind !== kind ? { weaponKind: e.kind } : null), kind, origin,
+      }));
     } catch (e) {
       console.warn(`[compendium] ${file} unavailable`, e);
       return [];

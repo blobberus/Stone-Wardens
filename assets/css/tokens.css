@@ -1,0 +1,197 @@
+/* =============================================================================
+   The Stone Wardens — design tokens
+   Concept: a warden's codex. Vellum pages in iron-gall ink, inscriptional capitals
+   cut like the wardens' stones, rubrics in oxblood red where an entry begins,
+   lapis for cross-references, and gold leaf only where a star has fallen.
+   Light ("day vellum") is the default; [data-theme="dark"] on <html> is "night basalt".
+   Use these tokens only — never raw hex values in view CSS.
+   All text pairs below are checked to WCAG AA (4.5:1) on --bg, --surface and --surface-2.
+   ============================================================================= */
+
+:root {
+  color-scheme: light;
+
+  /* --- Ground and surfaces ------------------------------------------------ */
+  --bg: #e9e2d3;            /* vellum ground: page, sidebar, view background */
+  --bg-sunk: #ddd4c1;       /* wells, progress tracks, the gate backdrop */
+  --surface: #f6f2e9;       /* the page lifted: cards, panels, inputs, modals */
+  --surface-2: #eee8dc;     /* hover, zebra rows, toolbars, code */
+  --surface-3: #e5ddcd;     /* pressed, active pill on a surface */
+
+  /* --- Ink ---------------------------------------------------------------- */
+  --ink: #1f1a14;           /* iron-gall ink: all running text (13:1 on --bg) */
+  --ink-muted: #554c40;     /* secondary text, labels, meta (6.5:1 on --bg) */
+  --ink-faint: #6b6154;     /* placeholders, tertiary meta (4.5:1 on --bg) */
+
+  /* --- Lines -------------------------------------------------------------- */
+  --border: #d5cab5;        /* card / panel edges, dividers */
+  --border-strong: #8f826b; /* control edges: inputs, selects, checkboxes (3:1) */
+  --rule: #e2d9c7;          /* row rules inside a surface */
+  --border-float: transparent; /* extra edge on floating things (dark needs one) */
+
+  /* --- Pigments ----------------------------------------------------------- */
+  --accent: #8e1b1b;        /* rubric (oxblood): primary action, prose headings, "you are here" */
+  --accent-hover: #741414;
+  --accent-ink: #fbf7ef;    /* text on --accent */
+  --accent-soft: #f2e0d9;   /* rubric wash: selected row / item background */
+  --link: #22507c;          /* lapis: links, wikilinks, tags */
+  --link-hover: #173a5c;
+  --focus: #2b5f93;         /* focus ring (3:1+ on every ground) */
+  --gold: #9c7419;          /* gold leaf: ornament, emblem star, map marks — never body text */
+  --gold-soft: #f0e2b6;     /* ==highlight== and text selection wash */
+
+  /* --- Status ------------------------------------------------------------- */
+  --danger: #b0261d;   --danger-soft: #f6dcd6;
+  --ok: #2d6a43;       --ok-soft: #dcebdc;
+  --warn: #855a05;     --warn-soft: #f3e6c4;
+  --info: #22507c;     --info-soft: #dde7f0;
+
+  /* --- Callout pigments (muted, manuscript-friendly) ---------------------- */
+  --c-note: #2c5a8a;      /* lapis */
+  --c-abstract: #2a6b68;  /* verdigris */
+  --c-info: #2b6a8e;      /* azurite */
+  --c-todo: #4a5a78;      /* slate */
+  --c-tip: #2f6e55;       /* malachite */
+  --c-success: #3d6b2c;   /* terre verte */
+  --c-question: #82600f;  /* ochre */
+  --c-warning: #925510;   /* orpiment */
+  --c-failure: #a3321f;   /* vermilion */
+  --c-danger: #9a1d2c;    /* crimson lake */
+  --c-bug: #8a2f4a;       /* madder */
+  --c-example: #72405f;   /* murrey */
+  --c-quote: #6a5e4e;     /* umber */
+
+  /* --- Map pin pigments (same in both themes: the map image does not change).
+         Glyph colour on every pin is --pin-glyph (>= 4.5:1 on each). Default pin = --pin-ink;
+         a selected pin gets a --gold ring. Offer these as the location-type swatches. */
+  --pin-glyph: #fffaf0;
+  --pin-ink: #1f1a14;
+  --pin-rubric: #8e1b1b;
+  --pin-vermilion: #a8321c;
+  --pin-lapis: #22507c;
+  --pin-verdigris: #23675f;
+  --pin-green: #3b6b2a;
+  --pin-ochre: #82600f;
+  --pin-gold: #8f6a14;
+  --pin-murrey: #6e3a5c;
+  --pin-slate: #465266;
+  --pin-umber: #5c4a36;
+
+  /* --- Overlays and elevation (only for things that float) ---------------- */
+  --overlay: rgb(31 24 14 / 0.45);
+  --shadow: 0 1px 2px rgb(40 30 15 / 0.08), 0 6px 18px rgb(40 30 15 / 0.14);
+  --shadow-lg: 0 4px 12px rgb(30 22 10 / 0.12), 0 24px 60px rgb(30 22 10 / 0.26);
+
+  /* --- Type --------------------------------------------------------------- */
+  --font-display: "Cinzel", "Trajan Pro", "Times New Roman", serif;           /* titles only, >= 20px */
+  --font-body: "Alegreya", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; /* reading */
+  --font-ui: "Alegreya Sans", "Segoe UI", system-ui, -apple-system, sans-serif;  /* dense controls */
+  --font-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  --text-xs: 0.875rem;    /* 14px  badges, meta, hints, kbd — never running text */
+  --text-sm: 1rem;        /* 16px  UI: controls, nav, table cells, labels (Alegreya Sans sets small) */
+  --text-md: 1.0625rem;   /* 17px  body and prose */
+  --text-lg: 1.25rem;     /* 20px  card titles, prose h3, modal titles */
+  --text-xl: 1.5rem;      /* 24px  view titles (h1), prose h2 */
+  --text-2xl: 1.875rem;   /* 30px  note / entry titles (prose h1), gate title floor */
+
+  --leading-tight: 1.2;
+  --leading-ui: 1.4;
+  --leading-body: 1.6;
+
+  /* --- Space (4px base) --------------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* --- Shape -------------------------------------------------------------- */
+  --radius: 6px;          /* cards, panels, inputs */
+  --radius-sm: 4px;       /* buttons, badges, small controls */
+  --radius-lg: 8px;       /* modals, drawers */
+  --radius-pill: 999px;   /* tags and chips only */
+
+  /* --- Sizes -------------------------------------------------------------- */
+  --control-h: 36px;
+  --control-h-sm: 30px;
+  --sidebar-w: 232px;
+  --sidebar-w-collapsed: 60px;
+  --topbar-h: 52px;       /* phone top bar (sidebar folded) */
+  --view-pad: clamp(16px, 2.6vw, 40px);
+  --measure: 72ch;        /* reading width for prose */
+
+  /* --- Layers ------------------------------------------------------------- */
+  --z-sidebar: 50;
+  --z-drawer: 900;
+  --z-modal: 1000;
+  --z-toast: 1100;
+  --z-popover: 1200;
+
+  /* --- Motion (feedback only; no entrances) ------------------------------- */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 140ms;
+
+  /* --- Inline glyphs used by base.css (data URIs follow the theme) -------- */
+  --glyph-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23554c40' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E");
+  --glyph-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6f2e9' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Night basalt: warm neutral darks, never navy or slate */
+  --bg: #15130f;
+  --bg-sunk: #0f0d0a;
+  --surface: #1e1b16;
+  --surface-2: #27231d;
+  --surface-3: #312c24;
+
+  --ink: #ebe3d3;           /* vellum by candlelight (14:1 on --bg) */
+  --ink-muted: #b2a792;
+  --ink-faint: #958a77;
+
+  --border: #353027;
+  --border-strong: #7b705d;
+  --rule: #2b271f;
+  --border-float: #3d372d;
+
+  --accent: #e06a62;        /* rubric under lamplight */
+  --accent-hover: #ea8780;
+  --accent-ink: #1d0f0c;
+  --accent-soft: #3b211d;
+  --link: #8fb6de;
+  --link-hover: #b3cdea;
+  --focus: #8fb6de;
+  --gold: #d2a54a;
+  --gold-soft: #4b3c17;
+
+  --danger: #f0857f;   --danger-soft: #3d1f1b;
+  --ok: #86c49a;       --ok-soft: #1d3326;
+  --warn: #e2b25a;     --warn-soft: #3b2f15;
+  --info: #8fb6de;     --info-soft: #1c2a38;
+
+  --c-note: #8db3dc;
+  --c-abstract: #7cc0b9;
+  --c-info: #86bfdc;
+  --c-todo: #a8b6d0;
+  --c-tip: #7ec4a3;
+  --c-success: #a3c98a;
+  --c-question: #e0bd63;
+  --c-warning: #e8ad5a;
+  --c-failure: #f0857f;
+  --c-danger: #ef7d8e;
+  --c-bug: #e48aa8;
+  --c-example: #d4a0c8;
+  --c-quote: #bcae98;
+
+  --overlay: rgb(0 0 0 / 0.6);
+  --shadow: 0 2px 6px rgb(0 0 0 / 0.35), 0 8px 24px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 6px 16px rgb(0 0 0 / 0.4), 0 28px 72px rgb(0 0 0 / 0.6);
+
+  --glyph-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b2a792' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E");
+  --glyph-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e1b16' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+}
