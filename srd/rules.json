@@ -1,0 +1,983 @@
+{
+ "abilities": [
+  {
+   "id": "str",
+   "name": "STR",
+   "full": "Strength",
+   "description": "Physical might"
+  },
+  {
+   "id": "dex",
+   "name": "DEX",
+   "full": "Dexterity",
+   "description": "Agility, reflexes, and balance"
+  },
+  {
+   "id": "con",
+   "name": "CON",
+   "full": "Constitution",
+   "description": "Health and stamina"
+  },
+  {
+   "id": "int",
+   "name": "INT",
+   "full": "Intelligence",
+   "description": "Reasoning and memory"
+  },
+  {
+   "id": "wis",
+   "name": "WIS",
+   "full": "Wisdom",
+   "description": "Perceptiveness and mental fortitude"
+  },
+  {
+   "id": "cha",
+   "name": "CHA",
+   "full": "Charisma",
+   "description": "Confidence, poise, and charm"
+  }
+ ],
+ "skills": [
+  {
+   "id": "acrobatics",
+   "name": "Acrobatics",
+   "ability": "dex",
+   "description": "Stay on your feet in a tricky situation, or perform an acrobatic stunt."
+  },
+  {
+   "id": "animal-handling",
+   "name": "Animal Handling",
+   "ability": "wis",
+   "description": "Calm or train an animal, or get an animal to behave in a certain way."
+  },
+  {
+   "id": "arcana",
+   "name": "Arcana",
+   "ability": "int",
+   "description": "Recall lore about spells, magic items, and the planes of existence."
+  },
+  {
+   "id": "athletics",
+   "name": "Athletics",
+   "ability": "str",
+   "description": "Jump farther than normal, stay afloat in rough water, or break something."
+  },
+  {
+   "id": "deception",
+   "name": "Deception",
+   "ability": "cha",
+   "description": "Tell a convincing lie, or wear a disguise convincingly."
+  },
+  {
+   "id": "history",
+   "name": "History",
+   "ability": "int",
+   "description": "Recall lore about historical events, people, nations, and cultures."
+  },
+  {
+   "id": "insight",
+   "name": "Insight",
+   "ability": "wis",
+   "description": "Discern a person's mood and intentions."
+  },
+  {
+   "id": "intimidation",
+   "name": "Intimidation",
+   "ability": "cha",
+   "description": "Awe or threaten someone into doing what you want."
+  },
+  {
+   "id": "investigation",
+   "name": "Investigation",
+   "ability": "int",
+   "description": "Find obscure information in books, or deduce how something works."
+  },
+  {
+   "id": "medicine",
+   "name": "Medicine",
+   "ability": "wis",
+   "description": "Diagnose an illness, or determine what killed the recently slain."
+  },
+  {
+   "id": "nature",
+   "name": "Nature",
+   "ability": "int",
+   "description": "Recall lore about terrain, plants, animals, and weather."
+  },
+  {
+   "id": "perception",
+   "name": "Perception",
+   "ability": "wis",
+   "description": "Using a combination of senses, notice something that's easy to miss."
+  },
+  {
+   "id": "performance",
+   "name": "Performance",
+   "ability": "cha",
+   "description": "Act, tell a story, perform music, or dance."
+  },
+  {
+   "id": "persuasion",
+   "name": "Persuasion",
+   "ability": "cha",
+   "description": "Honestly and graciously convince someone of something."
+  },
+  {
+   "id": "religion",
+   "name": "Religion",
+   "ability": "int",
+   "description": "Recall lore about gods, religious rituals, and holy symbols."
+  },
+  {
+   "id": "sleight-of-hand",
+   "name": "Sleight of Hand",
+   "ability": "dex",
+   "description": "Pick a pocket, conceal a handheld object, or perform legerdemain."
+  },
+  {
+   "id": "stealth",
+   "name": "Stealth",
+   "ability": "dex",
+   "description": "Escape notice by moving quietly and hiding behind things."
+  },
+  {
+   "id": "survival",
+   "name": "Survival",
+   "ability": "wis",
+   "description": "Follow tracks, forage, find a trail, or avoid natural hazards."
+  }
+ ],
+ "alignments": [
+  {
+   "id": "lawful-good",
+   "name": "Lawful Good",
+   "abbr": "LG",
+   "description": "Lawful Good creatures endeavor to do the right thing as expected by society. Someone who fights injustice and protects the innocent without hesitation is probably Lawful Good."
+  },
+  {
+   "id": "neutral-good",
+   "name": "Neutral Good",
+   "abbr": "NG",
+   "description": "Neutral Good creatures do the best they can, working within rules but not feeling bound by them. A kindly person who helps others according to their needs is probably Neutral Good."
+  },
+  {
+   "id": "chaotic-good",
+   "name": "Chaotic Good",
+   "abbr": "CG",
+   "description": "Chaotic Good creatures act as their conscience directs with little regard for what others expect. A rebel who waylays a cruel baron's tax collectors and uses the stolen money to help the poor is probably Chaotic Good."
+  },
+  {
+   "id": "lawful-neutral",
+   "name": "Lawful Neutral",
+   "abbr": "LN",
+   "description": "Lawful Neutral individuals act in accordance with law, tradition, or personal codes. Someone who follows a disciplined rule of life—and isn't swayed either by the demands of those in need or by the temptations of evil—is probably Lawful Neutral."
+  },
+  {
+   "id": "neutral",
+   "name": "Neutral",
+   "abbr": "N",
+   "description": "Neutral is the alignment of those who prefer to avoid moral questions and don't take sides, doing what seems best at the time. Someone who's bored by moral debate is probably Neutral."
+  },
+  {
+   "id": "chaotic-neutral",
+   "name": "Chaotic Neutral",
+   "abbr": "CN",
+   "description": "Chaotic Neutral creatures follow their whims, valuing their personal freedom above all else. A scoundrel who wanders the land living by their wits is probably Chaotic Neutral."
+  },
+  {
+   "id": "lawful-evil",
+   "name": "Lawful Evil",
+   "abbr": "LE",
+   "description": "Lawful Evil creatures methodically take what they want within the limits of a code of tradition, loyalty, or order. An aristocrat exploiting citizens while scheming for power is probably Lawful Evil."
+  },
+  {
+   "id": "neutral-evil",
+   "name": "Neutral Evil",
+   "abbr": "NE",
+   "description": "Neutral Evil is the alignment of those who are untroubled by the harm they cause as they pursue their desires. A criminal who robs and murders as they please is probably Neutral Evil."
+  },
+  {
+   "id": "chaotic-evil",
+   "name": "Chaotic Evil",
+   "abbr": "CE",
+   "description": "Chaotic Evil creatures act with arbitrary violence, spurred by their hatred or bloodlust. A villain pursuing schemes of vengeance and havoc is probably Chaotic Evil."
+  },
+  {
+   "id": "unaligned",
+   "name": "Unaligned",
+   "abbr": "U",
+   "description": "Most creatures that lack the capacity for rational thought don't have alignments; they are unaligned. Sharks are savage predators, for example, but they aren't evil; they are unaligned."
+  }
+ ],
+ "languages": [
+  {
+   "id": "common",
+   "name": "Common",
+   "rare": false
+  },
+  {
+   "id": "common-sign-language",
+   "name": "Common Sign Language",
+   "rare": false
+  },
+  {
+   "id": "draconic",
+   "name": "Draconic",
+   "rare": false
+  },
+  {
+   "id": "dwarvish",
+   "name": "Dwarvish",
+   "rare": false
+  },
+  {
+   "id": "elvish",
+   "name": "Elvish",
+   "rare": false
+  },
+  {
+   "id": "giant",
+   "name": "Giant",
+   "rare": false
+  },
+  {
+   "id": "gnomish",
+   "name": "Gnomish",
+   "rare": false
+  },
+  {
+   "id": "goblin",
+   "name": "Goblin",
+   "rare": false
+  },
+  {
+   "id": "halfling",
+   "name": "Halfling",
+   "rare": false
+  },
+  {
+   "id": "orc",
+   "name": "Orc",
+   "rare": false
+  },
+  {
+   "id": "abyssal",
+   "name": "Abyssal",
+   "rare": true
+  },
+  {
+   "id": "celestial",
+   "name": "Celestial",
+   "rare": true
+  },
+  {
+   "id": "deep-speech",
+   "name": "Deep Speech",
+   "rare": true
+  },
+  {
+   "id": "druidic",
+   "name": "Druidic",
+   "rare": true
+  },
+  {
+   "id": "infernal",
+   "name": "Infernal",
+   "rare": true
+  },
+  {
+   "id": "primordial",
+   "name": "Primordial",
+   "rare": true,
+   "note": "Primordial includes the Aquan, Auran, Ignan, and Terran dialects. Creatures that know one of these dialects can communicate with those that know a different one."
+  },
+  {
+   "id": "sylvan",
+   "name": "Sylvan",
+   "rare": true
+  },
+  {
+   "id": "thieves-cant",
+   "name": "Thieves' Cant",
+   "rare": true
+  },
+  {
+   "id": "undercommon",
+   "name": "Undercommon",
+   "rare": true
+  }
+ ],
+ "startingLanguages": {
+  "known": [
+   "common"
+  ],
+  "choose": 2,
+  "from": "standard",
+  "note": "Common plus two standard (non-rare) languages; backgrounds/species/features may add more."
+ },
+ "conditions": [
+  {
+   "id": "blinded",
+   "name": "Blinded",
+   "description": "While you have the Blinded condition, you experience the following effects.\n\n**Can't See.** You can't see and automatically fail any ability check that requires sight.\n\n**Attacks Affected.** Attack rolls against you have Advantage, and your attack rolls have Disadvantage."
+  },
+  {
+   "id": "charmed",
+   "name": "Charmed",
+   "description": "While you have the Charmed condition, you experience the following effects.\n\n**Can't Harm the Charmer.** You can't attack the charmer or target the charmer with damaging abilities or magical effects.\n\n**Social Advantage.** The charmer has Advantage on ability checks to interact socially with you."
+  },
+  {
+   "id": "deafened",
+   "name": "Deafened",
+   "description": "While you have the Deafened condition, you experience the following effect.\n\n**Can't Hear.** You can't hear and automatically fail any ability check that requires hearing."
+  },
+  {
+   "id": "exhaustion",
+   "name": "Exhaustion",
+   "description": "While you have the Exhaustion condition, you experience the following effects.\n\n**Exhaustion Levels.** This condition is cumulative. Each time you receive it, you gain 1 Exhaustion level. You die if your Exhaustion level is 6.\n\n**D20 Tests Affected.** When you make a D20 Test, the roll is reduced by 2 times your Exhaustion level.\n\n**Speed Reduced.** Your Speed is reduced by a number of feet equal to 5 times your Exhaustion level.\n\n**Removing Exhaustion Levels.** Finishing a Long Rest removes 1 of your Exhaustion levels. When your Exhaustion level reaches 0, the condition ends."
+  },
+  {
+   "id": "frightened",
+   "name": "Frightened",
+   "description": "While you have the Frightened condition, you experience the following effects.\n\n**Ability Checks and Attacks Affected.** You have Disadvantage on ability checks and attack rolls while the source of fear is within line of sight.\n\n**Can't Approach.** You can't willingly move closer to the source of your fear."
+  },
+  {
+   "id": "grappled",
+   "name": "Grappled",
+   "description": "While you have the Grappled condition, you experience the following effects.\n\n**Speed 0.** Your Speed is 0 and can't increase.\n\n**Attacks Affected.** You have Disadvantage on attack rolls against any target other than the grappler.\n\n**Movable.** The grappler can drag or carry you when it moves, but every foot of movement costs it 1 extra foot unless you are Tiny or two or more sizes smaller."
+  },
+  {
+   "id": "incapacitated",
+   "name": "Incapacitated",
+   "description": "While you have the Incapacitated condition, you experience the following effects.\n\n**Inactive.** You can't take any action, Bonus Action, or Reaction.\n\n**No Concentration.** Your Concentration is broken.\n\n**Speechless.** You can't speak.\n\n**Surprised.** If you're Incapacitated when you roll Initiative, you have Disadvantage on the roll."
+  },
+  {
+   "id": "invisible",
+   "name": "Invisible",
+   "description": "While you have the Invisible condition, you experience the following effects.\n\n**Surprise.** If you're Invisible when you roll Initiative, you have Advantage on the roll.\n\n**Concealed.** You aren't affected by any effect that requires its target to be seen unless the effect's creator can somehow see you. Any equipment you are wearing or carrying is also concealed.\n\n**Attacks Affected.** Attack rolls against you have Disadvantage, and your attack rolls have Advantage. If a creature can somehow see you, you don't gain this benefit against that creature."
+  },
+  {
+   "id": "paralyzed",
+   "name": "Paralyzed",
+   "description": "While you have the Paralyzed condition, you experience the following effects.\n\n**Incapacitated.** You have the Incapacitated condition.\n\n**Speed 0.** Your Speed is 0 and can't increase.\n\n**Saving Throws Affected.** You automatically fail Strength and Dexterity saving throws.\n\n**Attacks Affected.** Attack rolls against you have Advantage.\n\n**Automatic Critical Hits.** Any attack roll that hits you is a Critical Hit if the attacker is within 5 feet of you."
+  },
+  {
+   "id": "petrified",
+   "name": "Petrified",
+   "description": "While you have the Petrified condition, you experience the following effects.\n\n**Turned to Inanimate Substance.** You are transformed, along with any nonmagical objects you are wearing and carrying, into a solid inanimate substance (usually stone). Your weight increases by a factor of ten, and you cease aging.\n\n**Incapacitated.** You have the Incapacitated condition.\n\n**Speed 0.** Your Speed is 0 and can't increase.\n\n**Attacks Affected.** Attack rolls against you have Advantage.\n\n**Saving Throws Affected.** You automatically fail Strength and Dexterity saving throws.\n\n**Resist Damage.** You have Resistance to all damage.\n\n**Poison Immunity.** You have Immunity to the Poisoned condition.\n\n**Saving Throws Affected.** You automatically fail Strength and Dexterity saving throws.\n\n**Resist Damage.** You have Resistance to all damage.\n\n**Poison Immunity.** You have Immunity to the Poisoned condition."
+  },
+  {
+   "id": "poisoned",
+   "name": "Poisoned",
+   "description": "While you have the Poisoned condition, you experience the following effect.\n\n**Ability Checks and Attacks Affected.** You have Disadvantage on attack rolls and ability checks."
+  },
+  {
+   "id": "prone",
+   "name": "Prone",
+   "description": "While you have the Prone condition, you experience the following effects.\n\n**Restricted Movement.** Your only movement options are to crawl or to spend an amount of movement equal to half your Speed (round down) to right yourself and thereby end the condition. If your Speed is 0, you can't right yourself.\n\n**Attacks Affected.** You have Disadvantage on attack rolls. An attack roll against you has Advantage if the attacker is within 5 feet of you. Otherwise, that attack roll has Disadvantage."
+  },
+  {
+   "id": "restrained",
+   "name": "Restrained",
+   "description": "While you have the Restrained condition, you experience the following effects.\n\n**Speed 0.** Your Speed is 0 and can't increase.\n\n**Attacks Affected.** Attack rolls against you have Advantage, and your attack rolls have Disadvantage.\n\n**Saving Throws Affected.** You have Disadvantage on Dexterity saving throws."
+  },
+  {
+   "id": "stunned",
+   "name": "Stunned",
+   "description": "While you have the Stunned condition, you experience the following effects.\n\n**Incapacitated.** You have the Incapacitated condition.\n\n**Saving Throws Affected.** You automatically fail Strength and Dexterity saving throws.\n\n**Attacks Affected.** Attack rolls against you have Advantage."
+  },
+  {
+   "id": "unconscious",
+   "name": "Unconscious",
+   "description": "While you have the Unconscious condition, you experience the following effects.\n\n**Inert.** You have the Incapacitated and Prone conditions, and you drop whatever you're holding.\n\nWhen this condition ends, you remain Prone.\n\n**Speed 0.** Your Speed is 0 and can't increase.\n\n**Attacks Affected.** Attack rolls against you have Advantage.\n\n**Saving Throws Affected.** You automatically fail Strength and Dexterity saving throws.\n\n**Automatic Critical Hits.** Any attack roll that hits you is a Critical Hit if the attacker is within 5 feet of you.\n\n**Unaware.** You're unaware of your surroundings."
+  }
+ ],
+ "damageTypes": [
+  {
+   "id": "acid",
+   "name": "Acid",
+   "description": "Corrosive liquids, digestive enzymes"
+  },
+  {
+   "id": "bludgeoning",
+   "name": "Bludgeoning",
+   "description": "Blunt objects, constriction, falling"
+  },
+  {
+   "id": "cold",
+   "name": "Cold",
+   "description": "Freezing water, icy blasts"
+  },
+  {
+   "id": "fire",
+   "name": "Fire",
+   "description": "Flames, unbearable heat"
+  },
+  {
+   "id": "force",
+   "name": "Force",
+   "description": "Pure magical energy"
+  },
+  {
+   "id": "lightning",
+   "name": "Lightning",
+   "description": "Electricity"
+  },
+  {
+   "id": "necrotic",
+   "name": "Necrotic",
+   "description": "Life-draining energy"
+  },
+  {
+   "id": "piercing",
+   "name": "Piercing",
+   "description": "Fangs, puncturing objects"
+  },
+  {
+   "id": "poison",
+   "name": "Poison",
+   "description": "Toxic gas, venom"
+  },
+  {
+   "id": "psychic",
+   "name": "Psychic",
+   "description": "Mind-rending energy"
+  },
+  {
+   "id": "radiant",
+   "name": "Radiant",
+   "description": "Holy energy, searing radiation"
+  },
+  {
+   "id": "slashing",
+   "name": "Slashing",
+   "description": "Claws, cutting objects"
+  },
+  {
+   "id": "thunder",
+   "name": "Thunder",
+   "description": "Concussive sound"
+  }
+ ],
+ "weaponProperties": [
+  {
+   "id": "ammunition",
+   "name": "Ammunition",
+   "description": "You can use a weapon that has the Ammunition property to make a ranged attack only if you have ammunition to fire from it. The type of ammunition required is specified with the weapon's range. Each attack expends one piece of ammunition. Drawing the ammunition is part of the attack (you need a free hand to load a one-handed weapon). After a fight, you can spend 1 minute to recover half the ammunition (round down) you used in the fight; the rest is lost."
+  },
+  {
+   "id": "finesse",
+   "name": "Finesse",
+   "description": "When making an attack with a Finesse weapon, use your choice of your Strength or Dexterity modifier for the attack and damage rolls. You must use the same modifier for both rolls."
+  },
+  {
+   "id": "heavy",
+   "name": "Heavy",
+   "description": "You have Disadvantage on attack rolls with a Heavy weapon if it's a Melee weapon and your Strength score isn't at least 13 or if it's a Ranged weapon and your Dexterity score isn't at least 13."
+  },
+  {
+   "id": "light",
+   "name": "Light",
+   "description": "When you take the Attack action on your turn and attack with a Light weapon, you can make one extra attack as a Bonus Action later on the same turn. That extra attack must be made with a different Light weapon, and you don't add your ability modifier to the extra attack's damage unless that modifier is negative. For example, you can attack with a Shortsword in one hand and a Dagger in the other using the Attack action and a Bonus Action, but you don't add your Strength or Dexterity modifier to the damage roll of the Bonus Action unless that modifier is negative."
+  },
+  {
+   "id": "loading",
+   "name": "Loading",
+   "description": "You can fire only one piece of ammunition from a Loading weapon when you use an action, a Bonus Action, or a Reaction to fire it, regardless of the number of attacks you can normally make."
+  },
+  {
+   "id": "range",
+   "name": "Range",
+   "description": "A Range weapon has a range in parentheses after the Ammunition or Thrown property. The range lists two numbers. The first is the weapon's normal range in feet, and the second is the weapon's long range. When attacking a target beyond normal range, you have Disadvantage on the attack roll. You can't attack a target beyond the long range."
+  },
+  {
+   "id": "reach",
+   "name": "Reach",
+   "description": "A Reach weapon adds 5 feet to your reach when you attack with it, as well as when determining your reach for Opportunity Attacks with it."
+  },
+  {
+   "id": "thrown",
+   "name": "Thrown",
+   "description": "If a weapon has the Thrown property, you can throw the weapon to make a ranged attack, and you can draw that weapon as part of the attack. If the weapon is a Melee weapon, use the same ability modifier for the attack and damage rolls that you use for a melee attack with that weapon."
+  },
+  {
+   "id": "two-handed",
+   "name": "Two-Handed",
+   "description": "A Two-Handed weapon requires two hands when you attack with it."
+  },
+  {
+   "id": "versatile",
+   "name": "Versatile",
+   "description": "A Versatile weapon can be used with one or two hands. A damage value in parentheses appears with the property. The weapon deals that damage when used with two hands to make a melee attack."
+  }
+ ],
+ "weaponMasteries": [
+  {
+   "id": "cleave",
+   "name": "Cleave",
+   "description": "If you hit a creature with a melee attack roll using this weapon, you can make a melee attack roll with the weapon against a second creature within 5 feet of the first that is also within your reach. On a hit, the second creature takes the weapon's damage, but don't add your ability modifier to that damage unless that modifier is negative. You can make this extra attack only once per turn."
+  },
+  {
+   "id": "graze",
+   "name": "Graze",
+   "description": "If your attack roll with this weapon misses a creature, you can deal damage to that creature equal to the ability modifier you used to make the attack roll. This damage is the same type dealt by the weapon, and the damage can be increased only by increasing the ability modifier."
+  },
+  {
+   "id": "nick",
+   "name": "Nick",
+   "description": "When you make the extra attack of the Light property, you can make it as part of the Attack action instead of as a Bonus Action. You can make this extra attack only once per turn."
+  },
+  {
+   "id": "push",
+   "name": "Push",
+   "description": "If you hit a creature with this weapon, you can push the creature up to 10 feet straight away from yourself if it is Large or smaller."
+  },
+  {
+   "id": "sap",
+   "name": "Sap",
+   "description": "If you hit a creature with this weapon, that creature has Disadvantage on its next attack roll before the start of your next turn."
+  },
+  {
+   "id": "slow",
+   "name": "Slow",
+   "description": "If you hit a creature with this weapon and deal damage to it, you can reduce its Speed by 10 feet until the start of your next turn. If the creature is hit more than once by weapons that have this property, the Speed reduction doesn't exceed 10 feet."
+  },
+  {
+   "id": "topple",
+   "name": "Topple",
+   "description": "If you hit a creature with this weapon, you can force the creature to make a Constitution saving throw (DC 8 plus the ability modifier used to make the attack roll and your Proficiency Bonus). On a failed save, the creature has the Prone condition."
+  },
+  {
+   "id": "vex",
+   "name": "Vex",
+   "description": "If you hit a creature with this weapon and deal damage to the creature, you have Advantage on your next attack roll against that creature before the end of your next turn."
+  }
+ ],
+ "magicSchools": [
+  {
+   "id": "abjuration",
+   "name": "Abjuration",
+   "description": "Prevents or reverses harmful effects"
+  },
+  {
+   "id": "conjuration",
+   "name": "Conjuration",
+   "description": "Transports creatures or objects"
+  },
+  {
+   "id": "divination",
+   "name": "Divination",
+   "description": "Reveals information"
+  },
+  {
+   "id": "enchantment",
+   "name": "Enchantment",
+   "description": "Influences minds"
+  },
+  {
+   "id": "evocation",
+   "name": "Evocation",
+   "description": "Channels energy to create effects that are often destructive"
+  },
+  {
+   "id": "illusion",
+   "name": "Illusion",
+   "description": "Deceives the mind or senses"
+  },
+  {
+   "id": "necromancy",
+   "name": "Necromancy",
+   "description": "Manipulates life and death"
+  },
+  {
+   "id": "transmutation",
+   "name": "Transmutation",
+   "description": "Transforms creatures or objects"
+  }
+ ],
+ "sizes": [
+  {
+   "id": "tiny",
+   "name": "Tiny",
+   "space": "2.5 ft"
+  },
+  {
+   "id": "small",
+   "name": "Small",
+   "space": "5 ft"
+  },
+  {
+   "id": "medium",
+   "name": "Medium",
+   "space": "5 ft"
+  },
+  {
+   "id": "large",
+   "name": "Large",
+   "space": "10 ft"
+  },
+  {
+   "id": "huge",
+   "name": "Huge",
+   "space": "15 ft"
+  },
+  {
+   "id": "gargantuan",
+   "name": "Gargantuan",
+   "space": "20 ft"
+  }
+ ],
+ "profBonusByLevel": [
+  2,
+  2,
+  2,
+  2,
+  3,
+  3,
+  3,
+  3,
+  4,
+  4,
+  4,
+  4,
+  5,
+  5,
+  5,
+  5,
+  6,
+  6,
+  6,
+  6
+ ],
+ "xpByLevel": [
+  0,
+  300,
+  900,
+  2700,
+  6500,
+  14000,
+  23000,
+  34000,
+  48000,
+  64000,
+  85000,
+  100000,
+  120000,
+  140000,
+  165000,
+  195000,
+  225000,
+  265000,
+  305000,
+  355000
+ ],
+ "standardArray": [
+  15,
+  14,
+  13,
+  12,
+  10,
+  8
+ ],
+ "pointBuy": {
+  "budget": 27,
+  "min": 8,
+  "max": 15,
+  "cost": {
+   "8": 0,
+   "9": 1,
+   "10": 2,
+   "11": 3,
+   "12": 4,
+   "13": 5,
+   "14": 7,
+   "15": 9
+  }
+ },
+ "abilityScoreMax": 20,
+ "backgroundAbilityIncrease": {
+  "options": [
+   [
+    2,
+    1
+   ],
+   [
+    1,
+    1,
+    1
+   ]
+  ],
+  "max": 20,
+  "note": "Increase one of the background's three abilities by 2 and another by 1, or all three by 1."
+ },
+ "hitPoints": {
+  "level1": "hitDie + CON modifier",
+  "perLevelFixed": {
+   "6": 4,
+   "8": 5,
+   "10": 6,
+   "12": 7
+  },
+  "perLevelRoll": "1dHitDie + CON modifier (minimum 1)"
+ },
+ "multiclassSlotTable": [
+  [
+   2,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   3,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   4,
+   2,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   4,
+   3,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   4,
+   3,
+   2,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   4,
+   3,
+   3,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   4,
+   3,
+   3,
+   1,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   4,
+   3,
+   3,
+   2,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   4,
+   3,
+   3,
+   3,
+   1,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   4,
+   3,
+   3,
+   3,
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  [
+   4,
+   3,
+   3,
+   3,
+   2,
+   1,
+   0,
+   0,
+   0
+  ],
+  [
+   4,
+   3,
+   3,
+   3,
+   2,
+   1,
+   0,
+   0,
+   0
+  ],
+  [
+   4,
+   3,
+   3,
+   3,
+   2,
+   1,
+   1,
+   0,
+   0
+  ],
+  [
+   4,
+   3,
+   3,
+   3,
+   2,
+   1,
+   1,
+   0,
+   0
+  ],
+  [
+   4,
+   3,
+   3,
+   3,
+   2,
+   1,
+   1,
+   1,
+   0
+  ],
+  [
+   4,
+   3,
+   3,
+   3,
+   2,
+   1,
+   1,
+   1,
+   0
+  ],
+  [
+   4,
+   3,
+   3,
+   3,
+   2,
+   1,
+   1,
+   1,
+   1
+  ],
+  [
+   4,
+   3,
+   3,
+   3,
+   3,
+   1,
+   1,
+   1,
+   1
+  ],
+  [
+   4,
+   3,
+   3,
+   3,
+   3,
+   2,
+   1,
+   1,
+   1
+  ],
+  [
+   4,
+   3,
+   3,
+   3,
+   3,
+   2,
+   2,
+   1,
+   1
+  ]
+ ],
+ "multiclassCasterLevel": {
+  "full": 1,
+  "half": "ceil(level/2)",
+  "third": "floor(level/3)",
+  "pact": 0,
+  "note": "Sum Bard/Cleric/Druid/Sorcerer/Wizard levels, half Paladin/Ranger levels (round up) and a third of Eldritch Knight/Arcane Trickster levels (round down). Warlock Pact Magic slots are separate."
+ },
+ "currency": [
+  {
+   "id": "cp",
+   "name": "Copper Piece",
+   "gp": 0.01
+  },
+  {
+   "id": "sp",
+   "name": "Silver Piece",
+   "gp": 0.1
+  },
+  {
+   "id": "ep",
+   "name": "Electrum Piece",
+   "gp": 0.5
+  },
+  {
+   "id": "gp",
+   "name": "Gold Piece",
+   "gp": 1
+  },
+  {
+   "id": "pp",
+   "name": "Platinum Piece",
+   "gp": 10
+  }
+ ],
+ "carryingCapacity": {
+  "perStr": 15,
+  "note": "Carry up to STR x 15 lb (x2 Large, x4 Huge, x8 Gargantuan; Tiny x0.5). Drag/lift/push up to twice that."
+ }
+}

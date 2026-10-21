@@ -1,0 +1,2076 @@
+[
+ {
+  "id": "aasimar",
+  "name": "Aasimar",
+  "source": "PHB 2024",
+  "stub": true,
+  "type": "Humanoid",
+  "sizeOptions": [
+   "Medium",
+   "Small"
+  ],
+  "speed": 30,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "aasimar-celestial-resistance",
+    "name": "Celestial Resistance",
+    "description": "You resist Necrotic and Radiant damage.",
+    "grants": {
+     "resistances": [
+      "necrotic",
+      "radiant"
+     ]
+    }
+   },
+   {
+    "id": "aasimar-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "aasimar-healing-hands",
+    "name": "Healing Hands",
+    "description": "Once per Long Rest, as a Magic action you touch a creature and roll a number of d4s equal to your Proficiency Bonus; it regains Hit Points equal to the total."
+   },
+   {
+    "id": "aasimar-light-bearer",
+    "name": "Light Bearer",
+    "description": "You know the Light cantrip and cast it with Charisma.",
+    "grants": {
+     "spells": [
+      {
+       "id": "light",
+       "level": 1
+      }
+     ]
+    }
+   },
+   {
+    "id": "aasimar-celestial-revelation",
+    "name": "Celestial Revelation",
+    "description": "From character level 3 you can spend a Bonus Action to take on a celestial form for 1 minute (once per Long Rest). While transformed, once on each of your turns one target you damage with an attack or spell takes extra damage equal to your Proficiency Bonus (Necrotic with Necrotic Shroud, otherwise Radiant), and you gain the benefit of the form you picked.",
+    "level": 3,
+    "choice": {
+     "type": "options",
+     "key": "celestial-revelation",
+     "count": 1,
+     "perUse": true,
+     "note": "Pick a form each time you transform.",
+     "options": [
+      {
+       "id": "heavenly-wings",
+       "name": "Heavenly Wings",
+       "description": "Spectral wings give you a Fly Speed equal to your Speed."
+      },
+      {
+       "id": "inner-radiance",
+       "name": "Inner Radiance",
+       "description": "You shed Bright Light 10 ft. (Dim Light 10 ft. further); at the end of each of your turns, every creature within 10 ft. of you takes Radiant damage equal to your Proficiency Bonus."
+      },
+      {
+       "id": "necrotic-shroud",
+       "name": "Necrotic Shroud",
+       "description": "When you transform, each non-ally within 10 ft. must pass a Charisma save (DC 8 + Cha mod + PB) or be Frightened of you until the end of your next turn."
+      }
+     ]
+    }
+   }
+  ],
+  "notes": "2024 Player's Handbook species; choose Medium or Small when you pick it."
+ },
+ {
+  "id": "aarakocra",
+  "name": "Aarakocra",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "speeds": {
+   "fly": 30
+  },
+  "traits": [
+   {
+    "id": "aarakocra-flight",
+    "name": "Flight",
+    "description": "You have a Fly Speed equal to your walking Speed, but can't use it while wearing Medium or Heavy armor."
+   },
+   {
+    "id": "aarakocra-talons",
+    "name": "Talons",
+    "description": "Your Unarmed Strikes can deal 1d6 + Strength modifier Slashing damage.",
+    "unarmed": {
+     "damage": "1d6",
+     "type": "slashing"
+    }
+   },
+   {
+    "id": "aarakocra-wind-caller",
+    "name": "Wind Caller",
+    "description": "From level 3 you can cast Gust of Wind once per Long Rest without a spell slot (or with slots).",
+    "level": 3,
+    "grants": {
+     "spells": [
+      {
+       "id": "gust-of-wind",
+       "level": 3
+      }
+     ]
+    },
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "bugbear",
+  "name": "Bugbear",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "bugbear-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "bugbear-fey-ancestry",
+    "name": "Fey Ancestry",
+    "description": "You have Advantage on saves to avoid or end the Charmed condition."
+   },
+   {
+    "id": "bugbear-long-limbed",
+    "name": "Long-Limbed",
+    "description": "When you make a melee attack on your turn, your reach is 5 feet longer."
+   },
+   {
+    "id": "bugbear-powerful-build",
+    "name": "Powerful Build",
+    "description": "You count as one size larger for carrying capacity and for what you can push, drag, or lift."
+   },
+   {
+    "id": "bugbear-sneaky",
+    "name": "Sneaky",
+    "description": "You are proficient in Stealth and can squeeze through and stop in spaces big enough for a Small creature.",
+    "grants": {
+     "skills": [
+      "stealth"
+     ]
+    }
+   },
+   {
+    "id": "bugbear-surprise-attack",
+    "name": "Surprise Attack",
+    "description": "When you hit a creature that hasn't taken a turn yet in the current combat, it takes an extra 2d6 damage."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "centaur",
+  "name": "Centaur",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Fey",
+  "size": "Medium",
+  "speed": 40,
+  "traits": [
+   {
+    "id": "centaur-charge",
+    "name": "Charge",
+    "description": "If you move at least 30 feet straight at a target and hit it with a melee weapon attack, you can make a Hooves attack against it as a Bonus Action."
+   },
+   {
+    "id": "centaur-equine-build",
+    "name": "Equine Build",
+    "description": "You count as one size larger for carrying capacity; climbing that needs hands and feet costs you 4 extra feet per foot moved."
+   },
+   {
+    "id": "centaur-hooves",
+    "name": "Hooves",
+    "description": "Your Unarmed Strikes can deal 1d6 + Strength modifier Bludgeoning damage.",
+    "unarmed": {
+     "damage": "1d6",
+     "type": "bludgeoning"
+    }
+   },
+   {
+    "id": "centaur-natural-affinity",
+    "name": "Natural Affinity",
+    "description": "You gain proficiency in one skill from the list.",
+    "choice": {
+     "type": "skills",
+     "count": 1,
+     "from": [
+      "animal-handling",
+      "medicine",
+      "nature",
+      "survival"
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "changeling",
+  "name": "Changeling",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Fey",
+  "sizeOptions": [
+   "Medium",
+   "Small"
+  ],
+  "speed": 30,
+  "traits": [
+   {
+    "id": "changeling-changeling-instincts",
+    "name": "Changeling Instincts",
+    "description": "You gain proficiency in two skills from the list.",
+    "choice": {
+     "type": "skills",
+     "count": 2,
+     "from": [
+      "deception",
+      "insight",
+      "intimidation",
+      "performance",
+      "persuasion"
+     ]
+    }
+   },
+   {
+    "id": "changeling-shapechanger",
+    "name": "Shapechanger",
+    "description": "As an action you can reshape your face, voice, coloring, height and build, even switching between Medium and Small, keeping the new look until you change again or die. Your game statistics don't change."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "deep-gnome",
+  "name": "Deep Gnome",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Small",
+  "speed": 30,
+  "darkvision": 120,
+  "traits": [
+   {
+    "id": "deep-gnome-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 120 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "deep-gnome-gift-of-the-svirfneblin",
+    "name": "Gift of the Svirfneblin",
+    "description": "From level 3 you can cast Disguise Self, and from level 5 Nondetection (on yourself only), each once per Long Rest without a slot or material components; you can also cast them with slots.",
+    "level": 3,
+    "grants": {
+     "spells": [
+      {
+       "id": "disguise-self",
+       "level": 3
+      },
+      {
+       "id": "nondetection",
+       "level": 5
+      }
+     ]
+    },
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   },
+   {
+    "id": "deep-gnome-gnomish-magic-resistance",
+    "name": "Gnomish Magic Resistance",
+    "description": "You have Advantage on Intelligence, Wisdom, and Charisma saving throws against spells."
+   },
+   {
+    "id": "deep-gnome-svirfneblin-camouflage",
+    "name": "Svirfneblin Camouflage",
+    "description": "A number of times per Long Rest equal to your Proficiency Bonus, you can give yourself Advantage on a Stealth check."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "duergar",
+  "name": "Duergar",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "darkvision": 120,
+  "traits": [
+   {
+    "id": "duergar-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 120 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "duergar-duergar-magic",
+    "name": "Duergar Magic",
+    "description": "From level 3 you can cast Enlarge/Reduce on yourself, and from level 5 Invisibility on yourself, each once per Long Rest without a slot or material components; you can also cast them with slots.",
+    "level": 3,
+    "grants": {
+     "spells": [
+      {
+       "id": "enlarge-reduce",
+       "level": 3
+      },
+      {
+       "id": "invisibility",
+       "level": 5
+      }
+     ]
+    },
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   },
+   {
+    "id": "duergar-dwarven-resilience",
+    "name": "Dwarven Resilience",
+    "description": "You resist Poison damage and have Advantage on saves to avoid or end the Poisoned condition.",
+    "grants": {
+     "resistances": [
+      "poison"
+     ]
+    }
+   },
+   {
+    "id": "duergar-psionic-fortitude",
+    "name": "Psionic Fortitude",
+    "description": "You have Advantage on saves to avoid or end the Charmed or Stunned conditions."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "eladrin",
+  "name": "Eladrin",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "eladrin-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "eladrin-fey-ancestry",
+    "name": "Fey Ancestry",
+    "description": "You have Advantage on saves to avoid or end the Charmed condition."
+   },
+   {
+    "id": "eladrin-fey-step",
+    "name": "Fey Step",
+    "description": "As a Bonus Action you teleport up to 30 feet to a space you can see, a number of times per Long Rest equal to your Proficiency Bonus. From level 3 your season adds an extra effect (save DC 8 + PB + your chosen spellcasting ability).",
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   },
+   {
+    "id": "eladrin-keen-senses",
+    "name": "Keen Senses",
+    "description": "You are proficient in Perception.",
+    "grants": {
+     "skills": [
+      "perception"
+     ]
+    }
+   },
+   {
+    "id": "eladrin-trance",
+    "name": "Trance",
+    "description": "You don't sleep and finish a Long Rest in 4 hours of meditation; afterwards you can switch season and gain two weapon or tool proficiencies of your choice until your next Long Rest."
+   }
+  ],
+  "subspecies": [
+   {
+    "id": "eladrin-autumn",
+    "name": "Autumn Season",
+    "traits": [
+     {
+      "id": "eladrin-autumn-fey-step",
+      "name": "Fey Step: Autumn",
+      "description": "After you Fey Step, up to two creatures you can see within 10 feet must pass a Wisdom save or be Charmed by you for 1 minute or until you or your allies damage them.",
+      "level": 3
+     }
+    ]
+   },
+   {
+    "id": "eladrin-winter",
+    "name": "Winter Season",
+    "traits": [
+     {
+      "id": "eladrin-winter-fey-step",
+      "name": "Fey Step: Winter",
+      "description": "When you Fey Step, one creature you can see within 5 feet of you before teleporting must pass a Wisdom save or be Frightened of you until the end of your next turn.",
+      "level": 3
+     }
+    ]
+   },
+   {
+    "id": "eladrin-spring",
+    "name": "Spring Season",
+    "traits": [
+     {
+      "id": "eladrin-spring-fey-step",
+      "name": "Fey Step: Spring",
+      "description": "When you Fey Step, you can instead teleport one willing creature you touch within 5 feet of you.",
+      "level": 3
+     }
+    ]
+   },
+   {
+    "id": "eladrin-summer",
+    "name": "Summer Season",
+    "traits": [
+     {
+      "id": "eladrin-summer-fey-step",
+      "name": "Fey Step: Summer",
+      "description": "Right after you Fey Step, each creature of your choice within 5 feet of you takes Fire damage equal to your Proficiency Bonus.",
+      "level": 3
+     }
+    ]
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages. Pick a season (subspecies); you may change it when you finish a Long Rest."
+ },
+ {
+  "id": "fairy",
+  "name": "Fairy",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Fey",
+  "size": "Small",
+  "speed": 30,
+  "speeds": {
+   "fly": 30
+  },
+  "traits": [
+   {
+    "id": "fairy-fairy-magic",
+    "name": "Fairy Magic",
+    "description": "You know Druidcraft. From level 3 you can cast Faerie Fire and from level 5 Enlarge/Reduce, each once per Long Rest without a slot (or with slots).",
+    "grants": {
+     "spells": [
+      {
+       "id": "druidcraft",
+       "level": 1
+      },
+      {
+       "id": "faerie-fire",
+       "level": 3
+      },
+      {
+       "id": "enlarge-reduce",
+       "level": 5
+      }
+     ]
+    },
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   },
+   {
+    "id": "fairy-flight",
+    "name": "Flight",
+    "description": "You have a Fly Speed equal to your walking Speed, but can't use it while wearing Medium or Heavy armor."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "firbolg",
+  "name": "Firbolg",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "traits": [
+   {
+    "id": "firbolg-firbolg-magic",
+    "name": "Firbolg Magic",
+    "description": "You can cast Detect Magic and Disguise Self once each per Long Rest without a slot (or with slots); your Disguise Self can make you appear up to 3 feet shorter.",
+    "grants": {
+     "spells": [
+      {
+       "id": "detect-magic",
+       "level": 1
+      },
+      {
+       "id": "disguise-self",
+       "level": 1
+      }
+     ]
+    },
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   },
+   {
+    "id": "firbolg-hidden-step",
+    "name": "Hidden Step",
+    "description": "As a Bonus Action you turn Invisible until the start of your next turn or until you attack, deal damage, or force a save; uses per Long Rest equal your Proficiency Bonus."
+   },
+   {
+    "id": "firbolg-powerful-build",
+    "name": "Powerful Build",
+    "description": "You count as one size larger for carrying capacity and for what you can push, drag, or lift."
+   },
+   {
+    "id": "firbolg-speech-of-beast-and-leaf",
+    "name": "Speech of Beast and Leaf",
+    "description": "Beasts and plants understand the gist of your words, and you have Advantage on Charisma checks to influence them."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "air-genasi",
+  "name": "Air Genasi",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "sizeOptions": [
+   "Medium",
+   "Small"
+  ],
+  "speed": 35,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "air-genasi-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "air-genasi-unending-breath",
+    "name": "Unending Breath",
+    "description": "You can hold your breath indefinitely while not Incapacitated."
+   },
+   {
+    "id": "air-genasi-lightning-resistance",
+    "name": "Lightning Resistance",
+    "description": "You resist Lightning damage.",
+    "grants": {
+     "resistances": [
+      "lightning"
+     ]
+    }
+   },
+   {
+    "id": "air-genasi-mingle-with-the-wind",
+    "name": "Mingle with the Wind",
+    "description": "You know Shocking Grasp; from level 3 you can cast Feather Fall and from level 5 Levitate, each once per Long Rest without a slot or material components (or with slots).",
+    "grants": {
+     "spells": [
+      {
+       "id": "shocking-grasp",
+       "level": 1
+      },
+      {
+       "id": "feather-fall",
+       "level": 3
+      },
+      {
+       "id": "levitate",
+       "level": 5
+      }
+     ]
+    },
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "earth-genasi",
+  "name": "Earth Genasi",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "sizeOptions": [
+   "Medium",
+   "Small"
+  ],
+  "speed": 30,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "earth-genasi-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "earth-genasi-earth-walk",
+    "name": "Earth Walk",
+    "description": "Difficult terrain made of earth or stone costs you no extra movement."
+   },
+   {
+    "id": "earth-genasi-merge-with-stone",
+    "name": "Merge with Stone",
+    "description": "You know Blade Ward and can cast it as a Bonus Action a number of times per Long Rest equal to your Proficiency Bonus; from level 5 you can cast Pass without Trace once per Long Rest without a slot.",
+    "grants": {
+     "spells": [
+      {
+       "id": "blade-ward",
+       "level": 1
+      },
+      {
+       "id": "pass-without-trace",
+       "level": 5
+      }
+     ]
+    },
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "fire-genasi",
+  "name": "Fire Genasi",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "sizeOptions": [
+   "Medium",
+   "Small"
+  ],
+  "speed": 30,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "fire-genasi-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "fire-genasi-fire-resistance",
+    "name": "Fire Resistance",
+    "description": "You resist Fire damage.",
+    "grants": {
+     "resistances": [
+      "fire"
+     ]
+    }
+   },
+   {
+    "id": "fire-genasi-reach-to-the-blaze",
+    "name": "Reach to the Blaze",
+    "description": "You know Produce Flame; from level 3 you can cast Burning Hands and from level 5 Flame Blade, each once per Long Rest without a slot or material components (or with slots).",
+    "grants": {
+     "spells": [
+      {
+       "id": "produce-flame",
+       "level": 1
+      },
+      {
+       "id": "burning-hands",
+       "level": 3
+      },
+      {
+       "id": "flame-blade",
+       "level": 5
+      }
+     ]
+    },
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "water-genasi",
+  "name": "Water Genasi",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "sizeOptions": [
+   "Medium",
+   "Small"
+  ],
+  "speed": 30,
+  "speeds": {
+   "swim": 30
+  },
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "water-genasi-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "water-genasi-acid-resistance",
+    "name": "Acid Resistance",
+    "description": "You resist Acid damage.",
+    "grants": {
+     "resistances": [
+      "acid"
+     ]
+    }
+   },
+   {
+    "id": "water-genasi-amphibious",
+    "name": "Amphibious",
+    "description": "You can breathe both air and water."
+   },
+   {
+    "id": "water-genasi-swim",
+    "name": "Swim Speed",
+    "description": "You have a Swim Speed equal to your walking Speed."
+   },
+   {
+    "id": "water-genasi-call-to-the-wave",
+    "name": "Call to the Wave",
+    "description": "You know Acid Splash; from level 3 you can cast Create or Destroy Water and from level 5 Water Walk, each once per Long Rest without a slot or material components (or with slots).",
+    "grants": {
+     "spells": [
+      {
+       "id": "acid-splash",
+       "level": 1
+      },
+      {
+       "id": "create-or-destroy-water",
+       "level": 3
+      },
+      {
+       "id": "water-walk",
+       "level": 5
+      }
+     ]
+    },
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "githyanki",
+  "name": "Githyanki",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "traits": [
+   {
+    "id": "githyanki-astral-knowledge",
+    "name": "Astral Knowledge",
+    "description": "Each time you finish a Long Rest, you gain proficiency in one skill and one weapon or tool of your choice until your next Long Rest."
+   },
+   {
+    "id": "githyanki-githyanki-psionics",
+    "name": "Githyanki Psionics",
+    "description": "You know Mage Hand (its hand is invisible). From level 3 you can cast Jump and from level 5 Misty Step, each once per Long Rest without a slot or components (or with slots).",
+    "grants": {
+     "spells": [
+      {
+       "id": "mage-hand",
+       "level": 1
+      },
+      {
+       "id": "jump",
+       "level": 3
+      },
+      {
+       "id": "misty-step",
+       "level": 5
+      }
+     ]
+    },
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   },
+   {
+    "id": "githyanki-psychic-resilience",
+    "name": "Psychic Resilience",
+    "description": "You resist Psychic damage.",
+    "grants": {
+     "resistances": [
+      "psychic"
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "githzerai",
+  "name": "Githzerai",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "traits": [
+   {
+    "id": "githzerai-githzerai-psionics",
+    "name": "Githzerai Psionics",
+    "description": "You know Mage Hand (its hand is invisible). From level 3 you can cast Shield and from level 5 Detect Thoughts, each once per Long Rest without a slot or components (or with slots).",
+    "grants": {
+     "spells": [
+      {
+       "id": "mage-hand",
+       "level": 1
+      },
+      {
+       "id": "shield",
+       "level": 3
+      },
+      {
+       "id": "detect-thoughts",
+       "level": 5
+      }
+     ]
+    },
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   },
+   {
+    "id": "githzerai-mental-discipline",
+    "name": "Mental Discipline",
+    "description": "You have Advantage on saves to avoid or end the Charmed or Frightened conditions."
+   },
+   {
+    "id": "githzerai-psychic-resilience",
+    "name": "Psychic Resilience",
+    "description": "You resist Psychic damage.",
+    "grants": {
+     "resistances": [
+      "psychic"
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "goblin",
+  "name": "Goblin",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Small",
+  "speed": 30,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "goblin-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "goblin-fey-ancestry",
+    "name": "Fey Ancestry",
+    "description": "You have Advantage on saves to avoid or end the Charmed condition."
+   },
+   {
+    "id": "goblin-fury-of-the-small",
+    "name": "Fury of the Small",
+    "description": "Once per turn when you damage a creature larger than you with an attack or spell, you can add extra damage equal to your Proficiency Bonus; uses per Long Rest equal your Proficiency Bonus."
+   },
+   {
+    "id": "goblin-nimble-escape",
+    "name": "Nimble Escape",
+    "description": "You can take the Disengage or Hide action as a Bonus Action."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "harengon",
+  "name": "Harengon",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "sizeOptions": [
+   "Medium",
+   "Small"
+  ],
+  "speed": 30,
+  "traits": [
+   {
+    "id": "harengon-hare-trigger",
+    "name": "Hare-Trigger",
+    "description": "You add your Proficiency Bonus to your Initiative rolls."
+   },
+   {
+    "id": "harengon-leporine-senses",
+    "name": "Leporine Senses",
+    "description": "You are proficient in Perception.",
+    "grants": {
+     "skills": [
+      "perception"
+     ]
+    }
+   },
+   {
+    "id": "harengon-lucky-footwork",
+    "name": "Lucky Footwork",
+    "description": "When you fail a Dexterity saving throw, you can use your Reaction to add 1d4 to the roll."
+   },
+   {
+    "id": "harengon-rabbit-hop",
+    "name": "Rabbit Hop",
+    "description": "As a Bonus Action you can jump a number of feet equal to five times your Proficiency Bonus without provoking Opportunity Attacks (requires Speed above 0); uses per Long Rest equal your Proficiency Bonus."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "hobgoblin",
+  "name": "Hobgoblin",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "hobgoblin-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "hobgoblin-fey-ancestry",
+    "name": "Fey Ancestry",
+    "description": "You have Advantage on saves to avoid or end the Charmed condition."
+   },
+   {
+    "id": "hobgoblin-fey-gift",
+    "name": "Fey Gift",
+    "description": "You can take the Help action as a Bonus Action, a number of times per Long Rest equal to your Proficiency Bonus. From level 3, each such Help also grants one extra effect of your choice.",
+    "choice": {
+     "type": "options",
+     "key": "fey-gift",
+     "count": 1,
+     "perUse": true,
+     "minLevel": 3,
+     "note": "Picked each time you use Fey Gift (level 3+).",
+     "options": [
+      {
+       "id": "hospitality",
+       "name": "Hospitality",
+       "description": "You and the helped creature each gain 1d6 + PB Temporary Hit Points."
+      },
+      {
+       "id": "passage",
+       "name": "Passage",
+       "description": "You and the helped creature each gain +10 feet of Speed until the start of your next turn."
+      },
+      {
+       "id": "spite",
+       "name": "Spite",
+       "description": "The first target the helped creature hits before your next turn has Disadvantage on its next attack roll within the next minute."
+      }
+     ]
+    },
+    "verify": true
+   },
+   {
+    "id": "hobgoblin-fortune-from-the-many",
+    "name": "Fortune from the Many",
+    "description": "When you miss an attack or fail a check or save, you can add a bonus equal to the number of allies you can see within 30 feet (max +3); uses per Long Rest equal your Proficiency Bonus."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "kenku",
+  "name": "Kenku",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "sizeOptions": [
+   "Medium",
+   "Small"
+  ],
+  "speed": 30,
+  "traits": [
+   {
+    "id": "kenku-expert-duplication",
+    "name": "Expert Duplication",
+    "description": "You have Advantage on checks to forge or copy handwriting and craftwork."
+   },
+   {
+    "id": "kenku-kenku-recall",
+    "name": "Kenku Recall",
+    "description": "You gain proficiency in two skills, and a number of times per Long Rest equal to your Proficiency Bonus you can give yourself Advantage on a check with a skill you're proficient in.",
+    "choice": {
+     "type": "skills",
+     "count": 2,
+     "from": "any"
+    }
+   },
+   {
+    "id": "kenku-mimicry",
+    "name": "Mimicry",
+    "description": "You can imitate voices and sounds you've heard; a listener needs a Wisdom (Insight) check against DC 8 + PB + your Charisma modifier to spot the fake."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "kobold",
+  "name": "Kobold",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Small",
+  "speed": 30,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "kobold-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "kobold-draconic-cry",
+    "name": "Draconic Cry",
+    "description": "As a Bonus Action you shriek at enemies within 10 feet; until your next turn starts, you and your allies have Advantage on attack rolls against those that heard it. Uses per Long Rest equal your Proficiency Bonus."
+   },
+   {
+    "id": "kobold-kobold-legacy",
+    "name": "Kobold Legacy",
+    "description": "Your draconic heritage grants one benefit of your choice.",
+    "choice": {
+     "type": "options",
+     "key": "kobold-legacy",
+     "count": 1,
+     "options": [
+      {
+       "id": "craftiness",
+       "name": "Craftiness",
+       "description": "Proficiency in one skill from Arcana, Investigation, Medicine, Sleight of Hand, or Survival.",
+       "choice": {
+        "type": "skills",
+        "count": 1,
+        "from": [
+         "arcana",
+         "investigation",
+         "medicine",
+         "sleight-of-hand",
+         "survival"
+        ]
+       }
+      },
+      {
+       "id": "defiance",
+       "name": "Defiance",
+       "description": "Advantage on saves to avoid or end the Frightened condition."
+      },
+      {
+       "id": "draconic-sorcery",
+       "name": "Draconic Sorcery",
+       "description": "You learn one Sorcerer cantrip (Int, Wis, or Cha is its spellcasting ability).",
+       "choice": {
+        "type": "multi",
+        "parts": [
+         {
+          "type": "spells",
+          "count": 1,
+          "list": [
+           "sorcerer"
+          ],
+          "level": 0
+         },
+         {
+          "type": "ability",
+          "key": "spellcasting-ability",
+          "from": [
+           "int",
+           "wis",
+           "cha"
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "lizardfolk",
+  "name": "Lizardfolk",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "speeds": {
+   "swim": 30
+  },
+  "traits": [
+   {
+    "id": "lizardfolk-bite",
+    "name": "Bite",
+    "description": "Your Unarmed Strikes can deal 1d6 + Strength modifier Slashing damage.",
+    "unarmed": {
+     "damage": "1d6",
+     "type": "slashing"
+    }
+   },
+   {
+    "id": "lizardfolk-hold-breath",
+    "name": "Hold Breath",
+    "description": "You can hold your breath for up to 15 minutes."
+   },
+   {
+    "id": "lizardfolk-swim",
+    "name": "Swim Speed",
+    "description": "You have a Swim Speed equal to your walking Speed."
+   },
+   {
+    "id": "lizardfolk-hungry-jaws",
+    "name": "Hungry Jaws",
+    "description": "As a Bonus Action you make a special Bite attack; if it hits, you gain Temporary Hit Points equal to your Proficiency Bonus. Uses per Long Rest equal your Proficiency Bonus."
+   },
+   {
+    "id": "lizardfolk-natural-armor",
+    "name": "Natural Armor",
+    "description": "Without armor, your AC is 13 + your Dexterity modifier (a Shield still adds its bonus).",
+    "unarmoredAC": {
+     "base": 13,
+     "dex": true
+    }
+   },
+   {
+    "id": "lizardfolk-natures-intuition",
+    "name": "Nature's Intuition",
+    "description": "You gain proficiency in two skills from the list.",
+    "choice": {
+     "type": "skills",
+     "count": 2,
+     "from": [
+      "animal-handling",
+      "medicine",
+      "nature",
+      "perception",
+      "stealth",
+      "survival"
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "minotaur",
+  "name": "Minotaur",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "traits": [
+   {
+    "id": "minotaur-horns",
+    "name": "Horns",
+    "description": "Your Unarmed Strikes can deal 1d6 + Strength modifier Piercing damage.",
+    "unarmed": {
+     "damage": "1d6",
+     "type": "piercing"
+    }
+   },
+   {
+    "id": "minotaur-goring-rush",
+    "name": "Goring Rush",
+    "description": "Right after you Dash and move at least 20 feet, you can make a Horns attack as a Bonus Action."
+   },
+   {
+    "id": "minotaur-hammering-horns",
+    "name": "Hammering Horns",
+    "description": "After you hit with a melee attack as part of the Attack action, you can use a Bonus Action to shove that target (no more than one size larger) up to 10 feet away unless it passes a Strength save (DC 8 + PB + Str mod)."
+   },
+   {
+    "id": "minotaur-labyrinthine-recall",
+    "name": "Labyrinthine Recall",
+    "description": "You always know which way is north and have Advantage on Survival checks to navigate or track."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "satyr",
+  "name": "Satyr",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Fey",
+  "size": "Medium",
+  "speed": 35,
+  "traits": [
+   {
+    "id": "satyr-ram",
+    "name": "Ram",
+    "description": "Your Unarmed Strikes can deal 1d4 + Strength modifier Bludgeoning damage.",
+    "unarmed": {
+     "damage": "1d4",
+     "type": "bludgeoning"
+    }
+   },
+   {
+    "id": "satyr-magic-resistance",
+    "name": "Magic Resistance",
+    "description": "You have Advantage on saving throws against spells."
+   },
+   {
+    "id": "satyr-mirthful-leaps",
+    "name": "Mirthful Leaps",
+    "description": "Whenever you make a long or high jump, you can roll a d8 and add that many feet to the distance."
+   },
+   {
+    "id": "satyr-reveler",
+    "name": "Reveler",
+    "description": "You are proficient in Performance and Persuasion and with one musical instrument of your choice.",
+    "grants": {
+     "skills": [
+      "performance",
+      "persuasion"
+     ]
+    },
+    "choice": {
+     "type": "tools",
+     "count": 1,
+     "from": "musical-instruments"
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "sea-elf",
+  "name": "Sea Elf",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "speeds": {
+   "swim": 30
+  },
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "sea-elf-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "sea-elf-child-of-the-sea",
+    "name": "Child of the Sea",
+    "description": "You have a Swim Speed equal to your walking Speed, can breathe air and water, and resist Cold damage.",
+    "grants": {
+     "resistances": [
+      "cold"
+     ]
+    }
+   },
+   {
+    "id": "sea-elf-fey-ancestry",
+    "name": "Fey Ancestry",
+    "description": "You have Advantage on saves to avoid or end the Charmed condition."
+   },
+   {
+    "id": "sea-elf-friend-of-the-sea",
+    "name": "Friend of the Sea",
+    "description": "You can share simple ideas with any Beast, Elemental, or Monstrosity that has a Swim Speed."
+   },
+   {
+    "id": "sea-elf-keen-senses",
+    "name": "Keen Senses",
+    "description": "You are proficient in Perception.",
+    "grants": {
+     "skills": [
+      "perception"
+     ]
+    }
+   },
+   {
+    "id": "sea-elf-trance",
+    "name": "Trance",
+    "description": "You don't sleep and finish a Long Rest in 4 hours of meditation, gaining two weapon or tool proficiencies of your choice until your next Long Rest."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "shadar-kai",
+  "name": "Shadar-kai",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "shadar-kai-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "shadar-kai-blessing-of-the-raven-queen",
+    "name": "Blessing of the Raven Queen",
+    "description": "As a Bonus Action you teleport up to 30 feet to a space you can see, a number of times per Long Rest equal to your Proficiency Bonus. From level 3 you also resist all damage until the start of your next turn after teleporting."
+   },
+   {
+    "id": "shadar-kai-fey-ancestry",
+    "name": "Fey Ancestry",
+    "description": "You have Advantage on saves to avoid or end the Charmed condition."
+   },
+   {
+    "id": "shadar-kai-keen-senses",
+    "name": "Keen Senses",
+    "description": "You are proficient in Perception.",
+    "grants": {
+     "skills": [
+      "perception"
+     ]
+    }
+   },
+   {
+    "id": "shadar-kai-necrotic-resistance",
+    "name": "Necrotic Resistance",
+    "description": "You resist Necrotic damage.",
+    "grants": {
+     "resistances": [
+      "necrotic"
+     ]
+    }
+   },
+   {
+    "id": "shadar-kai-trance",
+    "name": "Trance",
+    "description": "You don't sleep and finish a Long Rest in 4 hours of meditation, gaining two weapon or tool proficiencies of your choice until your next Long Rest."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "shifter",
+  "name": "Shifter",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "shifter-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "shifter-bestial-instincts",
+    "name": "Bestial Instincts",
+    "description": "You gain proficiency in one skill from the list.",
+    "choice": {
+     "type": "skills",
+     "count": 1,
+     "from": [
+      "acrobatics",
+      "athletics",
+      "intimidation",
+      "survival"
+     ]
+    }
+   },
+   {
+    "id": "shifter-shifting",
+    "name": "Shifting",
+    "description": "As a Bonus Action you take on a bestial form for 1 minute, gaining Temporary Hit Points equal to twice your Proficiency Bonus plus your subtype's benefit. Uses per Long Rest equal your Proficiency Bonus."
+   }
+  ],
+  "subspecies": [
+   {
+    "id": "shifter-beasthide",
+    "name": "Beasthide",
+    "traits": [
+     {
+      "id": "shifter-beasthide-shift",
+      "name": "Beasthide Shift",
+      "description": "When you shift you gain an extra 1d6 Temporary Hit Points, and you get +1 AC while shifted."
+     }
+    ]
+   },
+   {
+    "id": "shifter-longtooth",
+    "name": "Longtooth",
+    "traits": [
+     {
+      "id": "shifter-longtooth-shift",
+      "name": "Longtooth Shift",
+      "description": "While shifted, you can make a fang Unarmed Strike as a Bonus Action that deals 1d6 + Strength modifier Piercing damage."
+     }
+    ]
+   },
+   {
+    "id": "shifter-swiftstride",
+    "name": "Swiftstride",
+    "traits": [
+     {
+      "id": "shifter-swiftstride-shift",
+      "name": "Swiftstride Shift",
+      "description": "While shifted, your Speed rises by 10 feet, and when an enemy ends its turn within 5 feet of you, your Reaction lets you move 10 feet without provoking Opportunity Attacks."
+     }
+    ]
+   },
+   {
+    "id": "shifter-wildhunt",
+    "name": "Wildhunt",
+    "traits": [
+     {
+      "id": "shifter-wildhunt-shift",
+      "name": "Wildhunt Shift",
+      "description": "While shifted, you have Advantage on Wisdom checks, and creatures within 30 feet can't gain Advantage on attack rolls against you unless you're Incapacitated."
+     }
+    ]
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages. Pick a shifter subtype (subspecies)."
+ },
+ {
+  "id": "tabaxi",
+  "name": "Tabaxi",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "sizeOptions": [
+   "Medium",
+   "Small"
+  ],
+  "speed": 30,
+  "speeds": {
+   "climb": 30
+  },
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "tabaxi-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "tabaxi-cats-claws",
+    "name": "Cat's Claws",
+    "description": "You have a Climb Speed equal to your walking Speed, and your Unarmed Strikes can deal 1d6 + Strength modifier Slashing damage.",
+    "unarmed": {
+     "damage": "1d6",
+     "type": "slashing"
+    }
+   },
+   {
+    "id": "tabaxi-cats-talent",
+    "name": "Cat's Talent",
+    "description": "You are proficient in Perception and Stealth.",
+    "grants": {
+     "skills": [
+      "perception",
+      "stealth"
+     ]
+    }
+   },
+   {
+    "id": "tabaxi-feline-agility",
+    "name": "Feline Agility",
+    "description": "When you move on your turn you can double your Speed until the turn ends; you can't do it again until you spend a turn without moving."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "tortle",
+  "name": "Tortle",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "sizeOptions": [
+   "Medium",
+   "Small"
+  ],
+  "speed": 30,
+  "traits": [
+   {
+    "id": "tortle-claws",
+    "name": "Claws",
+    "description": "Your Unarmed Strikes can deal 1d6 + Strength modifier Slashing damage.",
+    "unarmed": {
+     "damage": "1d6",
+     "type": "slashing"
+    }
+   },
+   {
+    "id": "tortle-hold-breath",
+    "name": "Hold Breath",
+    "description": "You can hold your breath for up to 1 hour."
+   },
+   {
+    "id": "tortle-natural-armor",
+    "name": "Natural Armor",
+    "description": "Your shell gives you a base AC of 17 that ignores Dexterity; you can't wear Light, Medium, or Heavy armor, but a Shield still adds its bonus.",
+    "unarmoredAC": {
+     "base": 17,
+     "dex": false
+    }
+   },
+   {
+    "id": "tortle-natures-intuition",
+    "name": "Nature's Intuition",
+    "description": "You gain proficiency in one skill from the list.",
+    "choice": {
+     "type": "skills",
+     "count": 1,
+     "from": [
+      "animal-handling",
+      "medicine",
+      "nature",
+      "perception",
+      "stealth",
+      "survival"
+     ]
+    }
+   },
+   {
+    "id": "tortle-shell-defense",
+    "name": "Shell Defense",
+    "description": "As an action you pull into your shell: +4 AC and Advantage on Strength and Constitution saves, but you're Prone, have Speed 0, Disadvantage on Dexterity saves, and no Reactions. A Bonus Action brings you out."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "triton",
+  "name": "Triton",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "speeds": {
+   "swim": 30
+  },
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "triton-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "triton-amphibious",
+    "name": "Amphibious",
+    "description": "You can breathe both air and water."
+   },
+   {
+    "id": "triton-swim",
+    "name": "Swim Speed",
+    "description": "You have a Swim Speed equal to your walking Speed."
+   },
+   {
+    "id": "triton-control-air-and-water",
+    "name": "Control Air and Water",
+    "description": "You can cast Fog Cloud; from level 3 Gust of Wind and from level 5 Water Walk, each once per Long Rest without a slot (or with slots).",
+    "grants": {
+     "spells": [
+      {
+       "id": "fog-cloud",
+       "level": 1
+      },
+      {
+       "id": "gust-of-wind",
+       "level": 3
+      },
+      {
+       "id": "water-walk",
+       "level": 5
+      }
+     ]
+    },
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   },
+   {
+    "id": "triton-emissary-of-the-sea",
+    "name": "Emissary of the Sea",
+    "description": "You can share simple ideas with Beasts, Elementals, and Monstrosities that can breathe water."
+   },
+   {
+    "id": "triton-guardian-of-the-depths",
+    "name": "Guardian of the Depths",
+    "description": "You resist Cold damage.",
+    "grants": {
+     "resistances": [
+      "cold"
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "yuan-ti",
+  "name": "Yuan-ti",
+  "source": "MPMM",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "sizeOptions": [
+   "Medium",
+   "Small"
+  ],
+  "speed": 30,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "yuan-ti-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "yuan-ti-magic-resistance",
+    "name": "Magic Resistance",
+    "description": "You have Advantage on saving throws against spells."
+   },
+   {
+    "id": "yuan-ti-poison-resilience",
+    "name": "Poison Resilience",
+    "description": "You resist Poison damage and have Advantage on saves to avoid or end the Poisoned condition.",
+    "grants": {
+     "resistances": [
+      "poison"
+     ]
+    }
+   },
+   {
+    "id": "yuan-ti-serpentine-spellcasting",
+    "name": "Serpentine Spellcasting",
+    "description": "You know Poison Spray and can cast Animal Friendship at will on snakes only; from level 3 you can cast Suggestion once per Long Rest without a slot (or with slots).",
+    "grants": {
+     "spells": [
+      {
+       "id": "poison-spray",
+       "level": 1
+      },
+      {
+       "id": "animal-friendship",
+       "level": 1
+      },
+      {
+       "id": "suggestion",
+       "level": 3
+      }
+     ]
+    },
+    "choice": {
+     "type": "ability",
+     "key": "spellcasting-ability",
+     "from": [
+      "int",
+      "wis",
+      "cha"
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "warforged",
+  "name": "Warforged",
+  "source": "ERLW",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "traits": [
+   {
+    "id": "warforged-constructed-resilience",
+    "name": "Constructed Resilience",
+    "description": "You resist Poison damage, have Advantage on saves against being Poisoned, are immune to disease, don't need to eat, drink, or breathe, and magic can't put you to sleep.",
+    "grants": {
+     "resistances": [
+      "poison"
+     ]
+    }
+   },
+   {
+    "id": "warforged-sentrys-rest",
+    "name": "Sentry's Rest",
+    "description": "Your Long Rest is 6 hours of motionless but fully aware inactivity rather than sleep."
+   },
+   {
+    "id": "warforged-integrated-protection",
+    "name": "Integrated Protection",
+    "description": "You gain +1 AC. Armor you don takes 1 hour to integrate with your body and can't be removed against your will while you live.",
+    "acBonus": 1
+   },
+   {
+    "id": "warforged-specialized-design",
+    "name": "Specialized Design",
+    "description": "You gain proficiency in one skill and one tool of your choice.",
+    "choice": {
+     "type": "multi",
+     "parts": [
+      {
+       "type": "skills",
+       "count": 1,
+       "from": "any"
+      },
+      {
+       "type": "tools",
+       "count": 1,
+       "from": "any"
+      }
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "half-elf",
+  "name": "Half-Elf",
+  "source": "PHB 2014",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "half-elf-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "half-elf-fey-ancestry",
+    "name": "Fey Ancestry",
+    "description": "You have Advantage on saves against being Charmed, and magic can't put you to sleep."
+   },
+   {
+    "id": "half-elf-skill-versatility",
+    "name": "Skill Versatility",
+    "description": "You gain proficiency in two skills of your choice.",
+    "choice": {
+     "type": "skills",
+     "count": 2,
+     "from": "any"
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "half-orc",
+  "name": "Half-Orc",
+  "source": "PHB 2014",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "half-orc-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "half-orc-menacing",
+    "name": "Menacing",
+    "description": "You are proficient in Intimidation.",
+    "grants": {
+     "skills": [
+      "intimidation"
+     ]
+    }
+   },
+   {
+    "id": "half-orc-relentless-endurance",
+    "name": "Relentless Endurance",
+    "description": "Once per Long Rest, when you drop to 0 Hit Points without being killed outright, you can stay at 1 Hit Point instead."
+   },
+   {
+    "id": "half-orc-savage-attacks",
+    "name": "Savage Attacks",
+    "description": "When you score a Critical Hit with a melee weapon, roll one of its damage dice one more time and add it to the extra damage."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "owlin",
+  "name": "Owlin",
+  "source": "SCC",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "sizeOptions": [
+   "Medium",
+   "Small"
+  ],
+  "speed": 30,
+  "speeds": {
+   "fly": 30
+  },
+  "darkvision": 120,
+  "traits": [
+   {
+    "id": "owlin-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 120 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "owlin-flight",
+    "name": "Flight",
+    "description": "You have a Fly Speed equal to your walking Speed, but can't use it while wearing Medium or Heavy armor."
+   },
+   {
+    "id": "owlin-silent-feathers",
+    "name": "Silent Feathers",
+    "description": "You are proficient in Stealth.",
+    "grants": {
+     "skills": [
+      "stealth"
+     ]
+    }
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "kalashtar",
+  "name": "Kalashtar",
+  "source": "ERLW",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 30,
+  "traits": [
+   {
+    "id": "kalashtar-dual-mind",
+    "name": "Dual Mind",
+    "description": "You have Advantage on all Wisdom saving throws."
+   },
+   {
+    "id": "kalashtar-mental-discipline",
+    "name": "Mental Discipline",
+    "description": "You resist Psychic damage.",
+    "grants": {
+     "resistances": [
+      "psychic"
+     ]
+    }
+   },
+   {
+    "id": "kalashtar-mind-link",
+    "name": "Mind Link",
+    "description": "You can speak telepathically to a creature you can see within 10 feet times your level, and can let it answer you telepathically for a short time."
+   },
+   {
+    "id": "kalashtar-severed-from-dreams",
+    "name": "Severed from Dreams",
+    "description": "You sleep but don't dream, so spells and effects that work through dreams (such as Dream) can't affect you."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ },
+ {
+  "id": "leonin",
+  "name": "Leonin",
+  "source": "MOoT",
+  "stub": true,
+  "legacy": true,
+  "type": "Humanoid",
+  "size": "Medium",
+  "speed": 35,
+  "darkvision": 60,
+  "traits": [
+   {
+    "id": "leonin-darkvision",
+    "name": "Darkvision",
+    "description": "You can see in dim light within 60 feet as though it were bright light, and in darkness within that range as though it were dim light (shades of gray only)."
+   },
+   {
+    "id": "leonin-claws",
+    "name": "Claws",
+    "description": "Your Unarmed Strikes can deal 1d4 + Strength modifier Slashing damage.",
+    "unarmed": {
+     "damage": "1d4",
+     "type": "slashing"
+    }
+   },
+   {
+    "id": "leonin-hunters-instincts",
+    "name": "Hunter's Instincts",
+    "description": "You gain proficiency in one skill from the list.",
+    "choice": {
+     "type": "skills",
+     "count": 1,
+     "from": [
+      "athletics",
+      "intimidation",
+      "perception",
+      "survival"
+     ]
+    }
+   },
+   {
+    "id": "leonin-daunting-roar",
+    "name": "Daunting Roar",
+    "description": "As a Bonus Action you roar; creatures of your choice within 10 feet that hear it must pass a Wisdom save (DC 8 + PB + Con mod) or be Frightened of you until the end of your next turn. Once per Short or Long Rest."
+   }
+  ],
+  "notes": "Legacy species for use with 2024 rules: ignore its old fixed ability score increases and language list; ability scores come from your background and you know Common plus two languages."
+ }
+]

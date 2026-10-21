@@ -1,0 +1,830 @@
+[
+ {
+  "id": "artisan",
+  "name": "Artisan",
+  "source": "PHB 2024",
+  "stub": true,
+  "abilityScores": [
+   "str",
+   "dex",
+   "int"
+  ],
+  "feat": {
+   "id": "crafter",
+   "note": null
+  },
+  "skills": [
+   "investigation",
+   "persuasion"
+  ],
+  "tool": {
+   "category": "artisans-tools",
+   "name": "One kind of Artisan's Tools",
+   "from": [
+    "alchemists-supplies",
+    "brewers-supplies",
+    "calligraphers-supplies",
+    "carpenters-tools",
+    "cartographer-tools",
+    "cobblers-tools",
+    "cooks-utensils",
+    "glassblowers-tools",
+    "jewelers-tools",
+    "leatherworkers-tools",
+    "masons-tools",
+    "painters-supplies",
+    "potters-tools",
+    "smiths-tools",
+    "tinkers-tools",
+    "weavers-tools",
+    "woodcarvers-tools"
+   ]
+  },
+  "equipment": {
+   "text": "(A) Artisan's Tools (same kind as your proficiency), 2 Pouches, Traveler's Clothes, 32 GP; or (B) 50 GP",
+   "options": [
+    {
+     "label": "A",
+     "items": [
+      {
+       "category": "artisans-tools",
+       "qty": 1,
+       "name": "Artisan's Tools (the kind you're proficient with)",
+       "sameAsTool": true
+      },
+      {
+       "id": "pouch",
+       "qty": 2,
+       "name": "Pouch"
+      },
+      {
+       "id": "clothes-travelers",
+       "qty": 1,
+       "name": "Traveler's Clothes"
+      }
+     ],
+     "gp": 32
+    },
+    {
+     "label": "B",
+     "items": [],
+     "gp": 50
+    }
+   ]
+  },
+  "description": "You learned a trade at a workbench, dealing with customers and perfecting your craft."
+ },
+ {
+  "id": "charlatan",
+  "name": "Charlatan",
+  "source": "PHB 2024",
+  "stub": true,
+  "abilityScores": [
+   "dex",
+   "con",
+   "cha"
+  ],
+  "feat": {
+   "id": "skilled",
+   "note": null
+  },
+  "skills": [
+   "deception",
+   "sleight-of-hand"
+  ],
+  "tool": {
+   "id": "forgery-kit",
+   "name": "Forgery Kit"
+  },
+  "equipment": {
+   "text": "(A) Forgery Kit, Costume, Fine Clothes, 15 GP; or (B) 50 GP",
+   "options": [
+    {
+     "label": "A",
+     "items": [
+      {
+       "id": "forgery-kit",
+       "qty": 1,
+       "name": "Forgery Kit"
+      },
+      {
+       "id": "costume",
+       "qty": 1,
+       "name": "Costume"
+      },
+      {
+       "id": "clothes-fine",
+       "qty": 1,
+       "name": "Fine Clothes"
+      }
+     ],
+     "gp": 15
+    },
+    {
+     "label": "B",
+     "items": [],
+     "gp": 50
+    }
+   ]
+  },
+  "description": "You lived by false names, forged papers, and convincing lies."
+ },
+ {
+  "id": "entertainer",
+  "name": "Entertainer",
+  "source": "PHB 2024",
+  "stub": true,
+  "abilityScores": [
+   "str",
+   "dex",
+   "cha"
+  ],
+  "feat": {
+   "id": "musician",
+   "note": null
+  },
+  "skills": [
+   "acrobatics",
+   "performance"
+  ],
+  "tool": {
+   "category": "musical-instruments",
+   "name": "One kind of Musical Instrument",
+   "from": [
+    "bagpipes",
+    "drum",
+    "dulcimer",
+    "flute",
+    "horn",
+    "lute",
+    "lyre",
+    "pan-flute",
+    "shawm",
+    "viol"
+   ]
+  },
+  "equipment": {
+   "text": "(A) Musical Instrument (same kind as your proficiency), 2 Costumes, Mirror, Perfume, Traveler's Clothes, 11 GP; or (B) 50 GP",
+   "options": [
+    {
+     "label": "A",
+     "items": [
+      {
+       "category": "musical-instruments",
+       "qty": 1,
+       "name": "Musical Instrument (the kind you're proficient with)",
+       "sameAsTool": true
+      },
+      {
+       "id": "costume",
+       "qty": 2,
+       "name": "Costume"
+      },
+      {
+       "id": "mirror",
+       "qty": 1,
+       "name": "Mirror"
+      },
+      {
+       "id": "perfume",
+       "qty": 1,
+       "name": "Perfume"
+      },
+      {
+       "id": "clothes-travelers",
+       "qty": 1,
+       "name": "Traveler's Clothes"
+      }
+     ],
+     "gp": 11
+    },
+    {
+     "label": "B",
+     "items": [],
+     "gp": 50
+    }
+   ]
+  },
+  "description": "You grew up performing for crowds with music, tumbling, or showmanship."
+ },
+ {
+  "id": "farmer",
+  "name": "Farmer",
+  "source": "PHB 2024",
+  "stub": true,
+  "abilityScores": [
+   "str",
+   "con",
+   "wis"
+  ],
+  "feat": {
+   "id": "tough",
+   "note": null
+  },
+  "skills": [
+   "animal-handling",
+   "nature"
+  ],
+  "tool": {
+   "id": "carpenters-tools",
+   "name": "Carpenter's Tools"
+  },
+  "equipment": {
+   "text": "(A) Sickle, Carpenter's Tools, Healer's Kit, Iron Pot, Shovel, Traveler's Clothes, 30 GP; or (B) 50 GP",
+   "options": [
+    {
+     "label": "A",
+     "items": [
+      {
+       "id": "sickle",
+       "qty": 1,
+       "name": "Sickle"
+      },
+      {
+       "id": "carpenters-tools",
+       "qty": 1,
+       "name": "Carpenter's Tools"
+      },
+      {
+       "id": "healers-kit",
+       "qty": 1,
+       "name": "Healer's Kit"
+      },
+      {
+       "id": "pot-iron",
+       "qty": 1,
+       "name": "Iron Pot"
+      },
+      {
+       "id": "shovel",
+       "qty": 1,
+       "name": "Shovel"
+      },
+      {
+       "id": "clothes-travelers",
+       "qty": 1,
+       "name": "Traveler's Clothes"
+      }
+     ],
+     "gp": 30
+    },
+    {
+     "label": "B",
+     "items": [],
+     "gp": 50
+    }
+   ]
+  },
+  "description": "You worked the land, raising crops and tending animals through lean years and good."
+ },
+ {
+  "id": "guard",
+  "name": "Guard",
+  "source": "PHB 2024",
+  "stub": true,
+  "abilityScores": [
+   "str",
+   "int",
+   "wis"
+  ],
+  "feat": {
+   "id": "alert",
+   "note": null
+  },
+  "skills": [
+   "athletics",
+   "perception"
+  ],
+  "tool": {
+   "category": "gaming-sets",
+   "name": "One kind of Gaming Set",
+   "from": [
+    "dice",
+    "dragonchess",
+    "playing-cards",
+    "three-dragon-ante"
+   ]
+  },
+  "equipment": {
+   "text": "(A) Spear, Light Crossbow, 20 Bolts, Gaming Set (same kind as your proficiency), Hooded Lantern, Manacles, Quiver, Traveler's Clothes, 12 GP; or (B) 50 GP",
+   "options": [
+    {
+     "label": "A",
+     "items": [
+      {
+       "id": "spear",
+       "qty": 1,
+       "name": "Spear"
+      },
+      {
+       "id": "light-crossbow",
+       "qty": 1,
+       "name": "Light Crossbow"
+      },
+      {
+       "id": "bolts",
+       "qty": 20,
+       "name": "Bolts"
+      },
+      {
+       "category": "gaming-sets",
+       "qty": 1,
+       "name": "Gaming Set (the kind you're proficient with)",
+       "sameAsTool": true
+      },
+      {
+       "id": "lantern-hooded",
+       "qty": 1,
+       "name": "Hooded Lantern"
+      },
+      {
+       "id": "manacles",
+       "qty": 1,
+       "name": "Manacles"
+      },
+      {
+       "id": "quiver",
+       "qty": 1,
+       "name": "Quiver"
+      },
+      {
+       "id": "clothes-travelers",
+       "qty": 1,
+       "name": "Traveler's Clothes"
+      }
+     ],
+     "gp": 12
+    },
+    {
+     "label": "B",
+     "items": [],
+     "gp": 50
+    }
+   ]
+  },
+  "description": "You kept watch on walls and gates, trained to spot trouble before it arrived."
+ },
+ {
+  "id": "guide",
+  "name": "Guide",
+  "source": "PHB 2024",
+  "stub": true,
+  "abilityScores": [
+   "dex",
+   "con",
+   "wis"
+  ],
+  "feat": {
+   "id": "magic-initiate",
+   "note": "Druid"
+  },
+  "skills": [
+   "stealth",
+   "survival"
+  ],
+  "tool": {
+   "id": "cartographer-tools",
+   "name": "Cartographer's Tools"
+  },
+  "equipment": {
+   "text": "(A) Shortbow, 20 Arrows, Cartographer's Tools, Bedroll, Quiver, Tent, Traveler's Clothes, 3 GP; or (B) 50 GP",
+   "options": [
+    {
+     "label": "A",
+     "items": [
+      {
+       "id": "shortbow",
+       "qty": 1,
+       "name": "Shortbow"
+      },
+      {
+       "id": "arrows",
+       "qty": 20,
+       "name": "Arrows"
+      },
+      {
+       "id": "cartographer-tools",
+       "qty": 1,
+       "name": "Cartographer's Tools"
+      },
+      {
+       "id": "bedroll",
+       "qty": 1,
+       "name": "Bedroll"
+      },
+      {
+       "id": "quiver",
+       "qty": 1,
+       "name": "Quiver"
+      },
+      {
+       "id": "tent",
+       "qty": 1,
+       "name": "Tent"
+      },
+      {
+       "id": "clothes-travelers",
+       "qty": 1,
+       "name": "Traveler's Clothes"
+      }
+     ],
+     "gp": 3
+    },
+    {
+     "label": "B",
+     "items": [],
+     "gp": 50
+    }
+   ]
+  },
+  "description": "You led travelers through the wilds, learning its trails, its dangers, and a little of its magic."
+ },
+ {
+  "id": "hermit",
+  "name": "Hermit",
+  "source": "PHB 2024",
+  "stub": true,
+  "abilityScores": [
+   "con",
+   "wis",
+   "cha"
+  ],
+  "feat": {
+   "id": "healer",
+   "note": null
+  },
+  "skills": [
+   "medicine",
+   "religion"
+  ],
+  "tool": {
+   "id": "herbalism-kit",
+   "name": "Herbalism Kit"
+  },
+  "equipment": {
+   "text": "(A) Quarterstaff, Herbalism Kit, Book (philosophy), Bedroll, Lamp, 3 flasks of Oil, Traveler's Clothes, 16 GP; or (B) 50 GP",
+   "options": [
+    {
+     "label": "A",
+     "items": [
+      {
+       "id": "quarterstaff",
+       "qty": 1,
+       "name": "Quarterstaff"
+      },
+      {
+       "id": "herbalism-kit",
+       "qty": 1,
+       "name": "Herbalism Kit"
+      },
+      {
+       "id": "book",
+       "qty": 1,
+       "name": "Book (philosophy)",
+       "note": "philosophy"
+      },
+      {
+       "id": "bedroll",
+       "qty": 1,
+       "name": "Bedroll"
+      },
+      {
+       "id": "lamp",
+       "qty": 1,
+       "name": "Lamp"
+      },
+      {
+       "id": "oil",
+       "qty": 3,
+       "name": "Oil (flask)"
+      },
+      {
+       "id": "clothes-travelers",
+       "qty": 1,
+       "name": "Traveler's Clothes"
+      }
+     ],
+     "gp": 16
+    },
+    {
+     "label": "B",
+     "items": [],
+     "gp": 50
+    }
+   ]
+  },
+  "description": "You lived apart from others, seeking insight in solitude and caring for body and spirit."
+ },
+ {
+  "id": "merchant",
+  "name": "Merchant",
+  "source": "PHB 2024",
+  "stub": true,
+  "abilityScores": [
+   "con",
+   "int",
+   "cha"
+  ],
+  "feat": {
+   "id": "lucky",
+   "note": null
+  },
+  "skills": [
+   "animal-handling",
+   "persuasion"
+  ],
+  "tool": {
+   "id": "navigators-tools",
+   "name": "Navigator's Tools"
+  },
+  "equipment": {
+   "text": "(A) Navigator's Tools, 2 Pouches, Traveler's Clothes, 22 GP; or (B) 50 GP",
+   "options": [
+    {
+     "label": "A",
+     "items": [
+      {
+       "id": "navigators-tools",
+       "qty": 1,
+       "name": "Navigator's Tools"
+      },
+      {
+       "id": "pouch",
+       "qty": 2,
+       "name": "Pouch"
+      },
+      {
+       "id": "clothes-travelers",
+       "qty": 1,
+       "name": "Traveler's Clothes"
+      }
+     ],
+     "gp": 22
+    },
+    {
+     "label": "B",
+     "items": [],
+     "gp": 50
+    }
+   ]
+  },
+  "description": "You hauled goods between towns and learned the worth of a good bargain and a lucky break."
+ },
+ {
+  "id": "noble",
+  "name": "Noble",
+  "source": "PHB 2024",
+  "stub": true,
+  "abilityScores": [
+   "str",
+   "int",
+   "cha"
+  ],
+  "feat": {
+   "id": "skilled",
+   "note": null
+  },
+  "skills": [
+   "history",
+   "persuasion"
+  ],
+  "tool": {
+   "category": "gaming-sets",
+   "name": "One kind of Gaming Set",
+   "from": [
+    "dice",
+    "dragonchess",
+    "playing-cards",
+    "three-dragon-ante"
+   ]
+  },
+  "equipment": {
+   "text": "(A) Gaming Set (same kind as your proficiency), Fine Clothes, Perfume, 29 GP; or (B) 50 GP",
+   "options": [
+    {
+     "label": "A",
+     "items": [
+      {
+       "category": "gaming-sets",
+       "qty": 1,
+       "name": "Gaming Set (the kind you're proficient with)",
+       "sameAsTool": true
+      },
+      {
+       "id": "clothes-fine",
+       "qty": 1,
+       "name": "Fine Clothes"
+      },
+      {
+       "id": "perfume",
+       "qty": 1,
+       "name": "Perfume"
+      }
+     ],
+     "gp": 29
+    },
+    {
+     "label": "B",
+     "items": [],
+     "gp": 50
+    }
+   ]
+  },
+  "description": "You were raised amid privilege and politics, schooled in lineage and the art of influence."
+ },
+ {
+  "id": "sailor",
+  "name": "Sailor",
+  "source": "PHB 2024",
+  "stub": true,
+  "abilityScores": [
+   "str",
+   "dex",
+   "wis"
+  ],
+  "feat": {
+   "id": "tavern-brawler",
+   "note": null
+  },
+  "skills": [
+   "acrobatics",
+   "perception"
+  ],
+  "tool": {
+   "id": "navigators-tools",
+   "name": "Navigator's Tools"
+  },
+  "equipment": {
+   "text": "(A) Dagger, Navigator's Tools, Rope, Traveler's Clothes, 20 GP; or (B) 50 GP",
+   "options": [
+    {
+     "label": "A",
+     "items": [
+      {
+       "id": "dagger",
+       "qty": 1,
+       "name": "Dagger"
+      },
+      {
+       "id": "navigators-tools",
+       "qty": 1,
+       "name": "Navigator's Tools"
+      },
+      {
+       "id": "rope",
+       "qty": 1,
+       "name": "Rope"
+      },
+      {
+       "id": "clothes-travelers",
+       "qty": 1,
+       "name": "Traveler's Clothes"
+      }
+     ],
+     "gp": 20
+    },
+    {
+     "label": "B",
+     "items": [],
+     "gp": 50
+    }
+   ]
+  },
+  "description": "You spent years at sea, riding out storms and settling scores in harbor taverns."
+ },
+ {
+  "id": "scribe",
+  "name": "Scribe",
+  "source": "PHB 2024",
+  "stub": true,
+  "abilityScores": [
+   "dex",
+   "int",
+   "wis"
+  ],
+  "feat": {
+   "id": "skilled",
+   "note": null
+  },
+  "skills": [
+   "investigation",
+   "perception"
+  ],
+  "tool": {
+   "id": "calligraphers-supplies",
+   "name": "Calligrapher's Supplies"
+  },
+  "equipment": {
+   "text": "(A) Calligrapher's Supplies, Fine Clothes, Lamp, 3 flasks of Oil, 12 sheets of Parchment, 23 GP; or (B) 50 GP",
+   "options": [
+    {
+     "label": "A",
+     "items": [
+      {
+       "id": "calligraphers-supplies",
+       "qty": 1,
+       "name": "Calligrapher's Supplies"
+      },
+      {
+       "id": "clothes-fine",
+       "qty": 1,
+       "name": "Fine Clothes"
+      },
+      {
+       "id": "lamp",
+       "qty": 1,
+       "name": "Lamp"
+      },
+      {
+       "id": "oil",
+       "qty": 3,
+       "name": "Oil (flask)"
+      },
+      {
+       "id": "parchment",
+       "qty": 12,
+       "name": "Parchment (sheet)"
+      }
+     ],
+     "gp": 23
+    },
+    {
+     "label": "B",
+     "items": [],
+     "gp": 50
+    }
+   ]
+  },
+  "description": "You copied texts and kept records, honing a sharp eye for detail and error."
+ },
+ {
+  "id": "wayfarer",
+  "name": "Wayfarer",
+  "source": "PHB 2024",
+  "stub": true,
+  "abilityScores": [
+   "dex",
+   "wis",
+   "cha"
+  ],
+  "feat": {
+   "id": "lucky",
+   "note": null
+  },
+  "skills": [
+   "insight",
+   "stealth"
+  ],
+  "tool": {
+   "id": "thieves-tools",
+   "name": "Thieves' Tools"
+  },
+  "equipment": {
+   "text": "(A) 2 Daggers, Thieves' Tools, Gaming Set (any), Bedroll, 2 Pouches, Traveler's Clothes, 16 GP; or (B) 50 GP",
+   "options": [
+    {
+     "label": "A",
+     "items": [
+      {
+       "id": "dagger",
+       "qty": 2,
+       "name": "Dagger"
+      },
+      {
+       "id": "thieves-tools",
+       "qty": 1,
+       "name": "Thieves' Tools"
+      },
+      {
+       "category": "gaming-sets",
+       "qty": 1,
+       "name": "Gaming Set (any kind)"
+      },
+      {
+       "id": "bedroll",
+       "qty": 1,
+       "name": "Bedroll"
+      },
+      {
+       "id": "pouch",
+       "qty": 2,
+       "name": "Pouch"
+      },
+      {
+       "id": "clothes-travelers",
+       "qty": 1,
+       "name": "Traveler's Clothes"
+      }
+     ],
+     "gp": 16
+    },
+    {
+     "label": "B",
+     "items": [],
+     "gp": 50
+    }
+   ]
+  },
+  "description": "You grew up on the streets, getting by on wits, stealth, and the odd stroke of luck."
+ }
+]

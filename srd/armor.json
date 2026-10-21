@@ -1,0 +1,15 @@
+[
+{"id":"leather-armor","name":"Leather Armor","category":"light","ac":{"base":11,"dex":true,"maxDex":null},"strMin":null,"stealthDisadvantage":false,"weight":10,"cost":{"qty":10,"unit":"gp"},"don":"1 minute","doff":"1 minute"},
+{"id":"padded-armor","name":"Padded Armor","category":"light","ac":{"base":11,"dex":true,"maxDex":null},"strMin":null,"stealthDisadvantage":true,"weight":8,"cost":{"qty":5,"unit":"gp"},"don":"1 minute","doff":"1 minute"},
+{"id":"studded-leather-armor","name":"Studded Leather Armor","category":"light","ac":{"base":12,"dex":true,"maxDex":null},"strMin":null,"stealthDisadvantage":false,"weight":13,"cost":{"qty":45,"unit":"gp"},"don":"1 minute","doff":"1 minute"},
+{"id":"hide-armor","name":"Hide Armor","category":"medium","ac":{"base":12,"dex":true,"maxDex":2},"strMin":null,"stealthDisadvantage":false,"weight":12,"cost":{"qty":10,"unit":"gp"},"don":"5 minutes","doff":"1 minute"},
+{"id":"chain-shirt","name":"Chain Shirt","category":"medium","ac":{"base":13,"dex":true,"maxDex":2},"strMin":null,"stealthDisadvantage":false,"weight":20,"cost":{"qty":50,"unit":"gp"},"don":"5 minutes","doff":"1 minute"},
+{"id":"breastplate","name":"Breastplate","category":"medium","ac":{"base":14,"dex":true,"maxDex":2},"strMin":null,"stealthDisadvantage":false,"weight":20,"cost":{"qty":400,"unit":"gp"},"don":"5 minutes","doff":"1 minute"},
+{"id":"scale-mail","name":"Scale Mail","category":"medium","ac":{"base":14,"dex":true,"maxDex":2},"strMin":null,"stealthDisadvantage":true,"weight":45,"cost":{"qty":50,"unit":"gp"},"don":"5 minutes","doff":"1 minute"},
+{"id":"half-plate-armor","name":"Half-Plate Armor","category":"medium","ac":{"base":15,"dex":true,"maxDex":2},"strMin":null,"stealthDisadvantage":true,"weight":40,"cost":{"qty":750,"unit":"gp"},"don":"5 minutes","doff":"1 minute"},
+{"id":"ring-mail","name":"Ring Mail","category":"heavy","ac":{"base":14,"dex":false,"maxDex":null},"strMin":null,"stealthDisadvantage":true,"weight":40,"cost":{"qty":30,"unit":"gp"},"don":"10 minutes","doff":"5 minutes"},
+{"id":"chain-mail","name":"Chain Mail","category":"heavy","ac":{"base":16,"dex":false,"maxDex":null},"strMin":13,"stealthDisadvantage":true,"weight":55,"cost":{"qty":75,"unit":"gp"},"don":"10 minutes","doff":"5 minutes"},
+{"id":"splint-armor","name":"Splint Armor","category":"heavy","ac":{"base":17,"dex":false,"maxDex":null},"strMin":15,"stealthDisadvantage":true,"weight":60,"cost":{"qty":200,"unit":"gp"},"don":"10 minutes","doff":"5 minutes"},
+{"id":"plate-armor","name":"Plate Armor","category":"heavy","ac":{"base":18,"dex":false,"maxDex":null},"strMin":15,"stealthDisadvantage":true,"weight":65,"cost":{"qty":1500,"unit":"gp"},"don":"10 minutes","doff":"5 minutes"},
+{"id":"shield","name":"Shield","category":"shield","ac":{"base":2,"dex":false,"maxDex":null},"strMin":null,"stealthDisadvantage":false,"weight":6,"cost":{"qty":10,"unit":"gp"},"don":"Utilize action","doff":"Utilize action"}
+]

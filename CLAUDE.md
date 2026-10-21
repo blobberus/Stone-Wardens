@@ -84,6 +84,17 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   `origin: 'srd'|'stub'|'custom'` (`source` = book name for stubs). Custom overrides same id.
 - `settings.js`: `getSetting(k)`, `setSetting(k,v)` (playerName, autoCommit, theme, sidebarCollapsed).
 
+## Views
+- `assets/js/views/<id>/index.js` default-exports `{id, title, icon, mount(el), show(route), hide?()}`; `main.js`
+  imports the ids in `VIEW_IDS` (a failed import shows an error tab instead of breaking the app). Views register
+  their link types at import time and re-render from `store.on` events.
+- Routes: `#/map[/loc/<id>]`, `#/characters[/<id>[/<section>]]`, `#/journal[/<chapter>|_[/<note>]][?h=|tag=|q=]`,
+  `#/journal/new?title=`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`.
+
+## Testing
+- Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).
+- Syntax: portable `node --check`. Markdown renderer can be exercised in Node by stubbing `DOMPurify.sanitize`.
+
 ## UI / CSS conventions
 - Use tokens from `tokens.css` only (`--bg --surface --surface-2 --ink --ink-muted --accent --accent-ink
   --danger --ok --border --font-display --font-body --font-mono --radius --shadow --space-1..6`).
