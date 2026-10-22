@@ -1,5 +1,8 @@
-// Map data layer: location documents, location types (built-in + custom), the map config,
-// backlinks from the journal, and the [[map:…]] link type (registered at import).
+// Map data layer: maps (the main map + nested sub-maps), location documents, location types (built-in +
+// custom), backlinks from the journal, and the [[map:…]] link type (registered at import).
+// Layout: content/map/config.json = the main map; content/maps/<mapId>.json = a sub-map, its image in
+// content/maps/<mapId>/; content/locations/<id>.json = a place ("map" field = its sub-map, absent = main).
+// See docs/map-model.md.
 import { store } from '../../core/store.js';
 import { registerLinkType, matchNames } from '../../core/links.js';
 import { entries } from '../../core/compendium.js';
@@ -7,10 +10,13 @@ import { extractLinks, parseFrontmatter } from '../../core/markdown.js';
 import { href } from '../../core/router.js';
 import { uid, nameKey, slugify, byName, baseName } from '../../core/util.js';
 import { getSetting } from '../../core/settings.js';
+import { validRank, normBands } from './ranks.js';
 
 export const LOC_DIR = 'content/locations';
 export const MAP_DIR = 'content/map';
+export const MAPS_DIR = 'content/maps';
 export const CONFIG_PATH = `${MAP_DIR}/config.json`;
+export const MAIN_MAP = 'main';
 export const TYPE_KIND = 'location-type';
 export const TYPE_DIR = `content/library/${TYPE_KIND}`;
 export const JOURNAL_DIR = 'content/journal';
@@ -43,25 +49,25 @@ const pig = (key) => PIGMENTS.find((p) => p.key === key).hex;
 export const SWATCHES = PIGMENTS.map((p) => p.hex);
 export const FALLBACK_COLOR = pig('slate');
 
-// rank: 1 = labelled even when zoomed out, 2 = labelled at medium zoom, 3 = labelled when zoomed in.
-// Danger is the only vermilion pin so it reads as the loud one.
+// rank = the default hierarchy rank (1-4, see ranks.js) for places of this type that have no rank of
+// their own. Danger is the only vermilion pin so it reads as the loud one.
 export const BUILTIN_TYPES = [
   { id: 'city', name: 'City', color: pig('murrey'), rank: 1 },
   { id: 'town', name: 'Town', color: pig('lapis'), rank: 2 },
   { id: 'village', name: 'Village', color: pig('ochre'), rank: 3 },
-  { id: 'castle', name: 'Castle', color: pig('slate'), rank: 1 },
-  { id: 'temple', name: 'Temple', color: pig('gold'), rank: 2 },
+  { id: 'castle', name: 'Castle', color: pig('slate'), rank: 2 },
+  { id: 'temple', name: 'Temple', color: pig('gold'), rank: 3 },
   { id: 'port', name: 'Port', color: pig('verdigris'), rank: 2 },
   { id: 'danger', name: 'Danger', color: pig('vermilion'), rank: 3 },
   { id: 'dungeon', name: 'Dungeon', color: pig('ink'), rank: 3 },
   { id: 'ruins', name: 'Ruins', color: pig('umber'), rank: 3 },
   { id: 'cave', name: 'Cave', color: pig('umber'), rank: 3 },
-  { id: 'camp', name: 'Camp', color: pig('green'), rank: 3 },
+  { id: 'camp', name: 'Camp', color: pig('green'), rank: 4 },
   { id: 'forest', name: 'Forest', color: pig('green'), rank: 2 },
   { id: 'mountain', name: 'Mountain', color: pig('slate'), rank: 2 },
-  { id: 'landmark', name: 'Landmark', color: pig('murrey'), rank: 2 },
-  { id: 'tavern', name: 'Tavern', color: pig('ochre'), rank: 3 },
-  { id: 'shop', name: 'Shop', color: pig('verdigris'), rank: 3 },
+  { id: 'landmark', name: 'Landmark', color: pig('murrey'), rank: 3 },
+  { id: 'tavern', name: 'Tavern', color: pig('ochre'), rank: 4 },
+  { id: 'shop', name: 'Shop', color: pig('verdigris'), rank: 4 },
   { id: 'portal', name: 'Portal', color: pig('lapis'), rank: 3 },
   { id: 'battle', name: 'Battlefield', color: pig('rubric'), rank: 3 },
   { id: 'quest', name: 'Quest', color: pig('gold'), rank: 3 },
@@ -105,6 +111,8 @@ export function safeIcon(name, fallback = 'mk-custom') {
 const prettify = (s) => String(s || '').replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim();
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const round = (v) => Math.round(num(v) * 100) / 100;
+const isObj = (d) => !!d && typeof d === 'object' && !Array.isArray(d);
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 // ---------- location types ----------
 
@@ -112,13 +120,25 @@ let customTypes = [];
 let typeIndex = null;
 let typesPromise = null;
 
+/**
+ * Default rank of a custom type: its own rank, else the older "major" flag, else the built-in's.
+ * The compendium editor still toggles `major`, so a contradicting flag wins over a stale rank.
+ */
+function typeRank(c, base) {
+  const minor = base?.rank && base.rank !== 1 ? base.rank : 2;
+  const r = validRank(c.rank);
+  if (c.major === true) return 1;
+  if (c.major === false && (r === 1 || !r)) return r === 1 ? minor : (base?.rank === 1 ? 2 : base?.rank || 3);
+  return r || base?.rank || 3;
+}
+
 function normType(c, base) {
   return withPaint({
     id: String(c.id),
     name: String(c.name || base?.name || prettify(c.id)),
     icon: safeIcon(c.icon, base?.icon || 'mk-custom'),
     color: safeColor(c.color, base?.color || FALLBACK_COLOR),
-    rank: c.major === true ? 1 : c.major === false ? (base?.rank === 1 ? 2 : base?.rank || 3) : Number(c.rank) || base?.rank || 3,
+    rank: typeRank(c, base),
     builtin: !!base,
     custom: true,
     entry: c,
@@ -164,113 +184,119 @@ export function typeOf(id) {
   return withPaint({ id: key || 'other', name: key ? prettify(key) : 'Other', icon: 'mk-custom', color: FALLBACK_COLOR, rank: 3, missing: true, builtin: false, custom: false });
 }
 
-// ---------- locations ----------
+// ---------- maps ----------
 
-let locIndex = null;
+let mapIndex = null;
 
-function normLoc(d, path) {
-  const fileId = baseName(path).replace(/\.json$/i, '');
-  return {
-    ...d,
-    id: fileId, // the filename is the id
-    name: String(d.name ?? '').trim() || 'Unnamed place',
-    type: String(d.type || 'other'),
-    x: num(d.x),
-    y: num(d.y),
-    description: typeof d.description === 'string' ? d.description : '',
-    tags: Array.isArray(d.tags) ? d.tags.map((t) => String(t).trim()).filter(Boolean) : [],
-    path,
-  };
-}
-
-function index() {
-  if (!locIndex) {
-    const list = [];
-    for (const { path, data } of store.list(LOC_DIR)) {
-      if (!path.endsWith('.json') || !data || typeof data !== 'object' || Array.isArray(data)) continue;
-      list.push(normLoc(data, path));
-    }
-    list.sort(byName);
-    const byId = new Map();
-    const byKey = new Map();
-    const bySlug = new Map();
-    for (const l of list) {
-      byId.set(l.id, l);
-      if (l.id !== String(l.id).toLowerCase()) byId.set(String(l.id).toLowerCase(), l);
-      const k = nameKey(l.name);
-      if (!byKey.has(k)) byKey.set(k, l);
-      const s = slugify(l.name);
-      if (!bySlug.has(s)) bySlug.set(s, l);
-    }
-    for (const { path, data } of store.list(LOC_DIR)) { // tolerate hand-edited docs whose id != filename
-      if (data?.id && !byId.has(String(data.id))) { const l = byId.get(baseName(path).replace(/\.json$/i, '')); if (l) byId.set(String(data.id), l); }
-    }
-    locIndex = { list, byId, byKey, bySlug };
-  }
-  return locIndex;
-}
-
-/** All locations, sorted by name. Shared objects: treat as read-only. */
-export const locations = () => index().list;
-export const locationById = (id) => index().byId.get(String(id ?? '')) || null;
-
-/** Match an id, a (case/diacritic-insensitive) name, or — with loose — a slug of the name. */
-export function findLocation(target, { loose = false } = {}) {
-  const t = String(target ?? '').trim();
-  if (!t) return null;
-  const ix = index();
-  return ix.byId.get(t) || ix.byId.get(t.toLowerCase()) || ix.byKey.get(nameKey(t)) || (loose ? ix.bySlug.get(slugify(t)) : null) || null;
-}
-
-export const locPath = (id) => `${LOC_DIR}/${id}.json`;
-
-/** Create or update a location. Returns the normalized saved location. */
-export function saveLocation(loc) {
-  const now = new Date().toISOString();
-  const { path, id: _id, name, type, x, y, description, tags, createdBy, created, updated: _u, ...extra } = loc;
-  let id = loc.id;
-  if (!id) {
-    id = uid(name || 'location');
-    while (store.has(locPath(id))) id = uid(name || 'location');
-  }
-  const doc = {
-    id,
-    name: String(name || '').trim() || 'Unnamed place',
-    type: type || 'other',
-    x: round(x),
-    y: round(y),
-    description: description || '',
-    tags: Array.isArray(tags) ? tags : [],
-    createdBy: createdBy ?? (getSetting('playerName') || ''),
-    created: created || now,
-    updated: now,
-    ...extra,
-  };
-  const p = path || locPath(id);
-  store.put(p, doc);
-  return locationById(baseName(p).replace(/\.json$/i, '')) || normLoc(doc, p);
-}
-
-export function deleteLocation(loc) {
-  store.remove(loc.path || locPath(loc.id));
-}
-
-/** Text for a [[map:…]] link that survives odd characters in names. */
-export function linkText(loc) {
-  return /[[\]|#^]/.test(loc.name) ? `[[map:${loc.id}|${loc.name.replace(/[[\]|]/g, '')}]]` : `[[map:${loc.name}]]`;
-}
-
-// ---------- map config ----------
+export const mapPath = (id) => (id === MAIN_MAP ? CONFIG_PATH : `${MAPS_DIR}/${id}.json`);
+/** Folder for a map's uploaded image. */
+export const mapImageDir = (id) => (id === MAIN_MAP ? MAP_DIR : `${MAPS_DIR}/${id}`);
 
 export function readConfig() {
   const c = store.get(CONFIG_PATH);
-  return c && typeof c === 'object' && !Array.isArray(c) ? c : {};
+  return isObj(c) ? c : {};
 }
 
-export function writeConfig(patch) {
-  const next = { ...readConfig(), ...patch };
-  const { image, width, height, name, ...rest } = next;
-  store.put(CONFIG_PATH, { image, width, height, name, ...rest });
+function mapsIdx() {
+  if (mapIndex) return mapIndex;
+  const cfg = readConfig();
+  const main = { id: MAIN_MAP, isMain: true, parent: null, name: String(cfg.name || '').trim() || DEFAULT_MAP_NAME, path: CONFIG_PATH, image: cfg.image || '', rankBands: cfg.rankBands };
+  const subs = [];
+  for (const { path, data: d } of store.list(MAPS_DIR)) {
+    if (!path.endsWith('.json') || !isObj(d)) continue;
+    const id = baseName(path).replace(/\.json$/i, '');
+    if (!id || id === MAIN_MAP) continue;
+    subs.push({ ...d, id, isMain: false, parent: String(d.parent || MAIN_MAP), name: String(d.name || '').trim() || 'Unnamed map', path, image: d.image || '' });
+  }
+  const byId = new Map([[MAIN_MAP, main], ...subs.map((m) => [m.id, m])]);
+  for (const m of subs) if (!byId.has(m.parent) || m.parent === m.id) m.parent = MAIN_MAP;
+  for (const m of subs) { // break cycles
+    const seen = new Set([m.id]);
+    for (let p = m.parent; p && p !== MAIN_MAP; p = byId.get(p)?.parent) {
+      if (seen.has(p)) { m.parent = MAIN_MAP; break; }
+      seen.add(p);
+    }
+  }
+  const kids = new Map();
+  for (const m of subs) { if (!kids.has(m.parent)) kids.set(m.parent, []); kids.get(m.parent).push(m); }
+  for (const l of kids.values()) l.sort(byName);
+  const list = [];
+  const walk = (m, depth) => { m.depth = depth; list.push(m); for (const c of kids.get(m.id) || []) walk(c, depth + 1); };
+  walk(main, 0);
+  const byKey = new Map();
+  const bySlug = new Map();
+  for (const m of list) {
+    if (!byKey.has(nameKey(m.name))) byKey.set(nameKey(m.name), m);
+    if (!bySlug.has(slugify(m.name))) bySlug.set(slugify(m.name), m);
+    if (m.id !== m.id.toLowerCase()) byId.set(m.id.toLowerCase(), m);
+  }
+  mapIndex = { list, byId, kids, byKey, bySlug };
+  return mapIndex;
+}
+
+/** Every map, main first, then sub-maps depth-first by name (each has .depth). Treat as read-only. */
+export const maps = () => mapsIdx().list;
+export const mapById = (id) => mapsIdx().byId.get(String(id ?? '')) || null;
+export const childMaps = (id) => mapsIdx().kids.get(id) || [];
+
+/** Match a map id, a name, or (loose) a slug of the name. */
+export function findMap(target, { loose = false } = {}) {
+  const t = String(target ?? '').trim();
+  if (!t) return null;
+  const ix = mapsIdx();
+  return ix.byId.get(t) || ix.byId.get(t.toLowerCase()) || ix.byKey.get(nameKey(t)) || (loose ? ix.bySlug.get(slugify(t)) : null) || null;
+}
+
+/** Breadcrumb: [main, …, the map]. */
+export function mapChain(id) {
+  const out = [];
+  const seen = new Set();
+  for (let m = mapById(id) || mapById(MAIN_MAP); m && !seen.has(m.id); m = m.parent ? mapById(m.parent) : null) {
+    seen.add(m.id);
+    out.unshift(m);
+  }
+  return out;
+}
+
+/** Ids of every map below id (not including id). */
+export function descendantIds(id) {
+  const out = [];
+  const walk = (k) => { for (const c of childMaps(k)) { out.push(c.id); walk(c.id); } };
+  walk(id);
+  return out;
+}
+
+export function readMapConfig(id) {
+  const c = store.get(mapPath(id));
+  return isObj(c) ? c : {};
+}
+
+/** Patch a map's config document (main: content/map/config.json, sub-maps: content/maps/<id>.json). */
+export function writeMapConfig(id, patch) {
+  const next = { ...readMapConfig(id), ...patch };
+  if (id === MAIN_MAP) {
+    const { image, width, height, name, ...rest } = next;
+    store.put(CONFIG_PATH, { image, width, height, name, ...rest });
+    return;
+  }
+  const { id: _id, name, parent, image, width, height, ...rest } = next;
+  store.put(mapPath(id), { id, name, parent: parent || MAIN_MAP, image: image || '', width: width || 0, height: height || 0, ...rest, updated: new Date().toISOString() });
+}
+
+/** Back-compat: patch the main map's config. */
+export const writeConfig = (patch) => writeMapConfig(MAIN_MAP, patch);
+
+/** Create a sub-map (blank placeholder image). Returns its id. */
+export function createMap({ name, parent = MAIN_MAP }) {
+  const n = String(name || '').trim() || 'New map';
+  let id = uid(n);
+  while (id === MAIN_MAP || store.has(mapPath(id))) id = uid(n);
+  const now = new Date().toISOString();
+  store.put(mapPath(id), {
+    id, name: n, parent: mapById(parent) ? parent : MAIN_MAP, image: '', width: 0, height: 0,
+    createdBy: getSetting('playerName') || '', created: now, updated: now,
+  });
+  return id;
 }
 
 export function isPlaceholderImage(image) {
@@ -303,20 +329,192 @@ export function placeholderSize() {
   return placeholderPromise;
 }
 
-/** Config with defaults filled in: {image, width, height, name, isPlaceholder}. width/height may be 0 (unknown). */
-export async function effectiveConfig() {
-  const c = readConfig();
+/** Config with defaults filled in: {id, image, width, height, name, isPlaceholder, bands}. width/height may be 0. */
+export async function effectiveConfig(id = MAIN_MAP) {
+  const m = mapById(id) || mapById(MAIN_MAP);
+  const c = readMapConfig(m.id);
   const placeholder = isPlaceholderImage(c.image);
   let width = Number(c.width) || 0;
   let height = Number(c.height) || 0;
   if (placeholder && !(width > 0 && height > 0)) ({ width, height } = await placeholderSize());
   return {
+    id: m.id,
+    isMain: m.isMain,
     image: placeholder ? PLACEHOLDER_IMAGE : String(c.image),
     width,
     height,
-    name: String(c.name || '').trim() || DEFAULT_MAP_NAME,
+    name: m.name,
     isPlaceholder: placeholder,
+    bands: normBands(c.rankBands),
   };
+}
+
+// ---------- locations ----------
+
+let locIndex = null;
+
+function normLoc(d, path) {
+  const fileId = baseName(path).replace(/\.json$/i, '');
+  const raw = String(d.map || '').trim();
+  const known = !raw || raw === MAIN_MAP || !!mapById(raw);
+  return {
+    ...d,
+    id: fileId, // the filename is the id
+    name: String(d.name ?? '').trim() || 'Unnamed place',
+    type: String(d.type || 'other'),
+    rank: validRank(d.rank),
+    map: known ? raw || MAIN_MAP : MAIN_MAP, // a pin whose map is gone shows on the main map
+    lostMap: known ? null : raw,
+    submap: typeof d.submap === 'string' && d.submap.trim() ? d.submap.trim() : null,
+    x: num(d.x),
+    y: num(d.y),
+    description: typeof d.description === 'string' ? d.description : '',
+    tags: Array.isArray(d.tags) ? d.tags.map((t) => String(t).trim()).filter(Boolean) : [],
+    path,
+  };
+}
+
+function index() {
+  if (!locIndex) {
+    const list = [];
+    for (const { path, data } of store.list(LOC_DIR)) {
+      if (!path.endsWith('.json') || !isObj(data)) continue;
+      list.push(normLoc(data, path));
+    }
+    list.sort(byName);
+    const byId = new Map();
+    const byKey = new Map();
+    const bySlug = new Map();
+    const byMap = new Map();
+    for (const l of list) {
+      byId.set(l.id, l);
+      if (l.id !== String(l.id).toLowerCase()) byId.set(String(l.id).toLowerCase(), l);
+      const k = nameKey(l.name);
+      if (!byKey.has(k)) byKey.set(k, l);
+      const s = slugify(l.name);
+      if (!bySlug.has(s)) bySlug.set(s, l);
+      if (!byMap.has(l.map)) byMap.set(l.map, []);
+      byMap.get(l.map).push(l);
+    }
+    for (const { path, data } of store.list(LOC_DIR)) { // tolerate hand-edited docs whose id != filename
+      if (data?.id && !byId.has(String(data.id))) { const l = byId.get(baseName(path).replace(/\.json$/i, '')); if (l) byId.set(String(data.id), l); }
+    }
+    locIndex = { list, byId, byKey, bySlug, byMap };
+  }
+  return locIndex;
+}
+
+/** All locations on every map, sorted by name. Shared objects: treat as read-only. */
+export const locations = () => index().list;
+/** Locations on one map. */
+export const locationsOn = (mapId) => index().byMap.get(mapId) || [];
+export const locationById = (id) => index().byId.get(String(id ?? '')) || null;
+
+/** Effective rank: the place's own rank, else its type's default rank. */
+export const rankOf = (loc) => validRank(loc?.rank) || typeOf(loc?.type).rank || 3;
+
+/** Match an id, a (case/diacritic-insensitive) name, or — with loose — a slug of the name. */
+export function findLocation(target, { loose = false, map = null } = {}) {
+  const t = String(target ?? '').trim();
+  if (!t) return null;
+  const ix = index();
+  const byId = ix.byId.get(t) || ix.byId.get(t.toLowerCase());
+  if (map) {
+    if (byId && byId.map === map) return byId;
+    const list = locationsOn(map);
+    const k = nameKey(t);
+    return list.find((l) => nameKey(l.name) === k) || (loose ? list.find((l) => slugify(l.name) === slugify(t)) : null) || null;
+  }
+  return byId || ix.byKey.get(nameKey(t)) || (loose ? ix.bySlug.get(slugify(t)) : null) || null;
+}
+
+export const locPath = (id) => `${LOC_DIR}/${id}.json`;
+
+/** Create or update a location. Returns the normalized saved location. */
+export function saveLocation(loc) {
+  const now = new Date().toISOString();
+  const { path, id: _id, name, type, rank, map, lostMap: _lost, submap, x, y, description, tags, createdBy, created, updated: _u, ...extra } = loc;
+  let id = loc.id;
+  if (!id) {
+    id = uid(name || 'location');
+    while (store.has(locPath(id))) id = uid(name || 'location');
+  }
+  const r = validRank(rank);
+  const doc = {
+    id,
+    name: String(name || '').trim() || 'Unnamed place',
+    type: type || 'other',
+    ...(r ? { rank: r } : {}),
+    ...(map && map !== MAIN_MAP ? { map } : {}),
+    ...(submap ? { submap } : {}),
+    x: round(x),
+    y: round(y),
+    description: description || '',
+    tags: Array.isArray(tags) ? tags : [],
+    createdBy: createdBy ?? (getSetting('playerName') || ''),
+    created: created || now,
+    updated: now,
+    ...extra,
+  };
+  const p = path || locPath(id);
+  store.put(p, doc);
+  return locationById(baseName(p).replace(/\.json$/i, '')) || normLoc(doc, p);
+}
+
+export function deleteLocation(loc) {
+  store.remove(loc.path || locPath(loc.id));
+}
+
+/** Another place or map shares this name, so links by name would be ambiguous. */
+function nameClash(name, selfId) {
+  const k = nameKey(name);
+  return locations().some((l) => l.id !== selfId && nameKey(l.name) === k) || maps().some((m) => m.id !== selfId && nameKey(m.name) === k);
+}
+
+/** Text for a [[map:…]] link that survives odd characters and duplicate names. */
+export function linkText(loc) {
+  return /[[\]|#^]/.test(loc.name) || nameClash(loc.name, loc.id) ? `[[map:${loc.id}|${loc.name.replace(/[[\]|]/g, '')}]]` : `[[map:${loc.name}]]`;
+}
+
+/** Link text for a whole map. */
+export function mapLinkText(m) {
+  return /[[\]|#^]/.test(m.name) || nameClash(m.name, m.id) ? `[[map:${m.id}|${m.name.replace(/[[\]|]/g, '')}]]` : `[[map:${m.name}]]`;
+}
+
+export const mapHref = (mapId) => (!mapId || mapId === MAIN_MAP ? '#/map' : href('map', 'm', mapId));
+export const locHref = (loc) => (loc.map === MAIN_MAP ? href('map', 'loc', loc.id) : href('map', 'm', loc.map, 'loc', loc.id));
+
+/** Places on other maps that open this map. */
+export const linksTo = (mapId) => locations().filter((l) => l.submap === mapId);
+
+/**
+ * Delete a sub-map. pins: 'move' (to the parent map, around the place that opened it) or 'delete'.
+ * Child maps move up to the parent; places that opened this map lose the link.
+ */
+export async function deleteMap(id, { pins = 'move' } = {}) {
+  const m = mapById(id);
+  if (!m || m.isMain) return;
+  const parent = mapById(m.parent) ? m.parent : MAIN_MAP;
+  const own = locationsOn(id);
+  if (pins === 'delete') own.forEach(deleteLocation);
+  else if (own.length) {
+    const p = await effectiveConfig(parent);
+    const anchor = locationsOn(parent).find((l) => l.submap === id);
+    const W = p.width || DEFAULT_SIZE.width;
+    const H = p.height || DEFAULT_SIZE.height;
+    const cx = anchor ? anchor.x : W / 2;
+    const cy = anchor ? anchor.y : H / 2;
+    const r0 = Math.min(W, H) * 0.012;
+    own.forEach((l, i) => { // a small sunflower spiral, so moved pins don't sit on top of each other
+      const a = i * 2.39996;
+      const r = r0 * Math.sqrt(i + 1);
+      saveLocation({ ...l, map: parent, x: Math.min(W, Math.max(0, cx + Math.cos(a) * r)), y: Math.min(H, Math.max(0, cy + Math.sin(a) * r)) });
+    });
+  }
+  for (const c of childMaps(id)) writeMapConfig(c.id, { parent });
+  for (const l of linksTo(id)) saveLocation({ ...l, submap: null });
+  for (const f of store.files(`${mapImageDir(id)}/`)) store.remove(f.path);
+  store.remove(mapPath(id));
 }
 
 // ---------- backlinks ----------
@@ -334,23 +532,28 @@ function plainLine(line) {
     .trim();
 }
 
-/** Journal notes (and other locations) that link to loc. -> [{title, href, context, snippet}] */
-export function backlinks(loc) {
-  const key = nameKey(loc.name);
-  const ids = new Set([loc.id, String(loc.id).toLowerCase()]);
-  const matches = (l) => {
-    if (l.prefix === 'map') return ids.has(l.target) || ids.has(String(l.target).toLowerCase()) || nameKey(l.target) === key;
-    if (!l.prefix) return nameKey(l.target) === key;
-    return false;
-  };
+/** Does a parsed [[map:…]] / [[…]] link point at this target ({loc} or {map})? */
+function linkHits(l, want) {
+  if (l.prefix === 'map') {
+    const r = resolveTarget(l.target, l.anchor);
+    return !!r && (want.loc ? r.loc?.id === want.loc.id : r.map?.id === want.map.id);
+  }
+  if (!l.prefix) return nameKey(l.target) === nameKey(want.loc ? want.loc.name : want.map.name);
+  return false;
+}
+
+/** Journal notes (and places) that link to a place or a map. -> [{title, href, context, snippet}] */
+export function backlinks(target) {
+  const want = target && 'x' in target ? { loc: target } : { map: target };
+  const matches = (l) => linkHits(l, want);
   const docs = store.list(JOURNAL_DIR, { recursive: true });
   const chapters = new Map();
   for (const { path, data } of docs) {
-    if (path.endsWith('/_chapter.json') && data && typeof data === 'object') chapters.set(path.split('/')[2], data);
+    if (path.endsWith('/_chapter.json') && isObj(data)) chapters.set(path.split('/')[2], data);
   }
   const out = [];
   for (const { path, data } of docs) {
-    if (!path.endsWith('.md') || typeof data !== 'string') continue;
+    if (!path.endsWith('.md') || typeof data !== 'string' || !data.includes('[[')) continue;
     if (!extractLinks(data).some(matches)) continue;
     const rel = path.slice(JOURNAL_DIR.length + 1).replace(/\.md$/i, '');
     const parts = rel.split('/');
@@ -369,8 +572,9 @@ export function backlinks(loc) {
   }
   out.sort((a, b) => a.sort.localeCompare(b.sort, undefined, { numeric: true, sensitivity: 'base' }));
   for (const other of locations()) {
-    if (other.id === loc.id || !other.description.includes('[[')) continue;
-    if (extractLinks(other.description).some(matches)) out.push({ title: other.name, href: href('map', 'loc', other.id), context: 'Map', snippet: '' });
+    if (want.loc && other.id === want.loc.id) continue;
+    if (!other.description.includes('[[')) continue;
+    if (extractLinks(other.description).some(matches)) out.push({ title: other.name, href: locHref(other), context: other.map === MAIN_MAP ? 'Map' : (mapById(other.map)?.name || 'Map'), snippet: '' });
   }
   return out;
 }
@@ -380,25 +584,61 @@ export function backlinks(loc) {
 store.on((ev) => {
   const paths = ev.path ? [ev.path] : ev.paths || [];
   const all = ev.type === 'load';
-  if (all || paths.some((p) => p.startsWith(`${LOC_DIR}/`))) locIndex = null;
+  const mapsChanged = all || paths.some((p) => p === CONFIG_PATH || p.startsWith(`${MAPS_DIR}/`));
+  if (mapsChanged) mapIndex = null;
+  if (mapsChanged || paths.some((p) => p.startsWith(`${LOC_DIR}/`))) locIndex = null;
   if (all || paths.some((p) => p.startsWith(`${TYPE_DIR}/`))) refreshTypes();
 });
 refreshTypes();
 
+/**
+ * [[map:X]] precedence: a place id, then a map id, then a place name, then a map name.
+ * [[map:Map name#Place]] finds a place on that map (for names used on several maps).
+ */
+export function resolveTarget(target, anchor) {
+  const t = String(target ?? '').trim();
+  if (!t) return null;
+  if (anchor) {
+    const m = findMap(t);
+    const loc = m && findLocation(anchor, { map: m.id });
+    if (loc) return { loc };
+  }
+  const ix = index();
+  const mx = mapsIdx();
+  const loc = ix.byId.get(t) || ix.byId.get(t.toLowerCase());
+  if (loc) return { loc };
+  const m = mx.byId.get(t) || mx.byId.get(t.toLowerCase());
+  if (m) return { map: m };
+  const k = nameKey(t);
+  if (ix.byKey.has(k)) return { loc: ix.byKey.get(k) };
+  if (mx.byKey.has(k)) return { map: mx.byKey.get(k) };
+  return null;
+}
+
 registerLinkType('map', {
-  label: 'Location',
+  label: 'Place',
   order: 20,
-  resolve(target) {
-    const loc = findLocation(target);
-    if (!loc) return null;
-    return { href: href('map', 'loc', loc.id), title: `${loc.name} · ${typeOf(loc.type).name} (map)`, exists: true };
+  resolve(target, anchor) {
+    const r = resolveTarget(target, anchor);
+    if (r?.loc) {
+      const where = r.loc.map === MAIN_MAP ? 'map' : `map of ${mapById(r.loc.map)?.name || 'a sub-map'}`;
+      return { href: locHref(r.loc), title: `${r.loc.name} · ${typeOf(r.loc.type).name} (${where})`, exists: true };
+    }
+    if (r?.map) return { href: mapHref(r.map.id), title: `${r.map.name} (map, ${plural(locationsOn(r.map.id).length, 'place')})`, exists: true };
+    return null;
   },
   suggest(q) {
-    return matchNames(locations(), q, (l) => l.name, 10).map((l) => ({ label: l.name, value: l.name }));
+    const ms = matchNames(maps(), q, (m) => m.name, 4).map((m) => ({ label: `${m.name} (map)`, value: /[[\]|#^]/.test(m.name) || nameClash(m.name, m.id) ? `${m.id}|${m.name.replace(/[[\]|]/g, '')}` : m.name }));
+    const ls = matchNames(locations(), q, (l) => l.name, 10).map((l) => ({ label: l.map === MAIN_MAP ? l.name : `${l.name} · ${mapById(l.map)?.name || ''}`, value: /[[\]|#^]/.test(l.name) || nameClash(l.name, l.id) ? `${l.id}|${l.name.replace(/[[\]|]/g, '')}` : l.name }));
+    return [...ms, ...ls];
   },
-  embed(target) {
-    const loc = findLocation(target);
-    if (!loc) return null;
-    return { markdown: loc.description.trim() || `*${typeOf(loc.type).name} on the map. No description yet.*` };
+  embed(target, anchor) {
+    const r = resolveTarget(target, anchor);
+    if (r?.loc) return { markdown: r.loc.description.trim() || `*${typeOf(r.loc.type).name} on the map. No description yet.*` };
+    if (r?.map) {
+      const top = locationsOn(r.map.id).filter((l) => rankOf(l) <= 2).slice(0, 8);
+      return { markdown: `*A map of ${plural(locationsOn(r.map.id).length, 'place')}.*${top.length ? ` ${top.map((l) => linkText(l)).join(', ')}` : ''}` };
+    }
+    return null;
   },
 });

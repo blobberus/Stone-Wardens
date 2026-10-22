@@ -28,27 +28,50 @@ const SHAPE = '<svg class="map-pin-shape" viewBox="0 0 32 46" aria-hidden="true"
   + `<path class="map-pin-body" d="${PIN_PATH}"/>`
   + '<circle class="map-pin-ring" cx="16" cy="16" r="10.6"/>'
   + '</svg>';
+// A small "this place has its own map" seal on the pin's shoulder.
+const SUB = `<span class="map-pin-sub" aria-hidden="true"><svg class="icon"><use href="${SPRITE}#i-layers"/></svg></span>`;
 
 // type.css is a sanitized colour or var(--pin-*); type.icon is restricted to the mk-* set (see data.js).
-function pinInner(type) {
+function pinInner(type, sub = false) {
   return `<span class="map-pin${type.light ? ' is-light' : ''}" style="--pin:${type.css || type.color}">${SHAPE}`
-    + `<svg class="icon map-glyph map-pin-glyph" aria-hidden="true" focusable="false"><use href="${glyphHref(type.icon)}"/></svg></span>`;
+    + `<svg class="icon map-glyph map-pin-glyph" aria-hidden="true" focusable="false"><use href="${glyphHref(type.icon)}"/></svg>${sub ? SUB : ''}</span>`;
 }
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-/** L.divIcon for a location. loc needs {name}; type is a normalized type. */
-export function pinIcon(loc, type, { selected = false, ghost = false } = {}) {
-  const cls = ['map-marker', `rank-${type.rank || 3}`];
-  if (type.rank === 1) cls.push('is-major');
+/** L.divIcon for a location. loc needs {name}; type is a normalized type; rank is the effective rank. */
+export function pinIcon(loc, type, { selected = false, ghost = false, rank = type.rank || 3, sub = false } = {}) {
+  const cls = ['map-marker', `rank-${rank}`];
+  if (rank === 1) cls.push('is-major');
+  if (sub) cls.push('has-sub');
   if (selected) cls.push('is-selected');
   if (ghost) cls.push('is-ghost');
   return window.L.divIcon({
     className: cls.join(' '),
-    html: `${pinInner(type)}<span class="map-pin-label">${esc(loc.name)}</span>`,
+    html: `${pinInner(type, sub)}<span class="map-pin-label">${esc(loc.name)}</span>`,
     iconSize: PIN_SIZE,
     iconAnchor: PIN_ANCHOR,
   });
+}
+
+let PinClass = null;
+/**
+ * L.Marker whose z-index depends only on its image y (lower pins in front), not on the zoom-dependent
+ * layer point. Leaflet rewrites every marker's z-index on every zoom frame, which forces Chrome to
+ * re-layerise all pins each frame; with a stable value the per-frame work is a transform per pin.
+ */
+export function PinMarker() {
+  if (!PinClass) {
+    const L = window.L;
+    PinClass = L.Marker.extend({
+      _setPos(pos) {
+        if (this._icon) L.DomUtil.setPosition(this._icon, pos);
+        const z = Math.round(-this._latlng.lat) + this.options.zIndexOffset;
+        if (z !== this._zIndex) { this._zIndex = z; this._resetZIndex(); }
+      },
+    });
+  }
+  return PinClass;
 }
 
 /** A standalone pin (DOM) for previews. type: {icon, color, css?, light?, rank?} */
@@ -65,4 +88,11 @@ export function swatch(type) {
 
 export function typeBadge(type) {
   return h('span', { class: ['map-type-badge', type.light && 'is-light'], style: `--pin:${type.css || type.color}` }, glyph(type.icon), h('span', null, type.name));
+}
+
+/** "Rank 2 · Notable" pill; inherited ranks say so. */
+export function rankBadge(rank, name, inherited = false) {
+  return h('span', { class: ['map-rank-badge', `rank-${rank}`], title: inherited ? 'Rank taken from the location type' : null },
+    h('span', { class: 'map-rank-pips', 'aria-hidden': 'true' }, [1, 2, 3, 4].map((i) => h('i', { class: i >= rank ? 'on' : null }))),
+    h('span', null, `Rank ${rank} · ${name}`), inherited ? h('small', null, ' (type default)') : null);
 }

@@ -1,5 +1,6 @@
-// Map image management: replace with an uploaded image, reset to the placeholder, rename the map.
+// Map image management (per map): replace with an uploaded image, reset to the placeholder, rename.
 // Uploads are staged as binary drafts (store.putBinary) and committed with the global Save.
+// Main map image: content/map/<file>; sub-map images: content/maps/<mapId>/<file>.
 import { h } from '../../core/dom.js';
 import { toast, choiceDialog, promptDialog, confirmDialog } from '../../core/ui.js';
 import { store } from '../../core/store.js';
@@ -49,25 +50,66 @@ export async function imageSize(file, ext = extOf(file.name)) {
   return ext === 'svg' ? { ...data.DEFAULT_SIZE } : null;
 }
 
+/**
+ * Ask for an image file and check it. Must be called straight from a click (user gesture).
+ * Resolves {file, ext, size} or null.
+ */
+export async function chooseImage() {
+  const file = await pickFile(ACCEPT);
+  if (!file) return null;
+  let ext = extOf(file.name);
+  if (!OK_EXT.has(ext)) ext = EXT_BY_MIME[file.type] || '';
+  if (!OK_EXT.has(ext)) { toast('Choose a PNG, JPG, WebP or SVG image.', { type: 'error' }); return null; }
+  if (ext === 'jpeg') ext = 'jpg';
+  if (file.size > MAX_BYTES) {
+    toast(`That image is ${mb(file.size)} MB, too large for the repository (limit ${mb(MAX_BYTES)} MB). Export a smaller JPG or WebP.`, { type: 'error' });
+    return null;
+  }
+  if (file.size > WARN_BYTES && !(await confirmDialog(
+    `This image is ${mb(file.size)} MB. Everyone downloads it to see the map, so it may load slowly. A JPG or WebP export is usually much smaller. Use it anyway?`,
+    { title: 'Large image', okLabel: 'Use it' },
+  ))) return null;
+  const size = await imageSize(file, ext);
+  if (!size) { toast('Could not read that image.', { type: 'error' }); return null; }
+  return { file, ext, size };
+}
+
+/** Stage a chosen image as the map's image (removes the previous upload). Returns true on success. */
+export async function stageImage(mapId, { file, ext, size }) {
+  const cfg = data.readMapConfig(mapId);
+  const path = `${data.mapImageDir(mapId)}/${slugify(stripExt(file.name)) || 'map'}.${ext}`;
+  try {
+    await store.putBinary(path, file);
+  } catch (e) {
+    console.error(e);
+    toast(`Could not stage the image: ${e.message}`, { type: 'error' });
+    return false;
+  }
+  data.writeMapConfig(mapId, { image: path, width: size.width, height: size.height });
+  const old = cfg.image;
+  if (old && old !== path && old.startsWith(`${data.mapImageDir(mapId)}/`) && !old.endsWith('.json')) store.remove(old);
+  return true;
+}
+
 function sizeDiffers(a, b) {
   return !!(a.width && a.height && b.width && b.height)
     && (Math.round(a.width) !== Math.round(b.width) || Math.round(a.height) !== Math.round(b.height));
 }
 
-function rescalePins(from, to) {
+function rescalePins(mapId, from, to) {
   const sx = to.width / from.width;
   const sy = to.height / from.height;
-  for (const loc of data.locations()) data.saveLocation({ ...loc, x: loc.x * sx, y: loc.y * sy });
+  for (const loc of data.locationsOn(mapId)) data.saveLocation({ ...loc, x: loc.x * sx, y: loc.y * sy });
 }
 
 /** Ask what to do with existing pins when the map size changes. Resolves 'rescale' | 'keep' | null (cancel). */
-async function askRescale(from, to, verb) {
-  const n = data.locations().length;
+async function askRescale(mapId, from, to, verb) {
+  const n = data.locationsOn(mapId).length;
   if (!n || !sizeDiffers(from, to)) return 'keep';
   return choiceDialog(
     h('div', { class: 'stack' },
       h('p', null, `The new image is ${fmtSize(to)}; the current map is ${fmtSize(from)}.`),
-      h('p', null, `Rescale the ${plural(n, 'existing pin')} so each keeps its relative place, or keep their pixel coordinates?`)),
+      h('p', null, `Pins are stored in image pixels. Rescale the ${plural(n, 'existing pin')} so each keeps its relative place, or keep their pixel coordinates? (Edit map → Offset / scale can fine-tune them later.)`)),
     [
       { label: 'Cancel', value: null, kind: 'ghost' },
       { label: `${verb}, keep coordinates`, value: 'keep', kind: 'ghost' },
@@ -77,61 +119,34 @@ async function askRescale(from, to, verb) {
   );
 }
 
-/** info: the current effective config {image, width, height, name, isPlaceholder}. */
+/** info: the map's effective config {id, image, width, height, name, isPlaceholder}. */
 export async function replaceImage(info) {
-  const file = await pickFile(ACCEPT); // must run before any await so the click counts as a user gesture
-  if (!file) return false;
-  let ext = extOf(file.name);
-  if (!OK_EXT.has(ext)) ext = EXT_BY_MIME[file.type] || '';
-  if (!OK_EXT.has(ext)) { toast('Choose a PNG, JPG, WebP or SVG image.', { type: 'error' }); return false; }
-  if (ext === 'jpeg') ext = 'jpg';
-  if (file.size > MAX_BYTES) {
-    toast(`That image is ${mb(file.size)} MB, too large for the repository (limit ${mb(MAX_BYTES)} MB). Export a smaller JPG or WebP.`, { type: 'error' });
-    return false;
-  }
-  if (file.size > WARN_BYTES && !(await confirmDialog(
-    `This image is ${mb(file.size)} MB. Everyone downloads it to see the map, so it may load slowly. A JPG or WebP export is usually much smaller. Use it anyway?`,
-    { title: 'Large image', okLabel: 'Use it' },
-  ))) return false;
-
-  const size = await imageSize(file, ext);
-  if (!size) { toast('Could not read that image.', { type: 'error' }); return false; }
-  const choice = await askRescale(info, size, 'Replace');
+  const picked = await chooseImage(); // must run before any await so the click counts as a user gesture
+  if (!picked) return false;
+  const choice = await askRescale(info.id, info, picked.size, 'Replace');
   if (!choice) return false;
-
-  const cfg = data.readConfig();
-  const path = `${data.MAP_DIR}/${slugify(stripExt(file.name)) || 'map'}.${ext}`;
-  try {
-    await store.putBinary(path, file);
-  } catch (e) {
-    console.error(e);
-    toast(`Could not stage the image: ${e.message}`, { type: 'error' });
-    return false;
-  }
-  if (choice === 'rescale') rescalePins(info, size);
-  data.writeConfig({ image: path, width: size.width, height: size.height, name: cfg.name || info.name });
-  const old = cfg.image;
-  if (old && old !== path && old.startsWith(`${data.MAP_DIR}/`) && old !== data.CONFIG_PATH) store.remove(old);
-  toast(`New map image staged (${mb(file.size)} MB, ${fmtSize(size)}). ${saveHint()}`, { type: 'success', timeout: 6000 });
+  if (!(await stageImage(info.id, picked))) return false;
+  if (choice === 'rescale') rescalePins(info.id, info, picked.size);
+  toast(`New image for “${info.name}” staged (${mb(picked.file.size)} MB, ${fmtSize(picked.size)}). ${saveHint()}`, { type: 'success', timeout: 6000 });
   return true;
 }
 
 export async function resetImage(info) {
-  const cfg = data.readConfig();
-  if (data.isPlaceholderImage(cfg.image)) { toast('The map already uses the placeholder.'); return false; }
+  const cfg = data.readMapConfig(info.id);
+  if (data.isPlaceholderImage(cfg.image)) { toast('This map already uses the placeholder.'); return false; }
   const ph = await data.placeholderSize();
-  const asked = data.locations().length > 0 && sizeDiffers(info, ph);
+  const asked = data.locationsOn(info.id).length > 0 && sizeDiffers(info, ph);
   const choice = asked
-    ? await askRescale(info, ph, 'Reset')
+    ? await askRescale(info.id, info, ph, 'Reset')
     : ((await confirmDialog(
       'Go back to the blank placeholder map? The uploaded image is removed when you save (it stays in the repository history).',
       { title: 'Reset the map image', okLabel: 'Reset' },
     )) ? 'keep' : null);
   if (!choice) return false;
-  if (choice === 'rescale') rescalePins(info, ph);
-  data.writeConfig({ image: data.PLACEHOLDER_IMAGE, width: ph.width, height: ph.height, name: cfg.name || info.name });
-  if (cfg.image?.startsWith(`${data.MAP_DIR}/`) && cfg.image !== data.CONFIG_PATH) store.remove(cfg.image);
-  toast('The map is back to the blank placeholder.');
+  if (choice === 'rescale') rescalePins(info.id, info, ph);
+  data.writeMapConfig(info.id, { image: data.PLACEHOLDER_IMAGE, width: ph.width, height: ph.height });
+  if (cfg.image?.startsWith(`${data.mapImageDir(info.id)}/`) && !cfg.image.endsWith('.json')) store.remove(cfg.image);
+  toast(`“${info.name}” is back to the blank placeholder.`);
   return true;
 }
 
@@ -139,9 +154,9 @@ export async function renameMap(info) {
   const name = await promptDialog('Rename the map', { label: 'Map name', value: info.name, okLabel: 'Rename' });
   const n = name?.trim();
   if (!n || n === info.name) return false;
-  const cfg = data.readConfig();
-  data.writeConfig({
-    image: cfg.image || info.image,
+  const cfg = data.readMapConfig(info.id);
+  data.writeMapConfig(info.id, {
+    image: cfg.image || (info.isPlaceholder ? '' : info.image),
     width: cfg.width || info.width,
     height: cfg.height || info.height,
     name: n,

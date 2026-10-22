@@ -4,8 +4,10 @@ import { icon, toast, confirmDialog, input, markdownEditor } from '../../core/ui
 import { renderInto } from '../../core/markdown.js';
 import { fmtDate, nameKey } from '../../core/util.js';
 import * as data from './data.js';
-import { typeBadge } from './pins.js';
+import { typeBadge, rankBadge } from './pins.js';
 import { typePicker } from './typeform.js';
+import { RANKS, rankName } from './ranks.js';
+import { mapOptions } from './submaps.js';
 
 async function copyText(text) {
   try {
@@ -22,15 +24,45 @@ async function copyText(text) {
   }
 }
 
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * Rank chooser: "Auto" (the type's default) or 1-4. Returns an element with .update(typeRank).
+ * value: 1-4 or null (auto).
+ */
+export function rankPicker({ value, typeRank, onChange, compact = false }) {
+  const el = h('div', { class: ['map-rankpick', compact && 'is-compact'], role: 'radiogroup', 'aria-label': 'Rank' });
+  const hint = h('span', { class: 'field-hint map-rank-hint' });
+  let cur = value;
+  let auto = typeRank;
+  function draw() {
+    const eff = cur || auto;
+    const opt = (r, label, sub) => h('button', {
+      type: 'button', role: 'radio', class: ['map-rankpick-opt', (cur || null) === r && 'is-active'], 'aria-checked': String((cur || null) === r),
+      title: r ? RANKS[r - 1].hint : `Use the location type's default (rank ${auto})`,
+      onclick: () => { cur = r; onChange?.(r); draw(); },
+    }, h('span', { class: 'map-rankpick-n' }, label), h('span', { class: 'map-rankpick-name' }, sub));
+    mount(el,
+      opt(null, 'Auto', rankName(auto)),
+      RANKS.map((r) => opt(r.rank, String(r.rank), r.name)));
+    hint.textContent = `${RANKS[eff - 1].hint}${cur ? '' : ' (from the type)'}`;
+  }
+  el.update = (nextTypeRank) => { auto = nextTypeRank; draw(); };
+  el.hint = hint;
+  draw();
+  return el;
+}
+
 /**
  * ctx: {typeOf, types, close({force}), startMove(id), finishMove(save), isMoving(), saved(loc, isNew),
- *       preview(form), resetPreview(), newType() -> Promise<type|null>, search(q), lastType(), setLastType(id)}
+ *       preview(form), resetPreview(), newType() -> Promise<type|null>, search(q), setLastType(id),
+ *       mapId(), newSubmap({name, loc}) -> Promise<mapId|null>}
  */
 export function createDrawer(ctx) {
   const el = h('aside', { class: 'map-drawer', 'aria-label': 'Location details' });
   const st = { mode: null, id: null, form: null, initial: '', moving: false, sig: '', setPos: null, body: null };
 
-  const sigOf = (loc, type) => JSON.stringify([loc, type.name, type.color, type.icon]);
+  const sigOf = (loc, type) => JSON.stringify([loc, type.name, type.color, type.icon, type.rank, loc.submap && data.mapById(loc.submap)?.name]);
   const closeBtn = () => h('button', { class: 'btn-icon map-drawer-close', type: 'button', 'aria-label': 'Close panel', title: 'Close (Esc)', onclick: () => ctx.close() }, icon('close'));
   const show = () => el.classList.add('is-open');
 
@@ -46,9 +78,19 @@ export function createDrawer(ctx) {
         h('button', { type: 'button', class: 'map-linkbtn', onclick: () => api.openEdit(loc.id) }, 'Add a description')));
     }
     const mentions = data.backlinks(loc);
+    const rank = data.rankOf(loc);
+    const sub = loc.submap && data.mapById(loc.submap);
     const title = h('h2', { class: 'map-drawer-title', tabindex: '-1' }, loc.name);
     st.body = h('div', { class: 'map-drawer-body' },
-      h('div', { class: 'map-drawer-badges' }, typeBadge(type)),
+      sub ? h('a', { class: 'map-submap-link', href: data.mapHref(sub.id), title: `Open the map of ${sub.name}` },
+        h('span', { class: 'map-submap-icon', 'aria-hidden': 'true' }, icon('layers')),
+        h('span', { class: 'map-submap-text' },
+          h('small', null, 'Open map'),
+          h('strong', null, sub.name),
+          h('span', null, plural(data.locationsOn(sub.id).length, 'place'))),
+        icon('chevron-right')) : null,
+      h('div', { class: 'map-drawer-badges' }, typeBadge(type), rankBadge(rank, rankName(rank), !loc.rank)),
+      loc.lostMap ? h('p', { class: 'map-lost' }, icon('warning'), `This place belonged to a map that no longer exists (${loc.lostMap}), so it is shown here.`) : null,
       desc,
       loc.tags.length ? h('ul', { class: 'map-tags', 'aria-label': 'Tags' }, loc.tags.map((t) => h('li', null,
         h('button', { type: 'button', class: 'chip map-tag', title: `Find places tagged #${t}`, onclick: () => ctx.search(`#${t}`) }, `#${t}`)))) : null,
@@ -96,7 +138,8 @@ export function createDrawer(ctx) {
   async function remove(loc) {
     const n = data.backlinks(loc).length;
     const msg = `“${loc.name}” will be removed from the map for everyone once you save.`
-      + (n ? ` ${n} ${n === 1 ? 'note links' : 'notes link'} here; ${n === 1 ? 'that link' : 'those links'} will stop working.` : '');
+      + (n ? ` ${n} ${n === 1 ? 'note links' : 'notes link'} here; ${n === 1 ? 'that link' : 'those links'} will stop working.` : '')
+      + (loc.submap && data.mapById(loc.submap) ? ` Its map “${data.mapById(loc.submap).name}” is kept (open it from the map menu).` : '');
     if (!(await confirmDialog(msg, { title: 'Delete this location?', okLabel: 'Delete', danger: true }))) return;
     if (ctx.isMoving()) ctx.finishMove(false);
     data.deleteLocation(loc);
@@ -107,9 +150,13 @@ export function createDrawer(ctx) {
   // ---------- editor ----------
 
   function renderEditor({ loc, isNew }) {
-    const f = { name: loc.name || '', type: loc.type || 'other', description: loc.description || '', tags: (loc.tags || []).join(', '), x: loc.x, y: loc.y };
+    const f = {
+      name: loc.name || '', type: loc.type || 'other', rank: loc.rank || null, submap: loc.submap || '',
+      description: loc.description || '', tags: (loc.tags || []).join(', '), x: loc.x, y: loc.y,
+    };
     st.form = f;
     st.initial = JSON.stringify(f);
+    const onMap = loc.map || ctx.mapId();
 
     const err = h('span', { class: 'map-field-error', role: 'alert', hidden: true }, 'Give the place a name.');
     const dupe = h('span', { class: 'field-hint map-dupe', hidden: true });
@@ -117,20 +164,33 @@ export function createDrawer(ctx) {
       const other = f.name.trim() && data.findLocation(f.name.trim());
       const clash = other && other.id !== st.id && nameKey(other.name) === nameKey(f.name);
       dupe.hidden = !clash;
-      dupe.textContent = clash ? `Another place is already called “${other.name}”. Links by name will open whichever was added first.` : '';
+      dupe.textContent = clash ? `Another place is already called “${other.name}”${other.map !== onMap ? ` (on ${data.mapById(other.map)?.name || 'another map'})` : ''}. Copy link will use its id so links stay exact.` : '';
     };
     const nameIn = input({
       value: f.name, placeholder: 'e.g. The Drowned Bell', maxlength: 120, 'aria-required': 'true', id: 'map-f-name',
       oninput: (e) => { f.name = e.target.value; err.hidden = true; checkDupe(); ctx.preview(f); },
     });
+    const ranks = rankPicker({ value: f.rank, typeRank: ctx.typeOf(f.type).rank, onChange: (r) => { f.rank = r; ctx.preview(f); } });
     const picker = typePicker({
       value: f.type, types: ctx.types(), open: isNew,
-      onChange: (id) => { f.type = id; ctx.preview(f); },
+      onChange: (id) => { f.type = id; ranks.update(ctx.typeOf(id).rank); ctx.preview(f); },
       onNew: async () => {
         const t = await ctx.newType();
-        if (t?.id && !t.deleted) { f.type = t.id; picker.update(ctx.types(), t.id); ctx.preview(f); } else picker.update(ctx.types());
+        if (t?.id && !t.deleted) { f.type = t.id; picker.update(ctx.types(), t.id); ranks.update(t.rank); ctx.preview(f); } else picker.update(ctx.types());
       },
     });
+    const subSel = h('select', { class: 'select', id: 'map-f-submap' });
+    const drawSub = () => mount(subSel,
+      mapOptions(f.submap, { exclude: onMap, none: 'No map' }),
+      h('option', { value: '__new' }, 'New sub-map…'));
+    subSel.addEventListener('change', async () => {
+      if (subSel.value !== '__new') { f.submap = subSel.value; ctx.preview(f); return; }
+      const id = await ctx.newSubmap({ name: f.name.trim(), parent: onMap });
+      if (id) f.submap = id;
+      drawSub();
+      ctx.preview(f);
+    });
+    drawSub();
     const editor = markdownEditor({
       value: f.description, rows: 7,
       placeholder: 'What is here? Who rules it, what was found, what lurks… Use [[links]] to notes, characters and other places.',
@@ -149,8 +209,8 @@ export function createDrawer(ctx) {
       const name = f.name.trim();
       if (!name) { err.hidden = false; nameIn.focus(); return false; }
       const tags = [...new Set(f.tags.split(',').map((s) => s.trim().replace(/^#/, '')).filter(Boolean))];
-      const base = isNew ? {} : (data.locationById(st.id) || loc);
-      const saved = data.saveLocation({ ...base, name, type: f.type, description: f.description, tags, x: f.x, y: f.y });
+      const base = isNew ? { map: onMap } : (data.locationById(st.id) || loc);
+      const saved = data.saveLocation({ ...base, name, type: f.type, rank: f.rank, submap: f.submap || null, description: f.description, tags, x: f.x, y: f.y });
       st.form = null;
       ctx.setLastType(f.type);
       ctx.saved(saved, isNew);
@@ -171,7 +231,10 @@ export function createDrawer(ctx) {
       h('div', { class: 'map-drawer-body stack' },
         h('div', { class: 'field' }, h('label', { class: 'field-label', for: 'map-f-name' }, 'Name'), nameIn, err, dupe),
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Type'), picker),
+        h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Rank'), ranks, ranks.hint),
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Description'), editor),
+        h('div', { class: 'field' }, h('label', { class: 'field-label', for: 'map-f-submap' }, 'Opens a map'), subSel,
+          h('span', { class: 'field-hint' }, 'A detailed map of this place (a city, a dungeon…). Its pin gets a seal and the panel an “Open map” link.')),
         h('div', { class: 'field' }, h('label', { class: 'field-label', for: 'map-f-tags' }, 'Tags'), tagsIn, h('span', { class: 'field-hint' }, 'Separate with commas.')),
         pos),
       h('footer', { class: 'map-drawer-foot' },
@@ -200,6 +263,7 @@ export function createDrawer(ctx) {
     get mode() { return st.mode; },
     get id() { return st.id; },
     get isOpen() { return !!st.mode; },
+    get form() { return st.form; },
 
     showLocation(id) {
       const loc = data.locationById(id);
@@ -214,7 +278,7 @@ export function createDrawer(ctx) {
 
     openNew({ x, y, type }) {
       Object.assign(st, { mode: 'new', id: null, moving: false });
-      focusSoon(renderEditor({ loc: { x, y, type, name: '', description: '', tags: [] }, isNew: true }));
+      focusSoon(renderEditor({ loc: { x, y, type, name: '', description: '', tags: [], map: ctx.mapId() }, isNew: true }));
       show();
     },
 

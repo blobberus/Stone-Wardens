@@ -1,8 +1,10 @@
-// Floating map controls: search box, type legend/filter, the "⋯" map menu, and a tiny popover helper.
-import { h, mount, clear } from '../../core/dom.js';
+// Floating map controls: search box, the filter (ranks + location types), the "⋯" map menu, the map
+// breadcrumb / switcher, and a tiny popover helper.
+import { h, clear } from '../../core/dom.js';
 import { icon } from '../../core/ui.js';
 import { baseName } from '../../core/util.js';
 import { swatch } from './pins.js';
+import { RANKS } from './ranks.js';
 
 // ---------- popovers ----------
 
@@ -28,7 +30,7 @@ function popover(button, render, { className = '', role = 'dialog', label = '' }
       button.setAttribute('aria-expanded', 'true');
       openPops.add(api);
       document.addEventListener('pointerdown', outside, true);
-      panel.querySelector('button:not([disabled]), input')?.focus({ preventScroll: true });
+      panel.querySelector('button:not([disabled]), input, a[href]')?.focus({ preventScroll: true });
     },
     close({ focus = false } = {}) {
       if (!panel) return;
@@ -88,7 +90,7 @@ export function searchLocations(list, query, typeOf) {
   return scored.map((s) => s[1]);
 }
 
-/** ctx: {locations(), typeOf(id), onFilter(Set|null), onPick(id)} */
+/** ctx: {locations(), typeOf(id), mapId(), mapName(id), onFilter(Set|null), onPick(id)} — searches every map, this one first. */
 export function createSearch(ctx) {
   const inp = h('input', {
     type: 'search', class: 'map-search-input', placeholder: 'Search places…', autocomplete: 'off', spellcheck: 'false',
@@ -112,13 +114,16 @@ export function createSearch(ctx) {
       count.hidden = true;
       ctx.onFilter(null);
     } else {
+      const here = ctx.mapId();
       const all = searchLocations(ctx.locations(), q, ctx.typeOf);
-      total = all.length;
-      results = all.slice(0, 40);
+      const mine = all.filter((l) => l.map === here);
+      const ordered = [...mine, ...all.filter((l) => l.map !== here)];
+      total = ordered.length;
+      results = ordered.slice(0, 40);
       count.hidden = false;
-      count.textContent = String(total);
-      count.title = `${total} matching place${total === 1 ? '' : 's'}`;
-      ctx.onFilter(new Set(all.map((l) => l.id)));
+      count.textContent = String(mine.length);
+      count.title = `${mine.length} matching place${mine.length === 1 ? '' : 's'} on this map${total > mine.length ? `, ${total - mine.length} on other maps` : ''}`;
+      ctx.onFilter(new Set(mine.map((l) => l.id)));
     }
     active = 0;
     draw();
@@ -132,12 +137,15 @@ export function createSearch(ctx) {
     inp.removeAttribute('aria-activedescendant');
     if (!open) return;
     if (!results.length) { list.append(h('li', { class: 'map-sr-empty' }, 'No places match.')); return; }
+    const here = ctx.mapId();
     results.forEach((loc, i) => {
       const t = ctx.typeOf(loc.type);
+      const elsewhere = loc.map !== here;
+      if (elsewhere && (i === 0 || results[i - 1].map === here)) list.append(h('li', { class: 'map-sr-group', role: 'presentation' }, 'On other maps'));
       list.append(h('li', {
         id: `map-sr-${i}`, role: 'option', 'aria-selected': String(i === active), class: ['map-sr', i === active && 'is-active'],
         onmousedown: (e) => { e.preventDefault(); pick(loc); },
-      }, swatch(t), h('span', { class: 'map-sr-name' }, loc.name), h('span', { class: 'map-sr-type' }, t.name)));
+      }, swatch(t), h('span', { class: 'map-sr-name' }, loc.name), h('span', { class: 'map-sr-type' }, elsewhere ? ctx.mapName(loc.map) : t.name)));
     });
     if (total > results.length) list.append(h('li', { class: 'map-sr-more' }, `+${total - results.length} more — keep typing to narrow`));
     inp.setAttribute('aria-activedescendant', `map-sr-${active}`);
@@ -178,16 +186,20 @@ export function createSearch(ctx) {
   };
 }
 
-// ---------- legend / type filter ----------
+// ---------- filter: ranks + location types ----------
+
+const pips = (rank) => h('span', { class: 'map-rank-pips', 'aria-hidden': 'true' }, [1, 2, 3, 4].map((i) => h('i', { class: i >= rank ? 'on' : null })));
 
 /**
  * ctx: {types(), typeOf(id), counts() -> Map(typeId -> n), hidden() -> Set, toggleType(id), soloType(id),
- *       showAll(), hideAll(), newType(), editType(type)}
+ *       showAll(), hideAll(), newType(), editType(type),
+ *       rankCounts() -> Map(rank -> n), hiddenRanks() -> Set, toggleRank(r), soloRank(r), showAllRanks(),
+ *       allZoom() -> bool, setAllZoom(bool), rankWhere(r) -> 'now'|'in'|'out', editing() -> bool, resetAll()}
  */
 export function createLegend(ctx) {
   const badge = h('span', { class: 'map-tool-badge', hidden: true });
-  const button = h('button', { class: 'btn map-tool-btn', type: 'button', title: 'Location types: show or hide', 'aria-label': 'Location types and filter' },
-    icon('filter'), h('span', { class: 'map-tool-label' }, 'Types'), badge);
+  const button = h('button', { class: 'btn map-tool-btn', type: 'button', title: 'Filter places by rank or type', 'aria-label': 'Filter places' },
+    icon('filter'), h('span', { class: 'map-tool-label' }, 'Filter'), badge);
   const wrap = h('div', { class: 'map-tool' }, button);
   let showUnused = false;
 
@@ -201,8 +213,11 @@ export function createLegend(ctx) {
     const used = all.filter((t) => counts.get(t.id));
     const unused = all.filter((t) => !counts.get(t.id));
     const total = [...counts.values()].reduce((a, b) => a + b, 0);
+    const rCounts = ctx.rankCounts();
+    const rHidden = ctx.hiddenRanks();
+    const allZoom = ctx.allZoom();
 
-    const row = (t) => {
+    const typeRow = (t) => {
       const n = counts.get(t.id) || 0;
       const off = hidden.has(t.id);
       return h('li', { class: ['map-legend-row', off && 'is-off', !n && 'is-empty'] },
@@ -214,37 +229,66 @@ export function createLegend(ctx) {
         t.missing ? null : h('button', { type: 'button', class: 'map-legend-edit', title: `Edit the ${t.name} type`, 'aria-label': `Edit the ${t.name} type`, onclick: async () => { pop.close(); await ctx.editType(t); } }, icon('edit')));
     };
 
+    const rankRow = ({ rank, name, hint }) => {
+      const n = rCounts.get(rank) || 0;
+      const off = rHidden.has(rank);
+      const where = off || allZoom || ctx.editing() ? 'now' : ctx.rankWhere(rank);
+      return h('li', { class: ['map-legend-row', off && 'is-off', !n && 'is-empty'] },
+        h('button', {
+          type: 'button', class: 'map-legend-toggle', role: 'switch', 'aria-checked': String(!off), 'data-key': `r:${rank}`,
+          title: `${off ? 'Show' : 'Hide'} rank ${rank} places. ${hint}`, onclick: () => { ctx.toggleRank(rank); pop.refresh(); },
+        }, h('span', { class: 'map-check', 'aria-hidden': 'true' }), pips(rank),
+        h('span', { class: 'map-legend-name' }, `${rank} · ${name}`),
+        where !== 'now' && n ? h('span', { class: 'map-legend-where' }, where === 'in' ? 'zoom in' : 'zoom out') : null,
+        h('span', { class: 'map-legend-count' }, String(n))),
+        n ? h('button', { type: 'button', class: 'map-legend-only', 'data-key': `ro:${rank}`, title: `Show only rank ${rank}`, 'aria-label': `Show only rank ${rank}`, onclick: () => { ctx.soloRank(rank); pop.refresh(); } }, 'only') : null);
+    };
+
     panel.append(
       h('div', { class: 'map-pop-head' },
-        h('strong', null, 'Location types'),
+        h('strong', null, 'Filter places'),
         h('span', { class: 'map-spacer' }),
-        h('button', { type: 'button', class: 'map-linkbtn', onclick: () => { ctx.showAll(); pop.refresh(); } }, 'All'),
-        h('button', { type: 'button', class: 'map-linkbtn', onclick: () => { ctx.hideAll(); pop.refresh(); } }, 'None')),
+        h('button', { type: 'button', class: 'map-linkbtn', onclick: () => { ctx.resetAll(); pop.refresh(); } }, 'Show everything')),
       h('div', { class: 'map-pop-scroll' },
+        ctx.editing() ? h('p', { class: 'map-pop-note map-pop-warn' }, 'Edit mode shows every place; the filter applies again when you finish editing.') : null,
+        h('div', { class: 'map-legend-sub' },
+          h('span', null, 'Hierarchy'),
+          h('span', { class: 'map-spacer' }),
+          rHidden.size ? h('button', { type: 'button', class: 'map-linkbtn', onclick: () => { ctx.showAllRanks(); pop.refresh(); } }, 'All ranks') : null),
+        h('ul', { class: 'map-legend-list' }, RANKS.map(rankRow)),
+        h('label', { class: 'map-legend-row map-legend-switch' },
+          h('input', { type: 'checkbox', checked: allZoom, 'data-key': 'allzoom', onchange: (e) => { ctx.setAllZoom(e.target.checked); pop.refresh(); } }),
+          h('span', { class: 'map-legend-name' }, 'Show every rank at every zoom', h('small', null, 'Otherwise lower ranks appear as you zoom in'))),
+        h('div', { class: 'map-legend-sub' },
+          h('span', null, 'Location types'),
+          h('span', { class: 'map-spacer' }),
+          h('button', { type: 'button', class: 'map-linkbtn', onclick: () => { ctx.showAll(); pop.refresh(); } }, 'All'),
+          h('button', { type: 'button', class: 'map-linkbtn', onclick: () => { ctx.hideAll(); pop.refresh(); } }, 'None')),
         used.length
-          ? h('ul', { class: 'map-legend-list' }, used.map(row))
-          : h('p', { class: 'map-pop-note' }, 'No places on the map yet. These are the kinds you can add:'),
+          ? h('ul', { class: 'map-legend-list' }, used.map(typeRow))
+          : h('p', { class: 'map-pop-note' }, 'No places on this map yet. These are the kinds you can add:'),
         unused.length ? (used.length
           ? h('div', { class: 'map-legend-unused' },
             h('button', { type: 'button', class: 'map-linkbtn', 'aria-expanded': String(showUnused), onclick: () => { showUnused = !showUnused; pop.refresh(); } },
               showUnused ? 'Hide unused types' : `Show ${unused.length} unused type${unused.length === 1 ? '' : 's'}`),
-            showUnused ? h('ul', { class: 'map-legend-list' }, unused.map(row)) : null)
-          : h('ul', { class: 'map-legend-list' }, unused.map(row))) : null),
+            showUnused ? h('ul', { class: 'map-legend-list' }, unused.map(typeRow)) : null)
+          : h('ul', { class: 'map-legend-list' }, unused.map(typeRow))) : null),
       h('div', { class: 'map-pop-foot' },
-        h('span', { class: 'map-pop-note' }, `${total} place${total === 1 ? '' : 's'}`),
+        h('span', { class: 'map-pop-note' }, `${total} place${total === 1 ? '' : 's'} on this map`),
         h('span', { class: 'map-spacer' }),
         h('button', { type: 'button', class: 'btn btn-sm', onclick: async () => { pop.close(); await ctx.newType(); } }, icon('plus'), h('span', null, 'New type…'))));
-  }, { className: 'map-legend', label: 'Location types' });
+  }, { className: 'map-legend', label: 'Filter places' });
 
   return {
     el: wrap,
     pop,
     update() {
-      const n = ctx.hidden().size;
+      const n = ctx.hidden().size + ctx.hiddenRanks().size;
+      const filtered = n > 0 || ctx.allZoom();
       badge.hidden = !n;
       badge.textContent = n ? `${n} hidden` : '';
-      button.setAttribute('aria-label', n ? `Location types (${n} hidden)` : 'Location types and filter');
-      button.classList.toggle('is-filtered', !!n);
+      button.setAttribute('aria-label', n ? `Filter places (${n} hidden)` : ctx.allZoom() ? 'Filter places (every rank shown)' : 'Filter places');
+      button.classList.toggle('is-filtered', filtered);
       pop.refresh();
     },
   };
@@ -252,26 +296,81 @@ export function createLegend(ctx) {
 
 // ---------- map menu ----------
 
-/** ctx: {info() -> {name, width, height, image, isPlaceholder}, rename(), replaceImage(), resetImage(), fit()} */
+/**
+ * ctx: {info() -> {name, width, height, image, isPlaceholder, isMain}, editing(), toggleEdit(), openFilter(),
+ *       rename(), replaceImage(), resetImage(), fit(), subMaps() -> [{id, name, count}], openMap(id),
+ *       addSubmap(), deleteMap(), copyLink(), mapCount()}
+ */
 export function createMenu(ctx) {
-  const button = h('button', { class: 'btn map-tool-btn map-tool-icon', type: 'button', 'aria-label': 'Map options', title: 'Map options' }, icon('more'));
+  const button = h('button', { class: 'btn map-tool-btn map-tool-icon', type: 'button', 'aria-label': 'Map menu', title: 'Map menu: edit, sub-maps, image' }, icon('more'));
   const wrap = h('div', { class: 'map-tool' }, button);
   const pop = popover(button, (panel, api) => {
     const info = ctx.info();
-    const item = (ic, label, fn, { disabled = false, hint = '' } = {}) => h('button', {
-      type: 'button', class: 'map-menu-item', role: 'menuitem', disabled,
+    const item = (ic, label, fn, { disabled = false, hint = '', cls = '' } = {}) => h('button', {
+      type: 'button', class: ['map-menu-item', cls], role: 'menuitem', disabled,
       onclick: () => { api.close(); fn(); },
     }, icon(ic), h('span', { class: 'map-menu-text' }, h('span', null, label), hint ? h('small', null, hint) : null));
     const dims = info.width && info.height ? `${Math.round(info.width)} × ${Math.round(info.height)} px` : '';
+    const subs = ctx.subMaps();
+    const editing = ctx.editing();
     panel.append(
       h('div', { class: 'map-menu-head' },
         h('strong', null, info.name),
-        h('span', null, [info.isPlaceholder ? 'Blank placeholder map' : baseName(info.image), dims].filter(Boolean).join(' · '))),
-      item('edit', 'Rename map…', ctx.rename),
-      item('upload', 'Replace map image…', ctx.replaceImage, { hint: 'PNG, JPG, WebP or SVG — e.g. a Wonderdraft export' }),
-      item('trash', 'Reset to placeholder', ctx.resetImage, { disabled: info.isPlaceholder }),
-      h('hr', { class: 'map-menu-sep' }),
-      item('map', 'Show the whole map', ctx.fit));
-  }, { className: 'map-menu', role: 'menu', label: 'Map options' });
+        h('span', null, [info.isMain ? 'Main map' : 'Sub-map', info.isPlaceholder ? 'blank placeholder' : baseName(info.image), dims].filter(Boolean).join(' · '))),
+      h('div', { class: 'map-pop-scroll map-menu-scroll' },
+        item(editing ? 'check' : 'edit', editing ? 'Finish editing' : 'Edit map', ctx.toggleEdit, { hint: editing ? 'Back to the normal map' : 'Move, rename and re-rank every place', cls: 'map-menu-strong' }),
+        item('filter', 'Filter places…', ctx.openFilter, { hint: 'By rank or location type' }),
+        h('hr', { class: 'map-menu-sep' }),
+        h('p', { class: 'map-menu-label' }, info.isMain ? 'Sub-maps' : `Sub-maps of ${info.name}`),
+        subs.map((m) => item('layers', m.name, () => ctx.openMap(m.id), { hint: `${m.count} place${m.count === 1 ? '' : 's'}` })),
+        item('plus', 'Add a sub-map…', ctx.addSubmap, { hint: 'A separate map for a place, e.g. a city or dungeon' }),
+        ctx.mapCount() > 1 ? item('map', 'All maps…', ctx.openSwitcher) : null,
+        h('hr', { class: 'map-menu-sep' }),
+        item('upload', 'Replace map image…', ctx.replaceImage, { hint: 'PNG, JPG, WebP or SVG — e.g. a Wonderdraft export' }),
+        item('undo', 'Reset to placeholder', ctx.resetImage, { disabled: info.isPlaceholder }),
+        item('edit', 'Rename map…', ctx.rename),
+        item('link', 'Copy link to this map', ctx.copyLink),
+        item('compass', 'Show the whole map', ctx.fit),
+        info.isMain ? null : [h('hr', { class: 'map-menu-sep' }), item('trash', 'Delete this map…', ctx.deleteMap, { cls: 'map-menu-danger' })]));
+  }, { className: 'map-menu', role: 'menu', label: 'Map menu' });
   return { el: wrap, pop };
+}
+
+// ---------- breadcrumb + map switcher ----------
+
+/** ctx: {chain() -> [map], all() -> [map with depth], current() -> id, count(id) -> n, href(id), addSubmap()} */
+export function createCrumbs(ctx) {
+  const list = h('ol', { class: 'map-crumbs-list' });
+  const button = h('button', { type: 'button', class: 'map-crumbs-switch', title: 'All maps', 'aria-label': 'All maps' }, icon('chevron-down'));
+  const el = h('nav', { class: 'map-crumbs', 'aria-label': 'Maps', hidden: true }, list, h('div', { class: 'map-tool' }, button));
+  const pop = popover(button, (panel, api) => {
+    const cur = ctx.current();
+    panel.append(
+      h('div', { class: 'map-pop-head' }, h('strong', null, 'Maps')),
+      h('ul', { class: 'map-pop-scroll map-switch-list', role: 'list' }, ctx.all().map((m) => h('li', null,
+        h('a', {
+          href: ctx.href(m.id), class: ['map-switch-item', m.id === cur && 'is-current'], 'aria-current': m.id === cur ? 'page' : null,
+          style: `--depth:${m.depth}`, onclick: () => api.close(),
+        }, icon(m.isMain ? 'map' : 'layers'), h('span', { class: 'map-switch-name' }, m.name), h('span', { class: 'map-legend-count' }, String(ctx.count(m.id))))))),
+      h('div', { class: 'map-pop-foot' },
+        h('button', { type: 'button', class: 'btn btn-sm', onclick: () => { api.close(); ctx.addSubmap(); } }, icon('plus'), h('span', null, 'Add a sub-map…'))));
+  }, { className: 'map-switcher', label: 'Maps' });
+
+  return {
+    el,
+    pop,
+    update() {
+      const all = ctx.all();
+      el.hidden = all.length < 2;
+      const chain = ctx.chain();
+      clear(list);
+      chain.forEach((m, i) => {
+        const last = i === chain.length - 1;
+        list.append(h('li', null, last
+          ? h('span', { class: 'map-crumb is-current', 'aria-current': 'page' }, m.name)
+          : h('a', { class: 'map-crumb', href: ctx.href(m.id), title: `Back to ${m.name}` }, m.name)));
+      });
+      pop.refresh();
+    },
+  };
 }

@@ -1,9 +1,10 @@
 // Location type picker (used in the pin editor) and the small create/edit form for custom types.
 import { h, mount } from '../../core/dom.js';
-import { icon, openModal, input, checkbox, confirmDialog, toast } from '../../core/ui.js';
+import { icon, openModal, input, confirmDialog, toast } from '../../core/ui.js';
 import { saveCustom, removeCustom } from '../../core/compendium.js';
 import * as data from './data.js';
 import { swatch, pinPreview, glyph } from './pins.js';
+import { RANKS } from './ranks.js';
 
 /**
  * typePicker({value, types, open, onChange(id), onNew()}) -> element with .update(types, selectedId)
@@ -58,12 +59,12 @@ export function openTypeForm({ type = null, usage = 0 } = {}) {
       name: type?.name || '',
       icon: type?.icon || 'mk-landmark',
       color: type?.color || data.PIGMENTS.find((p) => p.key === 'lapis').hex,
-      major: type ? type.rank === 1 : false,
+      rank: type?.rank || 3,
     };
     const err = h('span', { class: 'map-field-error', role: 'alert', hidden: true });
     const preview = h('div', { class: 'map-tf-preview', 'aria-hidden': 'true' });
     const drawPreview = () => mount(preview,
-      pinPreview(data.withPaint({ icon: f.icon, color: data.safeColor(f.color), rank: f.major ? 1 : 3 })),
+      pinPreview(data.withPaint({ icon: f.icon, color: data.safeColor(f.color), rank: f.rank })),
       h('span', { class: 'map-tf-preview-name' }, f.name.trim() || 'New type'));
 
     const nameIn = input({
@@ -95,7 +96,11 @@ export function openTypeForm({ type = null, usage = 0 } = {}) {
         h('label', { class: ['map-tf-custom', custom && 'is-active'], title: 'Pick any colour' }, colorIn, h('span', null, 'Custom')));
     };
 
-    const major = checkbox(f.major, (v) => { f.major = v; drawPreview(); }, 'Major place (label stays visible when zoomed out)');
+    const rankSel = h('select', { class: 'select', id: 'map-tf-rank', onchange: (e) => { f.rank = Number(e.target.value); drawPreview(); } },
+      RANKS.map((r) => h('option', { value: r.rank, selected: r.rank === f.rank }, `${r.rank} · ${r.name} — ${r.hint}`)));
+    const major = h('div', { class: 'field' },
+      h('label', { class: 'field-label', for: 'map-tf-rank' }, 'Default rank'), rankSel,
+      h('span', { class: 'field-hint' }, 'Places of this type use it unless they pick their own rank. Rank 1 shows fully zoomed out; lower ranks appear as you zoom in.'));
 
     drawPreview();
     drawIcons();
@@ -115,7 +120,8 @@ export function openTypeForm({ type = null, usage = 0 } = {}) {
       if (!name) { err.textContent = 'Give the type a name.'; err.hidden = false; nameIn.focus(); return false; }
       const clash = data.allTypes().find((t) => t.name.toLowerCase() === name.toLowerCase() && t.id !== type?.id);
       if (clash) { err.textContent = `There is already a “${clash.name}” type.`; err.hidden = false; nameIn.focus(); return false; }
-      const fields = { name, icon: f.icon, color: data.safeColor(f.color), major: f.major };
+      // `major` mirrors rank 1 for the compendium's location-type editor.
+      const fields = { name, icon: f.icon, color: data.safeColor(f.color), rank: f.rank, major: f.rank === 1 };
       let payload;
       if (type?.entry) payload = { ...type.entry, ...fields }; // existing custom entry keeps its id
       else if (type?.builtin) payload = { id: type.id, origin: 'custom', ...fields }; // override a built-in

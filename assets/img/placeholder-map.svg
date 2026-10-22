@@ -28,7 +28,7 @@
 <path d="M2546 390H3694a26 26 0 0 0 26 26V624a26 26 0 0 0 -26 26H2546a26 26 0 0 0 -26 -26V416a26 26 0 0 0 26 -26z" fill="#f0e6cf" stroke="#3d2f1f" stroke-width="5"/>
 <path d="M2556 406H3684a20 20 0 0 0 20 20V614a20 20 0 0 0 -20 20H2556a20 20 0 0 0 -20 -20V426a20 20 0 0 0 20 -20z" fill="none" stroke="#3d2f1f" stroke-width="2"/>
 <text x="3120" y="494" font-family="Georgia, 'Times New Roman', serif" font-size="78" letter-spacing="12" fill="#3d2f1f" text-anchor="middle" dominant-baseline="central">TERRA INCOGNITA</text>
-<text x="3120" y="574" font-family="Georgia, 'Times New Roman', serif" font-size="46" font-style="italic" fill="#8e2a22" text-anchor="middle" dominant-baseline="central">the Wardensâ€™ map awaits</text>
+<text x="3120" y="574" font-family="Georgia, 'Times New Roman', serif" font-size="46" font-style="italic" fill="#8e2a22" text-anchor="middle" dominant-baseline="central">the Wardens&#8217; map awaits</text>
 <path d="M2790 558c1.92 9.92 4.16 12.16 14.08 14.08c-9.92 1.92 -12.16 4.16 -14.08 14.08c-1.92 -9.92 -4.16 -12.16 -14.08 -14.08c9.92 -1.92 12.16 -4.16 14.08 -14.08zM3450 558c1.92 9.92 4.16 12.16 14.08 14.08c-9.92 1.92 -12.16 4.16 -14.08 14.08c-1.92 -9.92 -4.16 -12.16 -14.08 -14.08c9.92 -1.92 12.16 -4.16 14.08 -14.08z" fill="#9c7419"/>
 <path d="M2820 538H3420" stroke="#3d2f1f" stroke-width="2" opacity="0.5"/>
 </g>
