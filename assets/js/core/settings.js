@@ -3,9 +3,10 @@
 const KEY = 'sw:settings';
 const DEFAULTS = {
   playerName: '',
-  autoCommit: false,
-  autoCommitDelay: 60, // seconds of inactivity before an automatic commit
-  saveReminder: 10, // minutes of uncommitted changes before a "save now" nudge (0 = off; unused with autoCommit)
+  autoSaveMinutes: 10, // commit unsaved changes at most this many minutes after the first one (0 = off)
+  autoCommit: false, // also commit shortly after each edit
+  autoCommitDelay: 60, // seconds of inactivity before that commit
+  saveReminder: 10, // minutes of uncommitted changes before a "save now" nudge (only when both auto-saves are off)
   theme: 'light',
   sidebarCollapsed: false,
 };

@@ -46,7 +46,9 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   Conflict check: if remote sha != the sha we loaded, user chooses overwrite/keep theirs.
 - Every edit is saved immediately as a local draft (localStorage) -> survives reloads. "Save" (Ctrl+S) commits
   all dirty docs. `beforeunload` warns when uncommitted. Optional auto-commit (Settings). Auto-pull on focus/2 min.
-  With auto-commit off, `main.js` `wireSaving` shows a "Save now" toast after `saveReminder` minutes dirty (default 10, 0 = off).
+  `main.js` `wireSaving` auto-saves `autoSaveMinutes` (default 10, 0 = off) after the first unsaved change; with that
+  and auto-commit off it shows a "Save now" toast after `saveReminder` minutes instead. Views call `saveNow()` from
+  `core/saving.js` for a Save button that behaves like the sidebar one.
 - Sandbox mode (`?sandbox`, or no vault on localhost): same API backed by IndexedDB only.
 - JSON docs are pretty-printed (2 spaces). Ids: `slug-xxxx` (`util.uid(name)`), filename = id.
 
@@ -84,7 +86,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   after `preloadAll()`), `entry(kind, id)`, `findByName(kind, name)`, `saveCustom(kind, obj)`, `removeCustom`,
   `srd(name)` raw loader (`srd('rules')`, `srd('features')`). Every entry has `kind` and
   `origin: 'srd'|'stub'|'custom'` (`source` = book name for stubs). Custom overrides same id.
-- `settings.js`: `getSetting(k)`, `setSetting(k,v)` (playerName, autoCommit, autoCommitDelay, saveReminder, theme, sidebarCollapsed).
+- `settings.js`: `getSetting(k)`, `setSetting(k,v)` (playerName, autoSaveMinutes, autoCommit, autoCommitDelay, saveReminder, theme, sidebarCollapsed).
 
 ## Views
 - `assets/js/views/<id>/index.js` default-exports `{id, title, icon, mount(el), show(route), hide?()}`; `main.js`

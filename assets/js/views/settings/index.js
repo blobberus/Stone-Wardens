@@ -20,10 +20,15 @@ function render() {
     h('section', { class: 'panel stack set-section' },
       h('h2', null, 'Saving'),
       h('p', { class: 'muted' }, 'Every edit is kept on this device as you type. Saving commits your changes to the repository so the whole party sees them.'),
-      checkbox(getSetting('autoCommit'), (v) => { setSetting('autoCommit', v); store.scheduleAutoCommit(); render(); }, 'Save to the repository automatically'),
+      field('Save automatically every this many minutes', numberInput(getSetting('autoSaveMinutes'), (v) => { setSetting('autoSaveMinutes', Math.max(0, v ?? 0)); render(); }, { min: 0, step: 5 }),
+        'Unsaved changes are committed at most this long after you make them. Set to 0 to save only when you press Save.'),
+      checkbox(getSetting('autoCommit'), (v) => { setSetting('autoCommit', v); store.scheduleAutoCommit(); render(); }, 'Also save shortly after each edit'),
       getSetting('autoCommit')
         ? field('Wait this many seconds after the last edit', numberInput(getSetting('autoCommitDelay'), (v) => setSetting('autoCommitDelay', Math.max(15, v || 60)), { min: 15, step: 5 }))
-        : field('Remind me to save after this many minutes', numberInput(getSetting('saveReminder'), (v) => setSetting('saveReminder', Math.max(0, v ?? 0)), { min: 0, step: 5 }), 'Set to 0 to turn reminders off.'),
+        : null,
+      !getSetting('autoCommit') && !(Number(getSetting('autoSaveMinutes')) > 0)
+        ? field('Remind me to save after this many minutes', numberInput(getSetting('saveReminder'), (v) => setSetting('saveReminder', Math.max(0, v ?? 0)), { min: 0, step: 5 }), 'Set to 0 to turn reminders off.')
+        : null,
       h('div', { class: 'row' },
         h('button', { class: 'btn', type: 'button', onclick: async () => { try { const p = await store.pull(); toast(p.length ? `Fetched ${p.length} updated file(s).` : 'Already up to date.'); } catch (e) { toast(e.message, { type: 'error' }); } } }, 'Fetch latest now'),
         h('button', {

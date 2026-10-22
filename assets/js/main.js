@@ -8,6 +8,7 @@ import { applyTheme, getSetting, setSetting } from './core/settings.js';
 import { h, $, clear } from './core/dom.js';
 import { icon, toast, choiceDialog } from './core/ui.js';
 import { preloadAll } from './core/compendium.js';
+import { setSaveHandler } from './core/saving.js';
 
 const VIEW_IDS = ['map', 'characters', 'journal', 'compendium', 'wardens-library', 'settings'];
 const isLocalhost = ['localhost', '127.0.0.1', ''].includes(location.hostname);
@@ -168,19 +169,23 @@ function wireSaving() {
     btn.disabled = !n || store.saving;
   };
 
-  const save = async () => {
-    if (!store.isDirty() || store.saving) return;
+  const save = async ({ auto = false } = {}) => {
+    if (store.saving) return false;
+    if (!store.isDirty()) return true;
     try {
       lastError = null;
       const r = await store.save();
-      if (r.cancelled) return;
-      toast(store.mode === 'sandbox' ? 'Saved locally.' : 'Saved to the repository.', { type: 'success' });
+      if (r.cancelled) return false;
+      toast(`${auto ? 'Auto-saved' : 'Saved'} ${store.mode === 'sandbox' ? 'locally' : 'to the repository'}.`, { type: 'success' });
+      return true;
     } catch (e) {
       console.error(e);
       lastError = e;
-      toast(`Could not save: ${e.message}`, { type: 'error' });
+      toast(`Could not ${auto ? 'auto-save' : 'save'}: ${e.message}`, { type: 'error' });
+      return false;
     } finally { update(); }
   };
+  setSaveHandler(() => save());
 
   store.conflictResolver = (paths) => choiceDialog(
     h('div', { class: 'stack' },
@@ -199,7 +204,7 @@ function wireSaving() {
     if (ev.type === 'error') { lastError = ev.error; toast(`Auto-save failed: ${ev.error.message}`, { type: 'error' }); }
     update();
   });
-  btn.onclick = save;
+  btn.onclick = () => save();
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); }
   });
@@ -217,13 +222,22 @@ function wireSaving() {
   setInterval(pull, 120000);
   window.addEventListener('focus', () => { if (Date.now() - lastPull > 30000) pull(); });
 
-  // Remind players who leave changes uncommitted (auto-commit makes this unnecessary).
+  // Timed auto-save: commit at most `autoSaveMinutes` after the first unsaved change (retrying a failed or
+  // cancelled save one interval later). With it off, remind players who leave changes uncommitted instead.
   let dirtySince = store.isDirty() ? Date.now() : 0;
+  let lastAuto = 0;
   let lastNudge = 0;
   let closeNudge = null;
-  const remindersOn = () => !getSetting('autoCommit') && Number(getSetting('saveReminder')) > 0;
-  const nudge = (earlier) => {
-    if (!remindersOn() || !store.isDirty() || store.saving) return;
+  const autoEvery = () => Math.max(0, Number(getSetting('autoSaveMinutes')) || 0) * 60000;
+  const remindersOn = () => !getSetting('autoCommit') && !autoEvery() && Number(getSetting('saveReminder')) > 0;
+  setInterval(() => {
+    if (!dirtySince || !autoEvery() || store.saving) return;
+    if (Date.now() < Math.max(dirtySince, lastAuto) + autoEvery()) return;
+    lastAuto = Date.now();
+    save({ auto: true });
+  }, 15000);
+  const nudge = (earlier, force = false) => {
+    if (!(force || remindersOn()) || !store.isDirty() || store.saving) return;
     lastNudge = Date.now();
     closeNudge?.();
     const n = store.dirtyPaths().length;
@@ -231,22 +245,21 @@ function wireSaving() {
     const where = store.mode === 'sandbox' ? '' : ` Save so the party can see ${n === 1 ? 'it' : 'them'}.`;
     closeNudge = toast([
       h('span', null, earlier ? `Restored ${what} from your last visit.${where}` : `${what} kept on this device only.${where}`),
-      h('button', { class: 'btn btn-sm btn-primary', type: 'button', onclick: save }, 'Save now'),
+      h('button', { class: 'btn btn-sm btn-primary', type: 'button', onclick: () => save() }, 'Save now'),
     ], { timeout: 20000 });
     btn.classList.add('is-nudge');
     btn.addEventListener('animationend', () => btn.classList.remove('is-nudge'), { once: true });
   };
   store.on(() => {
     if (store.isDirty()) { dirtySince ||= Date.now(); return; }
-    dirtySince = 0; lastNudge = 0;
+    dirtySince = 0; lastAuto = 0; lastNudge = 0;
     closeNudge?.(); closeNudge = null;
   });
   setInterval(() => {
-    if (!dirtySince || document.visibilityState !== 'visible') return;
+    if (!dirtySince || !remindersOn() || document.visibilityState !== 'visible') return;
     const every = Number(getSetting('saveReminder')) * 60000;
     if (Date.now() >= Math.max(dirtySince, lastNudge) + every) nudge(false);
   }, 30000);
-  if (dirtySince && remindersOn()) setTimeout(() => nudge(true), 1500);
-  else if (dirtySince) toast(`Restored ${store.dirtyPaths().length} unsaved change(s) from your last visit.`, { timeout: 6000 });
+  if (dirtySince) setTimeout(() => nudge(true, true), 1500);
   update();
 }
