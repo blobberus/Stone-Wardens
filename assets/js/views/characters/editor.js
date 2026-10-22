@@ -21,7 +21,11 @@ import { deleteWithWarning } from './trash.js';
 import { store } from '../../core/store.js';
 import { saveNow } from '../../core/saving.js';
 import { hasPendingWrite, DEFAULT_ACCENT, ACCENT_PRESETS } from './data.js';
-import { accentOf, accentInk, profMark } from './widgets.js';
+import { accentOf, accentInk, accentAttrs, profMark, statBox } from './widgets.js';
+import {
+  SKIN_PRESETS, FONTS, BORDER_STYLES, BORDER_WIDTHS, CORNERS, STYLE_DEFAULTS, DEFAULT_HEADING_FONT, DEFAULT_TEXT_FONT,
+  normalizeStyle, presetOf, applySkin,
+} from './skin.js'; // Sheet style section
 // XP set here opens Level Up when it crosses a threshold (same as the sheet's XP window)
 import { setXp, xpLevelsCrossed, xpStatus, charLevel } from './engine-xp.js';
 import { levelUpFlow } from './levelup.js';
@@ -29,7 +33,7 @@ import { TAGS as SMART_TAGS, normalizeTags as normSmartTags } from './engine-tag
 import { removeAbilityFavorites } from './engine-favs.js'; // a removed ability drops its sheet star
 
 const SECTIONS = [
-  ['identity', 'Identity'], ['classes', 'Classes & levels'], ['origin', 'Species & background'], ['abilities', 'Ability scores'],
+  ['identity', 'Identity'], ['appearance', 'Sheet style'], ['classes', 'Classes & levels'], ['origin', 'Species & background'], ['abilities', 'Ability scores'],
   ['choices', 'Choices'], ['proficiencies', 'Proficiencies'], ['feats', 'Feats'], ['spells', 'Spells'], ['overrides', 'Overrides'],
   ['advanced', 'Advanced abilities'], ['details', 'Details'], ['danger', 'Delete'],
 ];
@@ -96,7 +100,7 @@ function render() {
           label, n ? h('span', { class: 'badge badge-warn' }, String(n)) : null));
       }))),
       h('div', { class: 'ch-editor-main stack-lg stack' },
-        identity(ctx), classes(ctx), origin(ctx), abilities(ctx), choicesSec(ctx), proficiencies(ctx), feats(ctx), spells(ctx),
+        identity(ctx), appearance(ctx), classes(ctx), origin(ctx), abilities(ctx), choicesSec(ctx), proficiencies(ctx), feats(ctx), spells(ctx),
         overrides(ctx), advanced(ctx), details(ctx), danger(ctx))),
     saveBar(c, 'bottom')));
   refreshSaveBars();
@@ -149,7 +153,6 @@ function identity({ c }) {
       field('Player', input({ value: c.player, 'data-fk': 'e-player', onchange: (e) => mutate((x) => { x.player = e.target.value.trim(); }) })),
       field('Experience points', numberInput(c.xp, (v) => changeXp(v), { min: 0, 'data-fk': 'e-xp' }), xpHint(c))),
     portraitField(c, (v) => mutate((x) => { x.portrait = v; })),
-    accentField(c),
     h('p', { class: 'muted ui text-sm' }, `Created ${c.created ? new Date(c.created).toLocaleDateString() : '—'}${c.createdBy ? ` by ${c.createdBy}` : ''} · id ${c.id}`));
 }
 
@@ -171,14 +174,15 @@ function changeXp(v) {
   }, 0);
 }
 
-/** Sheet highlight colour: colour input + pigment presets + default, with a live sample ability box. */
-function accentField(c) {
+/** An ability box for samples (highlight colour, sheet style preview). */
+const sampleAbility = (name, mod, score, save, prof) => h('div', { class: 'ch-abil' },
+  h('div', { class: 'ch-abil-check' }, h('span', { class: 'ch-abil-name' }, name), h('span', { class: 'ch-abil-mod num' }, mod), h('span', { class: 'ch-abil-score num' }, score)),
+  h('div', { class: 'ch-abil-save' }, profMark(prof ? 'proficient' : 'none'), h('span', { class: 'ch-abil-save-label' }, 'Save'), h('span', { class: 'ch-abil-save-val num' }, save)));
+
+/** Sheet highlight colour: colour input + pigment presets + default; `onInput(hex)` previews while dragging. */
+function accentField(c, { onInput } = {}) {
   const cur = accentOf(c);
-  const sample = h('div', { class: 'ch-abil ch-accent-sample', 'aria-hidden': 'true' },
-    h('div', { class: 'ch-abil-check' }, h('span', { class: 'ch-abil-name' }, 'Strength'), h('span', { class: 'ch-abil-mod num' }, '+3'), h('span', { class: 'ch-abil-score num' }, '16')),
-    h('div', { class: 'ch-abil-save' }, profMark('proficient'), h('span', { class: 'ch-abil-save-label' }, 'Save'), h('span', { class: 'ch-abil-save-val num' }, '+5')));
-  const paint = (hex) => { sample.setAttribute('style', `--ch-hl: ${hex}`); sample.dataset.hlInk = accentInk(hex); };
-  paint(cur);
+  const paint = (hex) => onInput?.(hex);
   const set = (hex) => mutate((x) => {
     const v = /^#[0-9a-f]{6}$/i.test(hex || '') ? hex.toLowerCase() : null;
     x.style = { ...(x.style || {}), accent: v && v !== DEFAULT_ACCENT ? v : null };
@@ -192,8 +196,79 @@ function accentField(c) {
           class: 'ch-swatch', type: 'button', style: `--sw: ${p.value}`, title: p.name, 'aria-label': p.name, 'aria-pressed': String(cur === p.value), onclick: () => set(p.value),
         }))),
         h('button', { class: 'btn btn-sm btn-ghost', type: 'button', disabled: !c.style?.accent, onclick: () => set(null), title: 'Back to the default oxblood' }, icon('undo'), 'Default')),
-      h('span', { class: 'field-hint' }, 'Colours the ability boxes and proficiency marks on the sheet; the lettering on it switches between light and dark to stay readable.')),
-    sample);
+      h('span', { class: 'field-hint' }, 'Colours the ability boxes and proficiency marks on the sheet; the lettering on it switches between light and dark to stay readable.')));
+}
+
+/**
+ * Sheet style (char.style, skin.js): one-click looks, highlight colour, page / box / border colours, border style and
+ * width, corners, heading and text fonts, with a live preview. Only the look changes; the sheet's layout stays.
+ */
+function appearance({ c, s }) {
+  const st = normalizeStyle(c.style);
+  const preview = skinPreview(c, s);
+  const abils = preview.querySelector('[data-hl-ink]');
+  const paint = (patch) => {
+    applySkin(preview, { ...st, ...patch });
+    if (patch.accent && abils) { abils.style.setProperty('--ch-hl', patch.accent); abils.dataset.hlInk = accentInk(patch.accent); }
+  };
+  paint({});
+  const set = (patch) => mutate((x) => { x.style = { ...(x.style || {}), ...normalizeStyle({ ...normalizeStyle(x.style), ...patch }) }; });
+  const look = presetOf(c.style);
+  const themeHex = (name) => {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim().toLowerCase();
+    return /^#[0-9a-f]{6}$/.test(v) ? v : '#ffffff';
+  };
+  const colorField = (label, key, cssVar, hint) => h('div', { class: 'field' },
+    h('span', { class: 'field-label' }, label),
+    h('div', { class: 'ch-style-color' },
+      h('input', {
+        type: 'color', class: 'ch-color', value: st[key] || themeHex(cssVar), 'aria-label': label, 'data-fk': `e-sk-${key}`,
+        oninput: (e) => paint({ [key]: e.target.value }), onchange: (e) => set({ [key]: e.target.value }),
+      }),
+      h('button', { class: 'btn btn-sm btn-ghost', type: 'button', disabled: !st[key], onclick: () => set({ [key]: null }), title: 'Back to the theme colour' }, icon('undo'), 'Default')),
+    hint ? h('span', { class: 'field-hint' }, hint) : null);
+  const pickField = (label, key, list, dflt, { hint, disabled } = {}) => field(label,
+    select(list.map((o) => ({ value: String(o.id), label: o.name })), String(st[key] ?? dflt),
+      (v) => set({ [key]: key === 'borderWidth' ? Number(v) : v }), { 'data-fk': `e-sk-${key}`, disabled: !!disabled }),
+    hint);
+  const fixedWidth = st.borderStyle === 'double' || st.borderStyle === 'none';
+  return section('appearance', 'Sheet style', {
+    iconName: 'sparkle', sub: 'How this character’s sheet looks — the layout stays the same.',
+    actions: [h('button', { class: 'btn btn-sm btn-ghost', type: 'button', disabled: look?.id === 'parchment', onclick: () => set({ ...STYLE_DEFAULTS }), 'data-fk': 'e-sk-reset', title: 'Back to the standard parchment look' }, icon('undo'), 'Reset to default')],
+  },
+  h('div', { class: 'ch-style-layout' },
+    h('div', { class: 'stack' },
+      h('div', { class: 'stack stack-sm' },
+        h('span', { class: 'field-label ui' }, 'Looks'),
+        h('div', { class: 'ch-style-presets', role: 'group', 'aria-label': 'Looks' }, SKIN_PRESETS.map((p) => h('button', {
+          class: 'btn btn-sm ch-style-preset', type: 'button', 'aria-pressed': String(look?.id === p.id), 'data-fk': `e-sk-look-${p.id}`,
+          title: p.id === 'parchment' ? 'The standard look (follows the light / dark theme)' : `Use the ${p.name} look (you can change any part afterwards)`,
+          onclick: () => set({ ...p.style }),
+        }, h('span', { class: 'ch-style-dot', style: `--sw-a: ${p.style.page || 'var(--bg)'}; --sw-b: ${p.style.panel || 'var(--surface)'}` }), p.name))),
+        h('span', { class: 'field-hint' }, 'A look sets everything below at once, highlight colour included.')),
+      accentField(c, { onInput: (hex) => paint({ accent: hex }) }),
+      h('div', { class: 'ch-style-grid' },
+        colorField('Page background', 'page', '--bg'),
+        colorField('Box fill', 'panel', '--surface', 'Panels, stat boxes and fields. Text turns light or dark to stay readable.'),
+        colorField('Border colour', 'border', '--border'),
+        pickField('Border style', 'borderStyle', BORDER_STYLES, 'solid'),
+        pickField('Border width', 'borderWidth', BORDER_WIDTHS, 1, { disabled: fixedWidth, hint: st.borderStyle === 'double' ? 'Double lines are always thick.' : null }),
+        pickField('Corners', 'corners', CORNERS, 'soft'),
+        pickField('Heading font', 'headingFont', FONTS, DEFAULT_HEADING_FONT, { hint: 'The name and section titles.' }),
+        pickField('Text font', 'textFont', FONTS, DEFAULT_TEXT_FONT, { hint: 'Everything else on the sheet.' }))),
+    h('div', { class: 'stack stack-sm' }, h('span', { class: 'field-label ui' }, 'Preview'), preview)));
+}
+
+/** A small piece of sheet (name, two stat boxes, an abilities panel, a line of text) to show a style on. */
+function skinPreview(c, s) {
+  return h('div', { class: 'ch-skin-preview', 'aria-hidden': 'true', 'data-fk': 'e-sk-preview' },
+    h('div', null, h('div', { class: 'ch-name' }, c.name || 'Unnamed'), h('p', { class: 'ch-line' }, [`Level ${totalLevel(c) || 0}`, s.classLine].filter(Boolean).join(' · '))),
+    h('div', { class: 'ch-skp-row' },
+      statBox({ label: 'Armor Class', value: String(s.ac?.value ?? 10), sub: s.armorWorn?.name || 'Unarmored' }),
+      statBox({ label: 'Speed', value: `${s.speed?.walk ?? 30} ft` })),
+    section('skin-preview', 'Abilities & saving throws', { iconName: 'd20', attrs: accentAttrs(c), className: 'ch-sec-abils' },
+      h('div', { class: 'ch-abils' }, sampleAbility('Strength', '+3', '16', '+5', true), sampleAbility('Wisdom', '+1', '12', '+1', false))),
+    h('p', { class: 'ch-skp-text' }, 'Features, notes and lists use the text font.'));
 }
 
 function xpHint(c) {

@@ -29,6 +29,7 @@ import { xpStatus } from './engine-xp.js';
 import { lastLeveledClass } from './engine-xp.js';
 // Debuffed values, highlight colour and proficiency marks (abilities / skills / combat / attacks / nav)
 import { adjustedValue, accentAttrs, profMark } from './widgets.js';
+import { applySkin } from './skin.js';
 import { getSetting, setSetting } from '../../core/settings.js';
 // Favourites (stars on items, weapons, skills, features; the Favourites tab)
 import { featureFavKey, isFavorite, toggleFavorite, favoritesFirst } from './engine-favs.js';
@@ -141,6 +142,8 @@ function render() {
   if (!S.root || !S.char) return;
   const c = S.char;
   const s = S.sheet;
+  // The character's own colours, edges and fonts (skin.js) on the view; index.js clears them when it leaves the sheet.
+  if (S.root.dataset.mode === 'sheet') applySkin(S.root.closest('.view') || S.root, c.style);
   rerender(S.root, () => mount(S.root,
     header(c, s),
     nav(s),

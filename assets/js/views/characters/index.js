@@ -14,6 +14,7 @@ import { renderTrash, TRASH_ROUTE } from './trash.js';
 import { showSheet, hideSheet, sheetExternalChange } from './sheet.js';
 import { showBuilder } from './builder.js';
 import { showEditor, hideEditor, editorExternalChange } from './editor.js';
+import { clearSkin } from './skin.js';
 
 let root = null;
 let host = null;
@@ -28,6 +29,7 @@ function show(route) {
   const prevId = currentId;
   if (prevMode === 'sheet' && (id !== prevId || sub === 'edit')) hideSheet();
   if (prevMode === 'edit' && (id !== prevId || sub !== 'edit')) hideEditor();
+  clearSkin(host); // a sheet puts its character's style back on while it renders
   if (!id) {
     mode = 'roster'; currentId = null;
     root.dataset.mode = mode;
@@ -137,6 +139,7 @@ export default {
   hide() {
     if (mode === 'sheet') hideSheet();
     if (mode === 'edit') hideEditor();
+    clearSkin(host);
     flushPersist();
     mode = null; // the next show() reloads from the store (it may have changed while hidden)
   },

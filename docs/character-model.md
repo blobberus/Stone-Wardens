@@ -42,7 +42,15 @@ Only player decisions are stored; everything derivable is computed by `derive()`
                  "passivePerception": null, "abilities": {}, "saves": {}, "skills": {},   // number = replace; skills/saves values are flat BONUS
                  "proficiency": { "skills": { "athletics": "none", "stealth": "expertise" }, "saves": { "dex": true } } },
                  // ^ Edit all → Proficiencies: final say on skill level ('none'|'proficient'|'expertise') / save proficiency
-  "style": { "accent": "#7a1f1f" },                 // sheet highlight colour (#rrggbb; null = default oxblood #7a1f1f)
+  "style": {                                        // the sheet's look (Edit all → Sheet style; characters/skin.js). null = default
+    "accent": "#22507c",                            // highlight colour: ability bands, proficiency marks (null = oxblood #7a1f1f)
+    "page": "#d6d3cc", "panel": "#eeece7", "border": "#9a958a",   // page background, box fill, border colour (#rrggbb)
+    "borderStyle": "ridge",                         // 'solid' (null) | 'double' | 'ridge' (Carved) | 'dashed' | 'dotted' | 'none'
+    "borderWidth": 2,                               // 1 (null) | 2 | 3 px; double is always 3, carved at least 2
+    "corners": "square",                            // 'soft' (null) | 'square' | 'round'
+    "headingFont": "garamond", "textFont": "palatino" },  // ids from skin.js FONTS (null = cinzel / alegreya); site or system fonts only
+    // Only #rrggbb colours and these ids are accepted (normalizeStyle on read); anything else reads as null, so a
+    // doc can't inject CSS. Text colour is derived from the box fill (or page) so it stays >= 4.5:1 in either theme.
   "details": { "alignment": "", "pronouns": "", "gender": "", "sexuality": "", "age": "", "height": "", "weight": "",
                "eyes": "", "hair": "", "skin": "", "appearance": "", "personalityTraits": "", "socialTraits": "",
                "mentalTraits": "", "ideals": "", "bonds": "", "flaws": "", "likes": "", "dislikes": "",

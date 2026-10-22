@@ -4,11 +4,13 @@
    cut like the wardens' stones, rubrics in oxblood red where an entry begins,
    lapis for cross-references, and gold leaf only where a star has fallen.
    Light ("day vellum") is the default; [data-theme="dark"] on <html> is "night basalt".
+   [data-ground="light" | "dark"] on any element switches that subtree to one set (a custom character-sheet
+   colour picks the set whose ink reads on it; characters/skin.js).
    Use these tokens only — never raw hex values in view CSS.
    All text pairs below are checked to WCAG AA (4.5:1) on --bg, --surface and --surface-2.
    ============================================================================= */
 
-:root {
+:root, [data-ground="light"] {
   color-scheme: light;
 
   /* --- Ground and surfaces ------------------------------------------------ */
@@ -140,7 +142,7 @@
   --glyph-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f6f2e9' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
 }
 
-[data-theme="dark"] {
+[data-theme="dark"], [data-ground="dark"] {
   color-scheme: dark;
 
   /* Night basalt: warm neutral darks, never navy or slate */

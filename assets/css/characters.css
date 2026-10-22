@@ -359,7 +359,8 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 [data-hl-ink="light"] { --ch-hl-ink: var(--pin-glyph); }
 [data-hl-ink="dark"] { --ch-hl-ink: var(--pin-ink); }
 [data-hl-ink] { --ch-hl-line: color-mix(in oklab, var(--ch-hl) 88%, var(--ink)); }
-[data-theme="dark"] [data-hl-ink] { --ch-hl-line: color-mix(in oklab, var(--ch-hl) 55%, var(--ink)); }
+[data-theme="dark"] [data-hl-ink], [data-ground="dark"] [data-hl-ink] { --ch-hl-line: color-mix(in oklab, var(--ch-hl) 55%, var(--ink)); }
+[data-theme="dark"] [data-ground="light"] [data-hl-ink] { --ch-hl-line: color-mix(in oklab, var(--ch-hl) 88%, var(--ink)); }
 
 /* Abilities & saves: six boxes in one row (3 × 2 when narrow) */
 .ch-sec-abils { container-type: inline-size; }
@@ -719,8 +720,6 @@ div.ch-optcard { cursor: default; }
 .ch-swatch:hover { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--border-strong); }
 .ch-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
 .ch-swatch:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
-.ch-accent-sample { width: 150px; flex: none; }
-.ch-accent-sample .ch-abil-check, .ch-accent-sample .ch-abil-save { cursor: default; }
 
 /* Skill & save proficiency tables (Edit all → Proficiencies) */
 .ch-prof-table td { vertical-align: middle; }
@@ -1004,3 +1003,53 @@ button.ch-spell-chip:focus-visible { outline: 2px solid var(--focus); outline-of
   .ch-smart-tags::-webkit-scrollbar { display: none; }
   .ch-smart-tag { flex: none; }
 }
+
+/* ---------- sheet style (per character: char.style, characters/skin.js) ---------- */
+/* applySkin() puts custom properties + data attributes on the characters view while a sheet is open (and on the
+   Edit all preview). data-ground swaps the token set (tokens.css); the rules below derive the rest from the
+   chosen colours, so the layout never changes, only colours, edges, corners and fonts. */
+.ch-skin { background: var(--bg); color: var(--ink); }
+.ch-skin[data-sk-page] { --bg-sunk: color-mix(in srgb, var(--bg), var(--ink) 9%); }
+.ch-skin[data-sk-panel] {
+  --surface-2: color-mix(in srgb, var(--surface), var(--ink) 6%);
+  --surface-3: color-mix(in srgb, var(--surface), var(--ink) 11%);
+  --rule: color-mix(in srgb, var(--surface), var(--ink) 14%);
+}
+.ch-skin[data-sk-panel]:not([data-sk-border-color]) { --border: color-mix(in srgb, var(--surface), var(--ink) 22%); }
+/* A page colour that needs the other ink: the few texts drawn straight on the page follow it */
+.ch-skin[data-sk-pageink] :is(.ch-name, .ch-line, .ch-meta, .ch-nav-back, .ch-nav-who, .ch-warnings > summary,
+  .ch-head-actions > .btn-ghost, .ch-head-actions > .btn-icon) { --ink: var(--ch-page-ink); --ink-muted: var(--ch-page-muted); --ink-faint: var(--ch-page-muted); }
+.ch-skin[data-sk-pageink] :is(.ch-name, .ch-line, .ch-nav-who) { color: var(--ink); }
+/* Edges of the main boxes only (panels, stat boxes, HP, death saves, ability boxes, XP meter), not table rows */
+.ch-skin[data-sk-border] :is(.panel, .ch-stat, .ch-hp, .ch-dsbox, .ch-abil, .ch-xp-meter) {
+  border-style: var(--ch-bstyle, solid); border-width: var(--ch-bwidth, 1px);
+}
+.ch-skin[data-sk-border="ridge"] :is(.panel, .ch-stat, .ch-hp, .ch-dsbox, .ch-abil, .ch-xp-meter) {
+  border-color: color-mix(in srgb, var(--border), var(--ink) 18%);
+}
+.ch-skin[data-sk-border] .ch-tabs-panel > .ch-sec { border-style: none; } /* inside the actions window: no box of its own */
+/* A chosen heading font also sets the section and feature titles */
+.ch-skin[data-sk-heading] :is(.ch-sec-title, .ch-feat-name) { font-family: var(--font-display); letter-spacing: 0.01em; }
+
+/* Edit all -> Sheet style */
+.ch-style-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.ch-style-preset { gap: 8px; }
+.ch-style-preset[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.ch-style-dot {
+  display: inline-block; width: 16px; height: 16px; flex: none; border-radius: 50%;
+  background: linear-gradient(135deg, var(--sw-a) 0 50%, var(--sw-b) 50% 100%); border: 1px solid var(--border-strong);
+}
+.ch-style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-3) var(--space-4); }
+.ch-style-color { display: flex; align-items: center; gap: var(--space-2); }
+.ch-style-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: var(--space-4); align-items: start; }
+@media (max-width: 960px) { .ch-style-layout { grid-template-columns: minmax(0, 1fr); } }
+.ch-skin-preview {
+  display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
+  color: var(--ink); background: var(--bg); border: 1px solid var(--border-strong); border-radius: var(--radius-lg); pointer-events: none;
+}
+.ch-skin-preview .ch-name { font-size: var(--text-lg); }
+.ch-skp-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.ch-skin-preview .ch-sec-body { padding: var(--space-2); }
+.ch-skin-preview .ch-sec-head { min-height: 32px; padding: 4px var(--space-2); gap: 6px; }
+.ch-skin-preview .ch-abils { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ch-skp-text { margin: 0; font: 400 var(--text-sm) / 1.45 var(--font-body); }

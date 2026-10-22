@@ -115,6 +115,12 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   (debuffs already applied to the shown numbers; UI renders them with widgets.js `adjustedValue(sheet, key, text)`).
 - Doc fields beyond the basics: `overrides.proficiency` (final say on skill/save prof), `style.accent` (highlight
   colour, default `#7a1f1f`), `xpLog`, `levelOrder`, `abilities[].tags` (manual Smart tags). Deleting moves a sheet to `recently-deleted/` (trash.js).
+- Sheet style (`skin.js`, pure + Node-tested): `style.{page, panel, border}` colours, `borderStyle`, `borderWidth`,
+  `corners`, `headingFont`, `textFont` (whitelisted ids / #rrggbb, null = default; `normalizeStyle` on read),
+  presets `SKIN_PRESETS`, edited in Edit all → Sheet style (live preview). `applySkin(el, style)` sets custom
+  properties + `data-ground` / `data-sk-*` on the characters `.view` while a sheet shows (index.js `clearSkin`
+  on every other route). `data-ground="light|dark"` switches the whole token set (tokens.css) for that subtree;
+  ink is computed per colour (>= 4.5:1). Only colours, edges, corners and fonts change, never the layout.
 - Sheet order: header row (portrait, name, XP meter, action buttons | HP, folded, with the "Hide / Show trackers"
   button under it | Death saves | AC · Initiative · Speed · Prof, one line when wide, 2 × 2 when tighter, the
   combat boxes on their own line under the identity when narrow) ->
@@ -132,7 +138,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).
 - Rules engine: `node tools/test_engine.mjs` and `node tools/test_spells.mjs` (spell numbers, XP; both must stay
-  green; add cases when changing engine*.js). `node tools/audit_spells.mjs` lists spells whose text implies numbers
+  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). `node tools/audit_spells.mjs` lists spells whose text implies numbers
   the sheet doesn't show (11 known, intentional gaps).
 - Syntax: portable `node --check`. Markdown renderer can be exercised in Node by stubbing `DOMPurify.sanitize`.
 

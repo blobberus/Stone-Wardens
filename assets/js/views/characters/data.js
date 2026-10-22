@@ -4,6 +4,7 @@ import { store } from '../../core/store.js';
 import { nameKey, clone } from '../../core/util.js';
 import { getSetting } from '../../core/settings.js';
 import { normalizeFavorites } from './engine-favs.js';
+import { normalizeStyle, STYLE_DEFAULTS } from './skin.js';
 
 export const VIEW = 'characters';
 export const DIR = 'content/characters';
@@ -33,7 +34,7 @@ export const SKILLS = [
 ].map(([id, name, ability]) => ({ id, name, ability }));
 
 /** Sheet highlight colour (ability boxes, proficiency marks): `char.style.accent`; null = this default (oxblood). */
-export const DEFAULT_ACCENT = '#7a1f1f';
+export { DEFAULT_ACCENT } from './skin.js';
 /** Presets = the theme-independent pin pigments (tokens.css), each readable with light or dark ink. */
 export const ACCENT_PRESETS = [
   ['Oxblood', '#7a1f1f'], ['Vermilion', '#a8321c'], ['Ochre', '#82600f'], ['Verdigris', '#23675f'], ['Green', '#3b6b2a'],
@@ -121,7 +122,7 @@ export function blankCharacter({ name = '', player = '' } = {}) {
       ac: null, speed: null, initiative: null, hpMax: null, profBonus: null, passivePerception: null, abilities: {}, saves: {}, skills: {},
       proficiency: { skills: {}, saves: {} }, // Edit all: {skills:{stealth:'none'|'proficient'|'expertise'}, saves:{dex:true|false}}
     },
-    style: { accent: null },
+    style: { ...STYLE_DEFAULTS }, // sheet look (skin.js): accent, page, panel, border, borderStyle, borderWidth, corners, fonts
     details: { ...EMPTY_DETAILS },
     createdBy: getSetting('playerName') || '', created: now, updated: now,
   };
@@ -140,7 +141,7 @@ export function normalize(doc) {
   for (const k of ['abilities', 'saves', 'skills']) out.overrides[k] = isObj(out.overrides[k]) ? out.overrides[k] : {};
   const op = isObj(out.overrides.proficiency) ? out.overrides.proficiency : {};
   out.overrides.proficiency = { skills: isObj(op.skills) ? op.skills : {}, saves: isObj(op.saves) ? op.saves : {} };
-  if (!/^#[0-9a-f]{6}$/i.test(out.style.accent || '')) out.style.accent = null;
+  out.style = { ...out.style, ...normalizeStyle(out.style) }; // whitelisted colours / ids only (skin.js)
   for (const k of Object.keys(base.extraProficiencies)) out.extraProficiencies[k] = Array.isArray(out.extraProficiencies[k]) ? out.extraProficiencies[k] : [];
   for (const k of ['classes', 'skills', 'feats', 'spells', 'inventory', 'conditions', 'abilities']) out[k] = Array.isArray(d[k]) ? d[k] : [];
   for (const k of ['choices', 'hitDiceUsed', 'resourcesUsed']) out[k] = isObj(d[k]) ? d[k] : {};
