@@ -10,7 +10,7 @@ import { typePicker } from './typeform.js';
 import { RANKS, rankName } from './ranks.js';
 import { mapOptions } from './submaps.js';
 
-async function copyText(text) {
+export async function copyText(text) {
   try {
     await navigator.clipboard.writeText(text);
     return true;

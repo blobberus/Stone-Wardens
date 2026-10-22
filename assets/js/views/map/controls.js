@@ -1,5 +1,5 @@
 // Floating map controls: search box, the filter (ranks + location types), the "⋯" map menu, the map
-// breadcrumb / switcher, and a tiny popover helper.
+// breadcrumb, and a tiny popover helper (also used by the map collection, collection.js).
 import { h, clear } from '../../core/dom.js';
 import { icon } from '../../core/ui.js';
 import { baseName } from '../../core/util.js';
@@ -17,7 +17,7 @@ export function closePopovers() {
   return any;
 }
 
-function popover(button, render, { className = '', role = 'dialog', label = '' } = {}) {
+export function popover(button, render, { className = '', role = 'dialog', label = '' } = {}) {
   let panel = null;
   const outside = (e) => { if (panel && !panel.contains(e.target) && !button.contains(e.target)) api.close(); };
   const api = {
@@ -299,7 +299,7 @@ export function createLegend(ctx) {
 /**
  * ctx: {info() -> {name, width, height, image, isPlaceholder, isMain}, editing(), toggleEdit(), openFilter(),
  *       rename(), replaceImage(), resetImage(), fit(), subMaps() -> [{id, name, count}], openMap(id),
- *       addSubmap(), deleteMap(), copyLink(), mapCount()}
+ *       addSubmap(), deleteMap(), copyLink(), openSwitcher()}
  */
 export function createMenu(ctx) {
   const button = h('button', { class: 'btn map-tool-btn map-tool-icon', type: 'button', 'aria-label': 'Map menu', title: 'Map menu: edit, sub-maps, image' }, icon('more'));
@@ -324,7 +324,7 @@ export function createMenu(ctx) {
         h('p', { class: 'map-menu-label' }, info.isMain ? 'Sub-maps' : `Sub-maps of ${info.name}`),
         subs.map((m) => item('layers', m.name, () => ctx.openMap(m.id), { hint: `${m.count} place${m.count === 1 ? '' : 's'}` })),
         item('plus', 'Add a sub-map…', ctx.addSubmap, { hint: 'A separate map for a place, e.g. a city or dungeon' }),
-        ctx.mapCount() > 1 ? item('map', 'All maps…', ctx.openSwitcher) : null,
+        editing ? null : item('layers', 'Map collection…', ctx.openSwitcher, { hint: 'Every map, with the link to each' }),
         h('hr', { class: 'map-menu-sep' }),
         item('upload', 'Replace map image…', ctx.replaceImage, { hint: 'PNG, JPG, WebP or SVG — e.g. a Wonderdraft export' }),
         item('undo', 'Reset to placeholder', ctx.resetImage, { disabled: info.isPlaceholder }),
@@ -336,33 +336,18 @@ export function createMenu(ctx) {
   return { el: wrap, pop };
 }
 
-// ---------- breadcrumb + map switcher ----------
+// ---------- breadcrumb ----------
 
-/** ctx: {chain() -> [map], all() -> [map with depth], current() -> id, count(id) -> n, href(id), addSubmap()} */
+/** ctx: {chain() -> [map], href(id)}. Shown on sub-maps; the map collection (collection.js) lists every map. */
 export function createCrumbs(ctx) {
   const list = h('ol', { class: 'map-crumbs-list' });
-  const button = h('button', { type: 'button', class: 'map-crumbs-switch', title: 'All maps', 'aria-label': 'All maps' }, icon('chevron-down'));
-  const el = h('nav', { class: 'map-crumbs', 'aria-label': 'Maps', hidden: true }, list, h('div', { class: 'map-tool' }, button));
-  const pop = popover(button, (panel, api) => {
-    const cur = ctx.current();
-    panel.append(
-      h('div', { class: 'map-pop-head' }, h('strong', null, 'Maps')),
-      h('ul', { class: 'map-pop-scroll map-switch-list', role: 'list' }, ctx.all().map((m) => h('li', null,
-        h('a', {
-          href: ctx.href(m.id), class: ['map-switch-item', m.id === cur && 'is-current'], 'aria-current': m.id === cur ? 'page' : null,
-          style: `--depth:${m.depth}`, onclick: () => api.close(),
-        }, icon(m.isMain ? 'map' : 'layers'), h('span', { class: 'map-switch-name' }, m.name), h('span', { class: 'map-legend-count' }, String(ctx.count(m.id))))))),
-      h('div', { class: 'map-pop-foot' },
-        h('button', { type: 'button', class: 'btn btn-sm', onclick: () => { api.close(); ctx.addSubmap(); } }, icon('plus'), h('span', null, 'Add a sub-map…'))));
-  }, { className: 'map-switcher', label: 'Maps' });
+  const el = h('nav', { class: 'map-crumbs', 'aria-label': 'Maps', hidden: true }, list);
 
   return {
     el,
-    pop,
     update() {
-      const all = ctx.all();
-      el.hidden = all.length < 2;
       const chain = ctx.chain();
+      el.hidden = chain.length < 2;
       clear(list);
       chain.forEach((m, i) => {
         const last = i === chain.length - 1;
@@ -370,7 +355,6 @@ export function createCrumbs(ctx) {
           ? h('span', { class: 'map-crumb is-current', 'aria-current': 'page' }, m.name)
           : h('a', { class: 'map-crumb', href: ctx.href(m.id), title: `Back to ${m.name}` }, m.name)));
       });
-      pop.refresh();
     },
   };
 }

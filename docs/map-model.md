@@ -2,8 +2,8 @@
 
 Code: `assets/js/views/map/` — `index.js` (view, routes, markers, hierarchy panes), `data.js` (documents, maps
 registry, `map:` link type), `raster.js` (image tiles), `zoom.js` (smooth zoom), `ranks.js`, `edit.js` (edit mode),
-`submaps.js` (create/delete dialogs), `drawer.js`, `controls.js` (search, filter, ⋯ menu, breadcrumb), `image.js`,
-`pins.js`, `typeform.js`. Styles: `assets/css/map.css`.
+`submaps.js` (create/delete dialogs), `drawer.js`, `controls.js` (search, filter, ⋯ menu, breadcrumb, popover helper),
+`collection.js` (the "Maps" button and the map collection), `image.js`, `pins.js`, `typeform.js`. Styles: `assets/css/map.css`.
 
 ## Documents
 
@@ -47,6 +47,23 @@ village, temple, landmark, danger, dungeon, ruins, cave, portal, battle, quest, 
 - `#/map/m/<mapId>` — a sub-map. `#/map/m/<mapId>/loc/<id>` — a place on that sub-map.
 - Switching maps goes through the router (pushState), so Back returns to the previous map. Selecting places on the
   current map uses replaceState, as before. Each map remembers its own last view per device.
+
+## Map collection
+
+- The **Maps** button sits under the search, at its right edge (when the map is 640px wide or less, the row under
+  the search spans the map, so it sits top right under the ⋯ menu). It opens the collection: every map, the main
+  map first and sub-maps indented under their parent, each with a thumbnail, its parent, its number of places and
+  its `[[map:…]]` link with a copy button (same text and toast as "Copy link to this map"). The shown map is marked.
+- Entries are links to `#/map/m/<id>`, so opening one is the same route as any other sub-map navigation (Back
+  returns, each map restores its own view). A filter field (name or parent name) appears from 7 maps.
+- Keyboard: arrows / Home / End move between maps, Esc clears the filter, then closes and returns focus to the
+  button. Also opened from ⋯ → Map collection… (hidden in edit mode, where the left-hand controls are hidden).
+- Thumbnails load when an entry scrolls into view. Raster images are shrunk once per image version (to 240px wide,
+  one at a time); SVGs are used as they are.
+- The breadcrumb under the search only shows on sub-maps (the collection replaced its ▾ map switcher).
+- Maps carry no tags of their own: link them with `[[map:Name]]` (place tags stay as they were).
+- Sample content: the sub-map `starfall-vale-p94a` "Starfall Vale" (an original SVG region map) with two places,
+  Brinewick and The Warden Stones. To remove it: open it, ⋯ → Delete this map… → delete the places too.
 
 ## `[[map:…]]` links
 

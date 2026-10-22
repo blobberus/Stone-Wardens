@@ -23,6 +23,7 @@ import { createZoomer } from './zoom.js';
 import { RANK_IDS, rankOpacity, rankWhere, normBands } from './ranks.js';
 import { openNewMapDialog, deleteMapFlow } from './submaps.js';
 import { createEditor } from './edit.js';
+import { createCollection } from './collection.js';
 
 const PREFS_KEY = 'sw:map:prefs';
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -59,7 +60,7 @@ const S = {
   dirty: { locs: false, types: false, config: false, journal: false }, syncQueued: false,
   ctxClosedAt: 0, resizeRaf: 0, emptyKey: '', loadTimer: 0,
 };
-let drawer, search, legend, menu, crumbs, editor, zoomer, banner, emptyCard, nameEl, addBtn, labelsBtn, ctxMenu = null;
+let drawer, search, legend, menu, crumbs, collection, editor, zoomer, banner, emptyCard, nameEl, addBtn, labelsBtn, ctxMenu = null;
 
 const toLatLng = (x, y) => L.latLng(-y, x);
 const toXY = (ll) => ({ x: ll.lng, y: -ll.lat });
@@ -148,15 +149,14 @@ function mountView(el) {
     addSubmap: () => addSubmap(),
     deleteMap: () => deleteCurrentMap(),
     copyLink: copyMapLink,
-    mapCount: () => data.maps().length,
-    openSwitcher: () => { crumbs.update(); crumbs.pop.open(); },
+    openSwitcher: () => collection.open(),
   });
   crumbs = createCrumbs({
     chain: () => data.mapChain(S.mapId),
-    all: () => data.maps(),
-    current: () => S.mapId,
-    count: (id) => data.locationsOn(id).length,
     href: data.mapHref,
+  });
+  collection = createCollection({
+    current: () => S.mapId,
     addSubmap: () => addSubmap(),
   });
   editor = createEditor({
@@ -195,7 +195,7 @@ function mountView(el) {
 
   S.root.append(
     S.canvas,
-    h('div', { class: 'map-tools map-tools-left' }, search.el, crumbs.el),
+    h('div', { class: 'map-tools map-tools-left' }, search.el, h('div', { class: 'map-nav' }, crumbs.el, collection.el)),
     h('div', { class: 'map-tools map-tools-right', role: 'toolbar', 'aria-label': 'Map tools' },
       h('div', { class: 'map-tool' }, addBtn), legend.el, h('div', { class: 'map-tool' }, labelsBtn), menu.el),
     banner,

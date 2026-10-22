@@ -244,7 +244,9 @@
 @container map (max-width: 900px) {
   .map-tool-btn:not(.map-add) .map-tool-label { display: none; }
   .map-root.has-drawer .map-tool-label { display: none; }
-  .map-root.has-drawer .map-search { min-width: 170px; }
+  .map-root.has-drawer .map-search, .map-root.has-drawer .map-nav { min-width: 170px; }
+  .map-tools-left .map-coll-btn .map-tool-label { display: inline; } /* room for it under the search */
+  .map-root.has-drawer .map-tools-left .map-coll-btn .map-tool-label { display: none; }
 }
 
 /* Search */
@@ -853,13 +855,25 @@
 }
 .map-root.is-loading-image .map-loading { display: flex; }
 
-/* ---------- Breadcrumb + map switcher (top left, under the search) ---------- */
+/* ---------- Under the search: breadcrumb (sub-maps) + the "Maps" collection button ---------- */
 .map-tools-left { flex-direction: column; }
+/* Same width as the search, so the Maps button lines up with its right edge. */
+.map-nav {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: min(340px, 34cqi);
+  min-width: 220px;
+  pointer-events: none; /* only its children take clicks; the gap between them is map */
+}
+.map-nav > * { pointer-events: auto; }
 .map-crumbs {
   display: flex;
   align-items: center;
-  max-width: min(520px, 60cqi);
-  padding: 2px 2px 2px 10px;
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: var(--control-h);
+  padding: 4px 10px;
   font: 500 var(--text-sm) / 1.3 var(--font-ui);
   background: var(--surface);
   border: 1px solid var(--border-float);
@@ -874,37 +888,81 @@
 a.map-crumb { color: var(--link); text-decoration: underline; text-underline-offset: 0.18em; }
 a.map-crumb:hover { color: var(--link-hover); }
 .map-crumb.is-current { font-weight: 700; color: var(--ink); }
-.map-crumbs-switch {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 30px; height: 30px;
-  margin-left: 4px;
-  color: var(--ink-muted);
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
+/* One line beside the Maps button: the parents give way (ellipsis) before the map you are on. */
+.map-nav .map-crumbs-list { flex-wrap: nowrap; }
+.map-nav .map-crumbs-list li { flex: 0 1000 auto; min-width: 2.5em; }
+.map-nav .map-crumbs-list li:last-child { flex-shrink: 1; min-width: 0; }
+.map-root.is-editing .map-tools-left { display: none; }
+
+/* Map collection (collection.js). The button's wrapper is static, so the panel hangs from the whole
+   left column: under the button row, aligned with the search's left edge. */
+.map-coll-tool { position: static; flex: none; margin-left: auto; }
+.map-tools-left:has(.map-coll) { z-index: 7; } /* above the right toolbar, the zoom buttons and the phone drawer */
+.map-coll-btn[aria-expanded="true"] { background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--ink-muted), var(--shadow); }
+.map-pop.map-coll {
+  left: 0; right: auto;
+  width: min(400px, calc(100cqi - var(--map-gap) * 2));
+  max-height: min(640px, calc(100dvh - 180px));
 }
-.map-crumbs-switch:hover, .map-crumbs-switch[aria-expanded="true"] { color: var(--ink); background: var(--surface-2); }
-.map-crumbs-switch .icon { width: 16px; height: 16px; }
-.map-pop.map-switcher { left: 0; right: auto; width: 300px; }
-.map-switch-list { margin: 0; padding: var(--space-1); list-style: none; }
-.map-switch-item {
+.map-coll .map-pop-head { padding-right: 6px; }
+.map-coll-count { font-size: var(--text-xs); color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.map-coll-filter { flex: none; padding: var(--space-2) var(--space-2) 0; }
+.map-coll-search { width: 100%; }
+.map-coll-list { margin: 0; list-style: none; }
+.map-coll-item {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  min-height: 34px;
-  padding: 4px 8px 4px calc(8px + var(--depth, 0) * 18px);
+  gap: 2px;
+  padding-left: calc(var(--depth, 0) * 20px);
+  border-radius: var(--radius-sm);
+}
+.map-coll-item + .map-coll-item { margin-top: 2px; }
+.map-coll-item:hover { background: var(--surface-2); }
+.map-coll-item.is-current { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.map-coll-open {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 4px 6px 8px;
   color: var(--ink);
   text-decoration: none;
   border-radius: var(--radius-sm);
 }
-.map-switch-item:hover { background: var(--surface-2); }
-.map-switch-item.is-current { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
-.map-switch-item .icon { width: 16px; height: 16px; color: var(--ink-muted); }
-.map-switch-name { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.map-root.is-editing .map-tools-left { display: none; }
+.map-coll-open:focus-visible { outline-offset: -2px; }
+.map-coll-open:hover .map-coll-name strong { text-decoration: underline; text-underline-offset: 0.18em; }
+.map-coll-thumb {
+  flex: none;
+  width: 72px; height: 54px;
+  object-fit: cover;
+  background: var(--bg-sunk);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.map-coll-thumb.is-missing { border-style: dashed; }
+.map-coll-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.map-coll-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.map-coll-name strong { overflow: hidden; font: 700 var(--text-sm) / 1.3 var(--font-ui); white-space: nowrap; text-overflow: ellipsis; }
+.map-coll-name .badge { flex: none; }
+.map-coll-meta { overflow: hidden; font: 400 var(--text-xs) / 1.35 var(--font-ui); color: var(--ink-muted); white-space: nowrap; text-overflow: ellipsis; }
+.map-coll-link {
+  align-self: flex-start;
+  max-width: 100%;
+  margin-top: 2px;
+  padding: 0 5px;
+  overflow: hidden;
+  font: 400 var(--text-xs) / 1.5 var(--font-mono);
+  color: var(--ink);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+.map-coll-item.is-current .map-coll-link { background: var(--surface); }
+.map-coll-copy { flex: none; margin-right: 4px; color: var(--ink-muted); }
+.map-coll-foot { flex-wrap: wrap; }
+.map-coll-foot .map-pop-note { flex: 1 1 180px; }
 
 /* ---------- Menu + filter additions ---------------------------------------- */
 .map-menu { max-height: min(640px, 78dvh); }
@@ -1178,8 +1236,12 @@ a.map-crumb:hover { color: var(--link-hover); }
   .map-drawer:has(.map-form) { max-height: 88%; }
   .map-drawer { z-index: 6; }
   .map-drawer-title { font-size: var(--text-xl); }
-  .map-crumbs { max-width: none; }
-  .map-pop.map-switcher { left: var(--map-gap); right: var(--map-gap); width: auto; }
+  /* The row under the search spans the whole map (it sits below the right toolbar too), so the
+     breadcrumb has room and the Maps button ends up top right, under the ⋯ menu. */
+  .map-tools-left .map-nav { width: calc(100cqi - var(--map-gap) * 2); min-width: 0; }
+  .map-tools-left .map-coll-btn .map-tool-label { display: none; }
+  /* Under the button row across the map (absolute, not fixed: a narrow window may still show the sidebar). */
+  .map-pop.map-coll { position: absolute; top: calc(100% + 6px); left: 0; right: auto; width: calc(100cqi - var(--map-gap) * 2); max-height: calc(100dvh - 220px); }
   .map-edit {
     top: auto; left: 0; right: 0; bottom: 0;
     width: auto;

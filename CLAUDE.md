@@ -33,6 +33,7 @@ content/              ALL user data, written by the site through the GitHub API
   characters/<id>.json  characters/recently-deleted/<id>.json (trash, `trashed:{at,by}`)
   locations/<id>.json (optional `map` sub-map id, `submap` it opens, `rank` 1-4)  map/config.json (+ map image)
   maps/<mapId>.json + maps/<mapId>/<image>   sub-maps {id,name,parent,image,width,height}; docs/map-model.md
+                                (sample: starfall-vale-p94a "Starfall Vale" + 2 places, safe to delete)
   journal/<folder…>/<note>.md   nested folders; optional _chapter.json in any folder = folder metadata
                                 {title, description, order} (also keeps empty folders in git); root notes journal/*.md
                                 frontmatter `images:` = reference photos (slideshow; docs/journal-model.md)
@@ -107,6 +108,11 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   their link types at import time and re-render from `store.on` events.
 - Routes: `#/map[/loc/<id>]`, `#/map/m/<mapId>[/loc/<id>]` (sub-maps), `#/characters[/<id>[/<section>]]`, `#/journal[/_|/<folder…>[/<note>]][?h=|q=|tag=|folder]`,
   `#/journal/new?title=`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`.
+
+## Map tab
+- Model, routes, ranks and links: `docs/map-model.md`. Controls float over the map: search (top left) with a row
+  under it = breadcrumb (sub-maps only) + the **Maps** button (`collection.js`: every map nested by parent, with
+  thumbnail, parent, place count and a copy-able `[[map:Name]]` link); right toolbar Add location, Filter, Labels, ⋯.
 
 ## Journal tab
 - Obsidian-style vault (docs/journal-model.md): left pane Files (tree, drag-move, context menu) | Search (`tag:`
