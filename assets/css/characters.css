@@ -108,14 +108,36 @@ a.ch-card:hover { background: var(--surface); }
 .ch-empty { margin-top: var(--space-4); }
 
 /* ---------- sheet: header and nav ------------------------------------------- */
-.ch-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--space-3) var(--space-4); margin-bottom: var(--space-4); }
-.ch-back { grid-column: 1 / -1; justify-self: start; margin-left: -10px; }
-.ch-head-main { display: flex; gap: var(--space-4); align-items: center; min-width: 0; }
-.ch-head-id { min-width: 0; }
-.ch-name { margin: 0; font: 600 var(--text-2xl) / 1.1 var(--font-display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
-.ch-line { margin: 4px 0 0; font: 400 var(--text-md) / 1.4 var(--font-body); }
-.ch-meta { margin: 2px 0 0; font-size: var(--text-sm); color: var(--ink-muted); }
-.ch-head-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+/* First row: identity | Hit points | AC · Init / Speed · Prof (2 × 2); the trackers strip spans the next row.
+   A size container: it follows the real width (icon rail or full sidebar). */
+.ch-head { container: ch-head / inline-size; margin-bottom: var(--space-3); }
+.ch-head-grid {
+  display: grid; gap: var(--space-2) var(--space-3); align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 320px) minmax(196px, 224px);
+  grid-template-areas: "id hp stats" "trk trk trk";
+}
+.ch-head-id { grid-area: id; display: flex; gap: var(--space-3); align-items: flex-start; min-width: 0; }
+.ch-head-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ch-head-grid > .ch-hp { grid-area: hp; }
+.ch-head-grid > .ch-stats { grid-area: stats; }
+.ch-head-grid > .ch-trackers { grid-area: trk; }
+@container ch-head (max-width: 900px) {
+  .ch-head-grid { grid-template-columns: minmax(0, 1fr) minmax(196px, 224px); grid-template-areas: "id id" "hp stats" "trk trk"; }
+}
+@container ch-head (max-width: 520px) {
+  .ch-head-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "id" "hp" "stats" "trk"; }
+  .ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* Tight identity column: secondary actions (Level down) keep only their icon (the label stays for screen readers) */
+@container ch-head (max-width: 1200px) {
+  .ch-head-actions .ch-act-lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+}
+.ch-name { margin: 0; font: 600 var(--text-xl) / 1.15 var(--font-display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
+.ch-line { margin: 0; font: 400 var(--text-sm) / 1.35 var(--font-body); }
+.ch-meta { margin: 0; font-size: var(--text-xs); color: var(--ink-muted); }
+.ch-head-text .ch-xp-row { margin-top: 2px; }
+.ch-head-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.ch-head-actions .btn-sm { height: 28px; padding: 0 8px; }
 
 .ch-nav {
   position: sticky; top: var(--ch-stick, 0); z-index: 5;
@@ -126,6 +148,7 @@ a.ch-card:hover { background: var(--surface); }
 .ch-nav-chips { display: flex; gap: 6px; flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .ch-nav-chips::-webkit-scrollbar { display: none; }
 .ch-nav-chips .chip { flex: none; }
+.ch-nav-back { flex: none; margin-left: calc(var(--space-2) * -1); }
 /* "Name · Player" fills the bar's empty right side once the header has scrolled away */
 .ch-nav-who {
   flex: 0 1 auto; min-width: 0; max-width: 45%; margin-left: auto; padding: 0 2px;
@@ -145,63 +168,65 @@ a.ch-card:hover { background: var(--surface); }
 .ch-warnings ul { margin: var(--space-2) 0 0; color: var(--ink-muted); }
 
 /* ---------- sheet: combat strip --------------------------------------------- */
-/* Compact strip: AC · Initiative · Speed · Proficiency (2 × 2) | trackers | Hit points on the right.
-   Size containers, so it follows the real width (icon rail or full sidebar), not the viewport. */
-.ch-combat { container: ch-combat / inline-size; margin-bottom: var(--space-3); }
-.ch-combat-grid {
-  display: grid; gap: var(--space-2); align-items: stretch;
-  grid-template-columns: minmax(200px, 236px) minmax(0, 1fr) minmax(290px, 340px); grid-template-areas: "stats side hp";
-}
-.ch-combat-stats { grid-area: stats; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
-.ch-combat-grid > .ch-combat-side { grid-area: side; }
-.ch-combat-grid > .ch-hp { grid-area: hp; }
-@container ch-combat (max-width: 900px) {
-  .ch-combat-grid { grid-template-columns: minmax(200px, 236px) minmax(0, 1fr); grid-template-areas: "stats hp" "side side"; }
-}
-@container ch-combat (max-width: 540px) {
-  .ch-combat-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stats" "hp" "side"; }
-  .ch-combat-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
+/* Header widgets: AC · Initiative / Speed · Proficiency (2 × 2), Hit points (folds), trackers strip (hidden by default) */
+.ch-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .ch-stat {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 0;
-  min-height: 62px; padding: 4px 6px; text-align: center; font: inherit; color: var(--ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; min-width: 0;
+  min-height: 54px; padding: 3px 6px; text-align: center; font: inherit; color: var(--ink);
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
 }
 button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease); }
 button.ch-stat:hover { border-color: var(--border-strong); background: var(--surface-2); }
 .ch-stat-label { display: inline-flex; align-items: center; gap: 4px; font: 500 var(--text-xs) / 1.15 var(--font-ui); color: var(--ink-muted); }
 .ch-stat-label .icon { width: 15px; height: 15px; }
-.ch-stat-value { font: 700 1.5rem / 1.1 var(--font-body); }
-.ch-stat-sub { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink-muted); }
+.ch-stat-value { font: 700 1.3125rem / 1.15 var(--font-body); }
+/* Big numbers use lining figures: Alegreya's old-style 0 reads as a small "o" */
+.ch-page :is(.ch-stat-value, .ch-hp-now, .ch-abil-mod, .ch-abil-score, .ch-abil-save-val, .ch-skl-bonus) { font-variant-numeric: lining-nums tabular-nums; }
+.ch-stat-sub { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 var(--text-xs) / 1.15 var(--font-ui); color: var(--ink-muted); }
 .ch-stat-small .ch-stat-value { font-size: var(--text-lg); }
 
 .ch-hp {
-  display: flex; flex-direction: column; gap: 6px; padding: var(--space-2) var(--space-3);
+  display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 6px var(--space-3) var(--space-2);
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
 }
-.ch-hp-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.ch-hp.is-down { border-color: var(--danger); box-shadow: inset 3px 0 0 var(--danger); }
+.ch-hp-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.ch-hp-top .ch-fold { margin-left: -6px; }
+.ch-hp-top .ch-stat-label { color: var(--ink); font-weight: 700; font-size: var(--text-sm); }
 .ch-hp-top .ch-stat-label .icon { color: var(--danger); }
-.ch-hp-now { font: 700 1.625rem / 1 var(--font-body); }
-.ch-hp-max { font-size: var(--text-md); font-weight: 400; color: var(--ink-muted); }
+.ch-hp-now { font: 700 1.5rem / 1 var(--font-body); white-space: nowrap; }
+.ch-hp-max { font-size: var(--text-sm); font-weight: 400; color: var(--ink-muted); }
+.ch-hp-temp { margin-top: -2px; color: var(--info); text-align: right; }
+.ch-hp-edit { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
+.ch-hp-edit[hidden] { display: none; }
+.ch-hp-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.ch-hp-foot .chip { height: 26px; padding: 0 10px; font-size: var(--text-xs); }
+.ch-trk-fold { margin-left: auto; font: 500 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink-muted); }
+.ch-trk-fold .icon { width: 14px; height: 14px; }
+.ch-insp-chip .icon { width: 14px; height: 14px; color: var(--gold); fill: currentColor; }
+.ch-hp-ds { padding: 4px 0 2px; border-top: 1px solid var(--rule); }
 .ch-hp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .ch-hp-grid .field { gap: 2px; }
 .ch-hp-grid .field-label { font-size: var(--text-xs); line-height: 1.2; color: var(--ink-muted); }
 .ch-hp-actions { display: flex; gap: 6px; }
 .ch-hp-amt { flex: 1 1 auto; min-width: 0; }
 
-/* Trackers: hit dice | death saves | inspiration / exhaustion | conditions (2 columns, then 1, as it narrows) */
-.ch-combat-side { container-type: inline-size; min-width: 0; padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
-.ch-side-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2) var(--space-4); }
-.ch-side-grid > .ch-conds { grid-column: span 2; }
+/* Trackers strip: hit dice | death saves | inspiration | exhaustion | conditions (fewer columns as it narrows) */
+.ch-trackers { container-type: inline-size; min-width: 0; padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.ch-trackers[hidden] { display: none; }
+.ch-side-grid { display: grid; grid-template-columns: repeat(4, minmax(0, auto)) minmax(0, 1fr); gap: var(--space-2) var(--space-5); }
+@container (max-width: 860px) {
+  .ch-side-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2) var(--space-4); }
+  .ch-side-grid > .ch-conds { grid-column: span 2; }
+}
 @container (max-width: 500px) {
   .ch-side-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ch-side-grid > .ch-conds { grid-column: 1 / -1; }
 }
-@container (max-width: 260px) { .ch-side-grid { grid-template-columns: minmax(0, 1fr); } }
 .ch-mini { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ch-mini-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--space-2); }
-.ch-combat .ch-pips { gap: 4px; }
-.ch-combat .ch-pip { width: 15px; height: 15px; }
+.ch-head .ch-pips { gap: 4px; }
+.ch-head .ch-pip { width: 15px; height: 15px; }
 .ch-cond-add { width: auto; min-width: 8em; }
 .ch-cond { border-color: var(--danger); color: var(--danger); }
 .ch-die { font: 700 var(--text-sm) / 1 var(--font-ui); min-width: 2.2em; }
@@ -217,7 +242,6 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 .ch-layout { display: grid; grid-template-columns: minmax(270px, 330px) minmax(0, 1fr); gap: var(--space-3); align-items: start; }
 .ch-col { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
 .ch-page[data-mode="sheet"] > .ch-sec, .ch-page[data-mode="sheet"] > .ch-sec + .ch-layout { margin-top: var(--space-3); }
-.ch-page[data-mode="sheet"] > .ch-sec + .ch-combat { margin-top: var(--space-3); }
 .ch-page[data-mode="sheet"] > .ch-body + .ch-layout { margin-top: var(--space-3); }
 /* Compact section chrome on the sheet (head 36px, 12px body padding) */
 .ch-page[data-mode="sheet"] .ch-sec-head { min-height: 36px; padding: 4px var(--space-2) 4px var(--space-3); gap: 6px; }
@@ -308,23 +332,24 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
   background: var(--surface); border: 1px solid color-mix(in oklab, var(--ch-hl-line) 45%, var(--border)); border-radius: var(--radius);
 }
 .ch-abil-check {
-  display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 0 var(--space-1) 6px;
+  display: flex; flex-flow: row wrap; align-items: center; justify-content: center; gap: 0 8px; padding: 0 var(--space-1) 4px;
   font: inherit; color: var(--ink); background: var(--surface); border: 0; cursor: pointer;
   transition: background-color var(--dur) var(--ease);
 }
 .ch-abil-check:hover { background: var(--surface-2); }
+/* name band on its own line, then modifier and score side by side */
 .ch-abil-name {
-  align-self: stretch; margin: 0 calc(var(--space-1) * -1) 2px; padding: 2px 6px;
+  flex: 0 0 calc(100% + var(--space-1) * 2); margin: 0 calc(var(--space-1) * -1) 3px; padding: 1px 6px;
   font: 700 var(--text-xs) / 1.25 var(--font-ui); color: var(--ch-hl-ink); background: var(--ch-hl);
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
-.ch-abil-mod { font: 700 1.5rem / 1.1 var(--font-body); }
+.ch-abil-mod { font: 700 1.25rem / 1.15 var(--font-body); }
 .ch-abil-score {
-  min-width: 2.6em; padding: 0 6px; text-align: center;
-  font: 500 var(--text-xs) / 1.35 var(--font-ui); border: 1px solid var(--ch-hl-line); border-radius: var(--radius-pill);
+  min-width: 2.4em; padding: 0 5px; text-align: center;
+  font: 500 var(--text-xs) / 1.3 var(--font-ui); border: 1px solid var(--ch-hl-line); border-radius: var(--radius-pill);
 }
 .ch-abil-save {
-  display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 28px; padding: 2px var(--space-2);
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 24px; padding: 1px var(--space-2);
   font: 500 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink); background: var(--surface-2);
   border: 0; border-top: 1px solid var(--rule); cursor: pointer; transition: background-color var(--dur) var(--ease);
 }
@@ -678,10 +703,8 @@ div.ch-optcard { cursor: default; }
   .ch-editor-nav .nav-item { width: auto; box-shadow: inset 0 0 0 1px var(--border); }
 }
 @media (max-width: 760px) {
-  .ch-head { grid-template-columns: minmax(0, 1fr); }
-  .ch-head-actions { justify-content: flex-start; }
   .ch-portrait-lg { width: 76px; height: 76px; }
-  .ch-name { font-size: var(--text-xl); }
+  .ch-head-id > .ch-portrait { width: 52px; height: 52px; }
   .ch-builder { grid-template-columns: minmax(0, 1fr); }
   .ch-steps { position: static; }
   .ch-steps ol { flex-direction: row; overflow-x: auto; scrollbar-width: none; gap: 4px; }
@@ -758,11 +781,6 @@ div.ch-optcard { cursor: default; }
 .ch-ld-slots { margin-top: var(--space-3); }
 .ch-ld-opt { align-items: flex-start; }
 .ch-ld-hint { margin: 0 0 0 28px; }
-/* With the XP row the identity block needs room: the header actions move under it before they squeeze it */
-@media (max-width: 1400px) {
-  .ch-head { grid-template-columns: minmax(0, 1fr); }
-  .ch-head-actions { justify-content: flex-start; }
-}
 @media (max-width: 600px) {
   .ch-xp { flex: 1 1 100%; }
   .ch-xp-meter { flex: 1 1 auto; width: auto; min-width: 0; }

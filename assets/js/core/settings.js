@@ -11,6 +11,8 @@ const DEFAULTS = {
   sidebarCollapsed: false,
   chSkillsFolded: false, // character sheet: show proficient skills only
   chProfsOpen: false, // character sheet: Proficiencies & languages unfolded
+  chHpOpen: false, // character sheet: HP inputs (Current / Temp / Damage, Damage / Heal) shown
+  chTrackersOpen: false, // character sheet: hit dice, death saves, inspiration, exhaustion, conditions strip shown
 };
 
 let cache = null;

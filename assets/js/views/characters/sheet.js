@@ -103,8 +103,9 @@ function focusSection(sec) {
     if (feat) el = S.root.querySelector(`[data-stat="${CSS.escape(feat.id)}"]`);
   }
   if (!el) return;
-  // A folded Proficiencies & languages opens first (then the link is followed in the fresh render).
-  if (el.closest('.ch-sec-profs.is-folded')) { setSetting('chProfsOpen', true); render(); requestAnimationFrame(() => focusSection(sec)); return; }
+  // A link into a folded region (HP controls, trackers, proficiencies) opens it for this session, then is followed.
+  const fold = el.closest('[data-fold]');
+  if (fold && !isOpen(fold.dataset.fold)) { FORCED.add(fold.dataset.fold); render(); requestAnimationFrame(() => focusSection(sec)); return; }
   // Inside the actions window: open its tab first; a whole tab scrolls the window (not its inner panel) into view.
   const panel = el.closest('[role="tabpanel"]');
   if (panel?.hidden) selectTab(panel.dataset.tab);
@@ -156,7 +157,6 @@ function render() {
     // (skills, senses, collapsible proficiencies) | the wide column: actions window (Attacks · Spells · Bonus actions),
     // resources, inventory, currency (fills the space beside the skills); then features & traits, details, notes.
     abilities(c, s),
-    combat(c, s),
     h('div', { class: 'ch-body' }, h('div', { class: 'ch-body-grid' },
       h('div', { class: 'ch-col ch-col-l' }, skills(c, s), passive(s), proficiencies(c, s)),
       h('div', { class: 'ch-col ch-col-r' }, actionTabs(c, s), resources(c, s), inventory(c, s), currency(c)))),
@@ -173,29 +173,32 @@ function header(c, s) {
   const lvl = totalLevel(c);
   const due = levelsDue(c);
   const meta = [align, c.player ? `Player: ${c.player}` : ''].filter(Boolean).join(' · ');
-  return h('header', { class: 'ch-head' },
-    h('a', { class: 'btn btn-ghost btn-sm ch-back', href: href(VIEW) }, icon('chevron-left'), 'All characters'),
-    h('div', { class: 'ch-head-main' },
-      portrait(c, { size: 'lg' }),
-      h('div', { class: 'ch-head-id' },
+  // First row: identity (portrait, name, line, XP, one compact action row) | Hit points | AC · Init / Speed · Prof;
+  // the trackers strip (hidden by default) spans the row underneath.
+  return h('header', { class: 'ch-head' }, h('div', { class: 'ch-head-grid' },
+    h('div', { class: 'ch-head-id' },
+      portrait(c, { size: 'md' }),
+      h('div', { class: 'ch-head-text' },
         h('h1', { class: 'ch-name' }, c.name || 'Unnamed'),
         h('p', { class: 'ch-line' }, [lvl ? `Level ${lvl}` : 'Level 0', [species, sub ? `(${sub})` : ''].filter(Boolean).join(' '), s.classLine, bg].filter(Boolean).join(' · ')),
         meta ? h('p', { class: 'ch-meta ui' }, meta) : null,
-        h('div', { class: 'ch-xp-row' },
-          xpMeter(c, { onOpen: () => xpWindow(), onAdd: () => xpWindow('amount') }),
-          lvl ? h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => levelDownDialog(), title: 'Remove the most recent level (confirms first)', 'data-fk': 'lvl-down' }, h('span', { class: 'ch-flip' }, icon('level-up')), 'Level down') : null))),
-    h('div', { class: 'ch-head-actions' },
-      h('button', {
-        class: ['btn', 'btn-primary', due && 'ch-lu-due'], type: 'button', onclick: () => levelUp(), disabled: lvl >= 20, 'data-fk': 'lvl-up',
-        title: lvl >= 20 ? 'Already level 20' : due ? `Your XP has reached level ${lvl + due}` : lvl ? 'Gain a level now (milestone — ignores XP)' : 'Choose a first class',
-      }, icon('level-up'), !lvl ? 'Choose a class' : due ? (due > 1 ? `Level up · ${due} due` : 'Level up available') : 'Level up'),
-      h('button', { class: 'btn', type: 'button', onclick: shortRestDialog, title: 'Spend Hit Dice; recharge short-rest features' }, icon('clock'), 'Short rest'),
-      h('button', { class: 'btn', type: 'button', onclick: longRestDialog, title: 'Regain HP, slots and features' }, icon('moon'), 'Long rest'),
-      h('a', { class: 'btn', href: editHref(), title: 'Edit every field, choice and override' }, icon('edit'), 'Edit all'),
-      h('button', {
-        class: 'btn-icon', type: 'button', title: 'Copy a [[char:…]] link', 'aria-label': 'Copy link',
-        onclick: async () => { const t = `[[char:${c.name || c.id}]]`; try { await navigator.clipboard.writeText(t); toast(`Copied ${t}`); } catch { toast(t); } },
-      }, icon('link'))));
+        h('div', { class: 'ch-xp-row' }, xpMeter(c, { onOpen: () => xpWindow(), onAdd: () => xpWindow('amount') })),
+        h('div', { class: 'ch-head-actions' },
+          h('button', {
+            class: ['btn', 'btn-sm', due || !lvl ? 'btn-primary' : null, due && 'ch-lu-due'], type: 'button', onclick: () => levelUp(), disabled: lvl >= 20, 'data-fk': 'lvl-up',
+            title: lvl >= 20 ? 'Already level 20' : due ? `Your XP has reached level ${lvl + due}` : lvl ? 'Gain a level now (milestone — ignores XP)' : 'Choose a first class',
+          }, icon('level-up'), !lvl ? 'Choose a class' : due ? (due > 1 ? `Level up · ${due} due` : 'Level up available') : 'Level up'),
+          h('button', { class: 'btn btn-sm', type: 'button', onclick: shortRestDialog, title: 'Spend Hit Dice; recharge short-rest features' }, icon('clock'), 'Short rest'),
+          h('button', { class: 'btn btn-sm', type: 'button', onclick: longRestDialog, title: 'Regain HP, slots and features' }, icon('moon'), 'Long rest'),
+          h('a', { class: 'btn btn-sm', href: editHref(), title: 'Edit every field, choice and override' }, icon('edit'), 'Edit all'),
+          lvl ? h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => levelDownDialog(), title: 'Remove the most recent level (confirms first)', 'data-fk': 'lvl-down', 'aria-label': 'Level down' }, h('span', { class: 'ch-flip' }, icon('level-up')), h('span', { class: 'ch-act-lbl' }, 'Level down')) : null,
+          h('button', {
+            class: 'btn-icon btn-sm', type: 'button', title: 'Copy a [[char:…]] link', 'aria-label': 'Copy link',
+            onclick: async () => { const t = `[[char:${c.name || c.id}]]`; try { await navigator.clipboard.writeText(t); toast(`Copied ${t}`); } catch { toast(t); } },
+          }, icon('link'))))),
+    hpWidget(c, s),
+    statGrid(s),
+    trackers(c, s)));
 }
 
 // Sticky section bar; once the name in the header scrolls away, "Name · Player" fills its empty right side.
@@ -204,10 +207,11 @@ const NAV = { io: null, stuck: false, id: null };
 function nav(s) {
   const c = S.char;
   if (NAV.id !== S.id) { NAV.id = S.id; NAV.stuck = false; }
-  const items = [['abilities', 'Abilities'], ['hp', 'Combat'], ['skills', 'Skills'], ['passive', 'Senses'], ['attacks', 'Attacks'],
+  const items = [['abilities', 'Abilities'], ['skills', 'Skills'], ['passive', 'Senses'], ['attacks', 'Attacks'],
     (s.spellcasting.length || c.spells.length) ? ['spells', 'Spells'] : null, ['bonus-actions', 'Bonus'], ['inventory', 'Inventory'],
     ['features', 'Features'], ['details', 'Details'], ['notes', 'Notes']].filter(Boolean);
   const el = h('nav', { class: ['ch-nav', NAV.stuck && 'is-stuck'], 'aria-label': 'Sheet sections' },
+    h('a', { class: 'btn-icon btn-sm ch-nav-back', href: href(VIEW), title: 'All characters', 'aria-label': 'All characters' }, icon('chevron-left')),
     h('div', { class: 'ch-nav-chips' }, items.map(([id, label]) => h('button', { class: 'chip', type: 'button', onclick: () => goSection(id) }, label))),
     h('button', {
       class: 'ch-nav-who', type: 'button', title: 'Back to the top',
@@ -230,42 +234,89 @@ function watchNav(el) {
   NAV.io.observe(name);
 }
 
-// ---------- combat strip ----------
+// ---------- header widgets: HP, stats 2 × 2, trackers ----------
 
-function combat(c, s) {
+// Folding regions remember open/closed per device (settings); a deep link opens a folded region for this session only.
+const FOLD_KEYS = { hp: 'chHpOpen', trackers: 'chTrackersOpen', profs: 'chProfsOpen' };
+const FORCED = new Set();
+const isOpen = (key) => FORCED.has(key) || !!getSetting(key);
+function toggleFold(key) {
+  const next = !isOpen(key);
+  FORCED.delete(key);
+  setSetting(key, next);
+  render();
+}
+
+/** AC · Initiative / Speed · Proficiency: the 2 × 2 block at the right end of the first row. */
+function statGrid(s) {
+  const speedSub = Object.entries(s.speed).filter(([k, v]) => k !== 'walk' && v).map(([k, v]) => `${prettify(k)} ${v}`).join(' · ');
+  return h('div', { class: 'ch-stats', 'data-sec': 'combat' },
+    statBox({ label: 'Armor Class', value: adjustedValue(s, 'ac', String(s.ac.value)), sub: s.armorWorn?.name || (s.shield ? 'Shield' : 'Unarmored'), stat: 'ac', title: s.adjust?.ac ? null : s.ac.formula, onClick: () => acInfo(s) }),
+    statBox({ label: 'Initiative', value: adjustedValue(s, 'initiative', fmt(s.initiative)), stat: 'initiative', title: s.adjust?.initiative ? null : 'Roll initiative', onClick: () => rollToast('Initiative', s.initiative) }),
+    statBox({ label: 'Speed', value: adjustedValue(s, 'speed', `${s.speed.walk ?? 0} ft`), sub: speedSub || null, stat: 'speed' }),
+    statBox({ label: 'Proficiency', value: adjustedValue(s, 'profBonus', fmt(s.profBonus)), stat: 'prof' }));
+}
+
+/**
+ * Hit points: folded = current / max, temp, the bar, chips for anything active in the trackers, the Trackers toggle;
+ * open = + Current / Temp / Damage taken inputs and Amount → Damage / Heal. At 0 HP the death saves show here too.
+ */
+function hpWidget(c, s) {
+  const open = isOpen(FOLD_KEYS.hp);
+  const trk = isOpen(FOLD_KEYS.trackers);
   const max = s.hpMax;
   const cur = c.hp.current == null ? max : Number(c.hp.current);
   const temp = Number(c.hp.temp) || 0;
+  const down = max > 0 && cur <= 0;
+  const ex = Number(c.exhaustion) || 0;
+  const conds = conditionList();
   const amount = h('input', { class: 'input input-sm ch-hp-amt', type: 'number', min: 0, inputmode: 'numeric', placeholder: 'Amount', 'aria-label': 'Damage or healing amount', 'data-fk': 'hp-amt' });
   const doDamage = () => { const n = Math.max(0, Number(amount.value) || 0); if (!n) return; mutate((x) => applyDamage(x, n, max)); };
   const doHeal = () => { const n = Math.max(0, Number(amount.value) || 0); if (!n) return; mutate((x) => applyHeal(x, n, max)); };
   amount.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? doHeal() : doDamage(); } });
-  const speedSub = Object.entries(s.speed).filter(([k, v]) => k !== 'walk' && v).map(([k, v]) => `${prettify(k)} ${v}`).join(' · ');
-  const ex = Number(c.exhaustion) || 0;
-  const conds = conditionList().filter((x) => x.id !== 'exhaustion');
-  // Compact strip: AC · Initiative · Speed · Proficiency (2 × 2) | trackers | Hit points on the right (stacked when narrow).
-  const hpBox = h('div', { class: 'ch-hp', 'data-sec': 'hp' },
+  const openTrackers = () => { if (!trk) toggleFold(FOLD_KEYS.trackers); };
+  const active = trk ? [] : [
+    ...c.conditions.map((id) => chip(conds.find((x) => x.id === id)?.name || prettify(id), { className: 'ch-cond', title: 'Active condition', onRemove: () => mutate((x) => { x.conditions = x.conditions.filter((y) => y !== id); }) })),
+    ex ? h('button', { class: 'chip ch-cond', type: 'button', title: `−${ex * 2} to D20 Tests, −${ex * 5} ft Speed`, onclick: openTrackers }, `Exhaustion ${ex}`) : null,
+    c.heroicInspiration ? h('button', { class: 'chip ch-insp-chip', type: 'button', title: 'Heroic Inspiration (click to spend)', onclick: () => mutate((x) => { x.heroicInspiration = false; }) }, icon('star'), 'Inspired') : null,
+  ].filter(Boolean);
+  return h('div', { class: ['ch-hp', open && 'is-open', down && 'is-down'], 'data-sec': 'hp', 'data-fold': FOLD_KEYS.hp },
     h('div', { class: 'ch-hp-top' },
-      h('span', { class: 'ch-stat-label' }, icon('heart'), ' Hit points'),
+      h('button', {
+        class: 'ch-fold', type: 'button', 'aria-expanded': String(open), 'aria-controls': 'ch-hp-edit', 'data-fk': 'hp-fold',
+        title: open ? 'Hide the HP controls' : 'Change hit points', onclick: () => toggleFold(FOLD_KEYS.hp),
+      }, icon(open ? 'chevron-down' : 'chevron-right'), h('span', { class: 'ch-stat-label' }, icon('heart'), 'Hit points')),
       h('span', { class: 'ch-hp-now num', title: s.adjust?.hpMax ? null : 'Current + temporary' }, String(cur + temp), h('span', { class: 'ch-hp-max' }, ' / ', adjustedValue(s, 'hpMax', String(max))))),
     hpBar(cur, max, temp),
-    h('div', { class: 'ch-hp-grid' },
-      h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Current'),
-        numberInput(cur, (v) => mutate((x) => { x.hp.current = Math.max(0, Math.min(max, v ?? max)); }), { class: 'input input-sm', min: 0, max, 'data-fk': 'hp-cur' })),
-      h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Temp HP'),
-        numberInput(temp, (v) => mutate((x) => { x.hp.temp = Math.max(0, v || 0); }), { class: 'input input-sm', min: 0, 'data-fk': 'hp-temp' })),
-      h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Damage taken'),
-        numberInput(Math.max(0, max - cur), (v) => mutate((x) => { x.hp.current = Math.max(0, max - Math.max(0, v || 0)); }), { class: 'input input-sm', min: 0, max, 'data-fk': 'hp-dmg' }))),
-    h('div', { class: 'ch-hp-actions' }, amount,
-      h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: doDamage, 'data-fk': 'hp-dmg-btn' }, 'Damage'),
-      h('button', { class: 'btn btn-sm', type: 'button', onclick: doHeal, 'data-fk': 'hp-heal-btn' }, 'Heal')));
-  return h('section', { class: 'ch-combat', 'data-sec': 'combat', 'aria-label': 'Combat' }, h('div', { class: 'ch-combat-grid' },
-    h('div', { class: 'ch-combat-stats' },
-      statBox({ label: 'Armor Class', value: adjustedValue(s, 'ac', String(s.ac.value)), sub: s.armorWorn?.name || (s.shield ? 'Shield' : 'Unarmored'), stat: 'ac', title: s.adjust?.ac ? null : s.ac.formula, onClick: () => acInfo(s) }),
-      statBox({ label: 'Initiative', value: adjustedValue(s, 'initiative', fmt(s.initiative)), stat: 'initiative', title: s.adjust?.initiative ? null : 'Roll initiative', onClick: () => rollToast('Initiative', s.initiative) }),
-      statBox({ label: 'Speed', value: adjustedValue(s, 'speed', `${s.speed.walk ?? 0} ft`), sub: speedSub || null, stat: 'speed' }),
-      statBox({ label: 'Proficiency', value: adjustedValue(s, 'profBonus', fmt(s.profBonus)), stat: 'prof' })),
-    h('div', { class: 'ch-combat-side' }, h('div', { class: 'ch-side-grid' },
+    temp ? h('div', { class: 'ch-hp-temp ui text-xs' }, `includes ${temp} temporary`) : null,
+    h('div', { class: 'ch-hp-edit', id: 'ch-hp-edit', hidden: !open },
+      h('div', { class: 'ch-hp-grid' },
+        h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Current'),
+          numberInput(cur, (v) => mutate((x) => { x.hp.current = Math.max(0, Math.min(max, v ?? max)); }), { class: 'input input-sm', min: 0, max, 'data-fk': 'hp-cur' })),
+        h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Temp HP'),
+          numberInput(temp, (v) => mutate((x) => { x.hp.temp = Math.max(0, v || 0); }), { class: 'input input-sm', min: 0, 'data-fk': 'hp-temp' })),
+        h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Damage taken'),
+          numberInput(Math.max(0, max - cur), (v) => mutate((x) => { x.hp.current = Math.max(0, max - Math.max(0, v || 0)); }), { class: 'input input-sm', min: 0, max, 'data-fk': 'hp-dmg' }))),
+      h('div', { class: 'ch-hp-actions' }, amount,
+        h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: doDamage, 'data-fk': 'hp-dmg-btn' }, 'Damage'),
+        h('button', { class: 'btn btn-sm', type: 'button', onclick: doHeal, 'data-fk': 'hp-heal-btn' }, 'Heal'))),
+    down && !trk ? h('div', { class: 'ch-ds-rows ch-hp-ds', role: 'group', 'aria-label': 'Death saving throws' },
+      h('span', { class: 'ui text-xs ch-ds-label' }, 'Death saves: successes'), deathBoxes('success', c.deathSaves.success, 'hpds'),
+      h('span', { class: 'ui text-xs ch-ds-label' }, 'Failures'), deathBoxes('fail', c.deathSaves.fail, 'hpds')) : null,
+    h('div', { class: 'ch-hp-foot' }, active,
+      h('button', {
+        class: 'ch-fold ch-trk-fold', type: 'button', 'aria-expanded': String(trk), 'aria-controls': 'ch-trackers', 'data-fk': 'trk-fold',
+        title: 'Hit dice, death saves, inspiration, exhaustion and conditions', onclick: () => toggleFold(FOLD_KEYS.trackers),
+      }, icon(trk ? 'chevron-up' : 'chevron-down'), trk ? 'Hide trackers' : 'Hit dice & conditions')));
+}
+
+/** Hit dice, death saves, heroic inspiration, exhaustion, conditions: a strip under the first row, hidden by default. */
+function trackers(c, s) {
+  const open = isOpen(FOLD_KEYS.trackers);
+  const ex = Number(c.exhaustion) || 0;
+  const conds = conditionList().filter((x) => x.id !== 'exhaustion');
+  return h('div', { class: 'ch-trackers', id: 'ch-trackers', 'data-fold': FOLD_KEYS.trackers, hidden: !open, role: 'region', 'aria-label': 'Trackers' },
+    h('div', { class: 'ch-side-grid' },
       h('div', { class: 'ch-mini', 'data-stat': 'hit-dice' },
         h('span', { class: 'ch-stat-label' }, 'Hit dice'),
         s.hitDice.length ? s.hitDice.map((hd) => h('div', { class: 'ch-mini-row' },
@@ -297,13 +348,12 @@ function combat(c, s) {
             return chip(info?.name || prettify(id), { title: info ? info.description.slice(0, 300) : null, className: 'ch-cond', onRemove: () => mutate((x) => { x.conditions = x.conditions.filter((y) => y !== id); }) });
           }),
           select([{ value: '', label: c.conditions.length ? 'Add…' : 'Add condition…' }, ...conds.filter((x) => !c.conditions.includes(x.id)).map((x) => ({ value: x.id, label: x.name }))], '',
-            (v) => v && mutate((x) => { x.conditions = [...x.conditions, v]; }), { class: 'select input-sm ch-cond-add', 'aria-label': 'Add condition', 'data-fk': 'cond-add' }))))),
-    hpBox));
+            (v) => v && mutate((x) => { x.conditions = [...x.conditions, v]; }), { class: 'select input-sm ch-cond-add', 'aria-label': 'Add condition', 'data-fk': 'cond-add' })))));
 }
 
-function deathBoxes(kind, n) {
+function deathBoxes(kind, n, fk = 'ds') {
   return h('span', { class: ['ch-ds', `ch-ds-${kind}`] }, [0, 1, 2].map((i) => h('input', {
-    type: 'checkbox', class: 'checkbox', checked: i < n, 'aria-label': `${kind === 'success' ? 'Success' : 'Failure'} ${i + 1}`, 'data-fk': `ds-${kind}-${i}`,
+    type: 'checkbox', class: 'checkbox', checked: i < n, 'aria-label': `${kind === 'success' ? 'Success' : 'Failure'} ${i + 1}`, 'data-fk': `${fk}-${kind}-${i}`,
     onchange: (e) => mutate((x) => { x.deathSaves[kind] = e.target.checked ? i + 1 : i; }),
   })));
 }
@@ -412,17 +462,17 @@ function skills(c, s) {
 
 // Proficiencies & languages: dense text rows; folds to its header (per device, folded by default) with a count summary.
 function proficiencies(c, s) {
-  const open = !!getSetting('chProfsOpen');
+  const open = isOpen(FOLD_KEYS.profs);
   const names = (items, kind) => [...new Set(items || [])].map((id) => profName(kind, id));
   const res = [...new Set([...(s.resistances || [])])].map((r) => prettify(typeof r === 'object' ? r.type || r.id : r));
   const rows = [['Armor', names(s.proficiencies.armor, 'armor')], ['Weapons', names(s.proficiencies.weapons, 'weapons')],
     ['Tools', names(s.proficiencies.tools, 'tools')], ['Languages', names(s.languages, 'languages')]];
   const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
   const summary = [count(rows[0][1].length, 'armor', 'armor'), count(rows[1][1].length, 'weapon', 'weapons'), count(rows[2][1].length, 'tool', 'tools'), count(rows[3][1].length, 'language', 'languages')].join(' · ');
-  const toggle = () => { setSetting('chProfsOpen', !open); render(); };
+  const toggle = () => toggleFold(FOLD_KEYS.profs);
   return section('proficiencies', h('button', { class: 'ch-fold', type: 'button', 'aria-expanded': String(open), 'aria-controls': 'ch-profs-body', 'data-fk': 'profs-fold', onclick: toggle },
     icon(open ? 'chevron-down' : 'chevron-right'), 'Proficiencies & languages'), {
-    className: ['ch-sec-profs', !open && 'is-folded'].filter(Boolean).join(' '), sub: open ? null : summary,
+    className: ['ch-sec-profs', !open && 'is-folded'].filter(Boolean).join(' '), sub: open ? null : summary, attrs: { 'data-fold': FOLD_KEYS.profs },
     actions: [h('a', { class: 'btn-icon btn-sm', href: editHref('proficiencies'), title: 'Edit proficiencies', 'aria-label': 'Edit proficiencies' }, icon('edit'))],
   },
   h('dl', { class: 'ch-dl ch-profs', id: 'ch-profs-body' },
