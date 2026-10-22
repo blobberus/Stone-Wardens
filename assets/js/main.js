@@ -135,16 +135,44 @@ function buildSidebar() {
   }
   const collapsed = getSetting('sidebarCollapsed');
   sb.classList.toggle('is-collapsed', !!collapsed);
-  $('.sb-toggle', sb).onclick = () => {
-    if (matchMedia('(max-width: 760px)').matches) { sb.classList.toggle('is-open'); return; }
-    const c = !sb.classList.contains('is-collapsed');
+  const toggle = $('.sb-toggle', sb);
+  const narrow = () => matchMedia('(max-width: 760px)').matches;
+  const setCollapsed = (c) => {
     sb.classList.toggle('is-collapsed', c);
     setSetting('sidebarCollapsed', c);
     window.dispatchEvent(new Event('resize')); // lets the map re-measure
   };
+  toggle.onclick = () => {
+    if (narrow()) { sb.classList.toggle('is-open'); return; }
+    setCollapsed(!sb.classList.contains('is-collapsed'));
+    hideHint();
+  };
+
+  // Character sheets are laid out for the collapsed rail: suggest it (once per session) when the menu is open.
+  const HINT_KEY = 'sw:hint:sheet-menu';
+  sb.querySelector('.sb-hint')?.remove();
+  let hintTimer = 0;
+  const hint = h('div', { class: 'sb-hint', role: 'status', hidden: true },
+    h('p', null, 'Character sheets have more room with the menu collapsed.'),
+    h('div', { class: 'sb-hint-actions' },
+      h('button', { class: 'btn btn-sm btn-primary', type: 'button', onclick: () => { setCollapsed(true); hideHint(); } }, 'Collapse menu'),
+      h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: () => { sessionStorage.setItem(HINT_KEY, '1'); hideHint(); } }, 'Not now')));
+  $('.sb-brand', sb).after(hint);
+  function hideHint() { clearTimeout(hintTimer); hint.hidden = true; }
+  const maybeHint = (r) => {
+    const onSheet = r.view === 'characters' && r.parts?.[0] && !['new', 'recently-deleted'].includes(r.parts[0]);
+    if (!onSheet || narrow() || sb.classList.contains('is-collapsed') || sessionStorage.getItem(HINT_KEY)) { hideHint(); return; }
+    toggle.classList.remove('is-hinting');
+    void toggle.offsetWidth;
+    toggle.classList.add('is-hinting');
+    toggle.addEventListener('animationend', () => toggle.classList.remove('is-hinting'), { once: true });
+    if (hint.hidden) { hint.hidden = false; hintTimer = setTimeout(hideHint, 15000); }
+  };
+
   onRoute((r) => {
     sb.querySelectorAll('.sb-tab').forEach((a) => a.classList.toggle('is-active', a.dataset.view === r.view));
     sb.classList.remove('is-open');
+    maybeHint(r);
   });
 }
 

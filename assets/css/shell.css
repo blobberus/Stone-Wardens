@@ -55,6 +55,18 @@ body:has(> .app:not([hidden])) { overflow: hidden; }
   padding: 0 12px;
 }
 .sb-toggle { color: var(--ink-muted); }
+.sb-toggle.is-hinting { color: var(--accent); animation: sb-nudge 900ms var(--ease) 3; }
+/* "Collapse the menu for more room" hint shown on character sheets */
+.sb-hint {
+  flex: none; margin: 0 10px 8px; padding: 10px 12px;
+  font: 400 var(--text-sm) / 1.35 var(--font-ui); color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border)); border-radius: var(--radius);
+  animation: sw-rise 160ms var(--ease);
+}
+.sb-hint p { margin: 0; }
+.sb-hint-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sidebar.is-collapsed .sb-hint { display: none; }
 .sb-mark { width: 26px; height: 26px; flex: none; color: var(--accent); --emblem-star: var(--gold); }
 .sb-title {
   min-width: 0;
