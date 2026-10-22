@@ -73,7 +73,7 @@ export const DETAIL_FIELDS = [
 ];
 
 export const SECTION_IDS = ['hp', 'ac', 'initiative', 'speed', 'abilities', 'str', 'dex', 'con', 'int', 'wis', 'cha', 'saves',
-  'skills', 'passive', 'attacks', 'spells', 'slots', 'features', 'resources', 'inventory', 'currency', 'death-saves',
+  'skills', 'passive', 'attacks', 'spells', 'bonus-actions', 'slots', 'features', 'resources', 'inventory', 'currency', 'death-saves',
   'proficiencies', 'details', 'notes'];
 
 /** Friendly anchors used in [[char:Name#…]] links -> section ids. */
@@ -85,6 +85,7 @@ const ANCHOR_ALIASES = {
   'traits': 'features', 'feats': 'features', 'abilities-and-features': 'features', 'items': 'inventory', 'equipment': 'inventory',
   'gear': 'inventory', 'money': 'currency', 'coins': 'currency', 'gold': 'currency', 'death': 'death-saves',
   'languages': 'proficiencies', 'bio': 'details', 'biography': 'details', 'backstory': 'details', 'note': 'notes',
+  'actions': 'attacks', 'bonus': 'bonus-actions', 'bonus-action': 'bonus-actions', 'senses': 'passive',
 };
 export function normalizeAnchor(anchor) {
   const a = String(anchor || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');

@@ -36,7 +36,10 @@ Only player decisions are stored; everything derivable is computed by `derive()`
   "abilities": [ { "ref": "ability/second-wind-plus" }, { "name": "Stoneborn Grit", "description": "…", "uses": 1,
                    "recharge": "long", "modifiers": { "ac": 1 } } ],   // advanced: extra/custom abilities
   "overrides": { "ac": null, "speed": null, "initiative": null, "hpMax": null, "profBonus": null,
-                 "passivePerception": null, "abilities": {}, "saves": {}, "skills": {} },   // number = replace; skills/saves values are flat BONUS
+                 "passivePerception": null, "abilities": {}, "saves": {}, "skills": {},   // number = replace; skills/saves values are flat BONUS
+                 "proficiency": { "skills": { "athletics": "none", "stealth": "expertise" }, "saves": { "dex": true } } },
+                 // ^ Edit all → Proficiencies: final say on skill level ('none'|'proficient'|'expertise') / save proficiency
+  "style": { "accent": "#7a1f1f" },                 // sheet highlight colour (#rrggbb; null = default oxblood #7a1f1f)
   "details": { "alignment": "", "pronouns": "", "gender": "", "sexuality": "", "age": "", "height": "", "weight": "",
                "eyes": "", "hair": "", "skin": "", "appearance": "", "personalityTraits": "", "socialTraits": "",
                "mentalTraits": "", "ideals": "", "bonds": "", "flaws": "", "likes": "", "dislikes": "",
@@ -48,6 +51,13 @@ Only player decisions are stored; everything derivable is computed by `derive()`
 abilities:{str:+2}, saves:{all|str:+1}, skills:{all|stealth:+1}, attack, damage, spellDc, spellAttack,
 checks (all ability checks), resistances:[…], senses:"…", abilitySet:{str:19} (score becomes at least n) }` — all
 additive except `abilitySet`. Item modifiers apply while the item is equipped (attuned, if it needs attunement).
+Negative values are debuffs (curses, cursed items): they are applied and explained in `sheet.adjust` (below).
+
+Skill / save proficiency layers, in order: the rules (first class's saves, class skill picks, background skills,
+species traits, feats, class features & choices) → `extraProficiencies.skills/expertise/saves` (older sheets ticked
+these on the sheet) → `overrides.proficiency` (wins; can remove a granted proficiency). The sheet only displays
+proficiency; Edit all → Proficiencies ticks/unticks every skill and save: it clears the `extraProficiencies` entry for
+that id and stores an override only where the result differs from the rules ("Reset" = back to the rules).
 
 Inventory `custom` (inline overrides of the ref'd record): any record field (`name damage damageType versatile
 properties mastery range weaponKind category ac{base,dex,maxDex} strMin weight description`) plus `base` (weapon/armor
@@ -130,6 +140,39 @@ spells incl. always-prepared, feat and species spells), `innate:[{source, abilit
 `attacks[].{ability, proficient, propertyNames, magicBonus, unarmed}`, `weaponMasteries`, `items` (resolved inventory),
 `choices` (all), `nextLevelXp`, `heroicInspirationOnLongRest`. All ids are ids (use rules lookups for names).
 
+**Proficiency detail & debuffs** (`engine-derive.js` + `engine-adjust.js`):
+- `abilities[a].check` = the ability-check bonus (mod + `checks` modifiers + Exhaustion); `attacks[].damageBonus`
+  = the number added to the damage dice.
+- `proficiencyInfo = { skills: {[id]: {state, rules, base, override, sources:[{label, level, extra?}]}},
+  saves: {[abil]: {state, rules, base, override, sources:[{label, extra?}]}} }` — skill levels are
+  `'none'|'proficient'|'expertise'`, saves booleans. `rules` = class/background/species/feats/choices only, `base` = +
+  `extraProficiencies`, `state` = final (after `overrides.proficiency`). Labels: "Class: Fighter", "Background: Soldier",
+  "Species: Elf (Keen Senses)", "Feat: Resilient", "Rogue 1: Expertise", "Added in Edit all" (`extra:true`).
+- Every displayed number **already includes its debuffs** (`skills.x.bonus`, `abilities.x.save/check`, `ac.value`,
+  `speed.*`, `initiative`, `passive.*`, `attacks[].bonus/damage`, `spellcasting[].attack/dc`, `innate[].attack/dc`,
+  `hpMax`, `profBonus`). `adjust = { [key]: {label, format:'mod'|'num'|'ft'|'text', base, value, reasons:[{label,
+  amount?, note?}]} }` lists each stat a debuff touched: `value` = shown value, `base` = value without debuffs
+  (`value === base` → note-only, e.g. Disadvantage). Keys: `ac initiative speed profBonus hpMax`, `score:<abil>`,
+  `ability:<abil>` (check), `save:<abil>`, `skill:<id>`, `passive:perception|insight|investigation`,
+  `attack:<uid>|attack:unarmed`, `damage:<uid>|damage:unarmed`, `spellAttack:<classId>`, `spellDc:<classId>`,
+  `spellAttack:innate:<group>`, `spellDc:innate:<group>`. UI: `widgets.adjustedValue(sheet, key, text)`.
+  Built by diffing against a second "pure" derive pass (no debuffs); cascades (a cursed −2 STR lowering Athletics)
+  are attributed to their source.
+- Sources: **Exhaustion** (2024): −2 × level on every D20 Test shown (checks, skills, saves, initiative, weapon & spell
+  attacks), Speed −5 ft × level (all speeds, min 0); never DCs, AC or damage. *Choice:* passive scores include it
+  (a passive score is 10 + the check bonus), and Disadvantage on checks (Poisoned) is −5 to passives, as the SRD's
+  Passive Perception rule says. **Conditions** (SRD 5.2 text in `rules.json`): Speed 0 for Grappled, Paralyzed,
+  Petrified, Restrained, Unconscious; notes for Disadvantage (Blinded/Poisoned/Prone/Restrained attacks; Frightened
+  checks & attacks while the source is in sight; Grappled attacks vs others; Restrained DEX saves), auto-fail STR/DEX
+  saves (Paralyzed, Petrified, Stunned, Unconscious), Incapacitated (implied by those four: Initiative Disadvantage, no
+  actions), Prone movement, Blinded/Deafened Perception. Charmed and Invisible change no numbers. **Negative
+  modifiers** on custom abilities, feats and items (and negative item `bonus/attackBonus/damageBonus/acBonus`), labelled
+  with the source name. **Armour**: heavy armour below its Strength −10 ft; armour without training → Disadvantage on
+  STR/DEX D20 Tests and no spellcasting (notes); a Shield without training gives no AC (2024 Armor Training);
+  Stealth-disadvantage armour → note on Stealth.
+- Overrides: a stored number (`overrides.ac/initiative/speed/…`) replaces the computed value, so its permanent penalties
+  vanish; temporary ones (Exhaustion, conditions) still apply on top (initiative, speed, passive Perception).
+
 `Choice`: `{ key, featureId, label, type, count, options:[{id, name, description, meta?, disabled?, reason?, entry?}],
 value, complete, source, sourceType, classId, classLevel, parentKey, featKey }` + the raw descriptors of the SRD
 `choice` object (`from category points max maxPerAbility list listFrom level levelByClassLevel school ritual
@@ -139,7 +182,8 @@ alwaysPrepared changeable note alternatives countKey countByLevel countFrom`; `l
 `points:3, maxPerAbility:2`), `damage-type`, `wild-shape-forms`. `multi` and `spellcasting` are never emitted.
 
 Rules to honour: proficiency by total level; HP = max die at first class level 1, then rolled/average + CON each level
-(min 1), + modifiers.hpPerLevel; AC from worn armor (light: +DEX, medium: +DEX max 2, heavy: none) + shield 2, or
+(min 1), + modifiers.hpPerLevel; AC from worn armor (light: +DEX, medium: +DEX max 2, heavy: none) + shield 2 (only
+with Shield training), or
 Unarmored Defense (Barbarian CON, Monk WIS without shield) / other class formulas; attack = ability mod (STR melee,
 DEX ranged, best for finesse) + prof if proficient; mastery shown when the weapon is in a weapon-mastery choice;
 multiclass slots per the 2024 multiclass table (full + half(round up) + third(round down)); Warlock pact slots separate;

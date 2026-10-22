@@ -98,9 +98,10 @@ function hideAdj(el) {
   if (adjCard.el) adjCard.el.hidden = true;
 }
 
-function showAdj(el) {
+function showAdj(el, via = 'pointer') {
   const a = el?._adj;
   if (!a || !el.isConnected) return;
+  adjCard.via = via;
   if (!adjCard.el || !adjCard.el.isConnected) adjCard.el = overlayRoot().appendChild(h('div', { class: 'ch-adj-card', role: 'tooltip', hidden: true }));
   const card = adjCard.el;
   card.replaceChildren(...adjBody(a).filter(Boolean));
@@ -125,12 +126,17 @@ function wireAdj() {
     const t = e.target;
     if (!(t instanceof Element) || !t.matches(':focus-visible')) return;
     const el = t.closest('.ch-adj') || t.querySelector?.('.ch-adj');
-    if (el) showAdj(el);
+    if (el) showAdj(el, 'focus');
   });
   document.addEventListener('focusout', (e) => { if (adjCard.target && e.target instanceof Element && (e.target === adjCard.target || e.target.contains(adjCard.target))) hideAdj(); });
   document.addEventListener('pointerdown', (e) => { if (adjCard.target && !adjCard.target.contains(e.target)) hideAdj(); }, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideAdj(); });
-  window.addEventListener('scroll', () => hideAdj(), { capture: true, passive: true });
+  // A card opened from the keyboard follows its value while the view scrolls (Tab scrolls it into view); others close.
+  let raf = 0;
+  window.addEventListener('scroll', () => {
+    if (adjCard.via !== 'focus' || !adjCard.target) { hideAdj(); return; }
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (adjCard.target) showAdj(adjCard.target, 'focus'); });
+  }, { capture: true, passive: true });
   window.addEventListener('resize', () => hideAdj(), { passive: true });
 }
 

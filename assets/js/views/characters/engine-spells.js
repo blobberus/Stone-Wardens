@@ -10,7 +10,8 @@ const DAMAGE_TYPES = 'acid|bludgeoning|cold|fire|force|lightning|necrotic|pierci
 const DICE = '(\\d+d\\d+)(?:\\s*\\+\\s*(\\d+))?';
 const NUMBER_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 // Spells whose structured damage is a mishap / side effect, not what the spell is cast for.
-const INCIDENTAL_DAMAGE = new Set(['dimension-door', 'teleport', 'meld-into-stone', 'wish']);
+// (Enlarge/Reduce only changes weapon damage by 1d4 either way.)
+const INCIDENTAL_DAMAGE = new Set(['dimension-door', 'teleport', 'meld-into-stone', 'wish', 'enlarge-reduce']);
 export const CANTRIP_LEVELS = [5, 11, 17];
 
 const num = (v, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
@@ -71,61 +72,90 @@ function upcastRule(record) {
   return null;
 }
 
+// Type lists the description garbles (the SRD table of Prismatic rays): the five damage rays, in table order.
+const TYPE_OVERRIDES = { 'prismatic-spray': ['fire', 'acid', 'lightning', 'poison', 'cold'], 'prismatic-wall': ['fire', 'acid', 'lightning', 'poison', 'cold'] };
+
+/** Damage types offered by a "choose Acid, Cold, Fire, …" / "This damage is Acid, Cold, … (your choice)" sentence. */
+function chosenTypes(sents) {
+  const TYPE_WORD = new RegExp(`\\b(${DAMAGE_TYPES.split('|').map(cap).join('|')})\\b`, 'g');
+  for (const s of sents) {
+    if (!/\bchoose\b|\bchoice\b|\bchosen\b/i.test(s)) continue;
+    const found = [...new Set([...s.matchAll(TYPE_WORD)].map((m) => m[1].toLowerCase()))];
+    if (found.length >= 2) return found;
+  }
+  return null;
+}
+
+/**
+ * Every damage component the description deals, in text order, as {dice, bonus, type, types?, mod, extra?, join,
+ * sent, note}: join 'new' starts a new effect (another sentence: Ice Knife's burst, Tsunami's later rounds),
+ * 'and' adds (Flame Strike), 'or' is an alternative (Spirit Guardians), 'then' is later damage of the same type
+ * (Acid Arrow). The record's own `damage` is always the first component.
+ */
 function parseDamage(record) {
   const id = record.id;
-  const desc = String(record.description || '');
-  const DMG = new RegExp(`${DICE}\\s+(${DAMAGE_TYPES})\\s+damage`, 'gi');
-  const all = [...desc.matchAll(DMG)].map((m) => ({ dice: m[1], bonus: num(m[2]), type: m[3].toLowerCase(), index: m.index }));
-  const withMod = new RegExp(`(${DAMAGE_TYPES})\\s+damage equal to ${DICE} plus your spellcasting ability modifier`, 'i').exec(desc);
-  let base = record.damage?.dice && !INCIDENTAL_DAMAGE.has(id) ? { dice: String(record.damage.dice), type: String(record.damage.type || '').toLowerCase() || null } : null;
-  if (base) {
-    const sents = sentences(desc);
-    const ownIdx = sents.findIndex((s) => new RegExp(`${base.dice}(?:\\s*\\+\\s*\\d+)?\\s+${base.type}\\s+damage`, 'i').test(s));
-    // The same dice with other types in OTHER sentences (Prismatic Spray's rays): the type varies.
-    const elsewhere = sents.some((s, i) => i !== ownIdx && [...s.matchAll(DMG)].some((m) => m[1] === base.dice && m[3].toLowerCase() !== base.type));
-    if (elsewhere) return { list: [{ dice: base.dice, bonus: 0, type: 'varies', mod: false }], parsed: false };
-    const own = sents[ownIdx];
-    const list = [];
-    if (own) {
-      let prevEnd = null;
-      for (const m of own.matchAll(DMG)) {
-        const t = m[3].toLowerCase();
-        const between = prevEnd == null ? '' : own.slice(prevEnd, m.index);
-        prevEnd = m.index + m[0].length;
-        if (list.some((x) => x.type === t) || (t === base.type && m[1] !== base.dice)) continue;
-        // "2d8 Fire damage from a warm shield or 2d8 Cold damage…" -> alternatives, not a sum
-        list.push({ dice: m[1], bonus: num(m[2]), type: t, mod: false, alt: list.length > 0 && /\bor\b/i.test(between) });
-      }
-      if (list.length && list[0].type !== base.type) list.sort((a, b) => (a.type === base.type ? -1 : b.type === base.type ? 1 : 0));
-      if (list[0]) list[0].alt = false;
-    }
-    if (!list.length) list.push({ dice: base.dice, bonus: 0, type: base.type, mod: false });
-    if (withMod && withMod[2] === base.dice) list[0].mod = true;
-    return { list, parsed: false };
-  }
   if (INCIDENTAL_DAMAGE.has(id)) return { list: [], parsed: false };
-  if (withMod) return { list: [{ dice: withMod[2], bonus: num(withMod[3]), type: withMod[1].toLowerCase(), mod: true }], parsed: true };
-  const chosen = new RegExp(`${DICE} damage of (?:the|a) (?:chosen type|type you choose)`, 'i').exec(desc);
-  if (chosen) return { list: [{ dice: chosen[1], bonus: num(chosen[2]), type: 'chosen', mod: false }], parsed: true };
-  if (all.length && (record.attack || record.save || /\bdeals?\b/i.test(sentences(desc).find((s) => s.includes(all[0].dice)) || ''))) {
-    const first = all[0];
-    return { list: [{ dice: first.dice, bonus: first.bonus, type: first.type, mod: false }], parsed: true };
+  const desc = String(record.description || '');
+  const sents = sentences(desc);
+  const options = chosenTypes(sents);
+  const DMG = new RegExp(`${DICE}\\s+(${DAMAGE_TYPES})\\s+damage`, 'gi');
+  const WITH_MOD = new RegExp(`(${DAMAGE_TYPES})\\s+damage (?:to the target )?equal to ${DICE} plus your spellcasting ability modifier`, 'gi');
+  const CHOSEN = new RegExp(`${DICE} damage of (?:the|a) (?:chosen type|type you choose|spirit's type)`, 'gi');
+  const EXTRA = new RegExp(`\\bextra ${DICE} damage\\b`, 'gi');
+  const comps = [];
+  sents.forEach((s, si) => {
+    const found = [];
+    for (const m of s.matchAll(DMG)) found.push({ dice: m[1], bonus: num(m[2]), type: m[3].toLowerCase(), index: m.index, end: m.index + m[0].length });
+    for (const m of s.matchAll(WITH_MOD)) found.push({ dice: m[2], bonus: num(m[3]), type: m[1].toLowerCase(), mod: true, index: m.index, end: m.index + m[0].length });
+    for (const m of s.matchAll(CHOSEN)) found.push({ dice: m[1], bonus: num(m[2]), type: 'chosen', types: options, index: m.index, end: m.index + m[0].length });
+    for (const m of s.matchAll(EXTRA)) found.push({ dice: m[1], bonus: num(m[2]), type: options ? 'chosen' : null, types: options, extra: true, index: m.index, end: m.index + m[0].length });
+    found.sort((a, b) => a.index - b.index);
+    let prev = null;
+    for (const f of found) {
+      const between = prev ? s.slice(prev.end, f.index) : '';
+      const join = !prev ? 'new' : /\bor\b/i.test(between) ? 'or' : f.type && f.type === prev.type && f.dice !== prev.dice ? 'then' : 'and';
+      comps.push({ ...f, join, sent: si, note: s.trim().slice(0, 220) });
+      prev = f;
+    }
+  });
+  const same = (a, b) => a.dice === b.dice && a.bonus === b.bonus && a.type === b.type;
+  let list = [];
+  for (const c of comps) if (!list.some((x) => same(x, c))) list.push(c); // Searing Smite, Wall of Fire repeat theirs
+  const rec = record.damage?.dice ? { dice: String(record.damage.dice), type: String(record.damage.type || '').toLowerCase() || null } : null;
+  let parsed = false;
+  if (rec) {
+    let i = list.findIndex((x) => x.dice === rec.dice && (x.type === rec.type || x.type === 'chosen'));
+    if (i < 0) { list.unshift({ dice: rec.dice, bonus: 0, type: rec.type, join: 'new', sent: -1, note: '' }); i = 0; }
+    if (i > 0) {
+      // the record's effect leads: move its sentence group to the front
+      const sent = list[i].sent;
+      list = [...list.filter((x) => x.sent === sent), ...list.filter((x) => x.sent !== sent)];
+    }
+  } else {
+    // no structured damage: trust the text only for attack / save spells or ones that say they deal it
+    if (!list.length || !(record.attack || record.save || list.some((x) => /\bdeals?\b|\btakes?\b|\btaking\b/i.test(x.note)))) return { list: [], parsed: false };
+    parsed = true;
   }
-  return { list: [], parsed: false };
+  // Prismatic rays: the table text is garbled, so the five ray types come from TYPE_OVERRIDES (one component)
+  let out = list.map((c) => ({ ...c }));
+  if (TYPE_OVERRIDES[id] && out[0]) out = [{ ...out[0], type: 'varies', types: TYPE_OVERRIDES[id] }];
+  out.forEach((c, i) => { if (i === 0) c.join = 'new'; delete c.index; delete c.end; });
+  return { list: out, parsed };
 }
 
 function parseHealing(record) {
   const desc = String(record.description || '');
+  const note = (m) => (sentences(desc).find((s) => s.includes(m[0])) || '').trim().slice(0, 220);
   let m = /regains? (?:a number of )?Hit Points equal to (\d+d\d+)(?:\s*\+\s*(\d+))?( plus your spellcasting ability modifier)?/i.exec(desc);
-  if (m) return { dice: m[1], bonus: num(m[2]), mod: !!m[3] };
-  // Fixed amounts only when they're the spell's point (Heal's 70, Mass Heal's 700), not a 1-HP side effect.
+  if (m) return { dice: m[1], bonus: num(m[2]), mod: !!m[3], note: note(m) };
+  m = /\bregains? Hit Points equal to half the amount of (?:\w+ )?damage dealt/i.exec(desc);
+  if (m) return { dice: null, bonus: 0, mod: false, half: true, note: note(m) };
   m = /\bregains? (\d+d\d+|\d+)(?:\s*\+\s*(\d+))? Hit Points?\b/i.exec(desc);
-  if (m && /d/.test(m[1])) return { dice: m[1], bonus: num(m[2]), mod: false };
-  if (m && Number(m[1]) >= 10) return { dice: null, bonus: Number(m[1]) + num(m[2]), mod: false };
+  if (m) return /d/.test(m[1]) ? { dice: m[1], bonus: num(m[2]), mod: false, note: note(m) } : { dice: null, bonus: Number(m[1]) + num(m[2]), mod: false, note: note(m) };
   m = /\brestor(?:es|ing|e) (up to )?(\d+d\d+|\d+) Hit Points?\b/i.exec(desc);
-  if (m && /d/.test(m[2])) return { dice: m[2], bonus: 0, mod: false, upTo: !!m[1] };
-  if (m && Number(m[2]) >= 10) return { dice: null, bonus: Number(m[2]), mod: false, upTo: !!m[1] };
-  if (/\bregains? all (?:of )?(?:its|their|your) Hit Points\b/i.test(desc)) return { dice: null, bonus: 0, mod: false, all: true };
+  if (m) return /d/.test(m[2]) ? { dice: m[2], bonus: 0, mod: false, upTo: !!m[1], note: note(m) } : { dice: null, bonus: Number(m[2]), mod: false, upTo: !!m[1], note: note(m) };
+  m = /\bregains? all (?:of )?(?:its|their|your) Hit Points\b/i.exec(desc);
+  if (m) return { dice: null, bonus: 0, mod: false, all: true, note: note(m) };
   return null;
 }
 
@@ -167,24 +197,43 @@ export function spellStats(record, { charLevel = 1, caster = null } = {}) {
     const nextIdx = CANTRIP_LEVELS.findIndex((l) => num(charLevel, 1) < l);
     scaling.next = nextIdx >= 0 ? scaling.tiers[nextIdx + 1] : null;
   }
-  const typeName = (t) => (t === 'varies' ? '(type varies)' : t === 'chosen' ? '(chosen type)' : t ? cap(t) : '');
+  const typeName = (d) => {
+    const ts = Array.isArray(d.types) && d.types.length ? d.types : null;
+    if (ts) return ts.map(cap).join('/');
+    return d.type === 'varies' ? '(type varies)' : d.type === 'chosen' ? '(chosen type)' : d.type ? cap(d.type) : d.extra ? 'extra' : '';
+  };
   const damage = list.map((d) => {
     const bonus = d.bonus + (d.mod && caster ? mod : 0);
     const dice = diceText({ dice: d.dice, bonus });
-    return { ...d, alt: !!d.alt, bonus, typeName: typeName(d.type), text: `${dice}${d.mod && !caster ? ' + mod' : ''} ${typeName(d.type)}`.trim() };
+    return { ...d, alt: d.join === 'or', bonus, typeName: typeName(d), text: `${dice}${d.mod && !caster ? ' + mod' : ''} ${typeName(d)}`.trim() };
   });
+  // groups = one effect each (a sentence of the text): "5d6 Fire + 5d6 Radiant", "3d8 Radiant or Necrotic", "4d4 Acid, then 2d4 Acid"
+  const damageGroups = [];
+  damage.forEach((d, i) => {
+    d.group = d.join === 'new' || !damageGroups.length ? damageGroups.length : damageGroups.length - 1;
+    if (d.group === damageGroups.length) damageGroups.push({ parts: [], note: d.note || '', primary: i === 0 });
+    damageGroups[d.group].parts.push(d);
+  });
+  for (const g of damageGroups) {
+    g.text = g.parts.map((d, i) => {
+      if (!i) return d.text;
+      const prev = g.parts[i - 1];
+      if (d.join === 'or') return d.dice === prev.dice && d.bonus === prev.bonus && !d.mod ? ` or ${d.typeName}` : ` or ${d.text}`;
+      return d.join === 'then' ? `, then ${d.text}` : ` + ${d.text}`;
+    }).join('');
+  }
   let heal = parseHealing(r);
   if (heal) {
     const bonus = heal.bonus + (heal.mod && caster ? mod : 0);
     heal = {
       ...heal, bonus,
-      text: heal.all ? 'all Hit Points' : `${heal.upTo ? 'up to ' : ''}${diceText({ dice: heal.dice, bonus })}${heal.mod && !caster ? ' + mod' : ''}`,
+      text: heal.all ? 'all Hit Points' : heal.half ? 'half the damage dealt' : `${heal.upTo ? 'up to ' : ''}${diceText({ dice: heal.dice, bonus })}${heal.mod && !caster ? ' + mod' : ''}`,
     };
   }
   return {
     level, attack: r.attack || null, toHit: r.attack && caster ? num(caster.attack) : null,
     save: r.save || null, dc: r.save && caster ? num(caster.dc) : null,
-    damage, damageText: damage.map((d, i) => (i ? `${d.alt ? ' or ' : ' + '}${d.text}` : d.text)).join(''),
+    damage, damageGroups, damageText: damageGroups.map((g) => g.text).join(' · '),
     heal, count, scaling, upcast: upcastRule(r), parsed, higherLevel: r.higherLevel || null,
   };
 }

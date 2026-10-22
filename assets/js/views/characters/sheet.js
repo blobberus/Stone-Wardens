@@ -97,8 +97,12 @@ function focusSection(sec) {
     if (feat) el = S.root.querySelector(`[data-stat="${CSS.escape(feat.id)}"]`);
   }
   if (!el) return;
+  // Inside the actions window: open its tab first; a whole tab scrolls the window (not its inner panel) into view.
+  const panel = el.closest('[role="tabpanel"]');
+  if (panel?.hidden) selectTab(panel.dataset.tab);
+  if (panel && el.parentElement === panel) el = panel.closest('.ch-tabs') || el;
   if (el.tagName === 'DETAILS') el.open = true;
-  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  el.scrollIntoView({ block: el.classList.contains('ch-tabs') ? 'start' : 'center', behavior: 'smooth' });
   el.classList.remove('ch-flash');
   void el.offsetWidth;
   el.classList.add('ch-flash');
@@ -140,17 +144,18 @@ function render() {
         h('a', { class: 'btn btn-sm', href: editHref('choices') }, 'Make choices'))) : null,
     s.warnings.length ? h('details', { class: 'ch-warnings' }, h('summary', { class: 'muted ui text-sm' }, icon('info'), ` ${s.warnings.length} rules note${s.warnings.length === 1 ? '' : 's'}`),
       h('ul', { class: 'ui text-sm' }, s.warnings.map((w) => h('li', null, String(w))))) : null,
-    // D&D Beyond proportions: ability row, combat strip, then senses & proficiencies | skills | actions & features.
+    // D&D Beyond proportions: ability row, combat strip, then senses & proficiencies | skills | the actions window
+    // (Attacks · Spells · Bonus actions tabs) with resources; inventory; features & traits; details; notes.
     abilities(c, s),
     combat(c, s),
     h('div', { class: 'ch-body' }, h('div', { class: 'ch-body-grid' },
       h('div', { class: 'ch-col ch-col-l' }, passive(s), proficiencies(c, s)),
       h('div', { class: 'ch-col ch-col-m' }, skills(c, s)),
-      h('div', { class: 'ch-col ch-col-r' }, attacks(c, s), resources(c, s), features(c, s)))),
-    spells(c, s),
+      h('div', { class: 'ch-col ch-col-r' }, actionTabs(c, s), resources(c, s)))),
     h('div', { class: 'ch-layout' },
       h('div', { class: 'ch-col ch-col-a' }, currency(c)),
       h('div', { class: 'ch-col ch-col-b' }, inventory(c, s))),
+    features(c, s),
     details(c, s),
     notes(c)));
 }
@@ -194,8 +199,9 @@ const NAV = { io: null, stuck: false, id: null };
 function nav(s) {
   const c = S.char;
   if (NAV.id !== S.id) { NAV.id = S.id; NAV.stuck = false; }
-  const items = [['abilities', 'Abilities'], ['hp', 'Combat'], ['passive', 'Senses'], ['skills', 'Skills'], ['attacks', 'Attacks'], ['features', 'Features'],
-    (s.spellcasting.length || c.spells.length) ? ['spells', 'Spells'] : null, ['inventory', 'Inventory'], ['details', 'Details'], ['notes', 'Notes']].filter(Boolean);
+  const items = [['abilities', 'Abilities'], ['hp', 'Combat'], ['passive', 'Senses'], ['skills', 'Skills'], ['attacks', 'Attacks'],
+    (s.spellcasting.length || c.spells.length) ? ['spells', 'Spells'] : null, ['bonus-actions', 'Bonus'], ['inventory', 'Inventory'],
+    ['features', 'Features'], ['details', 'Details'], ['notes', 'Notes']].filter(Boolean);
   const el = h('nav', { class: ['ch-nav', NAV.stuck && 'is-stuck'], 'aria-label': 'Sheet sections' },
     h('div', { class: 'ch-nav-chips' }, items.map(([id, label]) => h('button', { class: 'chip', type: 'button', onclick: () => goSection(id) }, label))),
     h('button', {
@@ -346,11 +352,12 @@ function abilities(c, s) {
     const x = s.abilities[a.id];
     const check = x.check ?? x.mod;
     return h('div', { class: 'ch-abil', 'data-stat': a.id },
-      h('button', { class: 'ch-abil-check', type: 'button', 'aria-label': `${a.full} check`, onclick: () => rollToast(`${a.full} check`, check) },
-        h('span', { class: 'ch-abil-name' }, a.full),
+      h('button', { class: 'ch-abil-check', type: 'button', onclick: () => rollToast(`${a.full} check`, check) },
+        h('span', { class: 'ch-abil-name' }, h('span', { class: 'sr-only' }, 'Roll '), a.full, h('span', { class: 'sr-only' }, ' check, score below')),
         adjustedValue(s, `ability:${a.id}`, fmt(check), { className: 'ch-abil-mod' }),
         adjustedValue(s, `score:${a.id}`, String(x.score), { className: 'ch-abil-score' })),
-      h('button', { class: 'ch-abil-save', type: 'button', 'aria-label': `${a.full} saving throw`, onclick: () => rollToast(`${a.full} save`, x.save) },
+      h('button', { class: 'ch-abil-save', type: 'button', onclick: () => rollToast(`${a.full} save`, x.save) },
+        h('span', { class: 'sr-only' }, `Roll ${a.full} saving throw: `),
         profMark(x.saveProf ? 'proficient' : 'none', { title: profTitle(x.saveProf ? 'proficient' : 'none', saves[a.id]) }),
         h('span', { class: 'ch-abil-save-label' }, 'Save'),
         adjustedValue(s, `save:${a.id}`, fmt(x.save), { className: 'ch-abil-save-val' })));
@@ -388,7 +395,7 @@ function skills(c, s) {
     profMark(level(x), { title: profTitle(level(x), info[sk.id]) }),
     h('span', { class: 'ch-skl-ab ui' }, String(x.ability || sk.ability).toUpperCase()),
     h('span', { class: 'ch-skl-name' }, sk.name),
-    h('button', { class: 'ch-skl-bonus', type: 'button', 'aria-label': `Roll ${sk.name}`, onclick: () => rollToast(sk.name, x.bonus) }, adjustedValue(s, `skill:${sk.id}`, fmt(x.bonus)))))),
+    h('button', { class: 'ch-skl-bonus', type: 'button', onclick: () => rollToast(sk.name, x.bonus) }, h('span', { class: 'sr-only' }, `Roll ${sk.name} `), adjustedValue(s, `skill:${sk.id}`, fmt(x.bonus)))))),
   h('p', { class: 'ch-plegend ui text-xs' },
     h('span', null, profMark('proficient'), 'Proficient'), h('span', null, profMark('expertise'), 'Expertise'),
     all.some(({ x }) => x.half) ? h('span', null, profMark('half'), 'Half') : null,
@@ -407,6 +414,46 @@ function proficiencies(c, s) {
       h('div', { 'data-stat': 'resistances' }, h('h4', { class: 'ch-mini-head' }, 'Resistances'),
         res.length ? h('div', { class: 'row ch-chip-row' }, res.map((r) => h('span', { class: 'chip' }, prettify(typeof r === 'object' ? r.type || r.id : r)))) : null,
         c.details.resistances ? md(c.details.resistances) : res.length ? null : h('span', { class: 'faint ui text-sm' }, 'None'))));
+}
+
+// ---------- actions window: Attacks | Spells | Bonus actions (D&D Beyond style), switched in place ----------
+
+const TABS = new Map(); // character id -> last open tab (this session)
+
+function actionTabs(c, s) {
+  const list = [['attacks', 'Attacks', attacks(c, s)], ['spells', 'Spells', spells(c, s)], ['bonus-actions', 'Bonus actions', bonusActions(c, s)]].filter(([, , el]) => el);
+  let cur = TABS.get(S.id);
+  if (!list.some(([id]) => id === cur)) cur = list[0][0];
+  const keys = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+  const onKey = (e) => {
+    const i = list.findIndex(([id]) => id === e.currentTarget.dataset.tab);
+    const j = e.key in keys ? (i + keys[e.key] + list.length) % list.length : e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : null;
+    if (j == null) return;
+    e.preventDefault();
+    selectTab(list[j][0], { focus: true });
+  };
+  return h('div', { class: 'panel ch-tabs', 'data-sec': 'actions' },
+    h('div', { class: 'ch-tabs-bar', role: 'tablist', 'aria-label': 'Actions' }, list.map(([id, label]) => h('button', {
+      class: ['ch-tab', id === cur && 'is-active'], type: 'button', role: 'tab', id: `ch-tab-${id}`, 'aria-controls': `ch-tabp-${id}`,
+      'aria-selected': String(id === cur), tabindex: id === cur ? '0' : '-1', 'data-tab': id, 'data-fk': `tab-${id}`,
+      onclick: () => selectTab(id), onkeydown: onKey,
+    }, label))),
+    list.map(([id, , el]) => h('div', { class: 'ch-tabs-panel', role: 'tabpanel', id: `ch-tabp-${id}`, 'aria-labelledby': `ch-tab-${id}`, 'data-tab': id, hidden: id !== cur }, el)));
+}
+
+/** Show a tab of the actions window without re-rendering (remembered per character). */
+function selectTab(id, { focus = false } = {}) {
+  TABS.set(S.id, id);
+  const win = S.root?.querySelector('.ch-tabs');
+  if (!win) return;
+  win.querySelectorAll('[role="tab"]').forEach((t) => {
+    const on = t.dataset.tab === id;
+    t.classList.toggle('is-active', on);
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+    if (on && focus) t.focus();
+  });
+  win.querySelectorAll('[role="tabpanel"]').forEach((p) => { p.hidden = p.dataset.tab !== id; });
 }
 
 // ---------- attacks ----------
@@ -428,8 +475,8 @@ function attacks(c, s) {
       return h('tr', { 'data-stat': a.uid || (a.unarmed ? 'unarmed' : null), class: a.proficient === false ? 'is-unproficient' : null },
         h('td', { class: 'cell-name' }, entry ? h('button', { class: 'ch-link-btn', type: 'button', onclick: () => entryModal(entry) }, a.name) : a.name,
           a.properties?.length ? h('div', { class: 'ch-props' }, a.properties.map((p, pi) => h('span', { class: 'ch-prop', title: propertyInfo(p)?.description?.slice(0, 300) || null }, a.propertyNames?.[pi] || prettify(p)))) : null),
-        h('td', { class: 'num' }, h('button', { class: 'ch-link-btn num ch-bonus', type: 'button', 'aria-label': `Roll to hit with ${a.name}`, onclick: () => rollToast(`${a.name} to hit`, a.bonus) },
-          adjustedValue(s, `attack:${a.uid || (a.unarmed ? 'unarmed' : '')}`, typeof a.bonus === 'number' ? fmt(a.bonus) : String(a.bonus ?? '')))),
+        h('td', { class: 'num' }, h('button', { class: 'ch-link-btn num ch-bonus', type: 'button', onclick: () => rollToast(`${a.name} to hit`, a.bonus) },
+          h('span', { class: 'sr-only' }, `Roll to hit with ${a.name} `), adjustedValue(s, `attack:${a.uid || (a.unarmed ? 'unarmed' : '')}`, typeof a.bonus === 'number' ? fmt(a.bonus) : String(a.bonus ?? '')))),
         h('td', null, adjustedValue(s, `damage:${a.uid || (a.unarmed ? 'unarmed' : '')}`, a.damage || ''), a.damageType ? ` ${prettify(a.damageType)}` : '', a.versatile ? h('div', { class: 'cell-muted text-xs ui' }, `Two-handed: ${a.versatile}`) : null),
         h('td', { class: 'cell-muted' }, range),
         h('td', null, m ? h('span', { class: 'badge badge-accent', title: m.description || '' }, m.name || prettify(m.id)) : h('span', { class: 'faint' }, '—')),
@@ -589,6 +636,13 @@ function spells(c, s) {
       spellFx(r, s),
       !r.always && r.stored ? h('button', { class: 'btn-icon btn-sm ch-row-x', type: 'button', 'aria-label': `Remove ${r.name}`, title: 'Remove', onclick: () => removeSpell(r) }, icon('close')) : h('span', { class: 'ch-row-x', 'aria-hidden': 'true' })))));
   })) : h('p', { class: 'muted ui text-sm' }, 'No spells chosen yet.'));
+}
+
+// ---------- bonus actions (content of the "Bonus actions" tab; progression agent fills it in) ----------
+
+/** The Bonus actions tab: bonus-action spells, features, item uses, off-hand attacks. Returns a section() like spells(). */
+function bonusActions(c, s) {
+  return section('bonus-actions', 'Bonus actions', { iconName: 'clock' }, h('p', { class: 'muted ui text-sm' }, 'Bonus actions are being added.'));
 }
 
 async function addSpells(s) {

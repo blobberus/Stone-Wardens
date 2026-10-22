@@ -30,7 +30,8 @@ assets/js/core/       shared infrastructure (see contracts below) — views must
 assets/js/views/<v>/  one folder per tab: map, characters, journal, compendium, wardens-library, settings
 srd/                  generated SRD 5.2 JSON (tools/build_srd.py) + srd/stubs/*.json; read-only at runtime
 content/              ALL user data, written by the site through the GitHub API
-  characters/<id>.json  locations/<id>.json  map/config.json (+ uploaded map image)
+  characters/<id>.json  characters/recently-deleted/<id>.json (trash, `trashed:{at,by}`)
+  locations/<id>.json  map/config.json (+ uploaded map image)
   journal/<chapter-slug>/_chapter.json + <note-slug>.md      (notes outside chapters: journal/*.md)
   library/<kind>/<id>.json   kinds: weapon armor gear magic-item spell feat ability species class subclass
                              background location-type
@@ -94,6 +95,15 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   their link types at import time and re-render from `store.on` events.
 - Routes: `#/map[/loc/<id>]`, `#/characters[/<id>[/<section>]]`, `#/journal[/<chapter>|_[/<note>]][?h=|tag=|q=]`,
   `#/journal/new?title=`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`.
+
+## Characters tab
+- Engine (pure, Node-testable): `engine.js` facade + `engine-{rules,choices,derive,adjust,items,known,spells,xp,util}.js`.
+  Contract and doc shape: `docs/character-model.md`. `derive()` -> Sheet incl. `adjust[key] = {base, value, reasons}`
+  (debuffs already applied to the shown numbers; UI renders them with widgets.js `adjustedValue(sheet, key, text)`).
+- Doc fields beyond the basics: `overrides.proficiency` (final say on skill/save prof), `style.accent` (highlight
+  colour, default `#7a1f1f`), `xpLog`, `levelOrder`. Deleting moves a sheet to `recently-deleted/` (trash.js).
+- Sheet order: header (XP meter) -> abilities row -> combat strip -> senses & proficiencies | compact skills |
+  actions window (tabs Attacks / Spells / Bonus actions) + resources -> inventory -> features -> details, notes.
 
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).

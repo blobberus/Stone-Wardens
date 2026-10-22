@@ -97,6 +97,18 @@
       "class": null,
       "prepared": true,
       "always": false
+    },
+    {
+      "id": "fireball",
+      "class": null,
+      "prepared": true,
+      "always": false
+    },
+    {
+      "id": "wish",
+      "class": null,
+      "prepared": true,
+      "always": false
     }
   ],
   "slotsUsed": [
@@ -133,7 +145,7 @@
   },
   "hp": {
     "current": 13,
-    "temp": 25
+    "temp": 0
   },
   "hitDiceUsed": {
     "8": 0
@@ -157,7 +169,14 @@
     "passivePerception": null,
     "abilities": {},
     "saves": {},
-    "skills": {}
+    "skills": {},
+    "proficiency": {
+      "skills": {},
+      "saves": {}
+    }
+  },
+  "style": {
+    "accent": "#1f1a14"
   },
   "details": {
     "alignment": "",
@@ -188,5 +207,5 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-22T04:25:57.154Z",
-  "updated": "2026-10-22T05:03:30.233Z"
+  "updated": "2026-10-22T05:56:00.692Z"
 }
