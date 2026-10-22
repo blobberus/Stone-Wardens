@@ -224,18 +224,39 @@ minimum. `openLevelDown` lists what goes and offers to remove now-uncastable spe
 
 ## Spell numbers & compatibility — `engine-spells.js` (pure; re-exported by `engine.js`)
 ```js
-spellStats(record, {charLevel, caster:{attack, dc, mod}|null}) -> {attack, toHit, save, dc, damage:[{dice, bonus, type,
-  typeName, mod, alt, text}], damageText, heal:{dice, bonus, text, all?, upTo?}|null, count:{count, unit}|null,
-  scaling:{kind:'dice'|'count', tiers, current, next}|null, upcast:{what, dice|count, unit?, above, text}|null, parsed, higherLevel}
+spellStats(record, {charLevel, caster:{attack, dc, mod}|null}) -> {attack:'ranged'|'melee'|'weapon'|null, toHit, save, dc,
+  damage:[{dice|null, bonus, type, types?, typeName, mod, extra?, weapon?, join:'new'|'and'|'or'|'then', group, alt, note, text}],
+  damageGroups:[{parts, text, note, primary}],   // one per effect (sentence): Ice Knife ["1d10 Piercing", "2d6 Cold"]
+  damageText ("5d6 Fire + 5d6 Radiant", groups joined by " · "), heal:{dice, bonus, text, all?, half?, upTo?, note}|null,
+  count:{count, unit}|null, scaling:{kind:'dice'|'count', tiers, current, next}|null, upcast:{what, dice|count, unit?, above, text}|null,
+  parsed, higherLevel}
 spellIssues(record, sc, {className}) -> [{code:'no-caster'|'not-on-list'|'too-high', text}]   // sc = sheet.spellcasting[i]
 addSpellIssues(records, sc, {className}) -> [{record, issues (+'cantrip-limit'|'prepared-limit'), prepared}]
 onCasterList(record, sc)   parseDice('2d10 + 3')   diceText({dice, bonus})   rollDice(expr|{dice,bonus}, rand)   cantripTier(level)
 ```
-Structured `attack` / `save` / `damage` first; the description is read only for: other damage types in the same
-sentence (Flame Strike, Ice Storm; "or" = alternatives), "X damage equal to 1d8 plus your spellcasting ability modifier",
-"XdY (+N) <Type> damage" when the record has no `damage` (Magic Missile, Disintegrate), "damage of the chosen type",
-dart/ray counts, and healing ("regains Hit Points equal to 2d8 plus your spellcasting ability modifier", fixed ≥ 10 HP).
-Cantrips scale by character level (5/11/17); levelled spells show base dice + the upcast rule. The sheet renders
+Structured `attack` / `save` / `damage` first (the record's damage leads), then every damage component in the text:
+"XdY (+N) <Type> damage" (several in one sentence: "and" = adds, "or" = alternatives, same type = later damage),
+"<Type> damage equal to XdY plus your spellcasting ability modifier", type lists ("5d8 Acid, Cold, Fire, Lightning, or
+Thunder damage"), "damage of the chosen type / a type you choose / the spirit's type / the type in parentheses" (the
+types come from the "choose …" sentence), "extra XdY damage", Delayed Blast Fireball's base damage; each other sentence
+is its own effect (chip). Weapon cantrips (True Strike, Shillelagh) attack with the spell ability; Prismatic Spray/Wall
+take their ray types from a fixed list (the table text is garbled). Mishap/side damage is skipped (Dimension Door,
+Teleport, Meld into Stone, Wish, Enlarge/Reduce). Healing: "regains Hit Points equal to XdY (+ mod)", "regains/restores
+N Hit Points", "half the damage dealt", "all its Hit Points". Audit (2026-10-22): 339 SRD spells, 178 show numbers;
+the rest are utility spells. Cantrips scale by character level (5/11/17); levelled spells show base dice + the upcast rule. The sheet renders
 to-hit / DC through `adjustedValue(sheet, 'spellAttack:<class>' | 'spellDc:<class>' | '…:innate:<group>')`.
 Spells added anyway (off the class list, above the highest slot level, no spellcasting class) are stored normally and
 get a live "off-list" mark on the sheet; nothing is blocked.
+
+## Bonus actions — `engine-actions.js` (pure; re-exported by `engine.js`), UI `sheet.js` `bonusActions()`
+```js
+isBonusActionSpell(record) -> bool                          // castingTime contains "Bonus Action"
+bonusActionOptions(description) -> [{label|null, text, more?:[label]}]   // sentences that GRANT a Bonus Action
+bonusActionFeatures(features) -> [{feature, options}]       // sheet.features (class, subclass, species, feat, custom);
+                                                            // custom abilities may also set activation:'bonus'
+featureHealing(text, sheet.classes) -> {dice, bonus, text}|null   // "1d10 plus your Fighter level" (Second Wind)
+offhandAttacks(sheet) -> {eligible, reason, twoWeaponFighting, nick, options:[{uid, name, bonus, damage, damageType, nick}]}
+```
+Riders and restrictions ("Whenever you … with a Bonus Action", "As part of the Bonus Action…", "can do only one of the
+following: … or take a Bonus Action") are not grants. Off-hand (2024 Light property): two equipped Light weapons (or a
+stack of 2), damage without the ability modifier unless negative (Two-Weapon Fighting keeps it); Nick noted.

@@ -100,15 +100,29 @@ function parseDamage(record) {
   const options = chosenTypes(sents);
   const DMG = new RegExp(`${DICE}\\s+(${DAMAGE_TYPES})\\s+damage`, 'gi');
   const WITH_MOD = new RegExp(`(${DAMAGE_TYPES})\\s+damage (?:to the target )?equal to ${DICE} plus your spellcasting ability modifier`, 'gi');
-  const CHOSEN = new RegExp(`${DICE} damage of (?:the|a) (?:chosen type|type you choose|spirit's type)`, 'gi');
+  const CHOSEN = new RegExp(`${DICE} damage of (?:the|a) (?:chosen type|type you choose|spirit's type|type in parentheses)`, 'gi');
   const EXTRA = new RegExp(`\\bextra ${DICE} damage\\b`, 'gi');
+  // "5d8 Acid, Cold, Fire, Lightning, or Thunder damage" (Glyph of Warding), "5d10 Radiant or Necrotic damage"
+  const T = `(?:${DAMAGE_TYPES})`;
+  const LIST = new RegExp(`${DICE}\\s+(${T}(?:,\\s+${T})*,?\\s+or\\s+${T})\\s+damage`, 'gi');
+  // Delayed Blast Fireball: "The spell's base damage is 12d6" + "takes Fire damage equal to the total"
+  const BASE = /\bbase damage is (\d+d\d+)/i;
+  const baseType = new RegExp(`\\b(${DAMAGE_TYPES}) damage equal to the total`, 'i').exec(desc)?.[1];
+  const parens = [...new Set([...desc.matchAll(new RegExp(`\\((${DAMAGE_TYPES})\\)`, 'gi'))].map((m) => m[1].toLowerCase()))];
   const comps = [];
   sents.forEach((s, si) => {
     const found = [];
-    for (const m of s.matchAll(DMG)) found.push({ dice: m[1], bonus: num(m[2]), type: m[3].toLowerCase(), index: m.index, end: m.index + m[0].length });
-    for (const m of s.matchAll(WITH_MOD)) found.push({ dice: m[2], bonus: num(m[3]), type: m[1].toLowerCase(), mod: true, index: m.index, end: m.index + m[0].length });
-    for (const m of s.matchAll(CHOSEN)) found.push({ dice: m[1], bonus: num(m[2]), type: 'chosen', types: options, index: m.index, end: m.index + m[0].length });
-    for (const m of s.matchAll(EXTRA)) found.push({ dice: m[1], bonus: num(m[2]), type: options ? 'chosen' : null, types: options, extra: true, index: m.index, end: m.index + m[0].length });
+    const at = (m, o) => found.push({ ...o, index: m.index, end: m.index + m[0].length });
+    for (const m of s.matchAll(DMG)) at(m, { dice: m[1], bonus: num(m[2]), type: m[3].toLowerCase() });
+    for (const m of s.matchAll(WITH_MOD)) at(m, { dice: m[2], bonus: num(m[3]), type: m[1].toLowerCase(), mod: true });
+    for (const m of s.matchAll(LIST)) at(m, { dice: m[1], bonus: num(m[2]), type: 'chosen', types: m[3].toLowerCase().split(/,\s*|\s+or\s+/).map((x) => x.replace(/^or\s+/, '').trim()).filter(Boolean) });
+    for (const m of s.matchAll(CHOSEN)) {
+      const inParens = /parentheses/i.test(m[0]);
+      at(m, { dice: m[1], bonus: num(m[2]), type: 'chosen', types: inParens ? (parens.length >= 2 ? parens : null) : options, mod: inParens && /spellcasting ability modifier for the attack and damage/i.test(s) });
+    }
+    for (const m of s.matchAll(EXTRA)) at(m, { dice: m[1], bonus: num(m[2]), type: options ? 'chosen' : null, types: options, extra: true });
+    const b = BASE.exec(s);
+    if (b && baseType) at(b, { dice: b[1], bonus: 0, type: baseType.toLowerCase() });
     found.sort((a, b) => a.index - b.index);
     let prev = null;
     for (const f of found) {
@@ -143,6 +157,32 @@ function parseDamage(record) {
   return { list: out, parsed };
 }
 
+/**
+ * Weapon cantrips (True Strike, Shillelagh): the attack uses the spellcasting ability; the damage is the weapon's
+ * (Shillelagh: the die becomes d8 → d10/d12/2d6) and True Strike adds Radiant dice at 5/11/17.
+ * -> {attack:'weapon', parts:[{dice|null, weapon?, mod, type, types?, join}]} | null
+ */
+function weaponCantrip(record, tier) {
+  if (num(record.level) !== 0) return null;
+  const desc = String(record.description || '');
+  const hl = String(record.higherLevel || '');
+  if (!/spellcasting ability (?:for|instead of)[^.]*attack and damage rolls/i.test(desc)) return null;
+  const T = `(${DAMAGE_TYPES})`;
+  const alt = new RegExp(`can be ${T} damage or the weapon's normal damage type`, 'i').exec(desc)?.[1]?.toLowerCase() || null;
+  const die = /weapon's damage die becomes an? (d\d+)/i.exec(desc)?.[1];
+  const tiers = /levels? 5 \((\d*d\d+)\),? 11 \((\d*d\d+)\),? and 17 \((\d*d\d+)\)/i.exec(hl);
+  const norm = (d) => (/^d/.test(d) ? `1${d}` : d);
+  const note = sentences(desc).filter((s) => /spellcasting ability|weapon's normal damage type/i.test(s)).join(' ').slice(0, 300);
+  if (die) {
+    const dice = [norm(die), ...(tiers ? tiers.slice(1, 4).map(norm) : [])][Math.min(tier, tiers ? 4 : 1) - 1];
+    return { attack: 'weapon', scaleTiers: tiers ? [norm(die), ...tiers.slice(1, 4).map(norm)] : null, parts: [{ dice, bonus: 0, mod: true, type: alt || null, types: alt ? [alt, 'weapon type'] : null, join: 'new', note }] };
+  }
+  const extra = new RegExp(`extra ${T} damage when you reach levels? 5 \\((\\d+d\\d+)\\),? 11 \\((\\d+d\\d+)\\),? and 17 \\((\\d+d\\d+)\\)`, 'i').exec(hl);
+  const parts = [{ dice: null, weapon: true, bonus: 0, mod: true, type: alt || null, types: alt ? [alt, 'weapon type'] : null, join: 'new', note }];
+  if (extra && tier > 1) parts.push({ dice: extra[tier], bonus: 0, type: extra[1].toLowerCase(), join: 'and', extra: true, note: '' });
+  return { attack: 'weapon', scaleTiers: extra ? [null, extra[2], extra[3], extra[4]] : null, parts };
+}
+
 function parseHealing(record) {
   const desc = String(record.description || '');
   const note = (m) => (sentences(desc).find((s) => s.includes(m[0])) || '').trim().slice(0, 220);
@@ -169,8 +209,11 @@ function countOf(record) {
  * Combat numbers of a spell record for a caster.
  *   opts.charLevel  character level (cantrip scaling)
  *   opts.caster     {attack, dc, mod} of the casting class / innate group (null: no numbers)
- * -> {attack:'ranged'|'melee'|null, toHit, save, dc, damage:[{dice, bonus, type, mod, text}], heal:{…, text}|null,
- *     count:{count, unit}|null, scaling:{tiers:[{level, dice|count}], current, next}|null, upcast:{…, text}|null,
+ * -> {attack:'ranged'|'melee'|'weapon'|null, toHit, save, dc,
+ *     damage:[{dice|null, bonus, type, types?, typeName, mod, extra?, weapon?, join, group, alt, note, text}],
+ *     damageGroups:[{parts, text, note, primary}] (one per effect), damageText ("a + b · c"),
+ *     heal:{dice, bonus, text, all?, half?, upTo?, note}|null, count:{count, unit}|null,
+ *     scaling:{kind, tiers:[{level, dice|count}], current, next}|null, upcast:{…, text}|null,
  *     parsed (damage came from the description), higherLevel}
  */
 export function spellStats(record, { charLevel = 1, caster = null } = {}) {
@@ -178,10 +221,19 @@ export function spellStats(record, { charLevel = 1, caster = null } = {}) {
   const level = num(r.level);
   const tier = cantripTier(charLevel);
   const mod = caster ? num(caster.mod) : 0;
-  const { list, parsed } = parseDamage(r);
+  let { list, parsed } = parseDamage(r);
   let scaling = null;
   let count = countOf(r);
-  if (level === 0 && list.length) {
+  let attack = r.attack || null;
+  const weapon = !list.length ? weaponCantrip(r, tier) : null;
+  if (weapon) {
+    list = weapon.parts;
+    attack = 'weapon';
+    parsed = true;
+    const t = weapon.scaleTiers;
+    if (t) scaling = { kind: 'dice', tiers: t.map((d, i) => ({ level: [1, ...CANTRIP_LEVELS][i], dice: d || '—' })), current: t[tier - 1] || '—' };
+  } else if (!attack && list.some((d) => d.mod && /Unarmed Strike/i.test(d.note || ''))) attack = 'melee'; // Alter Self's natural weapons
+  if (level === 0 && list.length && !weapon) {
     const tiers = cantripScaling(r, list[0].dice);
     if (tiers) {
       list[0].dice = tiers[tier - 1];
@@ -198,13 +250,15 @@ export function spellStats(record, { charLevel = 1, caster = null } = {}) {
     scaling.next = nextIdx >= 0 ? scaling.tiers[nextIdx + 1] : null;
   }
   const typeName = (d) => {
+    if (d.weapon) return ''; // True Strike: "weapon + 3" (Radiant or the weapon's type: see the tooltip)
     const ts = Array.isArray(d.types) && d.types.length ? d.types : null;
+    if (ts && ts.includes('weapon type')) return `${ts.filter((t) => t !== 'weapon type').map(cap).join('/')} or weapon type`;
     if (ts) return ts.map(cap).join('/');
     return d.type === 'varies' ? '(type varies)' : d.type === 'chosen' ? '(chosen type)' : d.type ? cap(d.type) : d.extra ? 'extra' : '';
   };
   const damage = list.map((d) => {
     const bonus = d.bonus + (d.mod && caster ? mod : 0);
-    const dice = diceText({ dice: d.dice, bonus });
+    const dice = d.weapon ? `weapon${bonus ? ` ${bonus < 0 ? '−' : '+'} ${Math.abs(bonus)}` : ''}` : diceText({ dice: d.dice, bonus });
     return { ...d, alt: d.join === 'or', bonus, typeName: typeName(d), text: `${dice}${d.mod && !caster ? ' + mod' : ''} ${typeName(d)}`.trim() };
   });
   // groups = one effect each (a sentence of the text): "5d6 Fire + 5d6 Radiant", "3d8 Radiant or Necrotic", "4d4 Acid, then 2d4 Acid"
@@ -231,7 +285,7 @@ export function spellStats(record, { charLevel = 1, caster = null } = {}) {
     };
   }
   return {
-    level, attack: r.attack || null, toHit: r.attack && caster ? num(caster.attack) : null,
+    level, attack, toHit: attack && caster ? num(caster.attack) : null,
     save: r.save || null, dc: r.save && caster ? num(caster.dc) : null,
     damage, damageGroups, damageText: damageGroups.map((g) => g.text).join(' · '),
     heal, count, scaling, upcast: upcastRule(r), parsed, higherLevel: r.higherLevel || null,

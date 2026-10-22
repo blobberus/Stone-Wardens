@@ -48,6 +48,7 @@ import { lastLeveledClass } from './engine-xp.js';
 export { buildRules, loadRules, invalidateRules, itemStats, averageHp, getChoiceValue, featPrereqReason };
 export { XP_TABLE, xpTable, xpForLevel, levelForXp, xpStatus, xpLevelsCrossed, addXp, setXp, xpAfterLevelChange, lastLeveledClass } from './engine-xp.js';
 export { spellStats, spellIssues, addSpellIssues, onCasterList, parseDice, rollDice, diceText, cantripTier } from './engine-spells.js';
+export { isBonusActionSpell, bonusActionOptions, bonusActionFeatures, featureHealing, offhandAttacks } from './engine-actions.js';
 export const ENGINE_VERSION = 1;
 
 const ensureRules = (rules) => (rules && rules.classById ? rules : buildRules(rules || {}));

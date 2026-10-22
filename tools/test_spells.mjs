@@ -175,6 +175,16 @@ section('spellStats');
   eq('Enlarge/Reduce weapon die is not spell damage', E.spellStats(spell('enlarge-reduce')).damage, []);
   eq('Aura of Life: the 1 HP it gives', E.spellStats(spell('aura-of-life')).heal.text, '1');
   eq('Chill Touch blocks healing (no heal)', E.spellStats(spell('chill-touch')).heal, null);
+  eq('Glyph of Warding type list', E.spellStats(spell('glyph-of-warding')).damageText, '5d8 Acid/Cold/Fire/Lightning/Thunder');
+  eq('Forbiddance radiant or necrotic', E.spellStats(spell('forbiddance')).damageText, '5d10 Radiant/Necrotic');
+  eq('Delayed Blast Fireball base damage', E.spellStats(spell('delayed-blast-fireball')).damageText, '12d6 Fire');
+  const ts = (l) => E.spellStats(spell('true-strike'), { charLevel: l, caster: wiz });
+  eq('True Strike: weapon attack with the spell ability, Radiant dice from level 5', [ts(1).attack, ts(1).toHit, ts(1).damageText, ts(5).damageText, ts(17).damageText],
+    ['weapon', 5, 'weapon + 3', 'weapon + 3 + 1d6 Radiant', 'weapon + 3 + 3d6 Radiant']);
+  eq('Shillelagh text', E.spellStats(spell('shillelagh'), { charLevel: 5, caster: wiz }).damageText, '1d10 + 3 Force or weapon type');
+  eq('Shillelagh die by level', [1, 5, 11, 17].map((l) => E.spellStats(spell('shillelagh'), { charLevel: l, caster: wiz }).damage[0].dice), ['1d8', '1d10', '1d12', '2d6']);
+  const as = E.spellStats(spell('alter-self'), { caster: wiz });
+  eq('Alter Self natural weapons', [as.attack, as.damageText], ['melee', '1d6 + 3 Slashing/Piercing/Bludgeoning']);
   eq('Shield: no numbers', [E.spellStats(spell('shield')).damage.length, E.spellStats(spell('shield')).heal], [0, null]);
   let ok = true;
   try { E.spellStats(null); E.spellStats({}); E.spellStats({ level: 0, damage: { dice: 'x' } }, { charLevel: 'a' }); } catch { ok = false; }
@@ -213,6 +223,41 @@ section('spell compatibility');
   const cadd = E.addSpellIssues([spell('bless'), spell('cure-wounds'), spell('guiding-bolt'), spell('healing-word'), spell('shield-of-faith')], csc);
   eq('cleric prepared limit', cadd.map((x) => x.issues.map((i) => i.code).join()), ['', '', '', '', 'prepared-limit']);
   check('always-prepared subclass spells are on the list', E.onCasterList({ id: 'x', classes: [] }, { lists: ['cleric'], alwaysPrepared: ['x'] }));
+}
+
+// ------------------------------------------------------------------------------------------------
+section('bonus actions');
+{
+  const feat = (id) => rules.featureById[id];
+  eq('Cunning Action', E.bonusActionOptions(feat('rogue-cunning-action').description).map((o) => o.text), ['On your turn, you can take one of the following actions as a Bonus Action: Dash, Disengage, or Hide.']);
+  eq('Monk\'s Focus options labelled', E.bonusActionOptions(feat('monk-monks-focus').description).map((o) => o.label), ['Flurry of Blows', 'Patient Defense', 'Patient Defense', 'Step of the Wind', 'Step of the Wind']);
+  eq('Rage: enter + extend', E.bonusActionOptions(feat('barbarian-rage').description).length, 2);
+  eq('Fast Hands lists its choices', E.bonusActionOptions(feat('thief-fast-hands').description)[0].more, ['Sleight of Hand', 'Use an Object']);
+  const inn = E.bonusActionOptions(feat('sorcerer-innate-sorcery').description)[0];
+  eq('Innate Sorcery inline list', [inn.text.endsWith('following benefits:'), inn.more.length], [true, 2]);
+  eq('riders and restrictions are not grants', ['fighter-tactical-shift', 'barbarian-instinctive-pounce', 'paladin-abjure-foes', 'rogue-devious-strikes', 'open-hand-fleet-step', 'sorcerer-sorcery-incarnate'].map((id) => E.bonusActionOptions(feat(id).description).length), [0, 0, 0, 0, 0, 0]);
+  check('species trait: Orc Adrenaline Rush', E.bonusActionOptions(rules.speciesById.orc.traits.find((t) => t.id === 'adrenaline-rush').description).length >= 1);
+  eq('Bonus Action spells', ['healing-word', 'misty-step', 'spiritual-weapon', 'fireball', 'shield'].map((id) => E.isBonusActionSpell(spell(id))), [true, true, true, false, false]);
+  eq('Second Wind healing', E.featureHealing(feat('fighter-second-wind').description, [{ id: 'fighter', name: 'Fighter', level: 3 }]), { dice: '1d10', bonus: 3, text: '1d10 + 3' });
+  const custom = E.bonusActionFeatures([{ id: 'x', name: 'Stone Step', description: 'You can step through stone.', activation: 'bonus' }, { id: 'y', name: 'Plain', description: 'Nothing.' }]);
+  eq('custom ability flagged as a Bonus Action', custom.map((x) => x.feature.id), ['x']);
+  const rogue = char({
+    baseAbilities: { str: 10, dex: 16, con: 12, int: 10, wis: 12, cha: 10 },
+    classes: [{ id: 'rogue', level: 3, subclass: 'thief', hp: [8, 5, 5] }],
+    inventory: [{ uid: 'a', kind: 'weapon', ref: 'shortsword', name: 'Shortsword', qty: 1, equipped: true }, { uid: 'b', kind: 'weapon', ref: 'dagger', name: 'Dagger', qty: 1, equipped: true }],
+    choices: { 'rogue-weapon-mastery@rogue:1': ['dagger', 'shortsword'] },
+  });
+  const rs = E.derive(rogue, rules);
+  const off = E.offhandAttacks(rs);
+  eq('off-hand: two Light weapons, no DEX on damage, Nick noted', [off.eligible, off.options.map((o) => [o.name, o.damage]), off.nick], [true, [['Shortsword', '1d6'], ['Dagger', '1d4']], true]);
+  const names = E.bonusActionFeatures(rs.features).map((x) => x.feature.id);
+  check('rogue/thief features: Cunning Action, Fast Hands', names.includes('rogue-cunning-action') && names.includes('thief-fast-hands'), names);
+  const one = E.offhandAttacks(E.derive({ ...rogue, inventory: [rogue.inventory[0]] }, rules));
+  eq('one Light weapon: not eligible', [one.eligible, one.options.length], [false, 0]);
+  const pair = E.offhandAttacks(E.derive({ ...rogue, inventory: [{ ...rogue.inventory[1], qty: 2 }] }, rules));
+  eq('two daggers in one stack count', pair.eligible, true);
+  const twf = E.offhandAttacks({ ...rs, features: [...rs.features, { id: 'two-weapon-fighting', name: 'Two-Weapon Fighting' }] });
+  eq('Two-Weapon Fighting keeps the modifier', twf.options.map((o) => o.damage), ['1d6+3', '1d4+3']);
 }
 
 // ------------------------------------------------------------------------------------------------
