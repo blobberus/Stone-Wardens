@@ -8,6 +8,7 @@ import { VIEW, ABILITIES, listCharacters, listTrash, pathOf, totalLevel } from '
 import { derive, entryName, pendingChoices } from './bridge.js';
 import { portrait, hpBar, fmt } from './widgets.js';
 import { TRASH_ROUTE } from './trash.js';
+import { levelsDue } from './xp.js';
 
 const state = { q: '', sort: 'name' };
 
@@ -66,6 +67,8 @@ function card({ char, sheet }) {
   const line = [char.species.id ? entryName('species', char.species.id) : null, sheet.classLine || 'No class yet'].filter(Boolean).join(' · ');
   let pending = 0;
   try { pending = pendingChoices(char, sheet).length; } catch { pending = 0; }
+  let due = 0;
+  try { due = levelsDue(char); } catch { due = 0; }
   const dirty = store.isDirty(pathOf(char.id));
   return h('a', { class: 'card ch-card', href: href(VIEW, char.id), 'aria-label': `${char.name || 'Unnamed'}, ${line}` },
     h('div', { class: 'ch-card-top' },
@@ -83,7 +86,8 @@ function card({ char, sheet }) {
       stat('AC', sheet.ac.value), stat('Init', fmt(sheet.initiative)), stat('Speed', `${sheet.speed.walk ?? 30}`), stat('Passive', sheet.passive.perception)),
     h('div', { class: 'ch-card-abil', 'aria-label': 'Ability modifiers' }, ABILITIES.map((a) => h('span', { class: 'ch-card-ab', title: `${a.full} ${sheet.abilities[a.id].score}` },
       h('span', { class: 'ch-card-ab-name' }, a.name), h('span', { class: 'num' }, fmt(sheet.abilities[a.id].mod))))),
-    pending || dirty || char.conditions.length ? h('div', { class: 'ch-card-foot row' },
+    pending || due || dirty || char.conditions.length ? h('div', { class: 'ch-card-foot row' },
+      due ? h('span', { class: 'badge badge-ok', title: 'Enough XP for a new level' }, due > 1 ? `Level up · ${due} due` : 'Level up due') : null,
       pending ? h('span', { class: 'badge badge-warn' }, `${pending} choice${pending === 1 ? '' : 's'} pending`) : null,
       char.conditions.length ? h('span', { class: 'badge badge-danger' }, char.conditions.map((c) => entryName('condition', c)).join(', ')) : null,
       dirty ? h('span', { class: 'badge', title: 'Edited on this device; press Save to share' }, 'Unsaved') : null) : null);

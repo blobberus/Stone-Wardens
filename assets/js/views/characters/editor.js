@@ -22,6 +22,9 @@ import { store } from '../../core/store.js';
 import { saveNow } from '../../core/saving.js';
 import { hasPendingWrite, DEFAULT_ACCENT, ACCENT_PRESETS } from './data.js';
 import { accentOf, accentInk, profMark } from './widgets.js';
+// XP set here opens Level Up when it crosses a threshold (same as the sheet's XP window)
+import { setXp, xpLevelsCrossed, xpStatus, charLevel } from './engine-xp.js';
+import { levelUpFlow } from './levelup.js';
 
 const SECTIONS = [
   ['identity', 'Identity'], ['classes', 'Classes & levels'], ['origin', 'Species & background'], ['abilities', 'Ability scores'],
@@ -142,10 +145,28 @@ function identity({ c }) {
     h('div', { class: 'field-grid' },
       field('Name', input({ value: c.name, 'data-fk': 'e-name', onchange: (e) => mutate((x) => { x.name = e.target.value.trim(); }) })),
       field('Player', input({ value: c.player, 'data-fk': 'e-player', onchange: (e) => mutate((x) => { x.player = e.target.value.trim(); }) })),
-      field('Experience points', numberInput(c.xp, (v) => mutate((x) => { x.xp = Math.max(0, v || 0); }), { min: 0, 'data-fk': 'e-xp' }), xpHint(c))),
+      field('Experience points', numberInput(c.xp, (v) => changeXp(v), { min: 0, 'data-fk': 'e-xp' }), xpHint(c))),
     portraitField(c, (v) => mutate((x) => { x.portrait = v; })),
     accentField(c),
     h('p', { class: 'muted ui text-sm' }, `Created ${c.created ? new Date(c.created).toLocaleDateString() : '—'}${c.createdBy ? ` by ${c.createdBy}` : ''} · id ${c.id}`));
+}
+
+/** Store the XP total (logged like the XP window); crossing a threshold above the current level opens Level Up. */
+function changeXp(v) {
+  const c = E.char;
+  const before = Number(c.xp) || 0;
+  const next = setXp(c, Math.max(0, v || 0), { note: 'Set in Edit all' });
+  const crossed = xpLevelsCrossed(before, next.xp, charLevel(next), R());
+  E.char = next;
+  persist(next);
+  render();
+  if (crossed <= 0) return;
+  const st = xpStatus(next, R());
+  toast(`${next.name || 'The character'} reached level ${st.xpLevel}${st.due > 1 ? ` (${st.due} levels to take)` : ''}!`, { type: 'success', timeout: 5000 });
+  setTimeout(() => {
+    flushPersist(next.id);
+    levelUpFlow(E.char, { fromXp: true, onApply: (lv) => { E.char = lv; persist(lv); render(); toast(`Now level ${totalLevel(lv)}.`, { type: 'success' }); } });
+  }, 0);
 }
 
 /** Sheet highlight colour: colour input + pigment presets + default, with a live sample ability box. */

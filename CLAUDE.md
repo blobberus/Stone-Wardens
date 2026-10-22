@@ -97,7 +97,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).
-- Rules engine: `node tools/test_engine.mjs` (must stay green; add cases when changing engine*.js).
+- Rules engine: `node tools/test_engine.mjs` and `node tools/test_spells.mjs` (spell numbers, XP; both must stay
+  green; add cases when changing engine*.js).
 - Syntax: portable `node --check`. Markdown renderer can be exercised in Node by stubbing `DOMPurify.sanitize`.
 
 ## Status (2026-10-21)

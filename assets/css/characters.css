@@ -605,8 +605,7 @@ div.ch-optcard { cursor: default; }
 
 /* ---------- responsive ------------------------------------------------------- */
 @media (max-width: 1180px) {
-  .ch-combat { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .ch-combat-stats { grid-column: 1 / -1; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .ch-combat { grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr); }
   .ch-builder { grid-template-columns: 190px minmax(0, 1fr); }
   .ch-summary { grid-column: 1 / -1; position: static; }
 }
@@ -622,8 +621,7 @@ div.ch-optcard { cursor: default; }
   .ch-head-actions { justify-content: flex-start; }
   .ch-portrait-lg { width: 76px; height: 76px; }
   .ch-name { font-size: var(--text-xl); }
-  .ch-combat { grid-template-columns: minmax(0, 1fr); }
-  .ch-combat-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ch-combat { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stats" "hp" "side"; }
   .ch-stat { min-height: 76px; }
   .ch-builder { grid-template-columns: minmax(0, 1fr); }
   .ch-steps { position: static; }
@@ -641,6 +639,7 @@ div.ch-optcard { cursor: default; }
   .ch-abil-save { min-height: 40px; }
 }
 @media (max-width: 479px) {
+  .ch-combat-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ch-combat-side { grid-template-columns: minmax(0, 1fr); }
   .ch-card-abil { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ch-kind-grid { grid-template-columns: minmax(0, 1fr); }
