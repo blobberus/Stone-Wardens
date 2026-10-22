@@ -1,0 +1,177 @@
+{
+  "id": "test-character-1-wqku",
+  "name": "Test Character 1",
+  "player": "Blobberus",
+  "portrait": null,
+  "species": {
+    "id": "elf",
+    "subspecies": null,
+    "size": null
+  },
+  "background": {
+    "id": "acolyte",
+    "abilityBonuses": {
+      "int": 2,
+      "wis": 1
+    }
+  },
+  "classes": [
+    {
+      "id": "rogue",
+      "level": 1,
+      "subclass": null,
+      "hp": [
+        8
+      ]
+    }
+  ],
+  "abilityMethod": "standard",
+  "baseAbilities": {
+    "str": 13,
+    "dex": 14,
+    "con": 10,
+    "int": 15,
+    "wis": 8,
+    "cha": 12
+  },
+  "choices": {
+    "background:abilities": {
+      "int": 2,
+      "wis": 1
+    },
+    "origin:languages": [
+      "common-sign-language",
+      "druidic"
+    ],
+    "feat:magic-initiate/1": [
+      "light",
+      "sacred-flame"
+    ],
+    "feat:magic-initiate/spellcasting-ability": "int",
+    "feat:magic-initiate/2": [
+      "cure-wounds"
+    ],
+    "class-skills@rogue:1": [
+      "acrobatics",
+      "deception",
+      "insight",
+      "sleight-of-hand"
+    ],
+    "rogue-expertise@rogue:1": [
+      "sleight-of-hand",
+      "religion"
+    ],
+    "rogue-thieves-cant@rogue:1": [
+      "draconic"
+    ],
+    "rogue-weapon-mastery@rogue:1": [
+      "dagger",
+      "dart"
+    ]
+  },
+  "skills": [
+    "acrobatics",
+    "deception",
+    "insight",
+    "sleight-of-hand"
+  ],
+  "extraProficiencies": {
+    "skills": [],
+    "expertise": [],
+    "saves": [],
+    "armor": [],
+    "weapons": [],
+    "tools": [],
+    "languages": []
+  },
+  "feats": [],
+  "spells": [],
+  "slotsUsed": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "pactUsed": 0,
+  "inventory": [
+    {
+      "uid": "fmfsfo",
+      "kind": "weapon",
+      "ref": "spear",
+      "name": "Spear",
+      "qty": 1,
+      "equipped": true,
+      "attuned": false,
+      "notes": "",
+      "custom": null
+    }
+  ],
+  "currency": {
+    "cp": 0,
+    "sp": 0,
+    "ep": 0,
+    "gp": 0,
+    "pp": 0
+  },
+  "hp": {
+    "current": 8,
+    "temp": 0
+  },
+  "hitDiceUsed": {},
+  "deathSaves": {
+    "success": 0,
+    "fail": 0
+  },
+  "resourcesUsed": {},
+  "conditions": [],
+  "exhaustion": 0,
+  "heroicInspiration": false,
+  "xp": 0,
+  "abilities": [],
+  "overrides": {
+    "ac": null,
+    "speed": null,
+    "initiative": null,
+    "hpMax": null,
+    "profBonus": null,
+    "passivePerception": null,
+    "abilities": {},
+    "saves": {},
+    "skills": {}
+  },
+  "details": {
+    "alignment": "",
+    "pronouns": "",
+    "gender": "",
+    "sexuality": "",
+    "age": "",
+    "height": "",
+    "weight": "",
+    "eyes": "",
+    "hair": "",
+    "skin": "",
+    "location": "",
+    "groups": "",
+    "religion": "",
+    "appearance": "",
+    "personalityTraits": "",
+    "socialTraits": "",
+    "mentalTraits": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "likes": "",
+    "dislikes": "",
+    "resistances": "",
+    "backstory": "",
+    "notes": ""
+  },
+  "createdBy": "Blobberus",
+  "created": "2026-10-22T04:25:57.154Z",
+  "updated": "2026-10-22T04:26:46.448Z"
+}
