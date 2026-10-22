@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "kdf": {
+    "name": "PBKDF2",
+    "hash": "SHA-256",
+    "iterations": 600000,
+    "salt": "YUYWGYSTy4gNrMARA26jYQ=="
+  },
+  "cipher": {
+    "name": "AES-GCM",
+    "iv": "OHl9VneXFWrCfKes"
+  },
+  "data": "6bD3oRFUc6ObTXKxDcu5KzdpGsfQCWpFfjPvUAanZtEb0M5GoV2Nh4/GiYMSFIxbXmpfzKlcOWfvIVKwIJ7fTAOT0NxRjZODtkS6ttbiNieR0NNLdhnpAntIZ8Mh3EOb1TfFya/Paeogq5Op++CxFJ2j3IUl1/liMg==",
+  "repo": {
+    "owner": "blobberus",
+    "repo": "Stone-Wardens",
+    "branch": "main"
+  },
+  "created": "2026-10-22T03:49:07.717Z"
+}
