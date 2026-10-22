@@ -55,11 +55,11 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   and auto-commit off it shows a "Save now" toast after `saveReminder` minutes instead. Views call `saveNow()` from
   `core/saving.js` for a Save button that behaves like the sidebar one. Big changes call `saveSoon(reason)` right
   after the edit (setting `saveMajorNow`, default on): uploads (library, map image, journal photos, portraits of saved
-  sheets), new/deleted/moved places, sub-maps, Done in map edit mode, custom library entries (inside
+  sheets), library document renames, new/deleted/moved places, sub-maps, Done in map edit mode, custom library entries (inside
   `compendium.saveCustom/removeCustom`), new/deleted/restored characters, journal note/folder delete and move. Calls
   within 1.5 s make one commit (message `<player>: <reasons>`), one batch at a time; it waits for a running save and
   skips when that save failed or was cancelled at a conflict (drafts stay). `majorSaveOn()` / `saveHint()` pick toast
-  wording. Small edits (typing, place descriptions, renames) keep the timer.
+  wording. Small edits (typing, place descriptions, map / note / folder renames) keep the timer.
 - Sandbox mode (`?sandbox`, or no vault on localhost): same API backed by IndexedDB only.
 - JSON docs are pretty-printed (2 spaces). Ids: `slug-xxxx` (`util.uid(name)`), filename = id.
 
@@ -97,7 +97,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   after `preloadAll()`), `entry(kind, id)`, `findByName(kind, name)`, `saveCustom(kind, obj)`, `removeCustom`,
   `srd(name)` raw loader (`srd('rules')`, `srd('features')`). Every entry has `kind` and
   `origin: 'srd'|'stub'|'custom'` (`source` = book name for stubs). Custom overrides same id.
-- `settings.js`: `getSetting(k)`, `setSetting(k,v)` (playerName, autoSaveMinutes, saveMajorNow, autoCommit, autoCommitDelay, saveReminder, theme, sidebarCollapsed, sheet fold keys).
+- `settings.js`: `getSetting(k)`, `setSetting(k,v)` (playerName, autoSaveMinutes, saveMajorNow, autoCommit, autoCommitDelay, saveReminder, theme, sidebarCollapsed, sheet fold keys, `wl*` library keys).
   localStorage `sw:settings` holds only values that differ from DEFAULTS (`_v: 2`), so changing a default reaches
   everyone who never picked one; v1 blobs (every key) are migrated once on read.
 
@@ -113,6 +113,20 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   `path:` `file:` `"phrase"` `-word`) | Tags (nested); main pane = one journal-shaped page, Read/Edit (Ctrl+E),
   quick switcher (Ctrl+O/K); right pane Properties, Outline, Backlinks (+ unlinked), Outgoing links.
 - Per-device UI state in localStorage `sw:journal:*`. Other views link notes with `href('journal', first || '_', rest)`.
+
+## Warden's Library tab
+- `views/wardens-library/`: `files.js` (model: types, display names from file names, shelves = folders, `findDoc`),
+  `reader.js` (renders one document by type), `upload.js` (stage files with `putBinary`), `index.js` (shelves +
+  reader routing, `[[doc:…]]` link type). Per-device settings `wlSort`, `wlLayout`, `wlInfoCollapsed`.
+- Reader head: breadcrumb + "Hide details" toggle, title, meta line (type, size, file), actions (shelf steps,
+  Download, Open in new tab, Rename, Remove). Folded (`wlInfoCollapsed`, `.wl-reader.is-folded`) it is one slim bar:
+  back arrow, title, the reading actions (incl. Rename) as icons, "Show details". PDF iframe, image stage and video
+  fill the rest of the view (flex; the image/video stage is a `container-type: size` box), so folding gives them the height.
+- Rename (`renameDoc(doc)` in index.js; reader head, table row, card tools): the user edits the display name only;
+  extension and shelf stay, the name goes through `safeFileName`; empty/unchanged/clashing (case-insensitive) names are
+  refused with a toast. Copies the blob to the new path (`putBinary`), `store.remove`s the old one (an unsaved upload
+  is simply dropped), and an open document follows with `navigate(…, {replace:true})`; then `saveSoon` commits it.
+  Known gap: `[[doc:Old name]]` links are not rewritten (same as map renames).
 
 ## Characters tab
 - Engine (pure, Node-testable): `engine.js` facade + `engine-{rules,choices,derive,adjust,items,known,spells,actions,prof,tags,xp,util}.js`

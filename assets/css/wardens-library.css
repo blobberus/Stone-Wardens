@@ -166,19 +166,22 @@
 }
 .wl-card-meta .badge { height: 20px; padding: 0 5px; }
 
-.wl-card-del {
+/* Rename / Remove, shown on hover or focus (always on touch screens) */
+.wl-card-tools {
   position: absolute;
   top: var(--space-2);
   right: var(--space-2);
   z-index: 2;
-  background: var(--surface);
-  border-color: var(--border);
+  display: flex;
+  gap: var(--space-1);
   opacity: 0;
-  transition: opacity var(--dur) var(--ease), background-color var(--dur) var(--ease), color var(--dur) var(--ease);
+  transition: opacity var(--dur) var(--ease);
 }
-.wl-card:hover .wl-card-del, .wl-card:focus-within .wl-card-del { opacity: 1; }
+.wl-card:hover .wl-card-tools, .wl-card:focus-within .wl-card-tools { opacity: 1; }
+@media (hover: none) { .wl-card-tools { opacity: 1; } }
+.wl-card-tool { background: var(--surface); border-color: var(--border); }
+.wl-card-tool:hover { color: var(--ink); background: var(--surface-2); border-color: var(--border-strong); }
 .wl-card-del:hover { color: var(--danger); background: var(--danger-soft); border-color: var(--danger); }
-@media (hover: none) { .wl-card-del { opacity: 1; } }
 
 /* ---------- Reference table ----------------------------------------------- */
 .wl-table td { vertical-align: middle; }
@@ -214,15 +217,18 @@
 
 /* ---------- Reader: header ------------------------------------------------- */
 .wl-reader { display: flex; flex: 1 0 auto; flex-direction: column; min-width: 0; }
+/* Breadcrumb + "Hide details" on the first row, title and actions below. */
 .wl-reader-head {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-5);
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--border);
 }
 .wl-crumbs {
+  grid-area: 1 / 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -232,7 +238,10 @@
 }
 .wl-back { display: inline-flex; align-items: center; gap: 6px; color: var(--link); text-decoration: none; }
 .wl-back:hover { color: var(--link-hover); text-decoration: underline; }
+.wl-fold { grid-area: 1 / 2; margin-block: -5px; color: var(--ink-muted); } /* sits in the breadcrumb line without heightening it */
+.wl-fold:hover { color: var(--ink); }
 .wl-reader-bar {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
@@ -277,6 +286,54 @@
 .wl-del:hover { color: var(--danger); background: var(--danger-soft); }
 .wl-file-link[aria-disabled="true"] { pointer-events: none; }
 a.wl-file-link:not(.btn)[aria-disabled="true"] { color: var(--ink-muted); }
+
+/* Folded (setting wlInfoCollapsed): one slim bar of back arrow, title, reading actions as icons, "Show details".
+   The shelf path, type/size/file line, Remove and the action labels are hidden; the document takes the height. */
+.view[data-view="wardens-library"]:has(.wl-reader.is-folded:not([hidden])) {
+  padding-top: var(--space-3);
+  scroll-padding-top: var(--space-3);
+  --stick-top: calc(var(--space-3) * -1);
+}
+.wl-reader.is-folded .wl-reader-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+.wl-reader.is-folded :is(.wl-crumb, .wl-crumb-sep, .wl-reader-meta, .wl-del) { display: none; }
+.wl-reader.is-folded .wl-crumbs { flex: none; }
+.wl-reader.is-folded .wl-back {
+  justify-content: center;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  font-size: var(--text-lg);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--dur) var(--ease);
+}
+.wl-reader.is-folded .wl-back:hover { text-decoration: none; background: var(--surface-2); }
+.wl-reader.is-folded :is(.wl-back-label, .wl-act-label) {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+.wl-reader.is-folded .wl-reader-bar { flex: 1 1 auto; flex-wrap: nowrap; align-items: center; gap: var(--space-3); min-width: 0; }
+.wl-reader.is-folded .wl-reader-titles { flex: 1 1 auto; }
+.wl-reader.is-folded .wl-reader-title {
+  overflow: hidden;
+  font-size: var(--text-lg);
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+}
+.wl-reader.is-folded .wl-reader-actions { flex: none; flex-wrap: nowrap; gap: var(--space-1); }
+.wl-reader.is-folded .wl-reader-actions .btn:not(.btn-icon) { width: var(--control-h-sm); padding: 0; }
+.wl-reader.is-folded .wl-steps { margin-right: var(--space-2); }
+.wl-reader.is-folded .wl-fold { flex: none; margin-block: 0; }
+@media (min-width: 760px) {
+  .wl-reader.is-folded .wl-pdf-hint { display: none; } /* Open and Download stay in the slim bar */
+}
+.wl-reader.is-unfolding :is(.wl-crumb, .wl-crumb-sep, .wl-back-label, .wl-reader-meta) { animation: sw-fade var(--dur) var(--ease); }
 
 /* ---------- Reader: body --------------------------------------------------- */
 .wl-reader-body { display: flex; flex: 1 0 auto; flex-direction: column; min-width: 0; }
@@ -332,17 +389,19 @@ a.wl-file-link:not(.btn)[aria-disabled="true"] { color: var(--ink-muted); }
   tab-size: 4;
 }
 
-/* Images: fit to the screen, or actual size with scrolling */
-.wl-img-view { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+/* Images: fit to the screen, or actual size with scrolling. Like the PDF, the stage fills the rest of the view
+   (so it grows when the details are folded); `container-type: size` lets the fitted picture measure it (cqh). */
+.wl-img-view { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .wl-img-bar { display: flex; align-items: center; gap: var(--space-3); }
 .wl-img-dims { font: 400 var(--text-xs) / 1 var(--font-ui); font-variant-numeric: tabular-nums; color: var(--ink-muted); }
 .wl-img-stage {
   display: flex;
+  flex: 1 1 0;
   align-items: flex-start;
   min-height: 12rem;
-  max-height: max(16rem, calc(100dvh - 15rem));
   padding: var(--space-3);
   overflow: auto;
+  container-type: size;
   background: var(--bg-sunk);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -351,17 +410,18 @@ a.wl-file-link:not(.btn)[aria-disabled="true"] { color: var(--ink-muted); }
 .wl-img-stage.is-fit { align-items: center; }
 .wl-img-stage.is-fit .wl-img {
   max-width: 100%;
-  max-height: max(14rem, calc(100dvh - 17rem));
+  max-height: 100cqh;
   width: auto;
   height: auto;
   object-fit: contain;
   cursor: zoom-in;
 }
 
-/* Audio / video */
+/* Audio / video (video fills the rest of the view the same way) */
 .wl-media { display: flex; justify-content: center; }
+.wl-media-video { flex: 1 1 0; align-items: flex-start; min-height: 14rem; container-type: size; }
 .wl-audio { width: min(100%, 40rem); margin-top: var(--space-5); }
-.wl-video { max-width: 100%; max-height: max(14rem, calc(100dvh - 14rem)); background: var(--bg-sunk); border-radius: var(--radius); }
+.wl-video { max-width: 100%; max-height: 100cqh; background: var(--bg-sunk); border-radius: var(--radius); }
 
 /* Loading, error and notice cards */
 .wl-state {
@@ -540,12 +600,23 @@ a.wl-file-link:not(.btn)[aria-disabled="true"] { color: var(--ink-muted); }
   .wl-table .wl-shelf-cell { display: none; }
   .wl-reader-title { font-size: var(--text-xl); }
   .wl-reader-actions { width: 100%; }
-  .wl-reader-actions .wl-btn-label {
+  .wl-reader-actions .wl-btn-label,
+  .wl-reader-actions:has(.wl-steps) .wl-act-label {
     position: absolute; width: 1px; height: 1px; overflow: hidden;
     clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
   }
+  .wl-reader-actions:has(.wl-steps) .wl-act-download { width: 40px; padding: 0; } /* keeps the shelf steps and four actions on one line */
   .wl-pager { grid-template-columns: minmax(0, 1fr); }
   .wl-pager-link.is-next { grid-column: auto; }
   .wl-pager-gap { display: none; }
   .wl-pdf { min-height: 70dvh; }
+  .wl-fold { margin-block: -10px; }
+  /* Folded on a phone: back, title, Download, "Show details" (icon); shelf steps and Open wait for the details. */
+  .wl-reader.is-folded :is(.wl-steps, .wl-act-open) { display: none; }
+  .wl-reader.is-folded .wl-reader-actions { width: auto; }
+  .wl-reader.is-folded :is(.wl-back, .wl-reader-actions .btn:not(.btn-icon), .wl-fold) { width: 40px; min-width: 40px; height: 40px; padding: 0; }
+  .wl-reader.is-folded .wl-fold-label {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+  }
 }

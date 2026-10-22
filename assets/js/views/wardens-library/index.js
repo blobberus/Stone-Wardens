@@ -1,7 +1,7 @@
 // Warden's Library: campaign documents from wardens-library/ (PDF, Word, Markdown, text, images) on shelves,
 // with an in-browser reader. #/wardens-library = shelves, #/wardens-library/<path segments> = reader.
 import { h, clear } from '../../core/dom.js';
-import { icon, toast, confirmDialog, select } from '../../core/ui.js';
+import { icon, toast, confirmDialog, promptDialog, select } from '../../core/ui.js';
 import { store } from '../../core/store.js';
 import { navigate, href } from '../../core/router.js';
 import { registerLinkType, matchNames } from '../../core/links.js';
@@ -11,7 +11,7 @@ import { saveSoon, majorSaveOn } from '../../core/saving.js';
 import { nameKey, baseName } from '../../core/util.js';
 import {
   VIEW, ROOT, README, TYPES, listDocs, readmeFile, docAt, docHref, shelfLabel, prettify, findDoc, linkTarget,
-  shelfSiblings, fmtSize, LARGE_BYTES,
+  shelfSiblings, fmtSize, LARGE_BYTES, displayName, safeFileName, safeSegment,
 } from './files.js';
 import { renderDocument, canInlinePdf, opensInBrowser, errorText, pdfPage, scrollToAnchor } from './reader.js';
 import { openUploadDialog } from './upload.js';
@@ -98,6 +98,63 @@ async function removeDoc(doc) {
   store.remove(doc.path);
   if (inRepo) saveSoon(`remove ${doc.path}`);
   toast(inRepo ? `Removed “${doc.name}”.${now ? '' : ' Press Save to delete it from the repository.'}` : `Discarded “${doc.name}”.`);
+}
+
+/**
+ * Rename a document. The user edits its display name only: the extension and the shelf (folder) stay, and the
+ * name goes through the same safe-file-name rule as uploads. The file is copied to the new path and the old path
+ * removed, so a saved document and an unsaved upload alike end up as one staged file under the new name (the
+ * old one is deleted from the repository on Save). An open document follows to its new address.
+ * Resolves the new path, or null when cancelled or refused.
+ */
+export async function renameDoc(doc) {
+  const from = document.activeElement;
+  const refocus = (path) => {
+    const el = path ? root?.querySelector(`.wl-rename[data-path="${CSS.escape(path)}"]`) : null;
+    (el || (from?.isConnected ? from : null))?.focus();
+  };
+  if (store.saving) { toast('Saving is in progress. Rename the document once it has finished.', { type: 'error' }); return null; }
+  const ext = doc.ext;
+  const value = await promptDialog(`Rename “${doc.name}”`, {
+    label: ext ? `Name (it stays a .${ext} file on ${doc.shelf ? `the ${shelfLabel(doc.shelf)} shelf` : 'the General shelf'})` : 'Name',
+    value: doc.name,
+    okLabel: 'Rename',
+  });
+  if (value == null) { refocus(); return null; }
+  let name = value.trim();
+  if (ext && name.toLowerCase().endsWith(`.${ext.toLowerCase()}`)) name = name.slice(0, -(ext.length + 1)).trim(); // typed the extension too
+  const refuse = (msg) => { toast(msg, { type: 'error' }); refocus(); return null; };
+  if (!name) return refuse('A document needs a name.');
+  if (!safeSegment(name)) return refuse('Use some letters or numbers in the name.');
+  const file = safeFileName(ext ? `${name}.${ext}` : name);
+  const path = doc.path.slice(0, doc.path.length - doc.file.length) + file;
+  if (path === doc.path || displayName(file) === doc.name) { toast(`“${doc.name}” already has that name.`); refocus(); return null; }
+  // Case-insensitive, so the repository stays usable on Windows and macOS checkouts.
+  const clash = store.files(ROOT).find((f) => f.path !== doc.path && f.path.toLowerCase() === path.toLowerCase());
+  if (clash) return refuse(`“${displayName(file)}” is already on this shelf (${baseName(clash.path)}). Choose another name.`);
+  if (!docAt(doc.path)) return refuse(`“${doc.name}” is no longer in the library.`);
+
+  const close = doc.size > 2 * 1024 * 1024 ? toast(`Renaming ${doc.file}…`, { timeout: 0 }) : null;
+  try {
+    const blob = await store.fileBlob(doc.path);
+    if (!blob) throw Object.assign(new Error('missing'), { code: 'missing' });
+    await store.putBinary(path, blob);
+  } catch (e) {
+    console.error('[wardens-library] rename failed', e);
+    return refuse(`Could not rename ${doc.file}: ${errorText(e)}`);
+  } finally { close?.(); }
+  const open = mode === 'reader' && reader?.path === doc.path;
+  const qs = open ? location.hash.split('?')[1] : '';
+  store.remove(doc.path); // drops an unsaved upload outright; a saved file becomes a deletion committed on Save
+  // Replace the history entry: the old address no longer leads anywhere. (Synchronous, so the "removed" notice
+  // the store event draws for the old path is never painted.)
+  if (open) navigate(docHref(path) + (qs ? `?${qs}` : ''), { replace: true });
+  // The rename is staged (new file + removal of the old one): a big change, committed right away when that's on.
+  const now = majorSaveOn();
+  saveSoon(`rename ${doc.path} to ${file}`);
+  toast(`Renamed to “${displayName(file)}”.${now ? '' : ` Press Save to ${store.mode === 'sandbox' ? 'keep' : 'commit'} it.`}`, { type: 'success' });
+  refocus(path);
+  return path;
 }
 
 function openUpload(opts = {}) {
@@ -295,10 +352,15 @@ function card(doc) {
         h('span', { class: 'wl-dot', 'aria-hidden': 'true' }, '·'),
         h('span', null, fmtSize(doc.size)),
         doc.staged ? stagedBadge() : null)),
-    h('button', {
-      class: 'btn-icon btn-sm wl-card-del', type: 'button', title: `Remove ${doc.name}`, 'aria-label': `Remove ${doc.name}`,
-      onclick: () => removeDoc(doc),
-    }, icon('trash')));
+    h('div', { class: 'wl-card-tools' },
+      h('button', {
+        class: 'btn-icon btn-sm wl-card-tool wl-rename', type: 'button', title: `Rename ${doc.name}`, 'aria-label': `Rename ${doc.name}`,
+        'data-path': doc.path, onclick: () => renameDoc(doc),
+      }, icon('edit')),
+      h('button', {
+        class: 'btn-icon btn-sm wl-card-tool wl-card-del', type: 'button', title: `Remove ${doc.name}`, 'aria-label': `Remove ${doc.name}`,
+        onclick: () => removeDoc(doc),
+      }, icon('trash'))));
 }
 
 function thumb(doc) {
@@ -325,7 +387,7 @@ function thumb(doc) {
 }
 
 function renderTable(docs) {
-  const iconBtn = (name, label, onclick) => h('button', { class: 'btn-icon btn-sm', type: 'button', title: label, 'aria-label': label, onclick }, icon(name));
+  const iconBtn = (name, label, onclick, extra = {}) => h('button', { class: 'btn-icon btn-sm', type: 'button', title: label, 'aria-label': label, onclick, ...extra }, icon(name));
   return h('div', { class: 'table-wrap wl-table-wrap' },
     h('table', { class: 'table wl-table' },
       h('thead', null, h('tr', null,
@@ -349,6 +411,7 @@ function renderTable(docs) {
         h('td', { class: 'num' }, fmtSize(d.size)),
         h('td', { class: 'cell-muted wl-shelf-cell' }, d.shelf ? shelfLabel(d.shelf) : '—'),
         h('td', { class: 'cell-actions' },
+          iconBtn('edit', `Rename ${d.name}`, () => renameDoc(d), { class: 'btn-icon btn-sm wl-rename', 'data-path': d.path }),
           iconBtn('download', `Download ${d.file}`, () => downloadDoc(d)),
           iconBtn('trash', `Remove ${d.name}`, () => removeDoc(d))))))));
 }
@@ -374,6 +437,32 @@ function linkFactory(kind) {
   };
 }
 
+// The document info (shelf path, type, size, file name, action labels) can be folded away so the document gets
+// the height; folded, the head is one slim bar: back, title, the reading actions as icons, "Show details".
+const DETAILS_ID = 'wl-reader-details';
+const isFolded = () => !!getSetting('wlInfoCollapsed');
+
+function foldButton(folded) {
+  const label = folded ? 'Show details' : 'Hide details';
+  return h('button', {
+    class: 'btn btn-sm btn-ghost wl-fold', type: 'button', title: folded ? 'Show the document details' : 'Hide the details to give the document more room',
+    'aria-expanded': String(!folded), 'aria-controls': DETAILS_ID,
+    onclick: () => setFolded(!isFolded()),
+  }, icon(folded ? 'chevron-down' : 'chevron-up'), h('span', { class: 'wl-fold-label' }, label));
+}
+
+function setFolded(folded) {
+  setSetting('wlInfoCollapsed', folded);
+  readerEl.classList.toggle('is-folded', folded);
+  readerEl.classList.toggle('is-unfolding', !folded); // fades the details back in (CSS)
+  const btn = readerEl.querySelector('.wl-fold');
+  if (!btn) return;
+  const fresh = foldButton(folded);
+  btn.replaceChildren(...fresh.childNodes); // same element, so focus stays on it
+  btn.title = fresh.title;
+  btn.setAttribute('aria-expanded', String(!folded));
+}
+
 function renderReaderHead(doc) {
   const { prev, next, index, total } = neighbours(doc);
   const nav = (d, dir) => {
@@ -383,16 +472,19 @@ function renderReaderHead(doc) {
       ? h('a', { class: 'btn-icon btn-sm wl-step', href: docHref(d.path), title: `${word}: ${d.name}`, 'aria-label': `${word} document: ${d.name}` }, glyph)
       : h('span', { class: 'btn-icon btn-sm wl-step is-disabled', 'aria-hidden': 'true' }, glyph);
   };
-  const download = linkFactory('download')([icon('download'), h('span', null, 'Download')], 'btn btn-sm');
-  const open = opensInBrowser(doc) ? linkFactory('open')([icon('external'), h('span', { class: 'wl-btn-label' }, 'Open in new tab')], 'btn btn-sm btn-ghost') : null;
+  const download = linkFactory('download')([icon('download'), h('span', { class: 'wl-act-label' }, 'Download')], 'btn btn-sm wl-act-download');
+  download.title = `Download ${doc.file}`;
+  const open = opensInBrowser(doc) ? linkFactory('open')([icon('external'), h('span', { class: 'wl-btn-label wl-act-label' }, 'Open in new tab')], 'btn btn-sm btn-ghost wl-act-open') : null;
+  if (open) open.title = 'Open in a new tab';
   return h('header', { class: 'wl-reader-head' },
     h('nav', { class: 'wl-crumbs', 'aria-label': 'Breadcrumb' },
-      h('a', { class: 'wl-back', href: href(VIEW) }, h('span', { 'aria-hidden': 'true' }, '←'), h('span', null, DISPLAY)),
+      h('a', { class: 'wl-back', href: href(VIEW), title: `Back to the ${DISPLAY}` },
+        h('span', { class: 'wl-back-arrow', 'aria-hidden': 'true' }, '←'), h('span', { class: 'wl-back-label' }, DISPLAY)),
       doc.shelfParts.map((p) => [h('span', { class: 'wl-crumb-sep', 'aria-hidden': 'true' }, '›'), h('span', { class: 'wl-crumb' }, prettify(p))])),
     h('div', { class: 'wl-reader-bar' },
       h('div', { class: 'wl-reader-titles' },
-        h('h1', { class: 'wl-reader-title' }, doc.name),
-        h('p', { class: 'wl-reader-meta' },
+        h('h1', { class: 'wl-reader-title', title: doc.name }, doc.name),
+        h('p', { class: 'wl-reader-meta', id: DETAILS_ID },
           typeBadge(doc.type),
           h('span', { class: 'num' }, fmtSize(doc.size)),
           h('span', { class: 'wl-reader-file', title: doc.path }, doc.file),
@@ -402,8 +494,13 @@ function renderReaderHead(doc) {
           nav(prev, 'prev'), h('span', { class: 'wl-step-pos' }, `${index + 1} / ${total}`), nav(next, 'next')) : null,
         download,
         open,
+        h('button', {
+          class: 'btn btn-sm btn-ghost wl-rename', type: 'button', title: `Rename ${doc.name}`, 'data-path': doc.path,
+          onclick: () => renameDoc(doc),
+        }, icon('edit'), h('span', { class: 'wl-btn-label wl-act-label' }, 'Rename')),
         h('button', { class: 'btn btn-sm btn-ghost wl-del', type: 'button', title: `Remove ${doc.name}`, onclick: () => removeDoc(doc) },
-          icon('trash'), h('span', { class: 'wl-btn-label' }, 'Remove')))));
+          icon('trash'), h('span', { class: 'wl-btn-label' }, 'Remove')))),
+    foldButton(isFolded()));
 }
 
 function renderReaderFoot(doc) {
@@ -468,7 +565,7 @@ async function openReader(path, query = {}) {
   setTitle(doc);
 
   const body = h('div', { class: 'wl-reader-body' }, loadingState(doc));
-  readerEl.className = `wl-reader wl-r-${doc.type.key}`;
+  readerEl.className = `wl-reader wl-r-${doc.type.key}${isFolded() ? ' is-folded' : ''}`;
   readerEl.replaceChildren(renderReaderHead(doc), body);
   try {
     const url = await store.fileUrl(path);
@@ -505,6 +602,7 @@ function refreshReader(ev) {
     || (!store.saving && ev.type === 'pulled' && (ev.paths || []).includes(reader.path));
   if (replaced) { openReader(reader.path, reader.query); return; }
   if (reader.seq !== seq || readerEl.querySelector('.wl-loading')) return; // still loading; it will render fresh data
+  readerEl.classList.remove('is-unfolding');
   readerEl.querySelector('.wl-reader-head')?.replaceWith(renderReaderHead(doc));
   readerEl.querySelector('.wl-pager')?.remove();
   if (!reader.failed) {
