@@ -54,7 +54,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   children: string|Node|array|null), `$`, `$$`, `clear(el)`.
 - `util.js`: `uid(name)`, `slugify`, `debounce`, `escapeHtml`, `fmtMod(n)` (+2/−1), `clone`, `sortBy`, `byName`.
 - `ui.js`: `toast(msg,{type})`, `openModal({title, body, actions:[{label,kind,onClick}], wide}) -> {close, el}`
-  (onClick returning false keeps it open), `confirmDialog(msg,{okLabel,danger}) -> Promise<bool>`,
+  (onClick returning false keeps it open; `beforeClose()` returning false vetoes Esc/X/backdrop), `confirmDialog(msg,{okLabel,danger}) -> Promise<bool>`,
   `promptDialog(title,{label,value}) -> Promise<string|null>`, `choiceDialog(msg, [{label,value,kind}]) -> value|null`, `pickFromList({title, items, render, search,
   multi}) -> Promise<item|item[]|null>`, `icon(name, size?)`, form helpers `field(label, control, hint?)`,
   `input(props)`, `textarea(props)`, `select(options, value, onchange)`, `checkbox(checked, onchange, label)`,

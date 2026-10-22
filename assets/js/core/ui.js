@@ -38,7 +38,7 @@ document.addEventListener('keydown', (e) => {
  * openModal({title, body, actions:[{label, kind:'primary'|'ghost'|'danger', onClick}], wide, onClose})
  * An action's onClick returning false (or a promise of false) keeps the modal open.
  */
-export function openModal({ title, body, actions = [], wide = false, onClose, className = '' } = {}) {
+export function openModal({ title, body, actions = [], wide = false, onClose, beforeClose, className = '' } = {}) {
   const box = h('div', { class: ['modal', wide && 'modal-wide', className], role: 'dialog', 'aria-modal': 'true', 'aria-label': title || 'Dialog' });
   const backdrop = h('div', { class: 'modal-backdrop' }, box);
   let closed = false;
@@ -49,10 +49,15 @@ export function openModal({ title, body, actions = [], wide = false, onClose, cl
     modalStack.splice(modalStack.indexOf(api), 1);
     onClose?.();
   };
-  const api = { close, el: box, dismiss: close };
+  // Dismissals (Esc, X, backdrop) may be vetoed by beforeClose returning false, e.g. to guard unsaved forms.
+  const dismiss = async () => {
+    if (beforeClose && (await beforeClose()) === false) return;
+    close();
+  };
+  const api = { close, el: box, dismiss };
   const head = h('header', { class: 'modal-head' },
     h('h2', null, title || ''),
-    h('button', { class: 'btn-icon modal-close', type: 'button', 'aria-label': 'Close', onclick: close }, icon('close')));
+    h('button', { class: 'btn-icon modal-close', type: 'button', 'aria-label': 'Close', onclick: dismiss }, icon('close')));
   const content = h('div', { class: 'modal-body' }, body);
   box.append(head, content);
   if (actions.length) {
@@ -62,7 +67,7 @@ export function openModal({ title, body, actions = [], wide = false, onClose, cl
       onclick: async () => { const r = await a.onClick?.(api); if (r !== false) close(); },
     }, a.label))));
   }
-  backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) close(); });
+  backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) dismiss(); });
   overlays().append(backdrop);
   modalStack.push(api);
   queueMicrotask(() => (box.querySelector('[autofocus], input, textarea, select') || box.querySelector('.modal-foot .btn-primary'))?.focus());
