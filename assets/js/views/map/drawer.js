@@ -3,6 +3,7 @@ import { h, mount } from '../../core/dom.js';
 import { icon, toast, confirmDialog, input, markdownEditor } from '../../core/ui.js';
 import { renderInto } from '../../core/markdown.js';
 import { fmtDate, nameKey } from '../../core/util.js';
+import { saveSoon, saveHint, majorSaveOn } from '../../core/saving.js';
 import * as data from './data.js';
 import { typeBadge, rankBadge } from './pins.js';
 import { typePicker } from './typeform.js';
@@ -137,14 +138,15 @@ export function createDrawer(ctx) {
 
   async function remove(loc) {
     const n = data.backlinks(loc).length;
-    const msg = `“${loc.name}” will be removed from the map for everyone once you save.`
+    const msg = `“${loc.name}” will be removed from the map for everyone${majorSaveOn() ? '' : ' once you save'}.`
       + (n ? ` ${n} ${n === 1 ? 'note links' : 'notes link'} here; ${n === 1 ? 'that link' : 'those links'} will stop working.` : '')
       + (loc.submap && data.mapById(loc.submap) ? ` Its map “${data.mapById(loc.submap).name}” is kept (open it from the map menu).` : '');
     if (!(await confirmDialog(msg, { title: 'Delete this location?', okLabel: 'Delete', danger: true }))) return;
     if (ctx.isMoving()) ctx.finishMove(false);
     data.deleteLocation(loc);
     ctx.close({ force: true });
-    toast(`Deleted “${loc.name}”. Press Save to send the change.`);
+    toast(`Deleted “${loc.name}”. ${saveHint('Press Save to send the change.')}`.trim());
+    saveSoon(`map: delete place “${loc.name}”`);
   }
 
   // ---------- editor ----------

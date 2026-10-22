@@ -1,14 +1,14 @@
 // Reference images of a journal note: photos kept with the note and shown as a slideshow at the top of the page;
 // "Expand" (or a tap on the photo) opens a full-screen viewer to scroll through all of them.
 // Model (docs/journal-model.md "Reference images"): frontmatter `images:` = a list of repo paths or https URLs, each a
-// string or {src, caption}. Uploads are staged with store.putBinary under content/media/journal/ (committed with the
-// global Save, like map and library uploads); images already in the repo (uploaded through GitHub, the Warden's
+// string or {src, caption}. Uploads are staged with store.putBinary under content/media/journal/ (committed right away
+// by saving.js saveSoon, like map and library uploads); images already in the repo (uploaded through GitHub, the Warden's
 // Library, a map) can be picked too. Large photos are scaled down before upload (MAX_SIDE, JPEG).
 import { h } from '../../core/dom.js';
 import { icon, toast, pickFromList } from '../../core/ui.js';
 import { store } from '../../core/store.js';
 import { slugify, stripExt, extOf, baseName } from '../../core/util.js';
-import { getSetting } from '../../core/settings.js';
+import { saveSoon, saveHint as hintFor } from '../../core/saving.js';
 
 export const MEDIA_DIR = 'content/media/journal';
 const IMAGE_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg']);
@@ -22,7 +22,7 @@ const JPEG_Q = 0.86;
 const isUrl = (s) => /^https?:\/\//i.test(String(s || ''));
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const shortId = () => Math.random().toString(36).slice(2, 6);
-const saveHint = () => (getSetting('autoCommit') ? 'They are committed automatically.' : 'They upload for everyone with your next Save.');
+const saveHint = () => hintFor('They upload for everyone with your next Save.', 'They are committed automatically.');
 
 /** A note's reference images from its frontmatter: [{src, caption}] (junk entries dropped). */
 export function noteImages(fm) {
@@ -272,7 +272,11 @@ export async function uploadImages(files, slug = 'note') {
     }
   }
   if (failed.length) toast(`Could not add ${plural(failed.length, 'image')}: ${failed.join('; ')}`, { type: 'error', timeout: 7000 });
-  if (added.length) toast(`Added ${plural(added.length, 'reference image')}. ${saveHint()}`);
+  if (added.length) {
+    toast(`Added ${plural(added.length, 'reference image')}. ${saveHint()}`.trim());
+    // The caller lists them in the note's frontmatter right away, so that edit joins this commit.
+    saveSoon(`journal: add ${plural(added.length, 'reference image')} to ${slug}`);
+  }
   return added;
 }
 

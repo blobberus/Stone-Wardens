@@ -1,7 +1,9 @@
-// Warden's Library uploads: pick/drop files, choose a shelf, stage them with store.putBinary (committed on Save).
+// Warden's Library uploads: pick/drop files, choose a shelf, stage them with store.putBinary, then commit them
+// right away (core/saving.js saveSoon; on Save instead when the "big changes" setting is off).
 import { h, clear } from '../../core/dom.js';
 import { openModal, select, toast, choiceDialog, icon } from '../../core/ui.js';
 import { store } from '../../core/store.js';
+import { saveSoon, majorSaveOn } from '../../core/saving.js';
 import {
   ROOT, ACCEPT, LARGE_BYTES, MAX_BYTES, listFolders, safeFileName, safeFolder, freePath, fmtSize, typeOf, shelfLabel,
 } from './files.js';
@@ -66,9 +68,10 @@ export function openUploadDialog({ files = [], shelf = '', onDone } = {}) {
       shelfSel,
       newName,
       where),
-    h('p', { class: 'wl-up-note' },
-      'Files are kept on this device until you press ', h('strong', null, 'Save'),
-      ', which commits them to the repository for the whole party.'));
+    h('p', { class: 'wl-up-note' }, majorSaveOn()
+      ? 'The files are committed to the repository for the whole party as soon as they are added.'
+      : ['Files are kept on this device until you press ', h('strong', null, 'Save'),
+        ', which commits them to the repository for the whole party.']));
 
   const modal = openModal({
     title: 'Add documents',
@@ -201,14 +204,23 @@ export function openUploadDialog({ files = [], shelf = '', onDone } = {}) {
       toast(`Could not add ${plan[done.length]?.file.name || 'a file'}: ${e.message || e}`, { type: 'error' });
       buttons.forEach((b) => { b.disabled = false; });
       updateSubmit();
-      if (done.length) onDone?.(done);
+      if (done.length) { saveSoon(uploadReason(done)); onDone?.(done); }
       return false;
     }
     const n = done.length;
-    toast(`Added ${n} document${n === 1 ? '' : 's'}. Press Save to ${store.mode === 'sandbox' ? 'keep' : 'commit'} ${n === 1 ? 'it' : 'them'}.`, { type: 'success', timeout: 6000 });
+    const later = majorSaveOn() ? '' : ` Press Save to ${store.mode === 'sandbox' ? 'keep' : 'commit'} ${n === 1 ? 'it' : 'them'}.`;
+    toast(`Added ${n} document${n === 1 ? '' : 's'}.${later}`, { type: 'success', timeout: later ? 6000 : 3500 });
+    saveSoon(uploadReason(done));
     onDone?.(done);
     return true;
   }
 
   return modal;
+}
+
+/** Commit-message phrase for staged uploads: "upload wardens-library/x.pdf" or "upload 3 documents to wardens-library/Lore/". */
+function uploadReason(paths) {
+  if (paths.length === 1) return `upload ${paths[0]}`;
+  const dirs = new Set(paths.map((p) => p.slice(0, p.lastIndexOf('/') + 1)));
+  return `upload ${paths.length} documents${dirs.size === 1 ? ` to ${[...dirs][0]}` : ` to ${ROOT}`}`;
 }

@@ -197,12 +197,12 @@ function wireSaving() {
     btn.disabled = !n || store.saving;
   };
 
-  const save = async ({ auto = false } = {}) => {
+  const save = async ({ auto = false, message } = {}) => {
     if (store.saving) return false;
     if (!store.isDirty()) return true;
     try {
       lastError = null;
-      const r = await store.save();
+      const r = await store.save(message);
       if (r.cancelled) return false;
       toast(`${auto ? 'Auto-saved' : 'Saved'} ${store.mode === 'sandbox' ? 'locally' : 'to the repository'}.`, { type: 'success' });
       return true;
@@ -213,7 +213,7 @@ function wireSaving() {
       return false;
     } finally { update(); }
   };
-  setSaveHandler(() => save());
+  setSaveHandler(({ message } = {}) => save({ message })); // saveNow() / saveSoon() in core/saving.js
 
   store.conflictResolver = (paths) => choiceDialog(
     h('div', { class: 'stack' },

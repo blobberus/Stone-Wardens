@@ -1,11 +1,13 @@
 // Edit mode: a side panel (bottom sheet on phones) listing every place on the current map with inline
 // editing, group selection, dragging and arrow-key nudging of pins, bulk rank/type/delete, a numeric
 // offset/scale tool (pins are stored in image pixels, so a differently sized export needs this), the
-// per-map zoom bands of the hierarchy, and undo. Every change is a store draft committed with Save.
+// per-map zoom bands of the hierarchy, and undo. Every change is a store draft; close() reports whether there were
+// any, so the view commits them once when editing ends (saving.js saveSoon), or they wait for Save.
 import { h, mount, clear } from '../../core/dom.js';
 import { icon, toast, confirmDialog, openModal, markdownEditor } from '../../core/ui.js';
 import { store } from '../../core/store.js';
 import { debounce, nameKey } from '../../core/util.js';
+import { majorSaveOn } from '../../core/saving.js';
 import * as data from './data.js';
 import { swatch } from './pins.js';
 import { rankPicker } from './drawer.js';
@@ -33,7 +35,7 @@ function reconcile(parent, nodes) {
  *       replaceImage(), newSubmap({name, parent}) -> Promise<id|null>, setBandPreview(bands|null), zoomU(), rankShift()}
  */
 export function createEditor(ctx) {
-  const st = { open: false, sel: new Set(), openRow: null, q: '', drag: null, nudge: null, undo: [], rows: new Map() };
+  const st = { open: false, sel: new Set(), openRow: null, q: '', drag: null, nudge: null, undo: [], rows: new Map(), changed: false };
 
   const mapName = h('span', { class: 'map-edit-map' });
   const searchIn = h('input', {
@@ -49,6 +51,11 @@ export function createEditor(ctx) {
   const bandsEl = h('details', { class: 'map-edit-bands' },
     h('summary', null, h('span', null, 'Zoom bands'), h('small', null, 'when each rank shows')), bandsBody);
   bandsEl.addEventListener('toggle', () => { ctx.setBandPreview(bandsEl.open ? curBands() : null); drawBands(); });
+  const hintEl = h('p', { class: 'map-edit-hint' });
+  const drawHint = () => {
+    hintEl.textContent = 'Drag pins to move them; Ctrl-click pins or tick rows to move several together. Arrow keys nudge the selection (Shift: 10 px). '
+      + (majorSaveOn() ? 'Your changes are saved for the party when you press Done.' : 'Changes stay drafts until you press Save.');
+  };
 
   const el = h('aside', { class: 'map-edit', 'aria-label': 'Edit map', hidden: true },
     h('header', { class: 'map-edit-head' },
@@ -65,7 +72,7 @@ export function createEditor(ctx) {
         undoBtn,
         h('button', { type: 'button', class: 'btn btn-sm', onclick: () => openTransform(), title: 'Shift or scale pins by numbers, e.g. after replacing the image with a different size' }, icon('sort'), h('span', null, 'Offset / scale…')),
         h('button', { type: 'button', class: 'btn btn-sm', onclick: () => ctx.replaceImage(), title: 'Upload a new image for this map' }, icon('upload'), h('span', null, 'Replace image…'))),
-      h('p', { class: 'map-edit-hint' }, 'Drag pins to move them; Ctrl-click pins or tick rows to move several together. Arrow keys nudge the selection (Shift: 10 px). Changes stay drafts until you press Save.')));
+      hintEl));
 
   // ---------- undo ----------
 
@@ -77,6 +84,7 @@ export function createEditor(ctx) {
     });
   }
   function pushUndo(label, snap) {
+    st.changed = true;
     st.undo.push({ label, snap });
     if (st.undo.length > 40) st.undo.shift();
     drawUndo();
@@ -415,7 +423,7 @@ export function createEditor(ctx) {
           h('button', { type: 'button', class: 'btn btn-sm', onclick: fit }, `Fit to ${Math.round(info.width)} × ${Math.round(info.height)}`)),
         h('span', { class: 'field-hint' }, 'Enter the old image size; the pins are scaled to the current image.')),
       outside,
-      h('p', { class: 'muted map-tr-note' }, 'The map previews the result. Nothing is saved until you press Apply (and then Save).'));
+      h('p', { class: 'muted map-tr-note' }, `The map previews the result. Nothing is saved until you press Apply (and then ${majorSaveOn() ? 'Done' : 'Save'}).`));
     openModal({
       title: 'Offset / scale pins',
       body,
@@ -448,6 +456,7 @@ export function createEditor(ctx) {
     const s = staged;
     staged = null;
     if (!s || !data.mapById(s.mapId)) return;
+    st.changed = true;
     data.writeMapConfig(s.mapId, { rankBands: sameBands(s.bands, DEFAULT_BANDS) ? undefined : s.bands });
   }, 500);
   function setBands(b) {
@@ -494,14 +503,19 @@ export function createEditor(ctx) {
     isDragging: (id) => !!(st.drag?.ids.includes(id) || st.nudge?.ids.includes(id)),
     open() {
       st.open = true;
+      st.changed = false;
       el.hidden = false;
       mapName.textContent = ctx.info().name;
+      drawHint();
       renderList();
       drawUndo();
     },
+    /** Leave edit mode (pending nudges and bands are written first). Returns true when anything was changed. */
     close() {
       commitNudge.flush();
       if (staged) writeBands.flush();
+      const changed = st.changed;
+      st.changed = false;
       st.open = false;
       st.openRow = null;
       st.sel = new Set();
@@ -511,6 +525,7 @@ export function createEditor(ctx) {
       ctx.setBandPreview(null);
       clear(listEl);
       st.rows.clear();
+      return changed;
     },
     refresh() {
       if (!st.open) return;

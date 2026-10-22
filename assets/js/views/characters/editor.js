@@ -19,7 +19,7 @@ import { openLevelUp } from './levelup.js';
 import { deleteWithWarning } from './trash.js';
 // Save bars, highlight colour, proficiency tables
 import { store } from '../../core/store.js';
-import { saveNow } from '../../core/saving.js';
+import { saveNow, saveSoon } from '../../core/saving.js';
 import { hasPendingWrite, DEFAULT_ACCENT, ACCENT_PRESETS } from './data.js';
 import { accentOf, accentInk, accentAttrs, profMark, statBox } from './widgets.js';
 import {
@@ -705,6 +705,7 @@ function danger({ c }) {
           copy.created = new Date().toISOString();
           persist(copy, { now: true });
           toast(`Created ${copy.name}.`);
+          saveSoon(`new character “${copy.name}”`);
           navigate(href(VIEW, copy.id));
         },
       }, icon('copy'), 'Duplicate'),

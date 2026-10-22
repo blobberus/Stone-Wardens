@@ -3,6 +3,7 @@
 import { h, mount } from '../../core/dom.js';
 import { icon, openModal, confirmDialog, toast } from '../../core/ui.js';
 import { href } from '../../core/router.js';
+import { saveSoon } from '../../core/saving.js';
 import { VIEW, listTrash, trashCharacter, restoreCharacter, purgeCharacter, totalLevel } from './data.js';
 import { derive } from './bridge.js';
 import { portrait } from './widgets.js';
@@ -47,7 +48,11 @@ export function deleteWithWarning(c) {
         { label: 'Keep it', kind: 'ghost' },
         { label: 'Delete character', kind: 'danger', onClick: () => { ok = true; } },
       ],
-      onClose: () => { if (ok) ok = trashCharacter(c.id); resolve(ok); },
+      onClose: () => {
+        if (ok) ok = trashCharacter(c.id);
+        if (ok) saveSoon(`delete character “${c.name || c.id}”`);
+        resolve(ok);
+      },
     });
   });
 }
@@ -58,6 +63,7 @@ async function purgeOne(c) {
   if (!ok) return;
   purgeCharacter(c.id);
   toast(`${c.name || 'Character'} deleted for good.`);
+  saveSoon(`delete character “${c.name || c.id}” for good`);
 }
 
 async function emptyFolder(items) {
@@ -66,6 +72,7 @@ async function emptyFolder(items) {
   if (!ok) return;
   for (const { char } of items) purgeCharacter(char.id);
   toast(`Emptied Recently deleted (${plural(items.length, 'sheet')}).`);
+  saveSoon(`empty Recently deleted (${plural(items.length, 'sheet')})`);
 }
 
 function row({ char, trashed }) {
@@ -78,7 +85,11 @@ function row({ char, trashed }) {
     h('div', { class: 'row ch-trash-actions' },
       h('button', {
         class: 'btn btn-sm', type: 'button',
-        onclick: () => { if (restoreCharacter(char.id)) toast(`${char.name || 'Character'} is back in the roster.`, { type: 'success' }); },
+        onclick: () => {
+          if (!restoreCharacter(char.id)) return;
+          toast(`${char.name || 'Character'} is back in the roster.`, { type: 'success' });
+          saveSoon(`restore character “${char.name || char.id}”`);
+        },
       }, icon('undo'), 'Restore'),
       h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: () => purgeOne(char) }, icon('trash'), 'Delete forever')));
 }

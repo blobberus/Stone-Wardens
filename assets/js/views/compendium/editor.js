@@ -6,6 +6,7 @@ import { openModal, select, checkbox, markdownEditor, toast, confirmDialog, icon
 import { saveCustom, entries, cached, preloadAll } from '../../core/compendium.js';
 import { uid, slugify, clone, nameKey } from '../../core/util.js';
 import { store } from '../../core/store.js';
+import { majorSaveOn } from '../../core/saving.js';
 import * as M from './meta.js';
 import { RANKS } from '../map/ranks.js';
 
@@ -808,7 +809,7 @@ export async function openEntryEditor(kind, entry = null) {
         const saved = saveCustom(kind, { ...payload, origin: 'custom' });
         await entries(kind).catch(() => null);
         result = { ...saved, path: `content/library/${kind}/${saved.id}.json` };
-        toast(isEdit ? 'Saved to the shared library — Save to publish' : 'Added to the shared library — Save to publish', { type: 'success' });
+        toast(`${isEdit ? 'Saved to' : 'Added to'} the shared library${majorSaveOn() ? '' : ' — Save to publish'}`, { type: 'success' });
         return true;
       } catch (e) {
         console.error(e);

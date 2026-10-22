@@ -13,6 +13,7 @@ import { h } from '../../core/dom.js';
 import { icon, toast, confirmDialog } from '../../core/ui.js';
 import { store } from '../../core/store.js';
 import { navigate, onRoute } from '../../core/router.js';
+import { saveSoon, majorSaveOn } from '../../core/saving.js';
 import * as J from './data.js';
 import * as S from './state.js';
 import { FileTree } from './tree.js';
@@ -514,6 +515,7 @@ function moveNote(note, dest) {
   S.reveal(dest.path);
   afterMove(oldIx, new Map([[note.path, path]]));
   toast(`Moved “${fresh.title}” to ${J.folderLabel(dest)}.`, { type: 'success' });
+  saveSoon(`journal: move “${fresh.title}” to ${J.folderLabel(dest)}`);
 }
 
 function moveFolder(f, dest) {
@@ -524,6 +526,7 @@ function moveFolder(f, dest) {
   S.reveal(dest.path);
   afterMove(oldIx, res.moved, [[f.path, res.path]]);
   toast(`Moved “${f.title}” to ${J.folderLabel(dest)}.`, { type: 'success' });
+  saveSoon(`journal: move folder “${f.title}” to ${J.folderLabel(dest)}`);
 }
 
 function moveItem(d, dest) {
@@ -555,7 +558,7 @@ async function deleteItem(d) {
     if (!n) return;
     const refs = J.backlinks(n).length;
     const ok = await confirmDialog(
-      `Delete “${n.title}”? It is removed for the whole party when you save.${refs ? ` ${plural(refs, 'other note')} link${refs === 1 ? 's' : ''} here; those links will offer to recreate it.` : ''}`,
+      `Delete “${n.title}”? It is removed for the whole party${majorSaveOn() ? '' : ' when you save'}.${refs ? ` ${plural(refs, 'other note')} link${refs === 1 ? 's' : ''} here; those links will offer to recreate it.` : ''}`,
       { title: 'Delete note', okLabel: 'Delete note', danger: true },
     );
     if (!ok) return;
@@ -565,6 +568,7 @@ async function deleteItem(d) {
     J.deleteNote(J.noteByPath(n.path) || n);
     S.forget(n.path);
     toast(`Deleted “${n.title}”.`);
+    saveSoon(`journal: delete “${n.title}”`);
     if (open) navigate(f.isRoot ? '#/journal' : (J.folderAt(f.path)?.href || '#/journal'), { replace: true });
     else refreshAll();
     return;
@@ -583,6 +587,7 @@ async function deleteItem(d) {
   const count = cur.count;
   const moved = J.deleteFolder(cur, mode);
   toast(mode === 'keep' ? `Deleted “${cur.title}”; ${plural(count, 'note')} moved to ${J.folderLabel(parent)}.` : `Deleted “${cur.title}” and ${plural(count, 'note')}.`);
+  saveSoon(`journal: delete folder “${cur.title}”${mode === 'keep' ? '' : ` and ${plural(count, 'note')}`}`);
   const showsIt = target?.kind === 'folder' && J.isUnder(target.folder.path, cur.path);
   if ((mode === 'delete' && openPath && inside(openPath)) || showsIt) {
     S.renamed(moved);

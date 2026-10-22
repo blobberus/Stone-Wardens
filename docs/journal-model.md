@@ -38,7 +38,7 @@ content/journal/
   a **Reference images** panel: Upload photos (or drop files on it), From site files (any image already in the repo,
   e.g. uploaded through GitHub), captions, reorder, remove. The note menu has "Upload reference photos…" and "Add
   images from site files…" in reading view too. Uploads go to `content/media/journal/<note>-<name>-<id>.<ext>`, staged
-  with `store.putBinary` and committed with Save; photos over 1.5 MB are scaled to 2400 px on the long side (JPEG).
+  with `store.putBinary` and committed right away (`saveSoon`; with Save when that setting is off); photos over 1.5 MB are scaled to 2400 px on the long side (JPEG).
   Removing an uploaded photo deletes its file once no note lists it; renaming or moving a note keeps its images.
 
 ## Routes (`#/journal…`)

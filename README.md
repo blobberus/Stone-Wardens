@@ -35,6 +35,10 @@ To change the password or replace an expired token, run setup again.
 - Unsaved changes are also saved to the repo automatically, at most 5 minutes after you make them. Change the
   interval in **Settings** (0 turns it off), or tick "Also save shortly after each edit". With both off, the site
   reminds you to save every 10 minutes instead.
+- Uploads and big changes are saved right away: files added to the Warden's Library, map images, journal photos and
+  portraits, new, moved or deleted places and sub-maps, finishing **Edit map**, custom library entries, and new or
+  deleted characters and journal notes. Small edits, like typing a description, still wait for the timer. Turn this
+  off in **Settings** ("Save uploads and big changes right away").
 - The site checks for other players' changes every two minutes and whenever you return to the tab.
   If two people edit the same thing, you'll be asked which version to keep.
 

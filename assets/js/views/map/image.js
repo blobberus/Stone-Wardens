@@ -1,11 +1,11 @@
 // Map image management (per map): replace with an uploaded image, reset to the placeholder, rename.
-// Uploads are staged as binary drafts (store.putBinary) and committed with the global Save.
-// Main map image: content/map/<file>; sub-map images: content/maps/<mapId>/<file>.
+// Uploads are staged as binary drafts (store.putBinary) and committed right away (saving.js saveSoon; with the
+// global Save when that setting is off). Main map image: content/map/<file>; sub-map images: content/maps/<mapId>/<file>.
 import { h } from '../../core/dom.js';
 import { toast, choiceDialog, promptDialog, confirmDialog } from '../../core/ui.js';
 import { store } from '../../core/store.js';
 import { slugify, stripExt, extOf } from '../../core/util.js';
-import { getSetting } from '../../core/settings.js';
+import { saveSoon, saveHint as hintFor, majorSaveOn } from '../../core/saving.js';
 import * as data from './data.js';
 
 const EXT_BY_MIME = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/svg+xml': 'svg' };
@@ -17,7 +17,7 @@ const MAX_BYTES = 90 * 1024 * 1024; // GitHub's blob API tops out around 100 MB
 const mb = (n) => (n / 1024 / 1024).toFixed(n > 10 * 1024 * 1024 ? 0 : 1);
 const fmtSize = (s) => `${Math.round(s.width)} × ${Math.round(s.height)} px`;
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const saveHint = () => (getSetting('autoCommit') ? 'It will be committed automatically.' : 'Press Save to upload it for everyone.');
+const saveHint = () => hintFor('Press Save to upload it for everyone.');
 
 function pickFile(accept) {
   return new Promise((resolve) => {
@@ -127,7 +127,9 @@ export async function replaceImage(info) {
   if (!choice) return false;
   if (!(await stageImage(info.id, picked))) return false;
   if (choice === 'rescale') rescalePins(info.id, info, picked.size);
-  toast(`New image for “${info.name}” staged (${mb(picked.file.size)} MB, ${fmtSize(picked.size)}). ${saveHint()}`, { type: 'success', timeout: 6000 });
+  const hint = saveHint();
+  toast(`New image for “${info.name}” ${hint ? 'staged' : 'added'} (${mb(picked.file.size)} MB, ${fmtSize(picked.size)}). ${hint}`.trim(), { type: 'success', timeout: hint ? 6000 : 4000 });
+  saveSoon(`map: new image for “${info.name}”`);
   return true;
 }
 
@@ -139,7 +141,7 @@ export async function resetImage(info) {
   const choice = asked
     ? await askRescale(info.id, info, ph, 'Reset')
     : ((await confirmDialog(
-      'Go back to the blank placeholder map? The uploaded image is removed when you save (it stays in the repository history).',
+      `Go back to the blank placeholder map? The uploaded image is removed ${majorSaveOn() ? 'from the repository' : 'when you save'} (it stays in the repository history).`,
       { title: 'Reset the map image', okLabel: 'Reset' },
     )) ? 'keep' : null);
   if (!choice) return false;
@@ -147,6 +149,7 @@ export async function resetImage(info) {
   data.writeMapConfig(info.id, { image: data.PLACEHOLDER_IMAGE, width: ph.width, height: ph.height });
   if (cfg.image?.startsWith(`${data.mapImageDir(info.id)}/`) && !cfg.image.endsWith('.json')) store.remove(cfg.image);
   toast(`“${info.name}” is back to the blank placeholder.`);
+  saveSoon(`map: reset “${info.name}” to the placeholder`);
   return true;
 }
 

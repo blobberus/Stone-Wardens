@@ -7,6 +7,7 @@ import { href, navigate } from '../../core/router.js';
 import { store } from '../../core/store.js';
 import { uid, nameKey, clone } from '../../core/util.js';
 import { getSetting } from '../../core/settings.js';
+import { saveSoon, majorSaveOn } from '../../core/saving.js';
 import { VIEW, ABILITIES, DETAIL_FIELDS, normalize, persist, totalLevel, prettify } from './data.js';
 import {
   ready, isReady, cat, findEntry, entryName, derive, allChoices, newCharacter, canMulticlass, skillName, R, entrySubtitle, onReady,
@@ -509,7 +510,8 @@ async function create() {
   persist(normalize(c), { now: true });
   try { localStorage.removeItem(KEY()); } catch { /* ignore */ }
   B.char = null;
-  toast(`${c.name} joins the party. Press Save to share the sheet.`, { type: 'success' });
+  toast(`${c.name} joins the party.${majorSaveOn() ? '' : ' Press Save to share the sheet.'}`, { type: 'success' });
+  saveSoon(`new character “${c.name}”`);
   navigate(href(VIEW, id));
 }
 

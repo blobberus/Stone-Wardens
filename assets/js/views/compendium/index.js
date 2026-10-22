@@ -5,6 +5,7 @@ import { icon, toast, confirmDialog, promptDialog, pickFromList } from '../../co
 import { store } from '../../core/store.js';
 import { navigate, href } from '../../core/router.js';
 import { KINDS, removeCustom } from '../../core/compendium.js';
+import { majorSaveOn } from '../../core/saving.js';
 import { extractLinks, parseFrontmatter } from '../../core/markdown.js';
 import { fmtDate, baseName, debounce, nameKey } from '../../core/util.js';
 import { findEntry } from './linktypes.js'; // registers the [[weapon:…]] etc. link types at import
@@ -409,7 +410,8 @@ function entryPage(kind, id) {
     });
     if (!ok) return;
     removeCustom(kind, e.id);
-    toast(restoring ? 'Built-in type restored — Save to publish' : `Deleted “${e.name}” — Save to publish`);
+    const later = majorSaveOn() ? '' : ' — Save to publish';
+    toast(restoring ? `Built-in type restored${later}` : `Deleted “${e.name}”${later}`);
     if (restoring) refresh(); else navigate(href('compendium', kind));
   }
 

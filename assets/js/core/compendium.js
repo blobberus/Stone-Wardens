@@ -2,6 +2,7 @@
 import { store } from './store.js';
 import { uid, byName } from './util.js';
 import { getSetting } from './settings.js';
+import { saveSoon } from './saving.js';
 
 export const KINDS = [
   { kind: 'weapon', label: 'Weapons', one: 'Weapon', srd: 'weapons' },
@@ -77,7 +78,7 @@ export function findByName(kind, name) {
   return cached(kind).find((e) => e.name?.toLowerCase() === n || e.id === n) || null;
 }
 
-/** Create or update a custom entry. Returns the saved object. */
+/** Create or update a custom entry (committed right away, see saving.js saveSoon). Returns the saved object. */
 export function saveCustom(kind, obj) {
   // Editing a custom entry keeps its id; copying an SRD/stub entry (or a new one) gets a fresh id.
   const id = obj.origin === 'custom' && obj.id ? obj.id : uid(obj.name);
@@ -87,14 +88,19 @@ export function saveCustom(kind, obj) {
     createdBy: rest.createdBy || getSetting('playerName') || undefined,
     updated: new Date().toISOString(),
   };
-  store.put(`${customDir(kind)}/${id}.json`, data);
+  const path = `${customDir(kind)}/${id}.json`;
+  const isNew = !store.has(path);
+  store.put(path, data);
   refreshKind(kind);
+  saveSoon(`library: ${isNew ? 'new' : 'update'} ${kind} “${data.name || id}”`);
   return { ...data, kind, origin: 'custom' };
 }
 
 export function removeCustom(kind, id) {
+  const name = store.get(`${customDir(kind)}/${id}.json`)?.name || id;
   store.remove(`${customDir(kind)}/${id}.json`);
   refreshKind(kind);
+  saveSoon(`library: delete ${kind} “${name}”`);
 }
 
 function refreshKind(kind) {

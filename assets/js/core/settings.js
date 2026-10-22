@@ -7,6 +7,7 @@ const DEFAULTS = {
   autoSaveMinutes: 5, // commit unsaved changes at most this many minutes after the first one (0 = off)
   autoCommit: false, // also commit shortly after each edit
   autoCommitDelay: 60, // seconds of inactivity before that commit
+  saveMajorNow: true, // commit uploads and structural changes (core/saving.js saveSoon) right away, not on the timer
   saveReminder: 10, // minutes of uncommitted changes before a "save now" nudge (only when both auto-saves are off)
   theme: 'light',
   sidebarCollapsed: false,

@@ -11,6 +11,7 @@ import { store } from '../../core/store.js';
 import { current, navigate } from '../../core/router.js';
 import { debounce } from '../../core/util.js';
 import { getSetting } from '../../core/settings.js';
+import { saveSoon, saveHint } from '../../core/saving.js';
 import * as data from './data.js';
 import { pinIcon, glyphsReady, PinMarker } from './pins.js';
 import { createDrawer } from './drawer.js';
@@ -832,8 +833,8 @@ async function toggleEdit(on = !editing()) {
     closeCtx();
     search.set('');
     editor.open();
-  } else {
-    editor.close();
+  } else if (editor.close()) {
+    saveSoon(`map: edit “${info().name}”`); // edit mode has its own undo, so its changes commit once, on Done
   }
   S.root.classList.toggle('is-editing', on);
   addBtn.classList.toggle('btn-primary', !on && !drawer.isOpen); // "Done" is the primary action now
@@ -968,8 +969,10 @@ function afterSave(loc, isNew) {
   drawer.showLocation(loc.id);
   setDrawerOpen(true);
   setHash(loc.id);
-  const hint = getSetting('autoCommit') ? 'It will be committed automatically.' : 'Press Save to share it with the party.';
-  toast(isNew ? `Added “${loc.name}” to the map. ${hint}` : `Saved “${loc.name}”. ${hint}`, { type: 'success' });
+  // A new place is a big change and commits right away; edits to an existing one follow the auto-save timer.
+  const hint = isNew ? saveHint() : getSetting('autoCommit') ? 'It will be committed automatically.' : 'Press Save to share it with the party.';
+  toast(`${isNew ? `Added “${loc.name}” to the map.` : `Saved “${loc.name}”.`} ${hint}`.trim(), { type: 'success' });
+  if (isNew) saveSoon(`map: new place “${loc.name}”`);
 }
 
 /** Live preview of the type/name/rank being edited, on the ghost pin (new) or the real marker (edit). */
@@ -1117,6 +1120,7 @@ function finishMove(save) {
       if (Math.abs(p.x - was.x) > 0.01 || Math.abs(p.y - was.y) > 0.01) {
         data.saveLocation({ ...e.loc, x: p.x, y: p.y });
         toast(`Moved “${e.loc.name}”.`, { type: 'success' });
+        saveSoon(`map: move “${e.loc.name}”`);
       }
     } else e.marker.setLatLng(from);
     updateVisibility(e);

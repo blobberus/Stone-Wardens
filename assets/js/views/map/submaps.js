@@ -2,7 +2,7 @@
 // (its places move up to the parent map or are deleted; links to it are cleared).
 import { h, mount } from '../../core/dom.js';
 import { openModal, toast, choiceDialog, confirmDialog, icon } from '../../core/ui.js';
-import { getSetting } from '../../core/settings.js';
+import { saveSoon, saveHint } from '../../core/saving.js';
 import * as data from './data.js';
 import { chooseImage, stageImage } from './image.js';
 
@@ -63,7 +63,8 @@ export function openNewMapDialog({ parent = data.MAIN_MAP, fromLoc = null, name 
       const loc = f.from && data.locationById(f.from);
       if (loc) data.saveLocation({ ...loc, submap: id });
       result = id;
-      toast(`Created the map “${n}”. ${getSetting('autoCommit') ? 'It will be committed automatically.' : 'Press Save to share it.'}`, { type: 'success' });
+      toast(`Created the map “${n}”. ${saveHint('Press Save to share it.')}`.trim(), { type: 'success' });
+      saveSoon(`map: new sub-map “${n}”`);
       return true;
     };
     const m = openModal({
@@ -111,6 +112,7 @@ export async function deleteMapFlow(mapId) {
     return null;
   }
   await data.deleteMap(m.id, { pins });
-  toast(`Deleted the map “${m.name}”. Press Save to send the change.`);
+  toast(`Deleted the map “${m.name}”. ${saveHint('Press Save to send the change.')}`.trim());
+  saveSoon(`map: delete sub-map “${m.name}”`);
   return parent.id;
 }

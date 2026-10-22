@@ -7,6 +7,7 @@ import { navigate, href } from '../../core/router.js';
 import { registerLinkType, matchNames } from '../../core/links.js';
 import { renderInto, parseFrontmatter } from '../../core/markdown.js';
 import { getSetting, setSetting } from '../../core/settings.js';
+import { saveSoon, majorSaveOn } from '../../core/saving.js';
 import { nameKey, baseName } from '../../core/util.js';
 import {
   VIEW, ROOT, README, TYPES, listDocs, readmeFile, docAt, docHref, shelfLabel, prettify, findDoc, linkTarget,
@@ -85,16 +86,18 @@ async function downloadDoc(doc) {
 
 async function removeDoc(doc) {
   const inRepo = store.remote?.has?.(doc.path);
+  const now = majorSaveOn();
   const ok = await confirmDialog(
     inRepo
-      ? `Remove “${doc.name}” (${doc.file}) from the library? It is deleted from the repository when you press Save.`
+      ? `Remove “${doc.name}” (${doc.file}) from the library? It is deleted from the repository ${now ? 'right away' : 'when you press Save'}.`
       : `Discard “${doc.name}”? It was added on this device and never saved, so it will simply be dropped.`,
     { title: 'Remove document?', okLabel: inRepo ? 'Remove' : 'Discard', danger: true },
   );
   if (!ok) return;
   if (mode === 'reader' && reader?.path === doc.path) navigate(href(VIEW));
   store.remove(doc.path);
-  toast(inRepo ? `Removed “${doc.name}”. Press Save to delete it from the repository.` : `Discarded “${doc.name}”.`);
+  if (inRepo) saveSoon(`remove ${doc.path}`);
+  toast(inRepo ? `Removed “${doc.name}”.${now ? '' : ' Press Save to delete it from the repository.'}` : `Discarded “${doc.name}”.`);
 }
 
 function openUpload(opts = {}) {
@@ -255,7 +258,7 @@ function emptyState() {
       h('li', null, h('strong', null, 'On GitHub: '), 'open the ', h('code', null, 'wardens-library'),
         ' folder, choose ', h('em', null, 'Add file → Upload files'), ' and commit. Sub-folders become shelves.'),
       h('li', null, h('strong', null, 'From this site: '), 'press ', h('em', null, 'Add documents'),
-        ' (or drop files onto this page), then ', h('em', null, 'Save'), '.')),
+        ' (or drop files onto this page)', majorSaveOn() ? '.' : [', then ', h('em', null, 'Save'), '.'])),
     h('button', { class: 'btn btn-primary', type: 'button', onclick: () => openUpload({ shelf: '' }) },
       icon('upload'), h('span', null, 'Add documents')));
 }

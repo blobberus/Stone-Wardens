@@ -5,7 +5,8 @@ import { icon, openModal, numberInput, input, select, toast } from '../../core/u
 import { renderInto, renderInline } from '../../core/markdown.js';
 import { store } from '../../core/store.js';
 import { fmtMod, clone, slugify } from '../../core/util.js';
-import { ABILITIES, PORTRAIT_DIR, DEFAULT_ACCENT, initials, shortId } from './data.js';
+import { saveSoon, majorSaveOn } from '../../core/saving.js';
+import { ABILITIES, PORTRAIT_DIR, DEFAULT_ACCENT, initials, shortId, pathOf } from './data.js';
 import { renderEntry, skillList, damageTypes } from './bridge.js';
 
 export const fmt = (n) => fmtMod(Number(n) || 0);
@@ -249,7 +250,12 @@ export function portraitField(char, onChange) {
     if (f.size > 3 * 1024 * 1024) { toast('That image is over 3 MB; please use a smaller one.', { type: 'error' }); return; }
     const ext = (f.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
     const path = `${PORTRAIT_DIR}/${slugify(char.name || 'portrait')}-${shortId()}.${ext}`;
-    try { await store.putBinary(path, f); onChange(path); toast('Portrait added. It is uploaded with your next Save.'); } catch (e) { toast(`Could not store the image: ${e.message}`, { type: 'error' }); }
+    try { await store.putBinary(path, f); } catch (e) { toast(`Could not store the image: ${e.message}`, { type: 'error' }); return; }
+    // A saved sheet commits the upload right away; in the builder it goes with the new character when it is created.
+    const live = !!char.id && store.has(pathOf(char.id));
+    onChange(path);
+    if (live) saveSoon(`portrait for ${char.name || char.id}`);
+    toast(majorSaveOn() ? (live ? 'Portrait added.' : 'Portrait added. It is saved with the new character.') : 'Portrait added. It is uploaded with your next Save.');
   });
   const isUrl = /^https?:/.test(char.portrait || '');
   return h('div', { class: 'ch-portrait-field' },
