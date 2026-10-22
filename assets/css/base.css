@@ -555,20 +555,23 @@ button.chip:hover, a.chip:hover { background: var(--surface-2); color: var(--ink
 .md-input:focus, .md-input:focus-visible { outline: none; }
 .md-input::placeholder { color: var(--ink-faint); }
 .md-preview { min-height: 12em; padding: var(--space-3) var(--space-4) var(--space-4); overflow: auto; }
+/* [[ suggestions: a compact list placed by ui.js just under (or over) the caret's line, in the overlay layer */
 .md-suggest {
-  position: absolute; z-index: var(--z-popover);
-  min-width: 240px; max-width: min(380px, 90vw); max-height: 300px; overflow: auto;
-  margin: 0; padding: var(--space-1); list-style: none;
+  position: fixed; z-index: var(--z-popover); top: 0; left: 0;
+  min-width: 200px; max-width: min(300px, calc(100vw - 16px)); max-height: 208px; overflow: auto;
+  margin: 0; padding: 3px; list-style: none;
   background: var(--surface);
   border: 1px solid var(--border-strong); border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
+.md-suggest[hidden] { display: none; }
 .md-suggest-item {
   display: flex; align-items: center; gap: var(--space-2);
-  min-height: 34px; padding: 5px 10px;
-  font: 400 var(--text-sm) / 1.3 var(--font-ui); color: var(--ink);
+  min-height: 28px; padding: 2px 8px;
+  font: 400 var(--text-sm) / 1.25 var(--font-ui); color: var(--ink);
   border-radius: var(--radius-sm); cursor: pointer;
 }
+.md-suggest-item > span:first-child { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .md-suggest-item:hover { background: var(--surface-2); }
 .md-suggest-item.is-active { background: var(--accent-soft); color: var(--ink); }
 .md-suggest-item .muted, .md-suggest-item small, .md-suggest-kind {

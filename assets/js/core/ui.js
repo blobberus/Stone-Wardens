@@ -211,6 +211,28 @@ export function numberInput(value, onchange, props = {}) {
 
 // ---------- markdown editor with [[link]] autocomplete ----------
 
+const CARET_STYLE = ['boxSizing', 'width', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'borderTopWidth', 'borderRightWidth',
+  'borderBottomWidth', 'borderLeftWidth', 'borderStyle', 'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'fontVariant', 'fontStretch',
+  'letterSpacing', 'lineHeight', 'textTransform', 'wordSpacing', 'textIndent', 'tabSize', 'wordBreak'];
+
+/** Viewport position of a textarea's caret, measured with an off-screen copy of its text: { left, top, height }. */
+function caretRect(ta) {
+  const cs = getComputedStyle(ta);
+  const copy = document.createElement('div');
+  for (const p of CARET_STYLE) copy.style[p] = cs[p];
+  Object.assign(copy.style, { position: 'absolute', top: '0', left: '-9999px', visibility: 'hidden', whiteSpace: 'pre-wrap', overflowWrap: 'break-word', overflow: 'hidden' });
+  copy.textContent = ta.value.slice(0, ta.selectionStart);
+  const mark = document.createElement('span');
+  mark.textContent = '​';
+  copy.append(mark);
+  document.body.append(copy);
+  const r = ta.getBoundingClientRect();
+  const height = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.5;
+  const out = { left: r.left + mark.offsetLeft - ta.scrollLeft, top: r.top + mark.offsetTop - ta.scrollTop, height };
+  copy.remove();
+  return out;
+}
+
 /**
  * markdownEditor({value, onInput(value), rows, placeholder, preview:false, autosize:true})
  * Returns an element with .value getter/setter, .focus(), .textarea, .setPreview(bool).
@@ -238,7 +260,7 @@ export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'W
     tool('❝', 'Callout', wrap('> [!note] ', '')),
     h('span', { class: 'md-toolbar-spacer' }),
     toggle);
-  const el = h('div', { class: 'md-editor' }, toolbar, ta, pv, suggest);
+  const el = h('div', { class: 'md-editor' }, toolbar, ta, pv);
 
   function fire() { onInput?.(ta.value); autosize(); }
   function autosize() {
@@ -246,6 +268,7 @@ export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'W
     ta.style.height = `${Math.max(ta.scrollHeight + 2, rows * 22)}px`;
   }
   function setPreview(on) {
+    if (on) hideSuggest();
     pv.hidden = !on;
     ta.hidden = on;
     toggle.textContent = on ? 'Edit' : 'Preview';
@@ -253,7 +276,8 @@ export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'W
     if (on) renderInto(pv, ta.value);
   }
 
-  // [[ autocomplete
+  // [[ autocomplete: a small list just under the line being typed (above it when there is no room below). It lives
+  // in the overlay layer while open, so a modal's scrolling body can't clip it and it never covers the text.
   let items = [];
   let active = 0;
   function context() {
@@ -263,18 +287,54 @@ export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'W
   }
   function updateSuggest() {
     const c = context();
-    if (!c) { suggest.hidden = true; return; }
+    if (!c) { hideSuggest(); return; }
     items = suggestLinks(c.query);
     active = 0;
     drawSuggest();
   }
   function drawSuggest() {
     clear(suggest);
-    suggest.hidden = !items.length;
+    if (!items.length) { hideSuggest(); return; }
     items.forEach((it, i) => suggest.append(h('li', {
       class: ['md-suggest-item', i === active && 'is-active'],
       onmousedown: (e) => { e.preventDefault(); apply(it); },
     }, h('span', null, it.label), h('span', { class: 'muted' }, it.kind))));
+    if (suggest.hidden) {
+      suggest.hidden = false;
+      overlays().append(suggest);
+      window.addEventListener('scroll', placeSuggest, true);
+      window.addEventListener('resize', placeSuggest);
+      document.addEventListener('pointerdown', outside, true);
+    }
+    placeSuggest();
+    suggest.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
+  }
+  function hideSuggest() {
+    if (suggest.hidden) return;
+    suggest.hidden = true;
+    suggest.remove();
+    window.removeEventListener('scroll', placeSuggest, true);
+    window.removeEventListener('resize', placeSuggest);
+    document.removeEventListener('pointerdown', outside, true);
+  }
+  // A press anywhere but the list or the textarea closes it (blur does too; this also covers a removed editor).
+  function outside(e) { if (!suggest.contains(e.target) && e.target !== ta) hideSuggest(); }
+  function placeSuggest() {
+    if (suggest.hidden) return;
+    if (!ta.isConnected) { hideSuggest(); return; }
+    const caret = caretRect(ta);
+    const box = ta.getBoundingClientRect();
+    // The caret scrolled out of its box (long note, scrolled modal): hide until it is back.
+    if (caret.top + caret.height < box.top || caret.top > box.bottom) { suggest.style.visibility = 'hidden'; return; }
+    suggest.style.visibility = '';
+    const gap = 4;
+    const below = window.innerHeight - (caret.top + caret.height) - gap - 8;
+    const above = caret.top - gap - 8;
+    const down = below >= 120 || below >= above;
+    suggest.style.maxHeight = `${Math.max(64, Math.min(208, down ? below : above))}px`;
+    const w = suggest.offsetWidth;
+    suggest.style.left = `${Math.max(8, Math.min(caret.left - 6, window.innerWidth - w - 8))}px`;
+    suggest.style.top = `${down ? caret.top + caret.height + gap : caret.top - gap - suggest.offsetHeight}px`;
   }
   function apply(it) {
     const c = context();
@@ -283,7 +343,7 @@ export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'W
     const closing = after.startsWith(']]') ? '' : ']]';
     ta.setRangeText(it.insert + (it.partial ? '' : closing), c.start, ta.selectionStart, 'end');
     if (!it.partial && !closing) ta.selectionStart = ta.selectionEnd = ta.selectionStart + 2;
-    suggest.hidden = true;
+    hideSuggest();
     fire();
     if (it.partial) updateSuggest();
   }
@@ -293,12 +353,13 @@ export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'W
       if (e.key === 'ArrowDown') { active = (active + 1) % items.length; drawSuggest(); e.preventDefault(); return; }
       if (e.key === 'ArrowUp') { active = (active - 1 + items.length) % items.length; drawSuggest(); e.preventDefault(); return; }
       if (e.key === 'Enter' || e.key === 'Tab') { apply(items[active]); e.preventDefault(); return; }
-      if (e.key === 'Escape') { suggest.hidden = true; e.stopPropagation(); return; }
+      if (e.key === 'Escape') { hideSuggest(); e.stopPropagation(); return; }
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') { e.preventDefault(); wrap('**')(); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') { e.preventDefault(); wrap('*')(); }
   });
-  ta.addEventListener('blur', () => setTimeout(() => { suggest.hidden = true; }, 150));
+  ta.addEventListener('click', () => { if (!suggest.hidden) updateSuggest(); });
+  ta.addEventListener('blur', () => setTimeout(hideSuggest, 150));
 
   Object.defineProperty(el, 'value', { get: () => ta.value, set: (v) => { ta.value = v; autosize(); if (!pv.hidden) renderInto(pv, v); } });
   el.textarea = ta;
