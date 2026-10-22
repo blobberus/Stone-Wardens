@@ -261,5 +261,63 @@ section('bonus actions');
 }
 
 // ------------------------------------------------------------------------------------------------
+section('proficiency labels (engine-prof)');
+{
+  const P = await import(pathToFileURL(path.join(ROOT, 'assets/js/views/characters/engine-prof.js')).href);
+  const kind = (k, e) => ({ ...e, kind: k });
+  const rogue = char({
+    baseAbilities: { str: 10, dex: 16, con: 12, int: 10, wis: 12, cha: 10 },
+    classes: [{ id: 'rogue', level: 3, subclass: 'thief', hp: [8, 5, 5] }],
+    choices: { 'rogue-weapon-mastery@rogue:1': ['dagger', 'shortsword'] },
+  });
+  const rs = E.derive(rogue, rules);
+  const labels = (e, o) => P.entryFit(e, rs, o).badges.map((b) => b.label);
+  eq('rogue: shortsword proficient + mastery', labels(kind('weapon', rules.weaponById.shortsword)), ['Proficient', 'Mastery: Vex']);
+  eq('rogue: longsword not proficient', labels(kind('weapon', rules.weaponById.longsword)), ['Not proficient']);
+  check('not proficient line says no PB', /no Proficiency Bonus/.test(P.entryFit(kind('weapon', rules.weaponById.longsword), rs).lines[0].text));
+  eq('rogue: leather trained, plate not', [labels(kind('armor', rules.armorById['leather-armor'])), labels(kind('armor', rules.armorById['plate-armor']))], [['Trained'], ['No training']]);
+  const plate = P.entryFit(kind('armor', rules.armorById['plate-armor']), rs).lines.map((l) => l.text).join(' ');
+  check('plate: disadvantage + no spells + STR 15 speed + stealth', /Disadvantage on any D20 Test/.test(plate) && /can’t cast spells/.test(plate) && /Strength 15/.test(plate) && /Stealth/.test(plate), plate);
+  eq('rogue: thieves\' tools proficient, lute not', [labels(kind('gear', rules.gearById['thieves-tools'])), labels(kind('gear', rules.gearById.lute))], [['Proficient'], ['Not proficient']]);
+  eq('plain gear: no labels', labels(kind('gear', rules.gearById.rope || rules.gear.find((g) => g.category === 'adventuring-gear'))), []);
+  eq('magic weapon via its base', labels(kind('magic-item', rules.magicItemById['weapon-1']), { base: rules.weaponById.longsword }), ['Not proficient']);
+  const cleric = char({ baseAbilities: { str: 10, dex: 10, con: 14, int: 10, wis: 16, cha: 10 }, classes: [{ id: 'cleric', level: 5, hp: [8, 5, 5, 5, 5] }], spells: [{ id: 'bless', class: 'cleric', prepared: true }] });
+  const cs = E.derive(cleric, rules);
+  const mi = (id) => kind('magic-item', rules.magicItems.find((x) => x.attunementNote === id) || {});
+  eq('attunement by class', [P.attunementFit(mi('by a Cleric or Paladin'), cs).meets, P.attunementFit(mi('by a Sorcerer, Warlock, or Wizard'), cs).meets, P.attunementFit(mi('by a Spellcaster'), cs).meets, P.attunementFit(mi('by a Spellcaster'), rs).meets], [true, false, true, false]);
+  eq('species attunement', [P.attunementFit(mi('by a Dwarf or a Creature Attuned to a Belt of Dwarvenkind'), cs, { speciesName: 'Dwarf' }).meets, P.attunementFit(mi('by a Dwarf or a Creature Attuned to a Belt of Dwarvenkind'), cs).meets], [true, null]);
+  const sl = (id) => P.entryFit(kind('spell', spell(id)), cs).badges.map((b) => b.label);
+  eq('cleric spells: prepared / castable / too high / off-list', [sl('bless'), sl('cure-wounds'), sl('flame-strike'), sl('fireball')], [['Prepared'], [], ['Too high'], ['Off-list']]);
+  eq('no caster', P.entryFit(kind('spell', spell('fire-bolt')), rs).badges.map((b) => b.label), ['No spellcasting']);
+  eq('holy symbol is a cleric focus', P.entryFit(kind('gear', rules.gear.find((g) => g.category === 'holy-symbols')), cs).badges.map((b) => b.label), ['Focus']);
+  eq('feat prerequisite', P.entryFit(kind('feat', rules.featById.grappler), cs).badges.map((b) => b.label), ['Prerequisite']);
+}
+
+section('smart tags (engine-tags)');
+{
+  const T = await import(pathToFileURL(path.join(ROOT, 'assets/js/views/characters/engine-tags.js')).href);
+  const tags = (id) => T.featureTags(rules.featureById[id]);
+  check('Spellcasting is magic', tags('wizard-spellcasting').includes('magic'));
+  check('Extra Attack is attack', tags('fighter-extra-attack').includes('attack'));
+  check('Second Wind: healing + uses', ['healing', 'resources'].every((t) => tags('fighter-second-wind').includes(t)));
+  check('Rage is not magic (it forbids spells)', !tags('barbarian-rage').includes('magic') && tags('barbarian-rage').includes('advantages'));
+  check('Unarmored Defense is defense', tags('barbarian-unarmored-defense').includes('defense'));
+  check('Aura of Protection is defense', tags('paladin-aura-of-protection').includes('defense'));
+  check('Cunning Action: movement + exploration', ['movement', 'exploration'].every((t) => tags('rogue-cunning-action').includes(t)));
+  check('ASI is leveling', tags('fighter-ability-score-improvement').includes('leveling'));
+  check('Bardic Inspiration is interaction', tags('bard-bardic-inspiration').includes('interaction'));
+  eq('manual tags (labels or ids) + modifiers', T.featureTags({ id: 'x', name: 'Stone Skin', description: 'Your skin hardens.' }, { tags: ['Magic', 'exploration', 'nope'], modifiers: { ac: 1, speed: 5 } }), ['magic', 'defense', 'movement', 'exploration']);
+  eq('normalizeTags', T.normalizeTags('Uses & rests, magic; Defense'), ['magic', 'defense', 'resources']);
+  const recs = T.customAbilityRecords({ abilities: [{ name: 'A', tags: ['healing'] }, { ref: 'ability/lib-1' }] }, { 'lib-1': { id: 'lib-1', name: 'Lib', tags: ['senses'] } });
+  eq('custom ability records (engine id scheme)', [...recs.keys()], ['custom-0', 'lib-1']);
+  const grouped = T.tagFeatures([{ id: 'custom-0', name: 'A', description: '' }, rules.featureById['fighter-second-wind']], { records: recs });
+  eq('tagFeatures counts', [grouped.counts.healing, grouped.counts.resources, grouped.byTag.healing.map((x) => x.feature.id)], [2, 1, ['custom-0', 'fighter-second-wind']]);
+  eq('attacks per action', [T.attacksPerAction([{ name: 'Extra Attack' }]), T.attacksPerAction([{ name: 'Extra Attack' }, { name: 'Two Extra Attacks' }]), T.attacksPerAction([])], [2, 3, 1]);
+  const barb = E.derive(char({ baseAbilities: { str: 16, dex: 12, con: 14, int: 8, wis: 10, cha: 10 }, classes: [{ id: 'barbarian', level: 2, hp: [12, 7] }], exhaustion: 2 }), rules);
+  const adv = T.advantageSources(barb, { conditions: [{ id: 'poisoned', name: 'Poisoned', description: 'You have Disadvantage on attack rolls and ability checks.' }] });
+  check('advantage sources: features, conditions, exhaustion', adv.some((x) => x.source === 'Rage' && x.kind === 'advantage') && adv.some((x) => x.source === 'Reckless Attack') && adv.some((x) => x.from === 'condition' && x.kind === 'disadvantage') && adv.some((x) => x.from === 'exhaustion'), adv.map((x) => `${x.source}:${x.kind}`));
+}
+
+// ------------------------------------------------------------------------------------------------
 console.log(`\n${passed} passed, ${failures.length} failed`);
 if (failures.length) { for (const f of failures) console.log(`  FAIL ${f}`); process.exit(1); }

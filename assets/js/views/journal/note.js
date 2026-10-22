@@ -9,6 +9,7 @@ import { debounce } from '../../core/util.js';
 import * as J from './data.js';
 import { toggleTaskAt, plural, fold, headingsOf } from './text.js';
 import { tagList, metaLine, btn, emptyState } from './parts.js';
+import { noteImages, imagesValue, slideshow, imagesPanel, dropIfUnused, chooseAndUpload, pickExisting } from './gallery.js';
 
 const SAVE_MS = 400;
 const HL = 'jr-find';
@@ -150,6 +151,9 @@ export class NoteView {
   }
 
   buildReader(el, note) {
+    // reference images: a slideshow at the top of the page; "Expand" / a tap opens the full-screen viewer
+    const imgs = noteImages(this.fm);
+    if (imgs.length) el.append(slideshow(imgs, { start: Math.min(this.galIndex || 0, imgs.length - 1), onIndex: (i) => { this.galIndex = i; } }));
     if (this.body.trim()) {
       const prose = h('div', { class: 'jr-prose' });
       J.withNote(note, () => renderInto(prose, this.body, { onTaskToggle: () => {} }));
@@ -199,9 +203,36 @@ export class NoteView {
       onInput: (v) => { this.body = v; this.queueSave(); this.liveSoon(); },
     });
     this.editor.classList.add('jr-editor');
-    el.append(this.editor,
+    el.append(imagesPanel({ list: noteImages(this.fm), slug: this.current.slug || 'note', onChange: (list, removed) => this.setImages(list, removed) }),
+      this.editor,
       h('p', { class: 'jr-hint jr-edit-hint' }, 'Kept on this device as you type. Press Save (Ctrl+S) to share it with the party. Ctrl+E goes back to reading.'),
       h('details', { class: 'jr-syntax' }, h('summary', null, 'Formatting help'), syntaxHelp()));
+  }
+
+  // ---------- reference images ----------
+
+  /** Replace the note's reference images (frontmatter `images:`); files no note lists any more are dropped. */
+  setImages(list, removed = []) {
+    if (this.deleted) return;
+    const value = imagesValue(list);
+    this.fm = { ...this.fm };
+    if (value) this.fm.images = value; else delete this.fm.images;
+    this.dirty = true;
+    this.writeNow();
+    const others = J.index().notes.filter((n) => n.path !== this.path);
+    for (const src of removed) if (!list.some((x) => x.src === src)) dropIfUnused(src, others);
+    if (this.galIndex >= list.length) this.galIndex = Math.max(0, list.length - 1);
+    this.ctx.sideLive?.(this);
+  }
+
+  /** From the note menu (any mode): upload photos, or pick images already in the repository. */
+  async addImages(from = 'upload') {
+    const added = from === 'repo' ? await pickExisting(noteImages(this.fm).map((x) => x.src)) : await chooseAndUpload(this.current.slug || 'note');
+    if (!added.length || this.destroyed) return;
+    const list = [...noteImages(this.fm), ...added];
+    if (!this.editing) this.galIndex = list.length - added.length;
+    this.setImages(list);
+    this.render();
   }
 
   // ---------- modes ----------

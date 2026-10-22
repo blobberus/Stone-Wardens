@@ -35,6 +35,8 @@ content/              ALL user data, written by the site through the GitHub API
   maps/<mapId>.json + maps/<mapId>/<image>   sub-maps {id,name,parent,image,width,height}; docs/map-model.md
   journal/<folder…>/<note>.md   nested folders; optional _chapter.json in any folder = folder metadata
                                 {title, description, order} (also keeps empty folders in git); root notes journal/*.md
+                                frontmatter `images:` = reference photos (slideshow; docs/journal-model.md)
+  media/journal/<file>          uploaded reference photos of journal notes (journal/gallery.js)
   library/<kind>/<id>.json   kinds: weapon armor gear magic-item spell feat ability species class subclass
                              background location-type
 wardens-library/      campaign documents (pdf/docx/md/txt/images) shown read-only in Warden's Library
@@ -110,8 +112,9 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   (debuffs already applied to the shown numbers; UI renders them with widgets.js `adjustedValue(sheet, key, text)`).
 - Doc fields beyond the basics: `overrides.proficiency` (final say on skill/save prof), `style.accent` (highlight
   colour, default `#7a1f1f`), `xpLog`, `levelOrder`. Deleting moves a sheet to `recently-deleted/` (trash.js).
-- Sheet order: header (XP meter) -> abilities row -> combat strip -> senses & proficiencies | compact skills |
-  actions window (tabs Attacks / Spells / Bonus actions) + resources -> inventory -> features -> details, notes.
+- Sheet order: header (XP meter) -> abilities row -> combat strip (stats | trackers | HP on the right) -> narrow
+  column skills, senses, proficiencies (foldable) | wide column actions window (tabs Attacks / Spells / Bonus actions),
+  resources, inventory, currency -> features -> details, notes. Tuned for the collapsed sidebar (container queries).
 
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).

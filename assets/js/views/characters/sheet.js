@@ -22,6 +22,11 @@ import { spellStats, spellIssues, addSpellIssues, rollDice } from './engine-spel
 import { adjustedValue as adjValue } from './widgets.js';
 import { choiceDialog as choiceDlg } from '../../core/ui.js';
 import { isBonusActionSpell, bonusActionFeatures, featureHealing, offhandAttacks } from './engine-actions.js';
+import { entryFit, spellFit } from './engine-prof.js';
+import { TAGS, tagFeatures, customAbilityRecords, advantageSources, attacksPerAction } from './engine-tags.js';
+import { levelUpPlan as luPlan } from './bridge.js';
+import { xpStatus } from './engine-xp.js';
+import { lastLeveledClass } from './engine-xp.js';
 // Debuffed values, highlight colour and proficiency marks (abilities / skills / combat / attacks / nav)
 import { adjustedValue, accentAttrs, profMark } from './widgets.js';
 import { getSetting, setSetting } from '../../core/settings.js';
@@ -98,6 +103,8 @@ function focusSection(sec) {
     if (feat) el = S.root.querySelector(`[data-stat="${CSS.escape(feat.id)}"]`);
   }
   if (!el) return;
+  // A folded Proficiencies & languages opens first (then the link is followed in the fresh render).
+  if (el.closest('.ch-sec-profs.is-folded')) { setSetting('chProfsOpen', true); render(); requestAnimationFrame(() => focusSection(sec)); return; }
   // Inside the actions window: open its tab first; a whole tab scrolls the window (not its inner panel) into view.
   const panel = el.closest('[role="tabpanel"]');
   if (panel?.hidden) selectTab(panel.dataset.tab);
@@ -145,17 +152,14 @@ function render() {
         h('a', { class: 'btn btn-sm', href: editHref('choices') }, 'Make choices'))) : null,
     s.warnings.length ? h('details', { class: 'ch-warnings' }, h('summary', { class: 'muted ui text-sm' }, icon('info'), ` ${s.warnings.length} rules note${s.warnings.length === 1 ? '' : 's'}`),
       h('ul', { class: 'ui text-sm' }, s.warnings.map((w) => h('li', null, String(w))))) : null,
-    // D&D Beyond proportions: ability row, combat strip, then senses & proficiencies | skills | the actions window
-    // (Attacks · Spells · Bonus actions tabs) with resources; inventory; features & traits; details; notes.
+    // Compact D&D Beyond proportions: ability row, combat strip (HP on the right), then a narrow column
+    // (skills, senses, collapsible proficiencies) | the wide column: actions window (Attacks · Spells · Bonus actions),
+    // resources, inventory, currency (fills the space beside the skills); then features & traits, details, notes.
     abilities(c, s),
     combat(c, s),
     h('div', { class: 'ch-body' }, h('div', { class: 'ch-body-grid' },
-      h('div', { class: 'ch-col ch-col-l' }, passive(s), proficiencies(c, s)),
-      h('div', { class: 'ch-col ch-col-m' }, skills(c, s)),
-      h('div', { class: 'ch-col ch-col-r' }, actionTabs(c, s), resources(c, s)))),
-    h('div', { class: 'ch-layout' },
-      h('div', { class: 'ch-col ch-col-a' }, currency(c)),
-      h('div', { class: 'ch-col ch-col-b' }, inventory(c, s))),
+      h('div', { class: 'ch-col ch-col-l' }, skills(c, s), passive(s), proficiencies(c, s)),
+      h('div', { class: 'ch-col ch-col-r' }, actionTabs(c, s), resources(c, s), inventory(c, s), currency(c)))),
     features(c, s),
     details(c, s),
     notes(c)));
@@ -200,7 +204,7 @@ const NAV = { io: null, stuck: false, id: null };
 function nav(s) {
   const c = S.char;
   if (NAV.id !== S.id) { NAV.id = S.id; NAV.stuck = false; }
-  const items = [['abilities', 'Abilities'], ['hp', 'Combat'], ['passive', 'Senses'], ['skills', 'Skills'], ['attacks', 'Attacks'],
+  const items = [['abilities', 'Abilities'], ['hp', 'Combat'], ['skills', 'Skills'], ['passive', 'Senses'], ['attacks', 'Attacks'],
     (s.spellcasting.length || c.spells.length) ? ['spells', 'Spells'] : null, ['bonus-actions', 'Bonus'], ['inventory', 'Inventory'],
     ['features', 'Features'], ['details', 'Details'], ['notes', 'Notes']].filter(Boolean);
   const el = h('nav', { class: ['ch-nav', NAV.stuck && 'is-stuck'], 'aria-label': 'Sheet sections' },
@@ -239,28 +243,29 @@ function combat(c, s) {
   const speedSub = Object.entries(s.speed).filter(([k, v]) => k !== 'walk' && v).map(([k, v]) => `${prettify(k)} ${v}`).join(' · ');
   const ex = Number(c.exhaustion) || 0;
   const conds = conditionList().filter((x) => x.id !== 'exhaustion');
-  return h('section', { class: 'ch-combat', 'data-sec': 'combat', 'aria-label': 'Combat' },
+  // Compact strip: AC · Initiative · Speed · Proficiency (2 × 2) | trackers | Hit points on the right (stacked when narrow).
+  const hpBox = h('div', { class: 'ch-hp', 'data-sec': 'hp' },
+    h('div', { class: 'ch-hp-top' },
+      h('span', { class: 'ch-stat-label' }, icon('heart'), ' Hit points'),
+      h('span', { class: 'ch-hp-now num', title: s.adjust?.hpMax ? null : 'Current + temporary' }, String(cur + temp), h('span', { class: 'ch-hp-max' }, ' / ', adjustedValue(s, 'hpMax', String(max))))),
+    hpBar(cur, max, temp),
+    h('div', { class: 'ch-hp-grid' },
+      h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Current'),
+        numberInput(cur, (v) => mutate((x) => { x.hp.current = Math.max(0, Math.min(max, v ?? max)); }), { class: 'input input-sm', min: 0, max, 'data-fk': 'hp-cur' })),
+      h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Temp HP'),
+        numberInput(temp, (v) => mutate((x) => { x.hp.temp = Math.max(0, v || 0); }), { class: 'input input-sm', min: 0, 'data-fk': 'hp-temp' })),
+      h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Damage taken'),
+        numberInput(Math.max(0, max - cur), (v) => mutate((x) => { x.hp.current = Math.max(0, max - Math.max(0, v || 0)); }), { class: 'input input-sm', min: 0, max, 'data-fk': 'hp-dmg' }))),
+    h('div', { class: 'ch-hp-actions' }, amount,
+      h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: doDamage, 'data-fk': 'hp-dmg-btn' }, 'Damage'),
+      h('button', { class: 'btn btn-sm', type: 'button', onclick: doHeal, 'data-fk': 'hp-heal-btn' }, 'Heal')));
+  return h('section', { class: 'ch-combat', 'data-sec': 'combat', 'aria-label': 'Combat' }, h('div', { class: 'ch-combat-grid' },
     h('div', { class: 'ch-combat-stats' },
       statBox({ label: 'Armor Class', value: adjustedValue(s, 'ac', String(s.ac.value)), sub: s.armorWorn?.name || (s.shield ? 'Shield' : 'Unarmored'), stat: 'ac', title: s.adjust?.ac ? null : s.ac.formula, onClick: () => acInfo(s) }),
       statBox({ label: 'Initiative', value: adjustedValue(s, 'initiative', fmt(s.initiative)), stat: 'initiative', title: s.adjust?.initiative ? null : 'Roll initiative', onClick: () => rollToast('Initiative', s.initiative) }),
       statBox({ label: 'Speed', value: adjustedValue(s, 'speed', `${s.speed.walk ?? 0} ft`), sub: speedSub || null, stat: 'speed' }),
       statBox({ label: 'Proficiency', value: adjustedValue(s, 'profBonus', fmt(s.profBonus)), stat: 'prof' })),
-    h('div', { class: 'ch-hp', 'data-sec': 'hp' },
-      h('div', { class: 'ch-hp-top' },
-        h('span', { class: 'ch-stat-label' }, icon('heart'), ' Hit points'),
-        h('span', { class: 'ch-hp-now num', title: s.adjust?.hpMax ? null : 'Current + temporary' }, String(cur + temp), h('span', { class: 'ch-hp-max' }, ' / ', adjustedValue(s, 'hpMax', String(max))))),
-      hpBar(cur, max, temp),
-      h('div', { class: 'ch-hp-grid' },
-        h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Current'),
-          numberInput(cur, (v) => mutate((x) => { x.hp.current = Math.max(0, Math.min(max, v ?? max)); }), { class: 'input input-sm', min: 0, max, 'data-fk': 'hp-cur' })),
-        h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Temp HP'),
-          numberInput(temp, (v) => mutate((x) => { x.hp.temp = Math.max(0, v || 0); }), { class: 'input input-sm', min: 0, 'data-fk': 'hp-temp' })),
-        h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Damage taken'),
-          numberInput(Math.max(0, max - cur), (v) => mutate((x) => { x.hp.current = Math.max(0, max - Math.max(0, v || 0)); }), { class: 'input input-sm', min: 0, max, 'data-fk': 'hp-dmg' }))),
-      h('div', { class: 'ch-hp-actions' }, amount,
-        h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: doDamage, 'data-fk': 'hp-dmg-btn' }, 'Damage'),
-        h('button', { class: 'btn btn-sm', type: 'button', onclick: doHeal, 'data-fk': 'hp-heal-btn' }, 'Heal'))),
-    h('div', { class: 'ch-combat-side' },
+    h('div', { class: 'ch-combat-side' }, h('div', { class: 'ch-side-grid' },
       h('div', { class: 'ch-mini', 'data-stat': 'hit-dice' },
         h('span', { class: 'ch-stat-label' }, 'Hit dice'),
         s.hitDice.length ? s.hitDice.map((hd) => h('div', { class: 'ch-mini-row' },
@@ -271,8 +276,9 @@ function combat(c, s) {
           h('span', { class: 'muted ui text-xs' }, `${hd.total - hd.used}/${hd.total} left`))) : h('span', { class: 'faint ui text-sm' }, '—')),
       h('div', { class: 'ch-mini', 'data-sec': 'death-saves' },
         h('span', { class: 'ch-stat-label' }, 'Death saves'),
-        h('div', { class: 'ch-mini-row' }, h('span', { class: 'ui text-sm ch-ds-label' }, 'Successes'), deathBoxes('success', c.deathSaves.success)),
-        h('div', { class: 'ch-mini-row' }, h('span', { class: 'ui text-sm ch-ds-label' }, 'Failures'), deathBoxes('fail', c.deathSaves.fail))),
+        h('div', { class: 'ch-ds-rows' },
+          h('span', { class: 'ui text-xs ch-ds-label' }, 'Successes'), deathBoxes('success', c.deathSaves.success),
+          h('span', { class: 'ui text-xs ch-ds-label' }, 'Failures'), deathBoxes('fail', c.deathSaves.fail))),
       h('div', { class: 'ch-mini' },
         h('span', { class: 'ch-stat-label' }, 'Heroic inspiration'),
         h('button', {
@@ -291,7 +297,8 @@ function combat(c, s) {
             return chip(info?.name || prettify(id), { title: info ? info.description.slice(0, 300) : null, className: 'ch-cond', onRemove: () => mutate((x) => { x.conditions = x.conditions.filter((y) => y !== id); }) });
           }),
           select([{ value: '', label: c.conditions.length ? 'Add…' : 'Add condition…' }, ...conds.filter((x) => !c.conditions.includes(x.id)).map((x) => ({ value: x.id, label: x.name }))], '',
-            (v) => v && mutate((x) => { x.conditions = [...x.conditions, v]; }), { class: 'select input-sm ch-cond-add', 'aria-label': 'Add condition', 'data-fk': 'cond-add' })))));
+            (v) => v && mutate((x) => { x.conditions = [...x.conditions, v]; }), { class: 'select input-sm ch-cond-add', 'aria-label': 'Add condition', 'data-fk': 'cond-add' }))))),
+    hpBox));
 }
 
 function deathBoxes(kind, n) {
@@ -403,18 +410,25 @@ function skills(c, s) {
     folded ? h('span', null, `${all.length - rows.length} more hidden`) : null));
 }
 
+// Proficiencies & languages: dense text rows; folds to its header (per device, folded by default) with a count summary.
 function proficiencies(c, s) {
-  const list = (items, kind) => (items?.length ? h('div', { class: 'row ch-chip-row' }, [...new Set(items)].map((id) => h('span', { class: 'chip' }, profName(kind, id)))) : h('span', { class: 'faint ui text-sm' }, 'None'));
-  const res = [...new Set([...(s.resistances || [])])];
-  return section('proficiencies', 'Proficiencies & languages', { iconName: 'book-open', actions: [h('a', { class: 'btn-icon btn-sm', href: editHref('proficiencies'), title: 'Edit proficiencies', 'aria-label': 'Edit proficiencies' }, icon('edit'))] },
-    h('div', { class: 'stack stack-sm ch-profs' },
-      h('div', null, h('h4', { class: 'ch-mini-head' }, 'Armor'), list(s.proficiencies.armor, 'armor')),
-      h('div', null, h('h4', { class: 'ch-mini-head' }, 'Weapons'), list(s.proficiencies.weapons, 'weapons')),
-      h('div', null, h('h4', { class: 'ch-mini-head' }, 'Tools'), list(s.proficiencies.tools, 'tools')),
-      h('div', null, h('h4', { class: 'ch-mini-head' }, 'Languages'), list(s.languages, 'languages')),
-      h('div', { 'data-stat': 'resistances' }, h('h4', { class: 'ch-mini-head' }, 'Resistances'),
-        res.length ? h('div', { class: 'row ch-chip-row' }, res.map((r) => h('span', { class: 'chip' }, prettify(typeof r === 'object' ? r.type || r.id : r)))) : null,
-        c.details.resistances ? md(c.details.resistances) : res.length ? null : h('span', { class: 'faint ui text-sm' }, 'None'))));
+  const open = !!getSetting('chProfsOpen');
+  const names = (items, kind) => [...new Set(items || [])].map((id) => profName(kind, id));
+  const res = [...new Set([...(s.resistances || [])])].map((r) => prettify(typeof r === 'object' ? r.type || r.id : r));
+  const rows = [['Armor', names(s.proficiencies.armor, 'armor')], ['Weapons', names(s.proficiencies.weapons, 'weapons')],
+    ['Tools', names(s.proficiencies.tools, 'tools')], ['Languages', names(s.languages, 'languages')]];
+  const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const summary = [count(rows[0][1].length, 'armor', 'armor'), count(rows[1][1].length, 'weapon', 'weapons'), count(rows[2][1].length, 'tool', 'tools'), count(rows[3][1].length, 'language', 'languages')].join(' · ');
+  const toggle = () => { setSetting('chProfsOpen', !open); render(); };
+  return section('proficiencies', h('button', { class: 'ch-fold', type: 'button', 'aria-expanded': String(open), 'aria-controls': 'ch-profs-body', 'data-fk': 'profs-fold', onclick: toggle },
+    icon(open ? 'chevron-down' : 'chevron-right'), 'Proficiencies & languages'), {
+    className: ['ch-sec-profs', !open && 'is-folded'].filter(Boolean).join(' '), sub: open ? null : summary,
+    actions: [h('a', { class: 'btn-icon btn-sm', href: editHref('proficiencies'), title: 'Edit proficiencies', 'aria-label': 'Edit proficiencies' }, icon('edit'))],
+  },
+  h('dl', { class: 'ch-dl ch-profs', id: 'ch-profs-body' },
+    rows.map(([label, list]) => [h('dt', null, label), h('dd', null, list.length ? list.join(', ') : h('span', { class: 'faint' }, 'None'))]),
+    h('dt', null, 'Resistances'), h('dd', { 'data-stat': 'resistances' },
+      res.length ? res.join(', ') : null, c.details.resistances ? md(c.details.resistances) : res.length ? null : h('span', { class: 'faint' }, 'None'))));
 }
 
 // ---------- actions window: Attacks | Spells | Bonus actions (D&D Beyond style), switched in place ----------
@@ -474,7 +488,7 @@ function attacks(c, s) {
       const range = typeof a.range === 'object' && a.range ? `${a.range.normal}${a.range.long ? `/${a.range.long}` : ''} ft` : a.range || '';
       const notesText = Array.isArray(a.notes) ? a.notes.join(' · ') : a.notes || '';
       return h('tr', { 'data-stat': a.uid || (a.unarmed ? 'unarmed' : null), class: a.proficient === false ? 'is-unproficient' : null },
-        h('td', { class: 'cell-name' }, entry ? h('button', { class: 'ch-link-btn', type: 'button', onclick: () => entryModal(entry) }, a.name) : a.name,
+        h('td', { class: 'cell-name' }, entry ? h('button', { class: 'ch-link-btn', type: 'button', onclick: () => entryInfo(entry, { item }) }, a.name) : a.name,
           a.properties?.length ? h('div', { class: 'ch-props' }, a.properties.map((p, pi) => h('span', { class: 'ch-prop', title: propertyInfo(p)?.description?.slice(0, 300) || null }, a.propertyNames?.[pi] || prettify(p)))) : null),
         h('td', { class: 'num' }, h('button', { class: 'ch-link-btn num ch-bonus', type: 'button', onclick: () => rollToast(`${a.name} to hit`, a.bonus) },
           h('span', { class: 'sr-only' }, `Roll to hit with ${a.name} `), adjustedValue(s, `attack:${a.uid || (a.unarmed ? 'unarmed' : '')}`, typeof a.bonus === 'number' ? fmt(a.bonus) : String(a.bonus ?? '')))),
@@ -597,7 +611,7 @@ function spellItem(r, s, { extraMeta = null } = {}) {
     }) : h('span', { class: 'ch-spell-dot', 'aria-hidden': 'true' }),
     h('div', { class: 'ch-spell-id' },
       h('div', { class: 'ch-spell-title' },
-        h('button', { class: 'ch-link-btn ch-spell-name', type: 'button', onclick: () => r.entry ? entryModal(r.entry) : toast('This spell is not in the SRD; see your book.') }, r.name),
+        h('button', { class: 'ch-link-btn ch-spell-name', type: 'button', onclick: () => r.entry ? entryInfo(r.entry) : toast('This spell is not in the SRD; see your book.') }, r.name),
         r.always ? h('span', { class: 'badge badge-info', title: r.source || 'Always prepared' }, icon('lock'), 'always') : null,
         r.entry?.concentration ? h('span', { class: 'badge', title: 'Concentration' }, 'C') : null,
         r.entry?.ritual ? h('span', { class: 'badge', title: 'Ritual' }, 'R') : null,
@@ -764,7 +778,14 @@ async function addSpells(s) {
     filter: (e) => !have.has(e.id) && (!allowed || allowed.has(e.id)),
     // Any spell may be added; the ones that don't fit get a notice first and an "off-list" mark on the sheet.
     widen: sc ? { label: 'Show all spells', hint: `Include spells outside the ${className} list or above level ${max}. You’ll be told why they don’t fit and can add them anyway.`, filter: (e) => !have.has(e.id) } : null,
-    mark: sc ? (e) => { const is = issuesOf(e); return is.length ? { label: is.some((i) => i.code === 'not-on-list') ? 'off-list' : 'too high', title: is.map((i) => i.text).join(' ') } : null; } : null,
+    mark: (e) => {
+      const out = [];
+      const k = spellFit(e, s);
+      if (k.known) out.push({ label: k.always ? 'Always prepared' : k.prepared ? 'Known' : 'In spellbook', tone: 'ok', title: 'Already on your sheet (another class or source)' });
+      const is = issuesOf(e);
+      if (is.length) out.push({ label: is.some((i) => i.code === 'not-on-list') ? 'off-list' : 'too high', title: is.map((i) => i.text).join(' ') });
+      return out;
+    },
   });
   let picked = [].concat(res || []).filter(Boolean);
   if (!picked.length) return;
@@ -808,33 +829,168 @@ function featureGroup(f) {
   return [`7:${f.source || 'other'}`, f.source || 'Other'];
 }
 
+// View of Features & traits, remembered per device: {view:'all'|'smart', tag}
+const FEAT_VIEW_KEY = 'sw:characters:features';
+function featView() {
+  try { const v = JSON.parse(localStorage.getItem(FEAT_VIEW_KEY) || '{}'); return { view: v.view === 'smart' ? 'smart' : 'all', tag: v.tag || 'magic' }; } catch { return { view: 'all', tag: 'magic' }; }
+}
+function setFeatView(patch) {
+  try { localStorage.setItem(FEAT_VIEW_KEY, JSON.stringify({ ...featView(), ...patch })); } catch { /* private mode */ }
+  render();
+}
+
+/** Smart tags of every feature this sheet shows (custom abilities read their own record: manual tags, modifiers). */
+function featureTagging(c, s) {
+  const lib = Object.fromEntries(cat('ability').map((a) => [a.id, a]));
+  return tagFeatures(s.features, { records: customAbilityRecords(c, lib) });
+}
+
 function features(c, s) {
-  const groups = new Map();
-  for (const f of s.features) {
-    const [k, label] = featureGroup(f);
-    if (!groups.has(k)) groups.set(k, { label, list: [] });
-    groups.get(k).list.push(f);
-  }
+  const v = featView();
   const choices = Array.isArray(s.choices) && s.choices.length ? s.choices : (() => { try { return allChoices(c); } catch { return []; } })();
   const choiceByKey = new Map(choices.map((x) => [x.key, x]));
   const resByKey = new Map(s.resources.map((r) => [r.key, r]));
+  const tagging = featureTagging(c, s);
+  const tagsOf = new Map(tagging.tagged.map((x) => [x.feature, x.tags]));
+  const item = (f) => feature(f, choiceByKey, resByKey, tagsOf.get(f) || []);
+  const seg = h('div', { class: 'ch-seg ch-feat-views', role: 'group', 'aria-label': 'Features view' },
+    [['all', 'All'], ['smart', 'Smart']].map(([id, label]) => h('button', {
+      class: ['ch-seg-btn', v.view === id && 'is-active'], type: 'button', 'aria-pressed': String(v.view === id), 'data-fk': `feat-view-${id}`,
+      title: id === 'smart' ? 'Group by what features do: magic, attack, defense…' : 'Group by where features come from',
+      onclick: () => setFeatView({ view: id }),
+    }, label)));
+  let body;
+  if (!s.features.length) body = h('p', { class: 'muted ui text-sm' }, 'No features yet. Choose a class, species and background.');
+  else if (v.view === 'smart') body = smartFeatures(c, s, tagging, item, v.tag);
+  else {
+    const groups = new Map();
+    for (const f of s.features) {
+      const [k, label] = featureGroup(f);
+      if (!groups.has(k)) groups.set(k, { label, list: [] });
+      groups.get(k).list.push(f);
+    }
+    body = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, g]) => h('div', { class: 'ch-feat-group' },
+      h('h3', { class: 'ch-feat-group-title' }, g.label, h('span', { class: 'ch-feat-count' }, String(g.list.length))),
+      h('div', { class: 'ch-feat-cols' }, g.list.map(item))));
+  }
   return section('features', 'Features & traits', {
     iconName: 'scroll',
-    actions: [
-      h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => setAllFeatures(true) }, 'Expand all'),
-      h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => setAllFeatures(false) }, 'Collapse'),
-      h('a', { class: 'btn btn-ghost btn-sm', href: editHref('advanced') }, icon('plus'), 'Ability')],
-  },
-  s.features.length ? [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, g]) => h('div', { class: 'ch-feat-group' },
-    h('h3', { class: 'ch-feat-group-title' }, g.label),
-    g.list.map((f) => feature(f, choiceByKey, resByKey)))) : h('p', { class: 'muted ui text-sm' }, 'No features yet. Choose a class, species and background.'));
+    actions: [seg,
+      h('button', { class: 'btn-icon btn-sm', type: 'button', title: 'Expand all', 'aria-label': 'Expand all', onclick: () => setAllFeatures(true) }, icon('chevron-down')),
+      h('button', { class: 'btn-icon btn-sm', type: 'button', title: 'Collapse all', 'aria-label': 'Collapse all', onclick: () => setAllFeatures(false) }, icon('chevron-up')),
+      h('a', { class: 'btn btn-ghost btn-sm', href: editHref('advanced'), title: 'Add a special ability (Edit all → Advanced)' }, icon('plus'), 'Ability')],
+  }, body);
+}
+
+/** Smart view: tag chips with counts, then the character's related numbers and the matching features. */
+function smartFeatures(c, s, tagging, item, tag) {
+  const untagged = tagging.tagged.filter((x) => !x.tags.length).map((x) => x.feature);
+  const ALWAYS = new Set(['magic', 'attack', 'weaponry', 'leveling', 'interaction', 'advantages', 'defense']);
+  const tags = [...TAGS.filter((t) => ALWAYS.has(t.id) || tagging.counts[t.id]), ...(untagged.length ? [{ id: 'other', label: 'Other', hint: 'No smart tag' }] : [])];
+  const cur = tags.some((t) => t.id === tag) ? tag : 'magic';
+  const list = cur === 'other' ? untagged : (tagging.byTag[cur] || []).map((x) => x.feature);
+  const aspects = tagAspects(cur, c, s);
+  return h('div', { class: 'ch-smart' },
+    h('div', { class: 'ch-smart-tags', role: 'tablist', 'aria-label': 'Smart tags' }, tags.map((t) => h('button', {
+      class: ['chip', 'ch-smart-tag', t.id === cur && 'is-active'], type: 'button', role: 'tab', 'aria-selected': String(t.id === cur), title: t.hint, 'data-fk': `smart-${t.id}`,
+      onclick: () => setFeatView({ view: 'smart', tag: t.id }),
+    }, t.label, h('span', { class: 'ch-smart-n num' }, String(t.id === 'other' ? untagged.length : tagging.counts[t.id] || 0))))),
+    aspects ? h('div', { class: 'ch-aspects', 'aria-label': 'On your sheet' }, aspects) : null,
+    list.length ? h('div', { class: 'ch-feat-group' }, h('div', { class: 'ch-feat-cols' }, list.map(item)))
+      : h('p', { class: 'muted ui text-sm' }, `No features tagged ${tags.find((t) => t.id === cur)?.label || cur} yet.`));
+}
+
+/** One aspect row: label + value nodes. */
+const aspect = (label, ...value) => h('div', { class: 'ch-aspect' }, h('dt', null, label), h('dd', null, value));
+const chipList = (items) => (items.length ? h('span', { class: 'ch-aspect-chips' }, items.map((x) => h('span', { class: 'chip' }, x))) : h('span', { class: 'faint' }, '—'));
+
+/** The character's numbers that belong with a smart tag (compact <dl>), or null. */
+function tagAspects(tag, c, s) {
+  const rows = [];
+  const skill = (id) => { const x = s.skills[id]; const sk = skillList().find((k) => k.id === id); return x ? `${sk?.name || prettify(id)} ${fmt(x.bonus)}${x.expertise ? ' (Exp)' : x.prof ? ' (P)' : ''}` : null; };
+  if (tag === 'magic') {
+    for (const sc of s.spellcasting) rows.push(aspect(sc.name || entryName('class', sc.class), `${String(sc.ability).toUpperCase()} · DC `, adjValue(s, `spellDc:${sc.class}`, String(sc.dc)), ' · attack ', adjValue(s, `spellAttack:${sc.class}`, fmt(sc.attack)), sc.prepared ? ` · prepared ${sc.preparedCount ?? 0}/${sc.prepared}` : ''));
+    for (const g of s.innate || []) rows.push(aspect(g.source || 'Innate', `${String(g.ability).toUpperCase()} · DC ${g.dc} · attack ${fmt(g.attack)} · ${(g.spells || []).map((id) => entryName('spell', id)).join(', ')}`));
+    const sl = s.slots.map((n, i) => (n ? `L${i + 1} ${Math.max(0, n - (c.slotsUsed[i] || 0))}/${n}` : null)).filter(Boolean);
+    if (sl.length) rows.push(aspect('Slots left', sl.join(' · ')));
+    if (s.pact) rows.push(aspect('Pact slots', `${Math.max(0, s.pact.slots - (c.pactUsed || 0))}/${s.pact.slots} at level ${s.pact.level}`));
+    const magicItems = (s.items || []).filter((i) => i.magic || i.kind === 'magic-item');
+    if (magicItems.length) rows.push(aspect('Magic items', chipList(magicItems.map((i) => `${i.name}${i.attuned ? ' (attuned)' : i.requiresAttunement ? ' (not attuned)' : ''}`))));
+    if (!rows.length) rows.push(aspect('Spellcasting', h('span', { class: 'faint' }, 'none')));
+  } else if (tag === 'attack') {
+    const n = attacksPerAction(s.features);
+    rows.push(aspect('Attack action', `${n} attack${n === 1 ? '' : 's'}${n > 1 ? ' (Extra Attack)' : ''}`));
+    rows.push(aspect('Attacks', s.attacks.length ? h('span', { class: 'ch-aspect-chips' }, s.attacks.map((a) => h('button', { class: 'chip', type: 'button', title: `Roll to hit with ${a.name}`, onclick: () => rollToast(`${a.name} to hit`, a.bonus) }, `${a.name} ${fmt(a.bonus)} · ${a.damage || ''} ${prettify(a.damageType || '')}`.trim()))) : h('span', { class: 'faint' }, '—')));
+    rows.push(aspect('Initiative', fmt(s.initiative)));
+  } else if (tag === 'weaponry') {
+    rows.push(aspect('Proficient with', chipList([...new Set(s.proficiencies.weapons)].map((id) => profName('weapons', id)))));
+    if ((s.weaponMasteries || []).length) rows.push(aspect('Masteries', chipList(s.weaponMasteries.map((id) => { const w = findEntry('weapon', id); return w ? `${w.name} (${prettify(w.mastery)})` : prettify(id); }))));
+    const eq = s.attacks.filter((a) => a.uid);
+    rows.push(aspect('Equipped', chipList(eq.map((a) => `${a.name}${a.propertyNames?.length ? ` · ${a.propertyNames.join(', ')}` : ''}`))));
+  } else if (tag === 'defense') {
+    rows.push(aspect('Armor Class', adjustedValue(s, 'ac', String(s.ac.value)), s.ac.formula ? h('span', { class: 'muted' }, ` · ${s.ac.formula}`) : null));
+    rows.push(aspect('Hit points', `${c.hp.current ?? s.hpMax} / ${s.hpMax}${Number(c.hp.temp) ? ` (+${c.hp.temp} temp)` : ''}`));
+    rows.push(aspect('Save proficiencies', chipList(ABILITIES.filter((a) => s.abilities[a.id]?.saveProf).map((a) => `${a.name} ${fmt(s.abilities[a.id].save)}`))));
+    if ((s.resistances || []).length) rows.push(aspect('Resistances', chipList(s.resistances.map((r) => prettify(typeof r === 'object' ? r.type || r.id : r)))));
+    if (s.armorWorn || s.shield) rows.push(aspect('Worn', [s.armorWorn?.name, s.shield ? (s.shield.name || 'Shield') : null].filter(Boolean).join(' + ')));
+  } else if (tag === 'advantages') {
+    const conds = conditionList().filter((x) => c.conditions.includes(x.id));
+    const src = advantageSources(s, { conditions: conds });
+    const adv = src.filter((x) => x.kind !== 'disadvantage');
+    const dis = src.filter((x) => x.kind !== 'advantage');
+    const li = (x) => h('li', null, h('strong', null, `${x.source}: `), x.text);
+    rows.push(aspect('Advantage', adv.length ? h('ul', { class: 'ch-aspect-list', role: 'list' }, adv.map(li)) : h('span', { class: 'faint' }, '—')));
+    rows.push(aspect('Disadvantage', dis.length ? h('ul', { class: 'ch-aspect-list', role: 'list' }, dis.map(li)) : h('span', { class: 'faint' }, '—')));
+  } else if (tag === 'interaction') {
+    rows.push(aspect('Social skills', chipList(['persuasion', 'deception', 'intimidation', 'performance', 'insight'].map(skill).filter(Boolean))));
+    rows.push(aspect('Languages', chipList((s.languageNames?.length ? s.languageNames : s.languages).map(String))));
+  } else if (tag === 'leveling') {
+    const xs = xpStatus(c, R());
+    rows.push(aspect('Experience', xs.atMax ? `level ${xs.level} (max)` : `${xs.xp.toLocaleString('en-US')} / ${Number(xs.next).toLocaleString('en-US')} XP${xs.due ? ` · ${xs.due} level${xs.due === 1 ? '' : 's'} due` : ` · ${xs.toNext.toLocaleString('en-US')} to level ${xs.levelForNext}`}`));
+    const cls = lastLeveledClass(c);
+    if (cls && xs.level < 20) {
+      let plan = null;
+      try { plan = luPlan(c, cls); } catch { plan = null; }
+      if (plan) {
+        const slotUp = plan.slotsAfter && plan.slotsBefore ? plan.slotsAfter.map((n, i) => (n > (plan.slotsBefore[i] || 0) ? `L${i + 1} +${n - (plan.slotsBefore[i] || 0)}` : null)).filter(Boolean) : [];
+        rows.push(aspect(`Next: ${entryName('class', cls)} ${plan.newLevel}`, [
+          plan.features.length ? plan.features.map((f) => f.name || prettify(f.id)).join(', ') : 'no new features',
+          plan.hpAverage ? ` · +${plan.hpAverage} HP avg` : '', slotUp.length ? ` · slots ${slotUp.join(', ')}` : '',
+          plan.choices?.length ? ` · ${plan.choices.length} choice${plan.choices.length === 1 ? '' : 's'}` : ''].join(''), ' ',
+        h('button', { class: 'ch-link-btn', type: 'button', onclick: () => levelUp({ fromXp: true }) }, 'Level up…')));
+      }
+    }
+    if (s.pending.length) rows.push(aspect('Open choices', s.pending.slice(0, 6).map((p) => p.label || prettify(p.featureId)).join(', '), s.pending.length > 6 ? '…' : '', ' ', h('a', { href: editHref('choices') }, 'Make choices')));
+  } else if (tag === 'healing') {
+    rows.push(aspect('Hit dice', s.hitDice.length ? s.hitDice.map((hd) => `d${hd.die} ${hd.total - hd.used}/${hd.total}`).join(' · ') : '—'));
+    const heals = spellRows(c, s).filter((r) => r.stats?.heal && (r.prepared || r.always || r.level === 0));
+    if (heals.length) rows.push(aspect('Healing spells', chipList(heals.map((r) => `${r.name} ${r.stats.heal.text}`))));
+  } else if (tag === 'movement') {
+    rows.push(aspect('Speed', Object.entries(s.speed).filter(([, x]) => x).map(([k, x]) => `${k === 'walk' ? 'Walk' : prettify(k)} ${x} ft`).join(' · ') || '—'));
+  } else if (tag === 'senses') {
+    rows.push(aspect('Senses', s.sensesList?.length ? s.sensesList.join(', ') : 'normal vision'));
+    rows.push(aspect('Passive', `Perception ${s.passive.perception} · Insight ${s.passive.insight} · Investigation ${s.passive.investigation}`));
+  } else if (tag === 'exploration') {
+    rows.push(aspect('Skills', chipList(['stealth', 'survival', 'perception', 'investigation', 'athletics', 'acrobatics', 'sleight-of-hand', 'nature'].map(skill).filter(Boolean))));
+    rows.push(aspect('Tools', chipList([...new Set(s.proficiencies.tools)].map((id) => profName('tools', id)))));
+  } else if (tag === 'skills') {
+    rows.push(aspect('Proficient', chipList(skillList().filter((k) => s.skills[k.id]?.prof || s.skills[k.id]?.expertise).map((k) => skill(k.id)))));
+  } else if (tag === 'reactions') {
+    const rs = spellRows(c, s).filter((r) => /reaction/i.test(r.entry?.castingTime || '') && (r.prepared || r.always || r.level === 0));
+    rows.push(aspect('Reaction spells', chipList(rs.map((r) => r.name))));
+    rows.push(aspect('Always', 'Opportunity Attack (when a creature you can see leaves your reach)'));
+  } else if (tag === 'resources') {
+    if (!s.resources.length) return null;
+    rows.push(...s.resources.map((r) => aspect(r.label, resourcePips(r), r.recharge ? h('span', { class: 'muted' }, ` ${r.recharge === 'short' ? 'short rest' : 'long rest'}`) : null)));
+  }
+  return rows.length ? h('dl', { class: 'ch-aspect-grid' }, rows) : null;
 }
 
 function setAllFeatures(open) {
   S.root.querySelectorAll('details.ch-feat').forEach((d) => { d.open = open; });
 }
 
-function feature(f, choiceByKey, resByKey) {
+function feature(f, choiceByKey, resByKey, tags = []) {
   const fid = f.id || f.name;
   const res = (f.uses && typeof f.uses === 'object' && f.uses.key && resByKey.get(f.uses.key)) || (typeof f.uses === 'string' && resByKey.get(f.uses)) || resByKey.get(f.id) || null;
   const choice = f.choiceKey ? choiceByKey.get(f.choiceKey) : null;
@@ -846,6 +1002,11 @@ function feature(f, choiceByKey, resByKey) {
     body.dataset.filled = '1';
     body.append(md(f.description, { empty: 'No description.' }));
     if (f.modifiers) body.append(h('p', { class: 'muted ui text-sm' }, describeModifiers(f.modifiers)));
+    if (tags.length) {
+      body.append(h('p', { class: 'ch-feat-tags ui text-xs' }, tags.map((t) => h('button', {
+        class: 'ch-feat-tag', type: 'button', title: 'Show everything with this tag (Smart view)', onclick: () => setFeatView({ view: 'smart', tag: t }),
+      }, TAGS.find((x) => x.id === t)?.label || t))));
+    }
   };
   const det = h('details', { class: 'ch-feat', 'data-stat': fid, open: S.openFeatures.has(fid) },
     h('summary', null,
@@ -904,8 +1065,46 @@ function resources(c, s) {
 
 const ITEM_KINDS = ['weapon', 'armor', 'gear', 'magic-item'];
 
+// ---------- proficiency labels (pickers + entry modals; logic in engine-prof.js) ----------
+
+/** Fit of a compendium entry for this character; `item` = the inventory row (magic items use its base weapon/armor). */
+function fitOf(entry, { item = null } = {}) {
+  const s = S.sheet;
+  const c = S.char;
+  if (!s || !entry) return { badges: [], lines: [] };
+  const resolved = item ? (s.items || []).find((x) => x.uid === item.uid) : null;
+  const baseId = item?.custom?.base;
+  const base = resolved?.weapon ? { ...resolved.weapon, kind: 'weapon', name: resolved.weapon.name || entryName('weapon', resolved.weapon.id) }
+    : resolved?.armor ? { ...resolved.armor, kind: 'armor', name: resolved.armor.name || entryName('armor', resolved.armor.id) }
+      : baseId ? (findEntry('weapon', baseId) || findEntry('armor', baseId)) : null;
+  try { return entryFit(entry, s, { base, speciesName: c?.species?.id ? entryName('species', c.species.id) : '' }); } catch (e) { console.error(e); return { badges: [], lines: [] }; }
+}
+
+/** Picker row badges: proficiency, mastery, attunement, known spells… */
+const fitMarks = (entry) => fitOf(entry).badges;
+
+/** The short "for this character" block at the top of an entry modal. */
+function fitBlock(entry, opts) {
+  const f = fitOf(entry, opts);
+  if (!f.badges.length && !f.lines.length) return null;
+  return h('div', { class: 'ch-fit' },
+    f.badges.length ? h('div', { class: 'ch-fit-badges' }, h('span', { class: 'ch-fit-who' }, S.char?.name || 'You'),
+      f.badges.map((b) => h('span', { class: ['badge', { ok: 'badge-ok', warn: 'badge-warn', info: 'badge-info' }[b.tone] || ''], title: b.title || null }, b.label))) : null,
+    f.lines.length ? h('ul', { class: 'ch-fit-lines', role: 'list' }, f.lines.map((l) => h('li', { class: `is-${l.tone}` }, l.text))) : null);
+}
+
+/** Entry modal from the sheet: what this means for the character, then the stat block. */
+function entryInfo(entry, opts = {}) {
+  if (!entry) return null;
+  return openModal({
+    title: entry.name, wide: true,
+    body: h('div', { class: 'ch-entry-info' }, fitBlock(entry, opts), renderEntry(entry)),
+    actions: [{ label: 'Close', kind: 'ghost' }],
+  });
+}
+
 async function addItems(kinds = ITEM_KINDS) {
-  const res = await openPicker(kinds, { title: 'Add to inventory', multi: true });
+  const res = await openPicker(kinds, { title: 'Add to inventory', multi: true, mark: fitMarks });
   const picked = [].concat(res || []).filter(Boolean);
   if (!picked.length) return;
   mutate((y) => { picked.forEach((e) => y.inventory.push(itemFromEntry(e))); });
@@ -971,7 +1170,7 @@ function inventory(c, s) {
         h('td', { class: 'center' }, canEquip ? h('input', { type: 'checkbox', class: 'checkbox', checked: !!it.equipped, 'aria-label': `Equip ${it.name}`, 'data-fk': `eq-${it.uid}`, onchange: (ev) => mutate((y) => { const t = y.inventory.find((x) => x.uid === it.uid); if (t) t.equipped = ev.target.checked; }) }) : null),
         h('td', { class: 'center' }, canAttune ? h('input', { type: 'checkbox', class: 'checkbox', checked: !!it.attuned, 'aria-label': `Attune ${it.name}`, 'data-fk': `at-${it.uid}`, onchange: (ev) => mutate((y) => { const t = y.inventory.find((x) => x.uid === it.uid); if (t) t.attuned = ev.target.checked; }) }) : null),
         h('td', { class: 'cell-name' },
-          e ? h('button', { class: 'ch-link-btn', type: 'button', onclick: () => entryModal(e) }, it.name || e.name) : (it.name || prettify(it.ref)),
+          e ? h('button', { class: 'ch-link-btn', type: 'button', onclick: () => entryInfo(e, { item: it }) }, it.name || e.name) : (it.name || prettify(it.ref)),
           h('span', { class: 'ch-inv-kind' }, [e ? entryKindLabel(e) : prettify(it.kind), e?.origin === 'custom' ? 'custom' : ''].filter(Boolean).join(' · ')),
           it.notes ? h('div', { class: 'ch-inv-notes' }, mdInline(it.notes)) : null),
         h('td', { class: 'num' }, numberInput(it.qty, (v) => mutate((y) => { const t = y.inventory.find((x) => x.uid === it.uid); if (t) t.qty = Math.max(0, v ?? 0); }), { class: 'input input-sm ch-w-num', min: 0, 'aria-label': `Quantity of ${it.name}`, 'data-fk': `qty-${it.uid}` })),
@@ -1012,6 +1211,7 @@ function editItem(it) {
         it.kind === 'magic-item' || it.kind === 'gear' ? checkbox(draft.custom.attunement, (v) => { draft.custom.attunement = v || undefined; }, 'Requires attunement') : null),
       overrides.length ? h('div', null, h('h4', { class: 'ch-mini-head' }, 'Stat overrides for this copy'), h('div', { class: 'field-grid' }, overrides)) : null,
       field('Notes', notes, 'Markdown; [[links]] work.'),
+      e ? fitBlock(e, { item: it }) : null,
       e ? h('details', null, h('summary', { class: 'ui text-sm' }, 'Library entry'), entryModalBody(e)) : null),
     actions: [
       { label: 'Cancel', kind: 'ghost' },

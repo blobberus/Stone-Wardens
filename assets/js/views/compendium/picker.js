@@ -24,7 +24,8 @@ const narrow = () => matchMedia('(max-width: 759px)').matches;
  *   opts.query     initial search text;  opts.kind  initial tab;  opts.allowCreate (default true)
  *   opts.widen     {label, filter?, on?, hint?}: adds a "Show all…" checkbox; while ticked the list uses widen.filter
  *                  (default: every entry) instead of opts.filter
- *   opts.mark      (entry) => null | string | {label, title}: a small warning badge on a row (e.g. "off-list")
+ *   opts.mark      (entry) => null | string | {label, title, tone?} | [...]: small badges on a row (e.g. "off-list",
+ *                  "Proficient"); tone 'ok' | 'warn' (default) | 'info' | 'muted'
  * Resolves the chosen entry (merged compendium entry, with kind/origin), an array when multi, or null.
  */
 export async function openPicker(kinds, { title, filter, multi = false, selected = [], query = '', kind: startKind, allowCreate = true, confirmLabel, widen = null, mark = null } = {}) {
@@ -151,7 +152,8 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
       const isChosen = chosen.has(keyOf(e));
       let mk = null;
       if (typeof mark === 'function') { try { mk = mark(e); } catch { mk = null; } }
-      if (typeof mk === 'string') mk = { label: mk };
+      const marks = [].concat(mk || []).map((x) => (typeof x === 'string' ? { label: x } : x)).filter((x) => x?.label);
+      const TONE = { ok: 'badge-ok', warn: 'badge-warn', info: 'badge-info', muted: '' };
       return h('li', {
         class: ['picker-item', 'cp-pick-row', i === cursor && 'is-active', isChosen && 'is-selected'],
         role: 'option', 'aria-selected': String(multi ? isChosen : i === cursor), 'data-i': i,
@@ -164,7 +166,7 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
           e.origin === 'custom' ? h('span', { class: 'badge badge-accent cp-mini' }, 'Custom') : null,
           e.origin === 'stub' ? h('span', { class: 'badge cp-mini', title: e.source || '' }, e.source || 'Stub') : null,
           e.legacy ? h('span', { class: 'badge cp-mini' }, '2014') : null,
-          mk?.label ? h('span', { class: 'badge badge-warn cp-mini', title: mk.title || null }, mk.label) : null),
+          marks.map((x) => h('span', { class: ['badge', TONE[x.tone] ?? 'badge-warn', 'cp-mini'], title: x.title || null }, x.label))),
         h('span', { class: 'muted' }, statLine(e))));
     }
     function setCursor(i, scroll = true) {

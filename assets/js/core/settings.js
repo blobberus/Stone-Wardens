@@ -9,6 +9,8 @@ const DEFAULTS = {
   saveReminder: 10, // minutes of uncommitted changes before a "save now" nudge (only when both auto-saves are off)
   theme: 'light',
   sidebarCollapsed: false,
+  chSkillsFolded: false, // character sheet: show proficient skills only
+  chProfsOpen: false, // character sheet: Proficiencies & languages unfolded
 };
 
 let cache = null;

@@ -29,7 +29,7 @@
 .ch-md-inline { overflow-wrap: anywhere; }
 .ch-md.prose { max-width: none; font-size: var(--text-sm); }
 .ch-md.prose > * + * { margin-top: 0.6em; }
-.ch-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px var(--space-4); margin: 0; font: 400 var(--text-sm) / 1.4 var(--font-ui); }
+.ch-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px var(--space-3); margin: 0; font: 400 var(--text-sm) / 1.35 var(--font-ui); }
 .ch-dl dt { color: var(--ink-muted); }
 .ch-dl dd { margin: 0; font-variant-numeric: tabular-nums; }
 .ch-loading { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-6); color: var(--ink-muted); font-family: var(--font-ui); }
@@ -145,77 +145,109 @@ a.ch-card:hover { background: var(--surface); }
 .ch-warnings ul { margin: var(--space-2) 0 0; color: var(--ink-muted); }
 
 /* ---------- sheet: combat strip --------------------------------------------- */
-/* AC · Initiative · Speed · Proficiency in one row with Hit Points under it; hit dice, death saves, inspiration,
-   exhaustion and conditions beside both (one column on phones) */
-.ch-combat {
-  display: grid; gap: var(--space-3); margin-bottom: var(--space-4);
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); grid-template-areas: "stats side" "hp side";
-  align-items: stretch;
+/* Compact strip: AC · Initiative · Speed · Proficiency (2 × 2) | trackers | Hit points on the right.
+   Size containers, so it follows the real width (icon rail or full sidebar), not the viewport. */
+.ch-combat { container: ch-combat / inline-size; margin-bottom: var(--space-3); }
+.ch-combat-grid {
+  display: grid; gap: var(--space-2); align-items: stretch;
+  grid-template-columns: minmax(200px, 236px) minmax(0, 1fr) minmax(290px, 340px); grid-template-areas: "stats side hp";
 }
-.ch-combat-stats { grid-area: stats; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); align-content: start; }
-.ch-combat > .ch-hp { grid-area: hp; }
-.ch-combat > .ch-combat-side { grid-area: side; align-content: start; }
+.ch-combat-stats { grid-area: stats; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.ch-combat-grid > .ch-combat-side { grid-area: side; }
+.ch-combat-grid > .ch-hp { grid-area: hp; }
+@container ch-combat (max-width: 900px) {
+  .ch-combat-grid { grid-template-columns: minmax(200px, 236px) minmax(0, 1fr); grid-template-areas: "stats hp" "side side"; }
+}
+@container ch-combat (max-width: 540px) {
+  .ch-combat-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stats" "hp" "side"; }
+  .ch-combat-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 .ch-stat {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  min-height: 92px; padding: var(--space-2); text-align: center; font: inherit; color: var(--ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 0;
+  min-height: 62px; padding: 4px 6px; text-align: center; font: inherit; color: var(--ink);
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
 }
 button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease); }
 button.ch-stat:hover { border-color: var(--border-strong); background: var(--surface-2); }
-.ch-stat-label { display: inline-flex; align-items: center; gap: 4px; font: 500 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink-muted); }
+.ch-stat-label { display: inline-flex; align-items: center; gap: 4px; font: 500 var(--text-xs) / 1.15 var(--font-ui); color: var(--ink-muted); }
 .ch-stat-label .icon { width: 15px; height: 15px; }
-.ch-stat-value { font: 700 1.75rem / 1.1 var(--font-body); }
-.ch-stat-sub { font: 400 var(--text-xs) / 1.25 var(--font-ui); color: var(--ink-muted); max-width: 16ch; }
+.ch-stat-value { font: 700 1.5rem / 1.1 var(--font-body); }
+.ch-stat-sub { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink-muted); }
 .ch-stat-small .ch-stat-value { font-size: var(--text-lg); }
 
 .ch-hp {
-  display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
+  display: flex; flex-direction: column; gap: 6px; padding: var(--space-2) var(--space-3);
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
 }
 .ch-hp-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
 .ch-hp-top .ch-stat-label .icon { color: var(--danger); }
-.ch-hp-now { font: 700 2rem / 1 var(--font-body); }
+.ch-hp-now { font: 700 1.625rem / 1 var(--font-body); }
 .ch-hp-max { font-size: var(--text-md); font-weight: 400; color: var(--ink-muted); }
-.ch-hp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
-.ch-hp-grid .field-label { font-size: var(--text-xs); color: var(--ink-muted); }
-.ch-hp-actions { display: flex; gap: var(--space-2); }
+.ch-hp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.ch-hp-grid .field { gap: 2px; }
+.ch-hp-grid .field-label { font-size: var(--text-xs); line-height: 1.2; color: var(--ink-muted); }
+.ch-hp-actions { display: flex; gap: 6px; }
 .ch-hp-amt { flex: 1 1 auto; min-width: 0; }
 
-.ch-combat-side {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2);
-  padding: var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+/* Trackers: hit dice | death saves | inspiration / exhaustion | conditions (2 columns, then 1, as it narrows) */
+.ch-combat-side { container-type: inline-size; min-width: 0; padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.ch-side-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2) var(--space-4); }
+.ch-side-grid > .ch-conds { grid-column: span 2; }
+@container (max-width: 500px) {
+  .ch-side-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ch-side-grid > .ch-conds { grid-column: 1 / -1; }
 }
-.ch-mini { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.ch-mini-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-2); }
-.ch-conds { grid-column: 1 / -1; }
-.ch-cond-add { width: auto; min-width: 9em; }
+@container (max-width: 260px) { .ch-side-grid { grid-template-columns: minmax(0, 1fr); } }
+.ch-mini { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ch-mini-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--space-2); }
+.ch-combat .ch-pips { gap: 4px; }
+.ch-combat .ch-pip { width: 15px; height: 15px; }
+.ch-cond-add { width: auto; min-width: 8em; }
 .ch-cond { border-color: var(--danger); color: var(--danger); }
-.ch-die { font: 700 var(--text-sm) / 1 var(--font-ui); min-width: 2.4em; }
-.ch-ds-label { min-width: 5.5em; color: var(--ink-muted); }
-.ch-ds { display: inline-flex; gap: 6px; }
+.ch-die { font: 700 var(--text-sm) / 1 var(--font-ui); min-width: 2.2em; }
+.ch-ds-rows { display: grid; grid-template-columns: max-content max-content; align-items: center; gap: 4px var(--space-2); }
+.ch-ds-label { color: var(--ink-muted); }
+.ch-ds { display: inline-flex; gap: 5px; }
 .ch-ds-success input[type="checkbox"]:checked { background-color: var(--ok); border-color: var(--ok); }
 .ch-ds-fail input[type="checkbox"]:checked { background-color: var(--danger); border-color: var(--danger); }
 .ch-insp { align-self: flex-start; }
 .ch-insp.is-active .icon { color: var(--gold); fill: currentColor; }
 
 /* ---------- sheet: two-column body ------------------------------------------ */
-.ch-layout { display: grid; grid-template-columns: minmax(280px, 350px) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
-.ch-col { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
-.ch-page[data-mode="sheet"] > .ch-sec, .ch-page[data-mode="sheet"] > .ch-sec + .ch-layout { margin-top: var(--space-4); }
-.ch-page[data-mode="sheet"] > .ch-sec + .ch-combat { margin-top: var(--space-4); }
+.ch-layout { display: grid; grid-template-columns: minmax(270px, 330px) minmax(0, 1fr); gap: var(--space-3); align-items: start; }
+.ch-col { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.ch-page[data-mode="sheet"] > .ch-sec, .ch-page[data-mode="sheet"] > .ch-sec + .ch-layout { margin-top: var(--space-3); }
+.ch-page[data-mode="sheet"] > .ch-sec + .ch-combat { margin-top: var(--space-3); }
+.ch-page[data-mode="sheet"] > .ch-body + .ch-layout { margin-top: var(--space-3); }
+/* Compact section chrome on the sheet (head 36px, 12px body padding) */
+.ch-page[data-mode="sheet"] .ch-sec-head { min-height: 36px; padding: 4px var(--space-2) 4px var(--space-3); gap: 6px; }
+.ch-page[data-mode="sheet"] .ch-sec-body { padding: var(--space-3); }
+.ch-page[data-mode="sheet"] .ch-sec-head .btn-sm { height: 28px; }
 
-/* Body under the combat strip (D&D Beyond proportions): senses & proficiencies | skills | actions & features.
-   A size container so the columns follow the real width (sidebar open or folded), not the viewport. */
+/* Body under the combat strip: a narrow column (skills, senses, proficiencies) | the wide actions window + resources.
+   A size container so the columns follow the real width (icon rail or full sidebar), not the viewport. */
 .ch-body { container: ch-body / inline-size; }
 .ch-body-grid {
-  display: grid; gap: var(--space-4); align-items: start;
-  grid-template-columns: minmax(210px, 244px) minmax(250px, 282px) minmax(0, 1fr); grid-template-areas: "l m r";
+  display: grid; gap: var(--space-3); align-items: start;
+  grid-template-columns: minmax(250px, 290px) minmax(0, 1fr); grid-template-areas: "l r";
 }
-.ch-col-l { grid-area: l; } .ch-col-m { grid-area: m; } .ch-col-r { grid-area: r; }
-/* Narrow columns: icon, title (wrapping inside itself) and icon actions stay on one line */
-.ch-col-l .ch-sec-head, .ch-col-m .ch-sec-head { flex-wrap: nowrap; padding-left: var(--space-3); padding-right: var(--space-2); }
-.ch-col-l .ch-sec-title, .ch-col-m .ch-sec-title { min-width: 0; }
-.ch-col-l .ch-sec-body { padding: var(--space-3); }
+.ch-col-l { grid-area: l; } .ch-col-r { grid-area: r; }
+/* Narrow column: icon, title (wrapping inside itself) and icon actions stay on one line */
+.ch-page[data-mode="sheet"] .ch-col-l .ch-sec-head { flex-wrap: nowrap; }
+.ch-col-l .ch-sec-title { min-width: 0; }
+/* Proficiencies & languages folds to its header */
+.ch-fold {
+  display: inline-flex; align-items: center; gap: 4px; margin: 0 0 0 -4px; padding: 2px 4px; text-align: left;
+  font: inherit; color: inherit; background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer;
+}
+.ch-fold .icon { width: 16px; height: 16px; flex: none; color: var(--ink-muted); }
+.ch-fold:hover { background: var(--surface-2); }
+.ch-fold:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ch-sec-profs.is-folded > .ch-sec-body { display: none; }
+.ch-sec-profs.is-folded > .ch-sec-head { border-bottom: 0; }
+.ch-page[data-mode="sheet"] .ch-sec-profs > .ch-sec-head { flex-wrap: wrap; row-gap: 0; }
+.ch-sec-profs .ch-sec-title { white-space: nowrap; }
+.ch-sec-profs .ch-sec-sub { flex-basis: 100%; order: 9; padding: 0 0 2px 20px; }
 
 /* Actions window: one panel, a tab bar (Attacks · Spells · Bonus actions), each tab a section without its own chrome.
    The section's title is redundant with the tab (kept for screen readers); its actions (+ Weapon, + Spells) stay. */
@@ -226,7 +258,7 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 }
 .ch-tabs-bar::-webkit-scrollbar { display: none; }
 .ch-tab {
-  flex: none; height: 46px; padding: 0 var(--space-3); white-space: nowrap; cursor: pointer;
+  flex: none; height: 40px; padding: 0 var(--space-3); white-space: nowrap; cursor: pointer;
   font: 700 var(--text-sm) / 1 var(--font-ui); color: var(--ink-muted); background: none; border: 0;
   transition: color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
@@ -245,15 +277,12 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 /* Wide window: a tab's buttons (+ Weapon, + Spells) sit at the right end of the tab bar instead of on their own row */
 @container ch-tabs (min-width: 520px) {
   .ch-tabs-panel > .ch-sec > .ch-sec-head:not(:has(.ch-sec-sub)) {
-    position: absolute; top: 0; right: 0; height: 46px; padding: 0 var(--space-3); align-items: center;
+    position: absolute; top: 0; right: 0; height: 40px; min-height: 0; padding: 0 var(--space-3); align-items: center;
   }
   .ch-tabs-panel > .ch-sec:has(> .ch-sec-head:not(:has(.ch-sec-sub))) > .ch-sec-body { padding-top: var(--space-4); }
 }
-@container ch-body (max-width: 1020px) {
-  .ch-body-grid { grid-template-columns: minmax(240px, 290px) minmax(0, 1fr); grid-template-areas: "l r" "m r"; grid-template-rows: auto 1fr; }
-}
-@container ch-body (max-width: 640px) {
-  .ch-body-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "l" "m" "r"; grid-template-rows: none; }
+@container ch-body (max-width: 680px) {
+  .ch-body-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "l" "r"; }
 }
 .ch-sec { scroll-margin-top: 64px; }
 .ch-sec-head { flex-wrap: wrap; }
@@ -279,24 +308,24 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
   background: var(--surface); border: 1px solid color-mix(in oklab, var(--ch-hl-line) 45%, var(--border)); border-radius: var(--radius);
 }
 .ch-abil-check {
-  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0 var(--space-1) var(--space-2);
+  display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 0 var(--space-1) 6px;
   font: inherit; color: var(--ink); background: var(--surface); border: 0; cursor: pointer;
   transition: background-color var(--dur) var(--ease);
 }
 .ch-abil-check:hover { background: var(--surface-2); }
 .ch-abil-name {
-  align-self: stretch; margin: 0 calc(var(--space-1) * -1) 4px; padding: 4px 6px;
+  align-self: stretch; margin: 0 calc(var(--space-1) * -1) 2px; padding: 2px 6px;
   font: 700 var(--text-xs) / 1.25 var(--font-ui); color: var(--ch-hl-ink); background: var(--ch-hl);
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
-.ch-abil-mod { font: 700 1.875rem / 1.1 var(--font-body); }
+.ch-abil-mod { font: 700 1.5rem / 1.1 var(--font-body); }
 .ch-abil-score {
-  min-width: 2.8em; padding: 0 8px; text-align: center;
-  font: 500 var(--text-sm) / 1.5 var(--font-ui); border: 1px solid var(--ch-hl-line); border-radius: var(--radius-pill);
+  min-width: 2.6em; padding: 0 6px; text-align: center;
+  font: 500 var(--text-xs) / 1.35 var(--font-ui); border: 1px solid var(--ch-hl-line); border-radius: var(--radius-pill);
 }
 .ch-abil-save {
-  display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 4px var(--space-2);
-  font: 500 var(--text-sm) / 1.2 var(--font-ui); color: var(--ink); background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 28px; padding: 2px var(--space-2);
+  font: 500 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink); background: var(--surface-2);
   border: 0; border-top: 1px solid var(--rule); cursor: pointer; transition: background-color var(--dur) var(--ease);
 }
 .ch-abil-save:hover { background: var(--surface-3); }
@@ -316,21 +345,21 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 .ch-plegend > span { display: inline-flex; align-items: center; gap: 6px; }
 
 /* Skills: compact list (D&D Beyond sizing) */
-.ch-sec-skills .ch-sec-body { padding: var(--space-2) var(--space-3) var(--space-3); }
-.ch-sec-skills .ch-sec-body > * + * { margin-top: var(--space-2); }
+.ch-page[data-mode="sheet"] .ch-sec-skills .ch-sec-body { padding: 6px var(--space-2) var(--space-2); }
+.ch-sec-skills .ch-sec-body > * + * { margin-top: 4px; }
 .ch-skl-head, .ch-skl-row { display: grid; grid-template-columns: 2.2em 2.4em minmax(0, 1fr) auto; align-items: center; gap: 6px; }
 .ch-skl-row > .ch-pmark { justify-self: center; }
 .ch-skl-head { padding: 0 4px; font: 500 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink-muted); }
 .ch-skl-head > :last-child { text-align: right; }
 .ch-skl { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
-.ch-skl-row { min-height: 30px; padding: 1px 4px; border-bottom: 1px solid var(--rule); }
+.ch-skl-row { min-height: 27px; padding: 1px 4px; border-bottom: 1px solid var(--rule); }
 .ch-skl-row:last-child { border-bottom: 0; }
 .ch-skl-row:hover { background: var(--surface-2); }
 .ch-skl-ab { font: 500 var(--text-xs) / 1 var(--font-ui); color: var(--ink-muted); }
 .ch-skl-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 var(--text-sm) / 1.25 var(--font-ui); }
 .ch-skl-row.is-prof .ch-skl-name { font-weight: 700; }
 .ch-skl-bonus {
-  min-width: 3em; height: 24px; padding: 0 6px; text-align: center;
+  min-width: 3em; height: 22px; padding: 0 6px; text-align: center;
   font: 700 var(--text-sm) / 1 var(--font-ui); font-variant-numeric: tabular-nums; color: var(--ink);
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); cursor: pointer;
   transition: border-color var(--dur) var(--ease);
@@ -418,9 +447,11 @@ details.ch-feat > summary:hover { background: var(--surface-2); }
 
 /* Resources */
 .ch-res-list { display: flex; flex-direction: column; }
-.ch-res { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: 8px 0; border-bottom: 1px solid var(--rule); }
+.ch-res { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--space-3); padding: 5px 0; border-bottom: 1px solid var(--rule); }
+.ch-res .ch-pips { gap: 4px; }
+.ch-res .ch-pip { width: 15px; height: 15px; }
 .ch-res:last-child { border-bottom: 0; }
-.ch-res-label { flex: 1 1 12em; font: 500 var(--text-sm) / 1.3 var(--font-ui); }
+.ch-res-label { flex: 1 1 7em; min-width: 0; font: 500 var(--text-sm) / 1.3 var(--font-ui); }
 .ch-res-num { display: inline-flex; align-items: center; gap: 4px; }
 
 /* Inventory & currency */
@@ -435,7 +466,7 @@ details.ch-feat > summary:hover { background: var(--surface-2); }
 .ch-inv-empty { padding: var(--space-5); }
 .ch-kind-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .ch-kind-btn { height: 56px; justify-content: flex-start; }
-.ch-coins { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); }
+.ch-coins { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); max-width: 34rem; }
 .ch-coin { display: flex; flex-direction: column; gap: 4px; }
 .ch-coin-id { font: 700 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink-muted); text-align: center; }
 .ch-coin .input { text-align: center; }
@@ -636,7 +667,6 @@ div.ch-optcard { cursor: default; }
 
 /* ---------- responsive ------------------------------------------------------- */
 @media (max-width: 1180px) {
-  .ch-combat { grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr); }
   .ch-builder { grid-template-columns: 190px minmax(0, 1fr); }
   .ch-summary { grid-column: 1 / -1; position: static; }
 }
@@ -652,8 +682,6 @@ div.ch-optcard { cursor: default; }
   .ch-head-actions { justify-content: flex-start; }
   .ch-portrait-lg { width: 76px; height: 76px; }
   .ch-name { font-size: var(--text-xl); }
-  .ch-combat { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stats" "hp" "side"; }
-  .ch-stat { min-height: 76px; }
   .ch-builder { grid-template-columns: minmax(0, 1fr); }
   .ch-steps { position: static; }
   .ch-steps ol { flex-direction: row; overflow-x: auto; scrollbar-width: none; gap: 4px; }
@@ -665,13 +693,12 @@ div.ch-optcard { cursor: default; }
   .ch-nav { gap: var(--space-2); }
   .ch-nav-player { display: none; } /* phones: the name only */
   .ch-nav.is-stuck .ch-nav-who { max-width: 38%; font-size: var(--text-sm); }
-  .ch-skl-row { min-height: 40px; }
-  .ch-skl-bonus { height: 32px; min-width: 3.4em; }
-  .ch-abil-save { min-height: 40px; }
+  /* touch: rows and roll buttons a little taller than on desktop, still dense */
+  .ch-skl-row { min-height: 34px; }
+  .ch-skl-bonus { height: 30px; min-width: 3.4em; }
+  .ch-abil-save { min-height: 36px; }
 }
 @media (max-width: 479px) {
-  .ch-combat-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ch-combat-side { grid-template-columns: minmax(0, 1fr); }
   .ch-card-abil { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ch-kind-grid { grid-template-columns: minmax(0, 1fr); }
 }

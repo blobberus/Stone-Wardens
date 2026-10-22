@@ -9,7 +9,7 @@ import * as S from './state.js';
 import { headingsOf, fmtDay, relTime, plural } from './text.js';
 import { section, tagList, highlighted, KIND_ICON, KIND_LABEL, btn, iconBtn } from './parts.js';
 
-const HIDDEN_PROPS = new Set(['title', 'order']);
+const HIDDEN_PROPS = new Set(['title', 'order', 'images']); // images: the note's slideshow (gallery.js), listed as a count
 
 const onToggle = (key, on) => { S.prefs.sections[key] = on; S.savePrefs(); };
 const sec = (key, title, body, opts = {}) => section({ key, title, body, open: S.prefs.sections[key] !== false, onToggle, ...opts });
@@ -86,6 +86,8 @@ export class SidePane {
       if (HIDDEN_PROPS.has(k) || k === 'tags' || k === 'tag') continue;
       rows.push(h('dt', null, k), h('dd', null, propValue(k, v)));
     }
+    const photos = Array.isArray(fm.images) ? fm.images.length : fm.images ? 1 : 0;
+    if (photos) rows.push(h('dt', null, 'images'), h('dd', null, `${photos} reference ${photos === 1 ? 'photo' : 'photos'}`));
     if (tags.length) rows.push(h('dt', null, 'tags'), h('dd', null, tagList(tags)));
     const body = rows.length
       ? h('dl', { class: 'jr-props' }, rows)

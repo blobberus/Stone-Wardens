@@ -619,6 +619,8 @@ function itemMenu(d, pos = {}) {
       { label: 'Rename', icon: 'edit', hint: 'F2', onClick: rename },
       { label: 'Move to…', icon: 'folder', onClick: () => moveDialog(d) },
       { label: 'Edit properties', icon: 'tag', onClick: () => editProperties(n) },
+      open ? { label: 'Upload reference photos…', icon: 'image', onClick: () => noteView.addImages('upload') } : null,
+      open ? { label: 'Add images from site files…', icon: 'upload', onClick: () => noteView.addImages('repo') } : null,
       { label: 'Copy link', icon: 'copy', onClick: () => copyLink(n) },
       !fromTree ? { label: 'Show in files', icon: 'sidebar-left', onClick: () => { showLeft('files'); files.setActive({ note: n }); files.rowFor('note', n.path)?.focus(); } } : null,
       { sep: true },

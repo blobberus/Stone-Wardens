@@ -25,6 +25,21 @@ content/journal/
 - **Note frontmatter** (YAML, all optional): `title`, `aliases`, `author`, `created`, `updated` (ISO), `tags`, plus any
   custom keys (shown under Properties; editable as YAML from the right pane). `order` from the book days is preserved.
   Without `title` the file name is prettified. Tags = `tags:` plus inline `#tags` (nested with `/`).
+- **Reference images** (`images:`, optional): photos kept with the note (`gallery.js`). A list of repo paths or https
+  URLs, each a string or `{src, caption}`, in display order:
+  ```yaml
+  images:
+    - content/media/journal/old-mill-sketch-k3f9.jpg
+    - src: wardens-library/handouts/map-of-vael.png
+      caption: The map Mira found
+  ```
+  Reading view shows them as a slideshow at the top of the page (previous / next, arrow keys, swipe, thumbnails);
+  "Expand" or a tap on the photo opens a full-screen viewer to scroll through all of them (Esc closes). Editing view has
+  a **Reference images** panel: Upload photos (or drop files on it), From site files (any image already in the repo,
+  e.g. uploaded through GitHub), captions, reorder, remove. The note menu has "Upload reference photos…" and "Add
+  images from site files…" in reading view too. Uploads go to `content/media/journal/<note>-<name>-<id>.<ext>`, staged
+  with `store.putBinary` and committed with Save; photos over 1.5 MB are scaled to 2400 px on the long side (JPEG).
+  Removing an uploaded photo deletes its file once no note lists it; renaming or moving a note keeps its images.
 
 ## Routes (`#/journal…`)
 | Route | Shows |

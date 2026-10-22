@@ -25,6 +25,7 @@ import { accentOf, accentInk, profMark } from './widgets.js';
 // XP set here opens Level Up when it crosses a threshold (same as the sheet's XP window)
 import { setXp, xpLevelsCrossed, xpStatus, charLevel } from './engine-xp.js';
 import { levelUpFlow } from './levelup.js';
+import { TAGS as SMART_TAGS, normalizeTags as normSmartTags } from './engine-tags.js'; // manual tags on custom abilities
 
 const SECTIONS = [
   ['identity', 'Identity'], ['classes', 'Classes & levels'], ['origin', 'Species & background'], ['abilities', 'Ability scores'],
@@ -566,6 +567,14 @@ function editInline(index) {
       h('div', { class: 'field-grid' },
         field('Uses', numberInput(draft.uses ?? '', (v) => { draft.uses = v; }, { min: 0, placeholder: 'unlimited' })),
         field('Recharge', select([{ value: '', label: '—' }, { value: 'short', label: 'Short or long rest' }, { value: 'long', label: 'Long rest' }], draft.recharge || '', (v) => { draft.recharge = v; }))),
+      field('Smart tags', h('div', { class: 'row ch-chip-row' }, SMART_TAGS.map((t) => {
+        const on = () => normSmartTags(draft.tags).includes(t.id);
+        const b = h('button', {
+          class: ['chip', on() && 'is-active'], type: 'button', 'aria-pressed': String(on()), title: t.hint,
+          onclick: () => { const cur = normSmartTags(draft.tags); draft.tags = on() ? cur.filter((x) => x !== t.id) : [...cur, t.id]; b.classList.toggle('is-active', on()); b.setAttribute('aria-pressed', String(on())); },
+        }, t.label);
+        return b;
+      })), 'Optional: where this shows in Features → Smart (it is also tagged from its text and modifiers).'),
       h('h3', { class: 'ch-mini-head' }, 'Modifiers'), mods,
       h('label', { class: 'checkbox' }, h('input', { type: 'checkbox', id: 'ch-ab-share' }), h('span', null, 'Also save to the shared library (Compendium → Abilities)'))),
     actions: [
@@ -579,6 +588,8 @@ function editInline(index) {
           if (!rec.uses) delete rec.uses;
           if (!rec.recharge) delete rec.recharge;
           if (!Object.keys(rec.modifiers).length) delete rec.modifiers;
+          const tags = normSmartTags(draft.tags);
+          if (tags.length) rec.tags = tags;
           const share = m.el.querySelector('#ch-ab-share')?.checked;
           if (share) {
             const saved = saveCustom('ability', rec);

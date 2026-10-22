@@ -134,6 +134,17 @@
       "kind": "weapon",
       "ref": "spear",
       "name": "Spear"
+    },
+    {
+      "uid": "kwc953",
+      "kind": "weapon",
+      "ref": "dagger",
+      "name": "Dagger",
+      "qty": 1,
+      "equipped": true,
+      "attuned": false,
+      "notes": "",
+      "custom": null
     }
   ],
   "currency": {
@@ -207,5 +218,5 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-22T04:25:57.154Z",
-  "updated": "2026-10-22T05:56:00.692Z"
+  "updated": "2026-10-22T07:55:16.877Z"
 }
