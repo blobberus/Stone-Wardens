@@ -60,7 +60,7 @@ const S = {
   dirty: { locs: false, types: false, config: false, journal: false }, syncQueued: false,
   ctxClosedAt: 0, resizeRaf: 0, emptyKey: '', loadTimer: 0,
 };
-let drawer, search, legend, menu, crumbs, collection, editor, zoomer, banner, emptyCard, nameEl, addBtn, labelsBtn, ctxMenu = null;
+let drawer, search, legend, menu, crumbs, collection, editor, zoomer, banner, emptyCard, addBtn, labelsBtn, ctxMenu = null;
 
 const toLatLng = (x, y) => L.latLng(-y, x);
 const toXY = (ll) => ({ x: ll.lng, y: -ll.lat });
@@ -191,11 +191,11 @@ function mountView(el) {
   }, icon('tag'), h('span', { class: 'map-tool-label' }, 'Labels'));
   banner = h('div', { class: 'map-banner', role: 'status', hidden: true });
   emptyCard = h('div', { class: 'map-empty', hidden: true });
-  nameEl = h('span', { class: 'map-cartouche-name' });
 
   S.root.append(
     S.canvas,
-    h('div', { class: 'map-tools map-tools-left' }, search.el, h('div', { class: 'map-nav' }, crumbs.el, collection.el)),
+    // Top left: the search with the Maps button beside it, and the current map's name (its parents first) under them.
+    h('div', { class: 'map-tools map-tools-left' }, h('div', { class: 'map-search-row' }, search.el, collection.el), crumbs.el),
     h('div', { class: 'map-tools map-tools-right', role: 'toolbar', 'aria-label': 'Map tools' },
       h('div', { class: 'map-tool' }, addBtn), legend.el, h('div', { class: 'map-tool' }, labelsBtn), menu.el),
     banner,
@@ -205,7 +205,6 @@ function mountView(el) {
       h('button', { class: 'map-zoom-btn', type: 'button', 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => zoomStep(1) }, icon('plus')),
       h('button', { class: 'map-zoom-btn', type: 'button', 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => zoomStep(-1) }, icon('minus')),
       h('button', { class: 'map-zoom-btn', type: 'button', 'aria-label': 'Show the whole map', title: 'Show the whole map', onclick: () => fitMap(true) }, icon('compass'))),
-    h('div', { class: 'map-cartouche', 'aria-hidden': 'true' }, nameEl),
     editor.el,
     drawer.el);
 
@@ -304,7 +303,6 @@ async function loadMap(id) {
   for (const e of S.markers.values()) e.marker.remove();
   S.markers.clear();
   S.root.classList.toggle('is-submap', !m.isMain);
-  nameEl.textContent = m.name;
   crumbs.update();
   await applyConfig({ initial: true });
   syncMarkers();
@@ -354,7 +352,6 @@ async function applyConfig({ initial = false } = {}) {
   S.bounds = L.latLngBounds([[-cfg.height, 0], [0, cfg.width]]);
   setImage(url, cfg);
   S.root.classList.toggle('is-placeholder', cfg.isPlaceholder);
-  nameEl.textContent = cfg.name;
   updateZoomLimits();
   if (initial) restoreView();
   else if (resized) fitMap(false);

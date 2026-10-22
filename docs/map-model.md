@@ -50,8 +50,8 @@ village, temple, landmark, danger, dungeon, ruins, cave, portal, battle, quest, 
 
 ## Map collection
 
-- The **Maps** button sits under the search, at its right edge (when the map is 640px wide or less, the row under
-  the search spans the map, so it sits top right under the ⋯ menu). It opens the collection: every map, the main
+- The **Maps** button sits on the search's right (icon only when the map is 640px wide or less). It opens the
+  collection under the map's name plate: every map, the main
   map first and sub-maps indented under their parent, each with a thumbnail, its parent, its number of places and
   its `[[map:…]]` link with a copy button (same text and toast as "Copy link to this map"). The shown map is marked.
 - Entries are links to `#/map/m/<id>`, so opening one is the same route as any other sub-map navigation (Back
@@ -60,7 +60,8 @@ village, temple, landmark, danger, dungeon, ruins, cave, portal, battle, quest, 
   button. Also opened from ⋯ → Map collection… (hidden in edit mode, where the left-hand controls are hidden).
 - Thumbnails load when an entry scrolls into view. Raster images are shrunk once per image version (to 240px wide,
   one at a time); SVGs are used as they are.
-- The breadcrumb under the search only shows on sub-maps (the collection replaced its ▾ map switcher).
+- Under the search, a name plate shows the current map ("⁂ The Uncharted Realm"); on a sub-map its parents come
+  first as links ("The Uncharted Realm › Starfall Vale"). It replaced the bottom-left cartouche and the old ▾ switcher.
 - Maps carry no tags of their own: link them with `[[map:Name]]` (place tags stay as they were).
 - Sample content: the sub-map `starfall-vale-p94a` "Starfall Vale" (an original SVG region map) with two places,
   Brinewick and The Warden Stones. To remove it: open it, ⋯ → Delete this map… → delete the places too.

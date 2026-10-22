@@ -336,18 +336,22 @@ export function createMenu(ctx) {
   return { el: wrap, pop };
 }
 
-// ---------- breadcrumb ----------
+// ---------- current map name (breadcrumb) ----------
 
-/** ctx: {chain() -> [map], href(id)}. Shown on sub-maps; the map collection (collection.js) lists every map. */
+/**
+ * ctx: {chain() -> [map], href(id)}. The name of the map shown, under the search; on a sub-map its parents come
+ * first as links ("The Uncharted Realm › Starfall Vale"). The map collection (collection.js) lists every map.
+ */
 export function createCrumbs(ctx) {
   const list = h('ol', { class: 'map-crumbs-list' });
-  const el = h('nav', { class: 'map-crumbs', 'aria-label': 'Maps', hidden: true }, list);
+  const el = h('nav', { class: 'map-crumbs', 'aria-label': 'Current map', hidden: true }, list);
 
   return {
     el,
     update() {
       const chain = ctx.chain();
-      el.hidden = chain.length < 2;
+      el.hidden = !chain.length;
+      el.classList.toggle('is-main', chain.length === 1);
       clear(list);
       chain.forEach((m, i) => {
         const last = i === chain.length - 1;

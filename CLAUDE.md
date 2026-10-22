@@ -110,9 +110,10 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   `#/journal/new?title=`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`.
 
 ## Map tab
-- Model, routes, ranks and links: `docs/map-model.md`. Controls float over the map: search (top left) with a row
-  under it = breadcrumb (sub-maps only) + the **Maps** button (`collection.js`: every map nested by parent, with
-  thumbnail, parent, place count and a copy-able `[[map:Name]]` link); right toolbar Add location, Filter, Labels, ⋯.
+- Model, routes, ranks and links: `docs/map-model.md`. Controls float over the map: search (top left) with the
+  **Maps** button on its right (`collection.js`: every map nested by parent, with thumbnail, parent, place count and
+  a copy-able `[[map:Name]]` link), the current map's name under them (`createCrumbs`: parents as links on sub-maps);
+  right toolbar Add location, Filter, Labels, ⋯.
 
 ## Journal tab
 - Obsidian-style vault (docs/journal-model.md): left pane Files (tree, drag-move, context menu) | Search (`tag:`

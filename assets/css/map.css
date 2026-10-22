@@ -244,8 +244,8 @@
 @container map (max-width: 900px) {
   .map-tool-btn:not(.map-add) .map-tool-label { display: none; }
   .map-root.has-drawer .map-tool-label { display: none; }
-  .map-root.has-drawer .map-search, .map-root.has-drawer .map-nav { min-width: 170px; }
-  .map-tools-left .map-coll-btn .map-tool-label { display: inline; } /* room for it under the search */
+  .map-root.has-drawer .map-search { min-width: 170px; }
+  .map-tools-left .map-coll-btn .map-tool-label { display: inline; } /* room for it beside the search */
   .map-root.has-drawer .map-tools-left .map-coll-btn .map-tool-label { display: none; }
 }
 
@@ -507,30 +507,6 @@
 .map-zoom-btn:hover { background: var(--surface-2); }
 .map-zoom-btn:focus-visible { outline-offset: -3px; }
 .map-zoom-btn .icon { width: 18px; height: 18px; }
-
-.map-cartouche {
-  position: absolute;
-  left: var(--map-gap);
-  bottom: var(--map-gap);
-  z-index: 1;
-  max-width: min(420px, 40cqi);
-  padding: 5px 14px 6px;
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
-  border: 1px solid var(--border-float);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow);
-  pointer-events: none;
-}
-.map-cartouche-name {
-  display: block;
-  overflow: hidden;
-  font: 600 var(--text-lg) / 1.25 var(--font-display);
-  letter-spacing: 0.05em;
-  color: var(--ink);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.map-cartouche-name::before { content: "\2042\00a0"; color: var(--gold); }
 
 .map-banner {
   position: absolute;
@@ -855,25 +831,24 @@
 }
 .map-root.is-loading-image .map-loading { display: flex; }
 
-/* ---------- Under the search: breadcrumb (sub-maps) + the "Maps" collection button ---------- */
+/* ---------- Top left: search + the "Maps" collection button on one row, the current map's name under it ---------- */
 .map-tools-left { flex-direction: column; }
-/* Same width as the search, so the Maps button lines up with its right edge. */
-.map-nav {
+.map-tools-left > .map-search-row {
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
-  width: min(340px, 34cqi);
-  min-width: 220px;
   pointer-events: none; /* only its children take clicks; the gap between them is map */
 }
-.map-nav > * { pointer-events: auto; }
+.map-search-row > * { pointer-events: auto; }
+/* The map you are on, as a small title plate ("⁂ The Uncharted Realm"); on a sub-map its parents come first as
+   links. One line: the parents give way (ellipsis) before the current name. */
 .map-crumbs {
   display: flex;
   align-items: center;
-  flex: 0 1 auto;
+  max-width: 100%;
   min-width: 0;
   min-height: var(--control-h);
-  padding: 4px 10px;
+  padding: 4px 12px;
   font: 500 var(--text-sm) / 1.3 var(--font-ui);
   background: var(--surface);
   border: 1px solid var(--border-float);
@@ -881,22 +856,20 @@
   box-shadow: var(--shadow);
 }
 .map-crumbs[hidden] { display: none; }
-.map-crumbs-list { display: flex; flex-wrap: wrap; align-items: center; min-width: 0; margin: 0; padding: 0; list-style: none; }
-.map-crumbs-list li { display: flex; align-items: center; min-width: 0; }
+.map-crumbs-list { display: flex; flex-wrap: nowrap; align-items: baseline; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.map-crumbs-list li { display: flex; align-items: baseline; flex: 0 1000 auto; min-width: 2.5em; }
+.map-crumbs-list li:last-child { flex-shrink: 1; min-width: 0; }
 .map-crumbs-list li + li::before { content: "\203A"; padding: 0 6px; color: var(--ink-faint); }
 .map-crumb { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 22ch; }
 a.map-crumb { color: var(--link); text-decoration: underline; text-underline-offset: 0.18em; }
 a.map-crumb:hover { color: var(--link-hover); }
-.map-crumb.is-current { font-weight: 700; color: var(--ink); }
-/* One line beside the Maps button: the parents give way (ellipsis) before the map you are on. */
-.map-nav .map-crumbs-list { flex-wrap: nowrap; }
-.map-nav .map-crumbs-list li { flex: 0 1000 auto; min-width: 2.5em; }
-.map-nav .map-crumbs-list li:last-child { flex-shrink: 1; min-width: 0; }
+.map-crumb.is-current { max-width: none; font: 600 var(--text-md) / 1.25 var(--font-display); letter-spacing: 0.05em; color: var(--ink); }
+.map-crumbs.is-main .map-crumb.is-current::before { content: "\2042\00a0"; color: var(--gold); }
 .map-root.is-editing .map-tools-left { display: none; }
 
 /* Map collection (collection.js). The button's wrapper is static, so the panel hangs from the whole
-   left column: under the button row, aligned with the search's left edge. */
-.map-coll-tool { position: static; flex: none; margin-left: auto; }
+   left column: under the name, aligned with the search's left edge. */
+.map-coll-tool { position: static; flex: none; }
 .map-tools-left:has(.map-coll) { z-index: 7; } /* above the right toolbar, the zoom buttons and the phone drawer */
 .map-coll-btn[aria-expanded="true"] { background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--ink-muted), var(--shadow); }
 .map-pop.map-coll {
@@ -1176,7 +1149,6 @@ a.map-crumb:hover { color: var(--link-hover); }
 .map-edit-foot { flex: none; padding: var(--space-2) var(--space-3) var(--space-3); border-top: 1px solid var(--rule); }
 .map-edit-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .map-edit-hint { margin: 6px 2px 0; font: 400 var(--text-xs) / 1.4 var(--font-ui); color: var(--ink-muted); }
-.map-root.is-editing .map-cartouche { display: none; }
 .map-root.is-editing .map-banner { left: calc(50% + (clamp(300px, 30cqi, 380px) + var(--map-gap)) / 2); }
 
 /* Offset / scale dialog, new sub-map dialog */
@@ -1217,7 +1189,6 @@ a.map-crumb:hover { color: var(--link-hover); }
   .map-root.has-drawer .map-tools-right { right: var(--map-gap); }
   .map-pop, .map-root .map-search-results { position: fixed; top: 56px; left: var(--map-gap); right: var(--map-gap); width: auto; }
   .map-search-results { top: 56px; }
-  .map-cartouche { display: none; }
   .map-root.has-drawer .map-zoom { display: none; }
   .map-zoom { bottom: var(--space-4); }
   .map-banner, .map-root.has-drawer .map-banner {
@@ -1236,9 +1207,11 @@ a.map-crumb:hover { color: var(--link-hover); }
   .map-drawer:has(.map-form) { max-height: 88%; }
   .map-drawer { z-index: 6; }
   .map-drawer-title { font-size: var(--text-xl); }
-  /* The row under the search spans the whole map (it sits below the right toolbar too), so the
-     breadcrumb has room and the Maps button ends up top right, under the ⋯ menu. */
-  .map-tools-left .map-nav { width: calc(100cqi - var(--map-gap) * 2); min-width: 0; }
+  /* Search and an icon-only Maps button share the row left of the toolbar; the map's name under them may run
+     across the whole map (it sits below the right toolbar). */
+  .map-tools-left > .map-search-row { align-self: stretch; }
+  .map-search-row .map-search { flex: 1 1 auto; }
+  .map-tools-left .map-crumbs { max-width: calc(100cqi - var(--map-gap) * 2); }
   .map-tools-left .map-coll-btn .map-tool-label { display: none; }
   /* Under the button row across the map (absolute, not fixed: a narrow window may still show the sidebar). */
   .map-pop.map-coll { position: absolute; top: calc(100% + 6px); left: 0; right: auto; width: calc(100cqi - var(--map-gap) * 2); max-height: calc(100dvh - 220px); }
