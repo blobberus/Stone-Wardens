@@ -70,7 +70,8 @@ async function showGate(error) {
       pass.value = '';
       await enter(new GitHubBackend(auth), `${auth.owner}/${auth.repo}`);
     } catch (ex) {
-      console.error(ex);
+      if (ex.message !== 'bad-password') console.error(ex);
+      if (ex.status === 401) clearAuth();
       showError(ex.message === 'bad-password' ? 'That is not the password. The wardens keep their counsel.' : ex.message);
       pass.select();
     } finally {
@@ -95,6 +96,7 @@ async function enter(backend, scope) {
   } catch (e) {
     loading.remove();
     app.hidden = true;
+    $('#gate').hidden = false; // back to the gate so the error is visible
     throw e;
   }
   loading.remove();

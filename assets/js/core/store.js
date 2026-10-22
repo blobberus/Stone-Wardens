@@ -5,7 +5,15 @@ import { utf8, extOf, clone } from './util.js';
 import { getSetting } from './settings.js';
 
 const blobCache = safe(kv('sw-cache', 'blobs')); // sha -> Uint8Array (content-addressed, never stale)
-const binDrafts = safe(kv('sw-drafts', 'bin')); // `${scope}:${path}` -> Uint8Array
+// Staged uploads: `${scope}:${path}` -> Uint8Array. Kept in memory as well, so an unavailable
+// IndexedDB (private browsing) only loses them across reloads instead of silently dropping them.
+const binIdb = safe(kv('sw-drafts', 'bin'));
+const binMem = new Map();
+const binDrafts = {
+  get: async (k) => binMem.get(k) ?? binIdb.get(k),
+  set: async (k, v) => { binMem.set(k, v); await binIdb.set(k, v); },
+  del: async (k) => { binMem.delete(k); await binIdb.del(k); },
+};
 
 const TEXT_EXT = new Set(['json', 'md', 'markdown', 'txt', 'csv', 'yml', 'yaml']);
 export const isTextPath = (p) => TEXT_EXT.has(extOf(p));
