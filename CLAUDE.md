@@ -33,7 +33,8 @@ content/              ALL user data, written by the site through the GitHub API
   characters/<id>.json  characters/recently-deleted/<id>.json (trash, `trashed:{at,by}`)
   locations/<id>.json (optional `map` sub-map id, `submap` it opens, `rank` 1-4)  map/config.json (+ map image)
   maps/<mapId>.json + maps/<mapId>/<image>   sub-maps {id,name,parent,image,width,height}; docs/map-model.md
-  journal/<chapter-slug>/_chapter.json + <note-slug>.md      (notes outside chapters: journal/*.md)
+  journal/<folder…>/<note>.md   nested folders; optional _chapter.json in any folder = folder metadata
+                                {title, description, order} (also keeps empty folders in git); root notes journal/*.md
   library/<kind>/<id>.json   kinds: weapon armor gear magic-item spell feat ability species class subclass
                              background location-type
 wardens-library/      campaign documents (pdf/docx/md/txt/images) shown read-only in Warden's Library
@@ -77,7 +78,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   suggest(q) -> [{label, value}]})`. `resolveLink(raw)`; un-prefixed `[[X]]` -> journal note, else first exact
   name match across types, else unresolved (click offers to create note).
   Prefixes: `map:` locations and sub-maps (place id > map id > place name > map name; `[[map:Map#Place]]`), `char:` characters (`[[char:Name#hp]]` anchors a sheet section/stat),
-  `note:` journal, `doc:` warden's library, compendium kinds: `weapon: armor: gear: item: spell: feat:
+  `note:` journal, `folder:` journal folder (legacy `chapter:`), `doc:` warden's library, compendium kinds: `weapon: armor: gear: item: spell: feat:
   ability: species: class: subclass: background:`.
 - `markdown.js`: Obsidian-flavoured: `[[wikilinks|alias]]`, `[[x#heading]]`, `![[embed]]` (notes/images),
   `> [!type]± title` callouts, `==highlight==`, `%%comment%%`, `#tags`, task lists, tables, GFM autolinks,
@@ -94,8 +95,14 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 - `assets/js/views/<id>/index.js` default-exports `{id, title, icon, mount(el), show(route), hide?()}`; `main.js`
   imports the ids in `VIEW_IDS` (a failed import shows an error tab instead of breaking the app). Views register
   their link types at import time and re-render from `store.on` events.
-- Routes: `#/map[/loc/<id>]`, `#/map/m/<mapId>[/loc/<id>]` (sub-maps), `#/characters[/<id>[/<section>]]`, `#/journal[/<chapter>|_[/<note>]][?h=|tag=|q=]`,
+- Routes: `#/map[/loc/<id>]`, `#/map/m/<mapId>[/loc/<id>]` (sub-maps), `#/characters[/<id>[/<section>]]`, `#/journal[/_|/<folder…>[/<note>]][?h=|q=|tag=|folder]`,
   `#/journal/new?title=`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`.
+
+## Journal tab
+- Obsidian-style vault (docs/journal-model.md): left pane Files (tree, drag-move, context menu) | Search (`tag:`
+  `path:` `file:` `"phrase"` `-word`) | Tags (nested); main pane = one journal-shaped page, Read/Edit (Ctrl+E),
+  quick switcher (Ctrl+O/K); right pane Properties, Outline, Backlinks (+ unlinked), Outgoing links.
+- Per-device UI state in localStorage `sw:journal:*`. Other views link notes with `href('journal', first || '_', rest)`.
 
 ## Characters tab
 - Engine (pure, Node-testable): `engine.js` facade + `engine-{rules,choices,derive,adjust,items,known,spells,actions,xp,util}.js`.

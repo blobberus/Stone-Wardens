@@ -1,15 +1,16 @@
-// Journal dialogs: new note, chapter details, delete chapter, move note, and the quick switcher
-// (Ctrl+K / Ctrl+O): fuzzy jump to any note or chapter, plus everything else in the link registry.
+// Journal dialogs: new note (from an unresolved link), folder picker (Move to…), delete folder, note properties,
+// folder description, and the quick switcher (Ctrl+O / Ctrl+K): fuzzy jump to any note or folder, plus everything
+// else in the link registry.
 import { h, clear } from '../../core/dom.js';
-import { icon, toast, openModal, field, input, select, textarea, choiceDialog, confirmDialog, pickFromList } from '../../core/ui.js';
+import { icon, openModal, field, input, select, textarea, choiceDialog, confirmDialog, pickFromList } from '../../core/ui.js';
 import { suggestLinks, resolveLink, linkTypes } from '../../core/links.js';
 import { navigate } from '../../core/router.js';
 import { nameKey } from '../../core/util.js';
+import { load as yamlLoad, dump as yamlDump } from '../../../../vendor/js-yaml/js-yaml.mjs';
 import * as J from './data.js';
+import * as S from './state.js';
 import { fuzzy, plural } from './text.js';
-import { hitsMarked, chapterName } from './parts.js';
-
-const NEW_CHAPTER = '__new__';
+import { hitsMarked, KIND_ICON } from './parts.js';
 
 function submitOnEnter(el, submit, modal) {
   el.addEventListener('keydown', (e) => {
@@ -17,135 +18,143 @@ function submitOnEnter(el, submit, modal) {
   });
 }
 
-/** Resolves {title, chapter, newChapter} or null. */
-export function newNoteDialog({ title = '', chapter = J.LOOSE } = {}) {
+const folderOptions = (ix) => ix.folderList.map((f) => ({
+  value: f.path, label: f.isRoot ? `${J.VAULT_TITLE} (vault root)` : `${' '.repeat(f.depth)}${f.title}`,
+}));
+
+/** Resolves {title, folder} or null. */
+export function newNoteDialog({ title = '', folder = '' } = {}) {
   return new Promise((resolve) => {
     const ix = J.index();
     let result = null;
-    const titleEl = input({ value: title, placeholder: 'e.g. The Siege of Greywater', maxlength: 120, autofocus: true });
-    const chapterTitle = input({ placeholder: 'Title of the new chapter', maxlength: 120 });
-    const newField = field('New chapter', chapterTitle);
-    newField.hidden = true;
-    const options = [
-      ...ix.chapters.map((c) => ({ value: c.slug, label: `${c.label} · ${c.title}` })),
-      { value: J.LOOSE, label: 'Loose Leaves (no chapter)' },
-      { value: NEW_CHAPTER, label: 'New chapter…' },
-    ];
-    const initial = J.chapterAt(chapter, ix) ? chapter : J.LOOSE;
-    const sel = select(options, initial, (v) => {
-      newField.hidden = v !== NEW_CHAPTER;
-      if (v === NEW_CHAPTER) chapterTitle.focus();
-    });
+    const titleEl = input({ value: title, placeholder: 'e.g. The Siege of Greywater', maxlength: 160 });
+    const sel = select(folderOptions(ix), J.folderAt(folder, ix) ? J.folderAt(folder, ix).path : '');
     const dupe = h('p', { class: 'field-hint jr-dupe', hidden: true });
     const err = h('p', { class: 'field-error', role: 'alert', hidden: true });
     const checkDupe = () => {
       const n = J.findNote(titleEl.value.trim());
       dupe.hidden = !n;
-      if (n) dupe.textContent = `“${n.title}” already exists in ${chapterName(n.chapterRef)}. Links to this title open the first one.`;
+      if (n) dupe.textContent = `“${n.title}” already exists in ${J.folderLabel(n.folderRef)}. Links to this title open that one.`;
     };
-    const fail = (msg, el) => { err.textContent = msg; err.hidden = false; el.focus(); return false; };
     const submit = () => {
       const t = titleEl.value.trim();
-      if (!t) return fail('Give the note a title.', titleEl);
-      const isNew = sel.value === NEW_CHAPTER;
-      const ct = chapterTitle.value.trim();
-      if (isNew && !ct) return fail('Name the new chapter.', chapterTitle);
-      result = { title: t, chapter: isNew ? null : sel.value, newChapter: isNew ? ct : null };
+      if (!t) { err.textContent = 'Give the note a title.'; err.hidden = false; titleEl.focus(); return false; }
+      result = { title: t, folder: sel.value };
       return true;
     };
     titleEl.addEventListener('input', () => { err.hidden = true; checkDupe(); });
     const m = openModal({
       title: 'New note',
-      body: h('div', { class: 'stack jr-dialog' }, field('Title', titleEl), dupe, field('Chapter', sel), newField, err),
+      body: h('div', { class: 'stack jr-dialog' }, field('Title', titleEl), dupe, field('Folder', sel), err),
       actions: [{ label: 'Cancel', kind: 'ghost' }, { label: 'Create note', kind: 'primary', onClick: submit }],
       onClose: () => resolve(result),
     });
     submitOnEnter(titleEl, submit, m);
-    submitOnEnter(chapterTitle, submit, m);
     checkDupe();
     requestAnimationFrame(() => { titleEl.focus(); titleEl.setSelectionRange(titleEl.value.length, titleEl.value.length); });
   });
 }
 
-/** Resolves {title, description} or null. */
-export function chapterDialog({ title = '', description = '', heading = 'New chapter', okLabel = 'Create chapter' } = {}) {
-  return new Promise((resolve) => {
-    let result = null;
-    const t = input({ value: title, placeholder: 'e.g. The Road to Greywater', maxlength: 120, autofocus: true });
-    const d = textarea({ value: description, rows: 4, placeholder: 'A line or two about this part of the story. Markdown and [[links]] work here.' });
-    const err = h('p', { class: 'field-error', role: 'alert', hidden: true });
-    const submit = () => {
-      const v = t.value.trim();
-      if (!v) { err.textContent = 'Give the chapter a title.'; err.hidden = false; t.focus(); return false; }
-      result = { title: v, description: d.value.trim() };
-      return true;
-    };
-    const m = openModal({
-      title: heading,
-      body: h('div', { class: 'stack jr-dialog' }, field('Title', t), field('Description', d, 'Shown on the chapter’s title page.'), err),
-      actions: [{ label: 'Cancel', kind: 'ghost' }, { label: okLabel, kind: 'primary', onClick: submit }],
-      onClose: () => resolve(result),
-    });
-    submitOnEnter(t, submit, m);
+/** Pick a destination folder. `allow(folder)` filters the choices. Resolves a folder or null. */
+export function pickFolder({ title = 'Move to…', allow = () => true } = {}) {
+  const ix = J.index();
+  const items = ix.folderList.filter(allow);
+  return pickFromList({
+    title,
+    items,
+    render: (f) => h('span', { class: 'picker-item-main jr-pick-folder', style: `--depth:${Math.max(0, f.depth)}` },
+      h('span', { class: 'picker-item-title' }, icon('folder'), f.isRoot ? `${J.VAULT_TITLE} (vault root)` : f.title),
+      h('small', { class: 'muted' }, f.isRoot ? plural(f.notes.length, 'note') : `${J.folderLabel(f)} · ${plural(f.count, 'note')}`)),
+    search: (f) => `${J.folderLabel(f)} ${f.slug}`,
+    empty: 'No folder matches.',
   });
 }
 
-/** Resolves 'loose' (move notes to Loose Leaves), 'delete' (delete notes too) or null. */
-export async function confirmDeleteChapter(ch) {
-  if (!ch.notes.length) {
-    const ok = await confirmDialog(`Delete the empty chapter “${ch.title}”?`, { title: `Delete ${ch.label}`, okLabel: 'Delete chapter', danger: true });
+/** Resolves 'keep' (move contents up), 'delete' (everything) or null. */
+export async function confirmDeleteFolder(f) {
+  const where = f.parent && !f.parent.isRoot ? `“${f.parent.title}”` : 'the vault root';
+  if (!f.count && !f.folders.length) {
+    const ok = await confirmDialog(`Delete the empty folder “${f.title}”?`, { title: 'Delete folder', okLabel: 'Delete folder', danger: true });
     return ok ? 'delete' : null;
   }
-  const n = ch.notes.length;
+  const subs = J.index().folderList.filter((x) => x !== f && J.isUnder(x.path, f.path)).length;
   return choiceDialog(
     h('div', { class: 'stack' },
-      h('p', null, `“${ch.title}” holds ${plural(n, 'note')}. What should become of ${n === 1 ? 'it' : 'them'}?`),
-      h('p', { class: 'muted' }, 'Moving keeps every note, and every link to it, under Loose Leaves.')),
+      h('p', null, `“${f.title}” holds ${plural(f.count, 'note')}${subs ? ` in ${plural(subs + 1, 'folder')}` : ''}.`),
+      h('p', { class: 'muted' }, `Keep the notes to move everything up into ${where} and delete only the folder. Deleting everything removes the notes for the whole party once you save.`)),
     [
       { label: 'Cancel', value: null, kind: 'ghost' },
-      { label: `Delete chapter and ${plural(n, 'note')}`, value: 'delete', kind: 'danger' },
-      { label: 'Move notes to Loose Leaves', value: 'loose', kind: 'primary' },
+      { label: `Delete folder and ${plural(f.count, 'note')}`, value: 'delete', kind: 'danger' },
+      { label: 'Keep the notes', value: 'keep', kind: 'primary' },
     ],
-    { title: `Delete ${ch.label}` },
+    { title: `Delete “${f.title}”` },
   );
 }
 
-/** Resolves the destination chapter (or the Loose Leaves pseudo-chapter) or null. */
-export function moveNoteDialog(note) {
-  const ix = J.index();
-  const items = [...ix.chapters, ix.loose].filter((c) => c.slug !== note.chapter);
-  if (!items.length) {
-    toast('There is no other chapter yet. Start one with “New chapter”.');
-    return Promise.resolve(null);
-  }
-  return pickFromList({
-    title: `Move “${note.title}” to…`,
-    items,
-    render: (c) => h('span', { class: 'picker-item-main' },
-      h('span', { class: 'picker-item-title' }, chapterName(c)),
-      h('small', { class: 'muted' }, plural(c.notes.length, 'note'))),
-    search: (c) => `${c.label} ${c.title}`,
-    empty: 'No chapter matches.',
+/** Edit a note's properties (frontmatter other than the title) as YAML. Resolves the new frontmatter or null. */
+export function propertiesDialog(note) {
+  return new Promise((resolve) => {
+    let result = null;
+    const { title, ...rest } = note.fm;
+    const ta = textarea({
+      value: Object.keys(rest).length ? yamlDump(rest, { lineWidth: 100 }) : '', rows: 10, spellcheck: false,
+      placeholder: 'aliases: [Mira the Bold]\ntags: [npc, npc/ally]\nlocation: "[[map:Greywater]]"',
+      class: 'textarea jr-yaml',
+    });
+    const err = h('p', { class: 'field-error', role: 'alert', hidden: true });
+    const submit = () => {
+      let data;
+      try { data = ta.value.trim() ? yamlLoad(ta.value) : {}; } catch (e) {
+        err.textContent = `That is not valid YAML: ${String(e.reason || e.message).split('\n')[0]}`;
+        err.hidden = false;
+        return false;
+      }
+      if (data == null) data = {};
+      if (typeof data !== 'object' || Array.isArray(data)) { err.textContent = 'Write one “key: value” per line.'; err.hidden = false; return false; }
+      result = data;
+      return true;
+    };
+    ta.addEventListener('input', () => { err.hidden = true; });
+    openModal({
+      title: `Properties of “${note.title}”`,
+      body: h('div', { class: 'stack jr-dialog' },
+        field('Properties (YAML)', ta, 'One “key: value” per line. aliases let [[links]] find this note by other names; tags work like #tags.'),
+        err),
+      actions: [{ label: 'Cancel', kind: 'ghost' }, { label: 'Save properties', kind: 'primary', onClick: submit }],
+      onClose: () => resolve(result),
+    });
+    requestAnimationFrame(() => ta.focus());
+  });
+}
+
+/** Resolves the new description (possibly '') or null. */
+export function descriptionDialog(f) {
+  return new Promise((resolve) => {
+    let result = null;
+    const d = textarea({ value: f.description, rows: 5, placeholder: 'A line or two about what is filed here. Markdown and [[links]] work.' });
+    openModal({
+      title: `About “${f.title}”`,
+      body: h('div', { class: 'stack jr-dialog' }, field('Description', d, 'Shown at the top of the folder page.')),
+      actions: [{ label: 'Cancel', kind: 'ghost' }, { label: 'Save', kind: 'primary', onClick: () => { result = d.value.trim(); } }],
+      onClose: () => resolve(result),
+    });
+    requestAnimationFrame(() => d.focus());
   });
 }
 
 // ---------- quick switcher ----------
 
-const PREFIX_ICON = {
-  note: 'file', chapter: 'book-open', map: 'pin', char: 'user', doc: 'file-doc', spell: 'sparkle', weapon: 'sword',
-  armor: 'shield', gear: 'backpack', item: 'star', 'magic-item': 'star', feat: 'level-up', ability: 'level-up',
-  species: 'users', class: 'shield', subclass: 'shield', background: 'scroll',
-};
-
-const noteItem = (n) => ({ icon: 'file', label: n.title, detail: chapterName(n.chapterRef), kind: 'Note', href: n.href, hits: [] });
-const chapterItem = (c) => ({ icon: 'book-open', label: c.title, detail: c.label, kind: 'Chapter', href: c.href, hits: [] });
+const noteItem = (n) => ({ icon: 'file', label: n.title, detail: J.folderLabel(n.folderRef), kind: 'Note', href: n.href, hits: [] });
+const folderItem = (f) => ({ icon: 'folder', label: f.title, detail: f.parent && !f.parent.isRoot ? J.folderLabel(f.parent) : null, kind: 'Folder', href: f.href, hits: [] });
 
 function switcherItems(query) {
   const raw = String(query || '').trim();
   const ix = J.index();
   if (!raw) {
-    const recent = J.recentNotes(8).map(noteItem);
-    return [...recent, ...ix.chapters.map(chapterItem)].slice(0, 30);
+    const opened = S.recent().map((p) => J.noteByPath(p, ix)).filter(Boolean);
+    const seen = new Set(opened.map((n) => n.path));
+    const edited = J.recentNotes(12).filter((n) => !seen.has(n.path));
+    return [...opened.slice(0, 10).map((n) => ({ ...noteItem(n), kind: 'Opened' })), ...edited.slice(0, 10).map((n) => ({ ...noteItem(n), kind: 'Edited' }))].slice(0, 16);
   }
   const pm = /^([a-z][a-z-]*):(.*)$/i.exec(raw);
   const prefixed = !!pm && linkTypes().some((t) => t.prefix === pm[1].toLowerCase());
@@ -160,14 +169,19 @@ function switcherItems(query) {
         const fa = fuzzy(raw, a);
         if (fa && (!best || fa.score > best.score)) best = { score: fa.score, hits: [], alias: a };
       }
+      if (!best && raw.includes('/')) {
+        const fp = fuzzy(raw, `${J.folderLabel(n.folderRef)}/${n.title}`);
+        if (fp) best = { score: fp.score - 10, hits: [], alias: null };
+      }
       if (best) {
         const it = noteItem(n);
         scored.push({ ...it, score: best.score, hits: best.hits, detail: best.alias ? `alias “${best.alias}” · ${it.detail}` : it.detail });
       }
     }
-    for (const c of ix.chapters) {
-      const f = fuzzy(raw, c.title) || fuzzy(raw, c.label);
-      if (f) scored.push({ ...chapterItem(c), score: f.score, hits: fuzzy(raw, c.title)?.hits || [] });
+    for (const f of ix.folderList) {
+      if (f.isRoot) continue;
+      const fz = fuzzy(raw, f.title);
+      if (fz) scored.push({ ...folderItem(f), score: fz.score - 2, hits: fz.hits });
     }
     scored.sort((a, b) => b.score - a.score);
     out.push(...scored.slice(0, 20));
@@ -176,12 +190,12 @@ function switcherItems(query) {
   for (const s of suggestLinks(raw, 40)) {
     if (s.partial) continue;
     const prefix = (/^([a-z][a-z-]*):/i.exec(s.insert)?.[1] || 'note').toLowerCase();
-    if (!prefixed && (prefix === 'note' || prefix === 'chapter')) continue;
+    if (!prefixed && (prefix === 'note' || prefix === 'chapter' || prefix === 'folder')) continue;
     let r = null;
     try { r = resolveLink(s.insert); } catch (e) { console.warn(e); }
     if (!r?.href || !r.exists || seen.has(r.href)) continue;
     seen.add(r.href);
-    out.push({ icon: PREFIX_ICON[prefix] || 'compendium', label: s.label, detail: null, kind: s.kind, href: r.href, hits: fuzzy(term, s.label)?.hits || [] });
+    out.push({ icon: KIND_ICON[prefix] || 'compendium', label: s.label, detail: null, kind: s.kind, href: r.href, hits: fuzzy(term, s.label)?.hits || [] });
   }
   if (!prefixed && !ix.notes.some((n) => nameKey(n.title) === nameKey(raw))) {
     out.push({ icon: 'plus', label: `Create note “${raw}”`, detail: null, kind: 'New', create: raw, hits: [] });
@@ -195,8 +209,8 @@ export function openSwitcher({ onCreate = null } = {}) {
   if (switcherOpen) return;
   switcherOpen = true;
   const q = h('input', {
-    class: 'input jr-sw-input', type: 'search', autocomplete: 'off', spellcheck: false, autofocus: true,
-    placeholder: 'Jump to a note, chapter, place, character, spell…', 'aria-label': 'Jump to',
+    class: 'input jr-sw-input', type: 'search', autocomplete: 'off', spellcheck: false,
+    placeholder: 'Jump to a note, folder, place, character, spell…', 'aria-label': 'Jump to',
     role: 'combobox', 'aria-expanded': 'true', 'aria-controls': 'jr-sw-list',
   });
   const list = h('ul', { class: 'jr-sw-list', role: 'listbox', id: 'jr-sw-list' });
@@ -228,7 +242,7 @@ export function openSwitcher({ onCreate = null } = {}) {
   };
   const draw = () => {
     clear(list);
-    if (!items.length) { list.append(h('li', { class: 'jr-sw-empty' }, 'Nothing matches.')); return; }
+    if (!items.length) { list.append(h('li', { class: 'jr-sw-empty' }, String(q.value).trim() ? 'Nothing matches.' : 'No notes yet.')); return; }
     items.forEach((it, i) => list.append(h('li', {
       class: ['jr-sw-item', it.create && 'is-create'], role: 'option', id: `jr-sw-${i}`,
       onmousedown: (e) => e.preventDefault(),

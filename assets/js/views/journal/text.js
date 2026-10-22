@@ -1,17 +1,6 @@
-// Journal text helpers: numerals, plain-text extraction, headings/sections, fuzzy matching, snippets,
-// dates and a code/comment/callout-aware task toggle that matches the rendered checkbox order.
+// Journal text helpers: plain-text extraction (whole notes and single lines), headings/sections, fuzzy matching,
+// snippets, accent folding, dates and a code/comment/callout-aware task toggle that matches the rendered checkbox order.
 import { slugify } from '../../core/util.js';
-
-// ---------- numerals ----------
-
-const ROMAN = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
-
-export function roman(n) {
-  let x = Math.max(0, Math.floor(Number(n) || 0));
-  let s = '';
-  for (const [v, r] of ROMAN) while (x >= v) { s += r; x -= v; }
-  return s;
-}
 
 // ---------- plain text ----------
 
@@ -28,22 +17,82 @@ export function plainInline(s) {
     .replace(/<[^>]+>/g, '');
 }
 
+/** Block markers (headings, quotes, callout heads, list bullets, task boxes, table rules) off every line. */
+const stripBlocks = (md) => String(md || '')
+  .replace(/^[ \t]*>[ \t]*\[![\w-]+\][+-]?[ \t]*/gm, '')
+  .replace(/^[ \t]*(?:>[ \t]?)+/gm, '')
+  .replace(/^#{1,6}[ \t]+/gm, '')
+  .replace(/^[ \t]*(?:[-*+]|\d+[.)])[ \t]+\[[ xX]\][ \t]+/gm, '')
+  .replace(/^[ \t]*(?:[-*+]|\d+[.)])[ \t]+/gm, '')
+  .replace(/^[ \t]*\|?[ \t:-]+\|[ \t|:-]*$/gm, ' ');
+
 /** Whole note body -> plain text for search and snippets. */
 export function plainText(md) {
-  const blocks = String(md || '')
+  const blocks = stripBlocks(String(md || '')
     .replace(/%%[\s\S]*?%%/g, ' ')
-    .replace(/^[ \t]*(```|~~~)[^\n]*$/gm, ' ')
-    .replace(/^[ \t]*>[ \t]*\[![\w-]+\][+-]?[ \t]*/gm, '')
-    .replace(/^[ \t]*(?:>[ \t]?)+/gm, '')
-    .replace(/^#{1,6}[ \t]+/gm, '')
-    .replace(/^[ \t]*(?:[-*+]|\d+[.)])[ \t]+\[[ xX]\][ \t]+/gm, '')
-    .replace(/^[ \t]*(?:[-*+]|\d+[.)])[ \t]+/gm, '')
-    .replace(/^[ \t]*\|?[ \t:-]+\|[ \t|:-]*$/gm, ' ');
+    .replace(/^[ \t]*(```|~~~)[^\n]*$/gm, ' '));
   return plainInline(blocks) // links first, so [[a|b]] keeps its label before table pipes are dropped
     .replace(/\|/g, ' ')
     .replace(/[ \t]+/g, ' ')
     .replace(/\n[ \n]+/g, '\n')
     .trim();
+}
+
+/**
+ * The body as searchable lines: [{line, text}] where `line` is the source line number and `text` its plain text.
+ * Skips %%comments%% (also across lines), fence markers and blank lines; code lines are kept verbatim.
+ */
+export function plainLines(body) {
+  const out = [];
+  let fence = null;
+  let inComment = false;
+  String(body || '').split('\n').forEach((raw, i) => {
+    const f = FENCE.exec(raw);
+    if (fence) { if (f && f[1] === fence) fence = null; else if (raw.trim()) out.push({ line: i, text: raw.trim() }); return; }
+    let line = raw;
+    if (inComment) {
+      const end = line.indexOf('%%');
+      if (end < 0) return;
+      line = line.slice(end + 2);
+      inComment = false;
+    }
+    line = line.replace(/%%[\s\S]*?%%/g, ' ');
+    const open = line.indexOf('%%');
+    if (open >= 0) { line = line.slice(0, open); inComment = true; }
+    if (!inComment && FENCE.test(line)) { fence = FENCE.exec(line)[1]; return; }
+    const text = plainInline(stripBlocks(line)).replace(/\|/g, ' ').replace(/\s+/g, ' ').trim();
+    if (text) out.push({ line: i, text });
+  });
+  return out;
+}
+
+// ---------- folding (case + accents, index-preserving) ----------
+
+/** Lower-case and strip accents one character at a time, so indexes into the result match the original. */
+export function fold(s) {
+  return String(s || '').replace(/[^\x00-\x7f]/g, (c) => {
+    const d = c.normalize('NFD').replace(/\p{M}/gu, '');
+    return d.length === 1 ? d : c;
+  }).toLowerCase();
+}
+
+/** [start, end) ranges of every occurrence of each term in text (terms already folded), merged and sorted. */
+export function rangesOf(text, terms) {
+  const low = fold(text);
+  const ranges = [];
+  for (const t of terms) {
+    if (!t) continue;
+    let i = low.indexOf(t);
+    while (i >= 0) { ranges.push([i, i + t.length]); i = low.indexOf(t, i + t.length); }
+  }
+  ranges.sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const r of ranges) {
+    const prev = merged[merged.length - 1];
+    if (prev && r[0] <= prev[1]) prev[1] = Math.max(prev[1], r[1]);
+    else merged.push([...r]);
+  }
+  return merged;
 }
 
 // ---------- headings and sections ----------
@@ -148,8 +197,8 @@ export function fuzzy(query, text) {
 /** A window of plain text around the first term, with ranges to highlight. */
 export function snippet(text, terms, { radius = 70, max = 200 } = {}) {
   const src = String(text || '').replace(/\s+/g, ' ').trim();
-  const low = src.toLowerCase();
-  const ts = terms.map((t) => String(t).toLowerCase()).filter(Boolean);
+  const low = fold(src);
+  const ts = terms.map((t) => fold(t)).filter(Boolean);
   let first = -1;
   for (const t of ts) {
     const i = low.indexOf(t);
@@ -166,20 +215,11 @@ export function snippet(text, terms, { radius = 70, max = 200 } = {}) {
     if (sp > start + max / 2) end = sp;
   }
   const piece = src.slice(start, end);
-  const ranges = [];
-  const pl = piece.toLowerCase();
-  for (const t of ts) {
-    let i = pl.indexOf(t);
-    while (i >= 0) { ranges.push([i, i + t.length]); i = pl.indexOf(t, i + t.length); }
-  }
-  ranges.sort((a, b) => a[0] - b[0]);
-  const merged = [];
-  for (const r of ranges) {
-    const prev = merged[merged.length - 1];
-    if (prev && r[0] <= prev[1]) prev[1] = Math.max(prev[1], r[1]);
-    else merged.push([...r]);
-  }
-  return { text: (start > 0 ? '…' : '') + piece + (end < src.length ? '…' : ''), ranges: merged.map(([a, b]) => [a + (start > 0 ? 1 : 0), b + (start > 0 ? 1 : 0)]) };
+  const shift = start > 0 ? 1 : 0;
+  return {
+    text: (start > 0 ? '…' : '') + piece + (end < src.length ? '…' : ''),
+    ranges: rangesOf(piece, ts).map(([a, b]) => [a + shift, b + shift]),
+  };
 }
 
 // ---------- dates ----------
