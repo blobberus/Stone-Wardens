@@ -113,10 +113,12 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   (debuffs already applied to the shown numbers; UI renders them with widgets.js `adjustedValue(sheet, key, text)`).
 - Doc fields beyond the basics: `overrides.proficiency` (final say on skill/save prof), `style.accent` (highlight
   colour, default `#7a1f1f`), `xpLog`, `levelOrder`, `abilities[].tags` (manual Smart tags). Deleting moves a sheet to `recently-deleted/` (trash.js).
-- Sheet order: header row (portrait, name, XP meter, action buttons | HP, folded | AC · Init / Speed · Prof) ->
-  abilities row | one-line "Hit dice & conditions" panel (shown by default, setting `chTrackersShown`; the only
-  toggle is the "Hide / Show trackers" button under the HP widget; beside the abilities, below them when narrow;
-  while hidden, active conditions and 0-HP death saves show in the HP widget) -> narrow column skills, senses, proficiencies (foldable) | wide column actions window (tabs
+- Sheet order: header row (portrait, name, XP meter, action buttons | HP, folded, with the "Hide / Show trackers"
+  button under it | Death saves | AC · Initiative · Speed · Prof, one line when wide, 2 × 2 when tighter, the
+  combat boxes on their own line under the identity when narrow) ->
+  abilities row | one-line "Hit dice & conditions" panel (hit dice, inspiration star, exhaustion, conditions;
+  shown by default, setting `chTrackersShown`; beside the abilities, below them when narrow; while hidden, active
+  conditions show as chips in the HP widget) -> narrow column skills, senses, proficiencies (foldable) | wide column actions window (tabs
   Attacks / Spells / Bonus actions),
   resources, inventory, currency -> features (All | Smart tag view) -> details, notes. Tuned for the collapsed sidebar (container queries).
 

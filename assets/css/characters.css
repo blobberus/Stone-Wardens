@@ -108,28 +108,39 @@ a.ch-card:hover { background: var(--surface); }
 .ch-empty { margin-top: var(--space-4); }
 
 /* ---------- sheet: header and nav ------------------------------------------- */
-/* First row: identity | Hit points | AC · Init / Speed · Prof (2 × 2).
+/* First row: identity | Hit points | Death saves | AC · Initiative · Speed · Proficiency (one line when wide, 2 × 2
+   when tighter); narrower, the combat boxes take their own line under the identity, still in that order.
    A size container: it follows the real width (icon rail or full sidebar). */
-.ch-head { container: ch-head / inline-size; margin-bottom: var(--space-3); }
+.ch-head { container: ch-head / inline-size; margin-bottom: var(--space-3); --ch-strip-h: 64px; }
 .ch-head-grid {
   display: grid; gap: var(--space-2) var(--space-3); align-items: start;
-  grid-template-columns: minmax(0, 1fr) minmax(250px, 320px) minmax(196px, 224px);
-  grid-template-areas: "id hp stats";
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 270px) auto minmax(196px, 224px);
+  grid-template-areas: "id hp ds stats";
 }
 .ch-head-id { grid-area: id; display: flex; gap: var(--space-3); align-items: flex-start; min-width: 0; }
 .ch-head-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ch-head-grid > .ch-hp-col { grid-area: hp; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
 .ch-hp-col > .ch-hp { align-self: stretch; }
+.ch-head-grid > .ch-dsbox { grid-area: ds; }
 .ch-head-grid > .ch-stats { grid-area: stats; }
-@container ch-head (max-width: 900px) {
-  .ch-head-grid { grid-template-columns: minmax(0, 1fr) minmax(196px, 224px); grid-template-areas: "id id" "hp stats"; }
+@container ch-head (min-width: 1280px) {
+  .ch-head-grid { grid-template-columns: minmax(0, 1fr) minmax(220px, 270px) auto auto; }
+  .ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(72px, auto)); }
 }
-@container ch-head (max-width: 520px) {
-  .ch-head-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "id" "hp" "stats"; }
+@container ch-head (max-width: 1000px) {
+  .ch-head-grid { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "id id id" "hp ds stats"; }
+  .ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(72px, auto)); }
+}
+.ch-head .ch-stat-label { white-space: nowrap; }
+@container ch-head (max-width: 640px) {
+  .ch-head-grid { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "id id" "hp ds" "stats stats"; }
   .ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+/* The folded HP box, the death saves and the four stat boxes share one height */
+.ch-head .ch-hp:not(.is-open), .ch-head .ch-dsbox, .ch-head .ch-stat { min-height: var(--ch-strip-h); }
+.ch-head .ch-hp:not(.is-open) { justify-content: center; }
 /* Tight identity column: secondary actions (Level down) keep only their icon (the label stays for screen readers) */
-@container ch-head (max-width: 1200px) {
+@container ch-head ((min-width: 1001px) and (max-width: 1440px)) or (max-width: 640px) {
   .ch-head-actions .ch-act-lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 }
 .ch-name { margin: 0; font: 600 var(--text-xl) / 1.15 var(--font-display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
@@ -199,13 +210,19 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 .ch-hp-temp { margin-top: -2px; color: var(--info); text-align: right; }
 .ch-hp-edit { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
 .ch-hp-edit[hidden] { display: none; }
-/* Shown only while the trackers panel is hidden: chips for anything active, death saves at 0 HP */
+/* Shown only while the trackers panel is hidden: chips for anything active */
 .ch-hp-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .ch-hp-foot .chip { height: 26px; padding: 0 10px; font-size: var(--text-xs); }
-.ch-insp-chip .icon { width: 14px; height: 14px; color: var(--gold); fill: currentColor; }
-.ch-hp-ds { padding: 4px 0 2px; border-top: 1px solid var(--rule); }
-.ch-ds-rows { display: grid; grid-template-columns: max-content max-content; align-items: center; gap: 4px var(--space-2); }
-.ch-ds-label { color: var(--ink-muted); }
+.ch-insp-chip .icon { width: 14px; height: 14px; color: var(--gold); --icon-fill: var(--gold); }
+/* Death saves: between Hit points and AC; red edge at 0 HP like the HP box */
+.ch-dsbox {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 4px 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.ch-dsbox.is-down { border-color: var(--danger); box-shadow: inset 3px 0 0 var(--danger); }
+.ch-dsbox .ch-stat-label { white-space: nowrap; }
+.ch-dsbox .ch-ds { gap: 3px; }
+.ch-dsbox .ch-ds .checkbox { width: 15px; height: 15px; }
 .ch-trk-toggle { height: 28px; padding: 0 10px; }
 .ch-trk-toggle .icon { width: 15px; height: 15px; }
 .ch-hp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
@@ -225,7 +242,7 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 }
 .ch-sec-trackers[hidden] { display: none; }
 .ch-sec-trackers > .ch-sec-body { display: flex; align-items: center; }
-/* One line: Hit dice · Death saves · Inspiration · Exhaustion · Conditions (wraps only when stacked / on phones) */
+/* One line: Hit dice · Inspiration · Exhaustion · Conditions (wraps only when stacked / on phones) */
 .ch-trk-line { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: var(--space-2) var(--space-3); }
 @container ch-abilrow (max-width: 1099px) { .ch-trk-line { flex-wrap: wrap; } }
 .ch-trk { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -239,8 +256,6 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 .ch-sec-trackers .ch-pip { width: 14px; height: 14px; }
 .ch-ds-mini { display: grid; grid-template-columns: auto auto; align-items: center; gap: 2px 5px; }
 .ch-ds-letter { font: 700 var(--text-xs) / 1 var(--font-ui); color: var(--ink-muted); cursor: default; }
-.ch-sec-trackers .ch-ds { gap: 3px; }
-.ch-sec-trackers .ch-ds .checkbox { width: 15px; height: 15px; }
 .ch-sec-trackers .chip { height: 26px; padding: 0 8px; font-size: var(--text-xs); }
 .ch-cond-plus {
   width: 32px; height: 26px; padding: 0; flex: none; text-align: center; text-align-last: center;
@@ -254,8 +269,12 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 .ch-ds { display: inline-flex; gap: 5px; }
 .ch-ds-success input[type="checkbox"]:checked { background-color: var(--ok); border-color: var(--ok); }
 .ch-ds-fail input[type="checkbox"]:checked { background-color: var(--danger); border-color: var(--danger); }
-.ch-insp { align-self: flex-start; }
-.ch-insp.is-active .icon { color: var(--gold); fill: currentColor; }
+/* Heroic Inspiration: a big gold star, outlined when you don't have it, filled when you do (no tinted backdrop) */
+.btn-icon.ch-insp { align-self: flex-start; width: 38px; height: 38px; margin: -2px 0; color: var(--gold); }
+.btn-icon.ch-insp .icon { width: 30px; height: 30px; }
+.btn-icon.ch-insp:hover { color: var(--gold); --icon-fill: color-mix(in srgb, var(--gold) 30%, transparent); }
+.btn-icon.ch-insp.is-active, .btn-icon.ch-insp.is-active:hover { background: none; color: var(--gold); --icon-fill: var(--gold); }
+.btn-icon.ch-insp.is-active:hover .icon { filter: brightness(1.08); }
 
 /* ---------- sheet: two-column body ------------------------------------------ */
 .ch-layout { display: grid; grid-template-columns: minmax(270px, 330px) minmax(0, 1fr); gap: var(--space-3); align-items: start; }

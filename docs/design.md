@@ -66,6 +66,7 @@ badges), `--radius-lg` 8 (modals), `--radius-pill` (tags, chips). Use a 1px bord
 ## Icons
 `assets/img/icons.svg`: `i-*` are 24px outline icons (16–20px in use, currentColor); `mk-*` are filled marker glyphs drawn
 for 16px inside a 28–32px pin. One plain icon where it helps a label. Never put icons in tinted squares or circles.
+`i-star` also takes `--icon-fill` (default none): set it on the button to colour the star in (Heroic Inspiration).
 
 ## Do / Don't
 - Do show real campaign data at its real size (names, levels, HP, dates). Print zeros as zeros and missing values as "—".

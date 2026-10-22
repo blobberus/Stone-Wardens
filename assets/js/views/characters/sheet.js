@@ -174,7 +174,8 @@ function header(c, s) {
   const lvl = totalLevel(c);
   const due = levelsDue(c);
   const meta = [align, c.player ? `Player: ${c.player}` : ''].filter(Boolean).join(' · ');
-  // First row: identity (portrait, name, line, XP, one compact action row) | Hit points | AC · Init / Speed · Prof.
+  // First row: identity (portrait, name, line, XP, one compact action row) | Hit points | Death saves |
+  // AC · Initiative · Speed · Proficiency (one line when wide, 2 × 2 when tighter).
   // The hit dice & conditions panel sits beside the ability scores (trackers()).
   return h('header', { class: 'ch-head' }, h('div', { class: 'ch-head-grid' },
     h('div', { class: 'ch-head-id' },
@@ -198,6 +199,7 @@ function header(c, s) {
             onclick: async () => { const t = `[[char:${c.name || c.id}]]`; try { await navigator.clipboard.writeText(t); toast(`Copied ${t}`); } catch { toast(t); } },
           }, icon('link'))))),
     h('div', { class: 'ch-hp-col' }, hpWidget(c, s), trackersToggle()),
+    deathSaves(c, s),
     statGrid(s)));
 }
 
@@ -247,7 +249,7 @@ function toggleFold(key) {
   render();
 }
 
-/** AC · Initiative / Speed · Proficiency: the 2 × 2 block at the right end of the first row. */
+/** AC · Initiative · Speed · Proficiency at the right end of the first row (one line when wide, else 2 × 2). */
 function statGrid(s) {
   const speedSub = Object.entries(s.speed).filter(([k, v]) => k !== 'walk' && v).map(([k, v]) => `${prettify(k)} ${v}`).join(' · ');
   return h('div', { class: 'ch-stats', 'data-sec': 'combat' },
@@ -269,8 +271,7 @@ function trackersToggle() {
 
 /**
  * Hit points: folded = current / max, temp and the bar; open = + Current / Temp / Damage taken inputs and
- * Amount → Damage / Heal. While the trackers panel is hidden, chips for anything active (and, at 0 HP, the death
- * saves) show here instead.
+ * Amount → Damage / Heal. While the trackers panel is hidden, chips for anything active show here instead.
  */
 function hpWidget(c, s) {
   const open = isOpen(FOLD_KEYS.hp);
@@ -310,15 +311,24 @@ function hpWidget(c, s) {
       h('div', { class: 'ch-hp-actions' }, amount,
         h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: doDamage, 'data-fk': 'hp-dmg-btn' }, 'Damage'),
         h('button', { class: 'btn btn-sm', type: 'button', onclick: doHeal, 'data-fk': 'hp-heal-btn' }, 'Heal'))),
-    down && !trk ? h('div', { class: 'ch-ds-rows ch-hp-ds', role: 'group', 'aria-label': 'Death saving throws' },
-      h('span', { class: 'ui text-xs ch-ds-label' }, 'Death saves: successes'), deathBoxes('success', c.deathSaves.success, 'hpds'),
-      h('span', { class: 'ui text-xs ch-ds-label' }, 'Failures'), deathBoxes('fail', c.deathSaves.fail, 'hpds')) : null,
     active.length ? h('div', { class: 'ch-hp-foot' }, active) : null);
 }
 
+/** Death saves: a small box between Hit points and AC; it turns red at 0 HP. */
+function deathSaves(c, s) {
+  const max = s.hpMax;
+  const cur = c.hp.current == null ? max : Number(c.hp.current);
+  const down = max > 0 && cur <= 0;
+  return h('div', { class: ['ch-dsbox', down && 'is-down'], 'data-sec': 'death-saves', role: 'group', 'aria-label': 'Death saving throws' },
+    h('span', { class: 'ch-stat-label' }, 'Death saves'),
+    h('span', { class: 'ch-ds-mini' },
+      h('span', { class: 'ch-ds-letter', title: 'Successes' }, 'S'), deathBoxes('success', c.deathSaves.success),
+      h('span', { class: 'ch-ds-letter', title: 'Failures' }, 'F'), deathBoxes('fail', c.deathSaves.fail)));
+}
+
 /**
- * Hit dice, death saves, heroic inspiration, exhaustion, conditions: one compact line in a panel beside the ability
- * scores (below them when the row is narrow). Shown by default; the button under the HP widget hides it.
+ * Hit dice, heroic inspiration, exhaustion, conditions: one compact line in a panel beside the ability scores
+ * (below them when the row is narrow). Shown by default; the button under the HP widget hides it.
  */
 function trackers(c, s) {
   const open = isOpen(FOLD_KEYS.trackers);
@@ -335,13 +345,9 @@ function trackers(c, s) {
           ? pips({ max: hd.total, used: hd.used, label: `d${hd.die} hit dice`, fk: `hd${hd.die}`, onChange: (u) => mutate((x) => { x.hitDiceUsed[hd.die] = u; }) })
           : numberInput(hd.used, (v) => mutate((x) => { x.hitDiceUsed[hd.die] = Math.max(0, Math.min(hd.total, v || 0)); }), { class: 'input input-sm ch-w-num', min: 0, max: hd.total, 'aria-label': `d${hd.die} hit dice used` }),
         h('span', { class: 'num ch-trk-n' }, `${hd.total - hd.used}/${hd.total}`))) : h('span', { class: 'faint ui text-sm' }, '—')),
-    group('Death saves', { 'data-sec': 'death-saves' },
-      h('span', { class: 'ch-ds-mini' },
-        h('span', { class: 'ch-ds-letter', title: 'Successes' }, 'S'), deathBoxes('success', c.deathSaves.success),
-        h('span', { class: 'ch-ds-letter', title: 'Failures' }, 'F'), deathBoxes('fail', c.deathSaves.fail))),
     group('Inspiration', { 'data-stat': 'inspiration' },
       h('button', {
-        class: ['btn-icon', 'btn-sm', 'ch-insp', c.heroicInspiration && 'is-active'], type: 'button', 'aria-pressed': String(!!c.heroicInspiration), 'data-fk': 'insp',
+        class: ['btn-icon', 'ch-insp', c.heroicInspiration && 'is-active'], type: 'button', 'aria-pressed': String(!!c.heroicInspiration), 'data-fk': 'insp',
         title: c.heroicInspiration ? 'Heroic Inspiration: you have it (click to spend)' : 'Heroic Inspiration: none (click to gain)', 'aria-label': 'Heroic Inspiration',
         onclick: () => mutate((x) => { x.heroicInspiration = !x.heroicInspiration; }),
       }, icon('star'))),
@@ -357,9 +363,9 @@ function trackers(c, s) {
         (v) => v && mutate((x) => { x.conditions = [...x.conditions, v]; }), { class: 'select input-sm ch-cond-plus', 'aria-label': 'Add a condition', title: 'Add a condition', 'data-fk': 'cond-add' }))));
 }
 
-function deathBoxes(kind, n, fk = 'ds') {
+function deathBoxes(kind, n) {
   return h('span', { class: ['ch-ds', `ch-ds-${kind}`] }, [0, 1, 2].map((i) => h('input', {
-    type: 'checkbox', class: 'checkbox', checked: i < n, 'aria-label': `${kind === 'success' ? 'Success' : 'Failure'} ${i + 1}`, 'data-fk': `${fk}-${kind}-${i}`,
+    type: 'checkbox', class: 'checkbox', checked: i < n, 'aria-label': `${kind === 'success' ? 'Success' : 'Failure'} ${i + 1}`, 'data-fk': `ds-${kind}-${i}`,
     onchange: (e) => mutate((x) => { x.deathSaves[kind] = e.target.checked ? i + 1 : i; }),
   })));
 }

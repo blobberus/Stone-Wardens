@@ -95,7 +95,7 @@
     {
       "id": "command",
       "class": null,
-      "prepared": true,
+      "prepared": false,
       "always": false
     },
     {
@@ -107,7 +107,7 @@
     {
       "id": "wish",
       "class": null,
-      "prepared": true,
+      "prepared": false,
       "always": false
     }
   ],
@@ -136,39 +136,40 @@
       "name": "Spear"
     },
     {
-      "uid": "kwc953",
-      "kind": "weapon",
-      "ref": "dagger",
-      "name": "Dagger",
       "qty": 1,
       "equipped": true,
       "attuned": false,
       "notes": "",
-      "custom": null
+      "custom": null,
+      "uid": "kwc953",
+      "kind": "weapon",
+      "ref": "dagger",
+      "name": "Dagger"
     }
   ],
   "currency": {
-    "cp": 0,
-    "sp": 0,
-    "ep": 0,
-    "gp": 0,
+    "cp": 4,
+    "sp": 2,
+    "ep": 8,
+    "gp": 100,
     "pp": 0
   },
   "hp": {
     "current": 13,
     "temp": 0
   },
-  "hitDiceUsed": {
-    "8": 0
-  },
+  "hitDiceUsed": {},
   "deathSaves": {
     "success": 0,
     "fail": 0
   },
   "resourcesUsed": {},
-  "conditions": [],
+  "conditions": [
+    "frightened",
+    "charmed"
+  ],
   "exhaustion": 0,
-  "heroicInspiration": false,
+  "heroicInspiration": true,
   "xp": 0,
   "abilities": [],
   "overrides": {
@@ -218,5 +219,5 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-22T04:25:57.154Z",
-  "updated": "2026-10-22T07:55:16.877Z"
+  "updated": "2026-10-22T19:57:35.048Z"
 }
