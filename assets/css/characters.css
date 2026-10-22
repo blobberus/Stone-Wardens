@@ -114,18 +114,17 @@ a.ch-card:hover { background: var(--surface); }
 .ch-head-grid {
   display: grid; gap: var(--space-2) var(--space-3); align-items: start;
   grid-template-columns: minmax(0, 1fr) minmax(250px, 320px) minmax(196px, 224px);
-  grid-template-areas: "id hp stats" "trk trk trk";
+  grid-template-areas: "id hp stats";
 }
 .ch-head-id { grid-area: id; display: flex; gap: var(--space-3); align-items: flex-start; min-width: 0; }
 .ch-head-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ch-head-grid > .ch-hp { grid-area: hp; }
 .ch-head-grid > .ch-stats { grid-area: stats; }
-.ch-head-grid > .ch-trackers { grid-area: trk; }
 @container ch-head (max-width: 900px) {
-  .ch-head-grid { grid-template-columns: minmax(0, 1fr) minmax(196px, 224px); grid-template-areas: "id id" "hp stats" "trk trk"; }
+  .ch-head-grid { grid-template-columns: minmax(0, 1fr) minmax(196px, 224px); grid-template-areas: "id id" "hp stats"; }
 }
 @container ch-head (max-width: 520px) {
-  .ch-head-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "id" "hp" "stats" "trk"; }
+  .ch-head-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "id" "hp" "stats"; }
   .ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 /* Tight identity column: secondary actions (Level down) keep only their icon (the label stays for screen readers) */
@@ -211,22 +210,40 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 .ch-hp-actions { display: flex; gap: 6px; }
 .ch-hp-amt { flex: 1 1 auto; min-width: 0; }
 
-/* Trackers strip: hit dice | death saves | inspiration | exhaustion | conditions (fewer columns as it narrows) */
-.ch-trackers { container-type: inline-size; min-width: 0; padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
-.ch-trackers[hidden] { display: none; }
-.ch-side-grid { display: grid; grid-template-columns: repeat(4, minmax(0, auto)) minmax(0, 1fr); gap: var(--space-2) var(--space-5); }
-@container (max-width: 860px) {
-  .ch-side-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2) var(--space-4); }
-  .ch-side-grid > .ch-conds { grid-column: span 2; }
+/* Ability scores | hit dice & conditions (hidden by default) in one row, same panel chrome and height; the panel
+   drops below the scores when the row is too narrow for both. A size container (rail or full sidebar). */
+.ch-abil-row { container: ch-abilrow / inline-size; }
+.ch-page[data-mode="sheet"] > .ch-abil-row { margin-top: var(--space-3); }
+.ch-page[data-mode="sheet"] > .ch-abil-row + .ch-body { margin-top: var(--space-3); }
+.ch-abil-row-grid { display: grid; gap: var(--space-3); grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+@container ch-abilrow (min-width: 1100px) {
+  .ch-abil-row-grid:has(> .ch-sec-trackers:not([hidden])) { grid-template-columns: minmax(0, 1fr) auto; }
 }
-@container (max-width: 500px) {
-  .ch-side-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ch-side-grid > .ch-conds { grid-column: 1 / -1; }
+.ch-sec-trackers[hidden] { display: none; }
+.ch-sec-trackers > .ch-sec-body { display: flex; align-items: center; }
+/* One line: Hit dice · Death saves · Inspiration · Exhaustion · Conditions (wraps only when stacked / on phones) */
+.ch-trk-line { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: var(--space-2) var(--space-3); }
+@container ch-abilrow (max-width: 1099px) { .ch-trk-line { flex-wrap: wrap; } }
+.ch-trk { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ch-trk-label { font: 500 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink-muted); white-space: nowrap; }
+.ch-trk-ctl { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px 6px; min-height: 34px; }
+.ch-trk-conds .ch-trk-ctl { flex-wrap: wrap; max-width: 300px; }
+.ch-trk-hd { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.ch-trk-hd + .ch-trk-hd { margin-left: var(--space-2); }
+.ch-trk-n { font: 600 var(--text-xs) / 1 var(--font-ui); color: var(--ink-muted); white-space: nowrap; }
+.ch-sec-trackers .ch-pips { gap: 3px; flex-wrap: nowrap; }
+.ch-sec-trackers .ch-pip { width: 14px; height: 14px; }
+.ch-ds-mini { display: grid; grid-template-columns: auto auto; align-items: center; gap: 2px 5px; }
+.ch-ds-letter { font: 700 var(--text-xs) / 1 var(--font-ui); color: var(--ink-muted); cursor: default; }
+.ch-sec-trackers .ch-ds { gap: 3px; }
+.ch-sec-trackers .ch-ds .checkbox { width: 15px; height: 15px; }
+.ch-sec-trackers .chip { height: 26px; padding: 0 8px; font-size: var(--text-xs); }
+.ch-cond-plus {
+  width: 32px; height: 26px; padding: 0; flex: none; text-align: center; text-align-last: center;
+  font-weight: 700; background-image: none; border-radius: var(--radius-pill); cursor: pointer;
 }
 .ch-mini { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ch-mini-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--space-2); }
-.ch-head .ch-pips { gap: 4px; }
-.ch-head .ch-pip { width: 15px; height: 15px; }
 .ch-cond-add { width: auto; min-width: 8em; }
 .ch-cond { border-color: var(--danger); color: var(--danger); }
 .ch-die { font: 700 var(--text-sm) / 1 var(--font-ui); min-width: 2.2em; }
@@ -326,7 +343,16 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 /* Abilities & saves: six boxes in one row (3 × 2 when narrow) */
 .ch-sec-abils { container-type: inline-size; }
 .ch-abils { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-2); }
-@container (max-width: 600px) { .ch-abils { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container (max-width: 380px) { .ch-abils { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* Narrow six-across boxes: STR, DEX… on the band and "● +2" for the save (full words stay for screen readers) */
+.ch-ab-short { display: none; }
+@container (min-width: 381px) and (max-width: 660px) {
+  .ch-abil-name .ch-ab-full, .ch-abil-save .ch-abil-save-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  .ch-abil-name .ch-ab-short { display: inline; }
+  .ch-sec-abils .ch-abil-check { gap: 0 4px; }
+  .ch-sec-abils .ch-abil-score { min-width: 2em; padding: 0 3px; }
+  .ch-sec-abils > .ch-sec-head > .ch-sec-sub { display: none; }
+}
 .ch-abil {
   display: flex; flex-direction: column; min-width: 0; overflow: hidden;
   background: var(--surface); border: 1px solid color-mix(in oklab, var(--ch-hl-line) 45%, var(--border)); border-radius: var(--radius);

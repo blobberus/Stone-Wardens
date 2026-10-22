@@ -113,9 +113,9 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   (debuffs already applied to the shown numbers; UI renders them with widgets.js `adjustedValue(sheet, key, text)`).
 - Doc fields beyond the basics: `overrides.proficiency` (final say on skill/save prof), `style.accent` (highlight
   colour, default `#7a1f1f`), `xpLog`, `levelOrder`, `abilities[].tags` (manual Smart tags). Deleting moves a sheet to `recently-deleted/` (trash.js).
-- Sheet order: header row (portrait, name, XP meter, action buttons | HP, folded | AC · Init / Speed · Prof) with a
-  hidden trackers strip (hit dice, death saves, inspiration, exhaustion, conditions; active ones show as chips) ->
-  abilities row -> narrow column skills, senses, proficiencies (foldable) | wide column actions window (tabs
+- Sheet order: header row (portrait, name, XP meter, action buttons | HP, folded | AC · Init / Speed · Prof) ->
+  abilities row | one-line "Hit dice & conditions" panel (hidden by default via the HP widget toggle; beside the
+  abilities, below them when narrow; active conditions show as chips in the HP widget) -> narrow column skills, senses, proficiencies (foldable) | wide column actions window (tabs
   Attacks / Spells / Bonus actions),
   resources, inventory, currency -> features (All | Smart tag view) -> details, notes. Tuned for the collapsed sidebar (container queries).
 

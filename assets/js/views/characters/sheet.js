@@ -156,7 +156,8 @@ function render() {
     // Compact D&D Beyond proportions: ability row, combat strip (HP on the right), then a narrow column
     // (skills, senses, collapsible proficiencies) | the wide column: actions window (Attacks · Spells · Bonus actions),
     // resources, inventory, currency (fills the space beside the skills); then features & traits, details, notes.
-    abilities(c, s),
+    // Ability scores with the (hidden by default) hit dice & conditions panel to their right; below them when narrow.
+    h('div', { class: 'ch-abil-row' }, h('div', { class: 'ch-abil-row-grid' }, abilities(c, s), trackers(c, s))),
     h('div', { class: 'ch-body' }, h('div', { class: 'ch-body-grid' },
       h('div', { class: 'ch-col ch-col-l' }, skills(c, s), passive(s), proficiencies(c, s)),
       h('div', { class: 'ch-col ch-col-r' }, actionTabs(c, s), resources(c, s), inventory(c, s), currency(c)))),
@@ -173,8 +174,8 @@ function header(c, s) {
   const lvl = totalLevel(c);
   const due = levelsDue(c);
   const meta = [align, c.player ? `Player: ${c.player}` : ''].filter(Boolean).join(' · ');
-  // First row: identity (portrait, name, line, XP, one compact action row) | Hit points | AC · Init / Speed · Prof;
-  // the trackers strip (hidden by default) spans the row underneath.
+  // First row: identity (portrait, name, line, XP, one compact action row) | Hit points | AC · Init / Speed · Prof.
+  // The hit dice & conditions panel sits beside the ability scores (trackers()).
   return h('header', { class: 'ch-head' }, h('div', { class: 'ch-head-grid' },
     h('div', { class: 'ch-head-id' },
       portrait(c, { size: 'md' }),
@@ -197,8 +198,7 @@ function header(c, s) {
             onclick: async () => { const t = `[[char:${c.name || c.id}]]`; try { await navigator.clipboard.writeText(t); toast(`Copied ${t}`); } catch { toast(t); } },
           }, icon('link'))))),
     hpWidget(c, s),
-    statGrid(s),
-    trackers(c, s)));
+    statGrid(s)));
 }
 
 // Sticky section bar; once the name in the header scrolls away, "Name · Player" fills its empty right side.
@@ -305,50 +305,53 @@ function hpWidget(c, s) {
       h('span', { class: 'ui text-xs ch-ds-label' }, 'Failures'), deathBoxes('fail', c.deathSaves.fail, 'hpds')) : null,
     h('div', { class: 'ch-hp-foot' }, active,
       h('button', {
-        class: 'ch-fold ch-trk-fold', type: 'button', 'aria-expanded': String(trk), 'aria-controls': 'ch-trackers', 'data-fk': 'trk-fold',
+        class: 'ch-fold ch-trk-fold', type: 'button', 'aria-expanded': String(trk), 'aria-controls': 'ch-sec-trackers', 'data-fk': 'trk-fold',
         title: 'Hit dice, death saves, inspiration, exhaustion and conditions', onclick: () => toggleFold(FOLD_KEYS.trackers),
       }, icon(trk ? 'chevron-up' : 'chevron-down'), trk ? 'Hide trackers' : 'Hit dice & conditions')));
 }
 
-/** Hit dice, death saves, heroic inspiration, exhaustion, conditions: a strip under the first row, hidden by default. */
+/**
+ * Hit dice, death saves, heroic inspiration, exhaustion, conditions: one compact line in a panel beside the ability
+ * scores (below them when the row is narrow). Hidden by default; the HP widget's toggle shows it.
+ */
 function trackers(c, s) {
   const open = isOpen(FOLD_KEYS.trackers);
   const ex = Number(c.exhaustion) || 0;
   const conds = conditionList().filter((x) => x.id !== 'exhaustion');
-  return h('div', { class: 'ch-trackers', id: 'ch-trackers', 'data-fold': FOLD_KEYS.trackers, hidden: !open, role: 'region', 'aria-label': 'Trackers' },
-    h('div', { class: 'ch-side-grid' },
-      h('div', { class: 'ch-mini', 'data-stat': 'hit-dice' },
-        h('span', { class: 'ch-stat-label' }, 'Hit dice'),
-        s.hitDice.length ? s.hitDice.map((hd) => h('div', { class: 'ch-mini-row' },
-          h('span', { class: 'num ch-die' }, `d${hd.die}`),
-          hd.total <= 12
-            ? pips({ max: hd.total, used: hd.used, label: `d${hd.die} hit dice`, fk: `hd${hd.die}`, onChange: (u) => mutate((x) => { x.hitDiceUsed[hd.die] = u; }) })
-            : numberInput(hd.used, (v) => mutate((x) => { x.hitDiceUsed[hd.die] = Math.max(0, Math.min(hd.total, v || 0)); }), { class: 'input input-sm ch-w-num', min: 0, max: hd.total }),
-          h('span', { class: 'muted ui text-xs' }, `${hd.total - hd.used}/${hd.total} left`))) : h('span', { class: 'faint ui text-sm' }, '—')),
-      h('div', { class: 'ch-mini', 'data-sec': 'death-saves' },
-        h('span', { class: 'ch-stat-label' }, 'Death saves'),
-        h('div', { class: 'ch-ds-rows' },
-          h('span', { class: 'ui text-xs ch-ds-label' }, 'Successes'), deathBoxes('success', c.deathSaves.success),
-          h('span', { class: 'ui text-xs ch-ds-label' }, 'Failures'), deathBoxes('fail', c.deathSaves.fail))),
-      h('div', { class: 'ch-mini' },
-        h('span', { class: 'ch-stat-label' }, 'Heroic inspiration'),
-        h('button', {
-          class: ['btn', 'btn-sm', 'ch-insp', c.heroicInspiration && 'is-active'], type: 'button', 'aria-pressed': String(!!c.heroicInspiration), 'data-fk': 'insp', 'data-stat': 'inspiration',
-          onclick: () => mutate((x) => { x.heroicInspiration = !x.heroicInspiration; }),
-        }, icon('star'), c.heroicInspiration ? 'Inspired' : 'None')),
-      h('div', { class: 'ch-mini', 'data-stat': 'exhaustion' },
-        h('span', { class: 'ch-stat-label' }, 'Exhaustion'),
-        h('div', { class: 'ch-mini-row' }, pips({ max: 6, used: ex, kind: 'mark', label: 'Exhaustion level', fk: 'exh', onChange: (u) => mutate((x) => { x.exhaustion = u; }) }),
-          h('span', { class: 'muted ui text-xs' }, ex ? `−${ex * 2} to d20 tests, −${ex * 5} ft speed${ex >= 6 ? ' (death)' : ''}` : 'None'))),
-      h('div', { class: 'ch-mini ch-conds', 'data-stat': 'conditions' },
-        h('span', { class: 'ch-stat-label' }, 'Conditions'),
-        h('div', { class: 'row ch-chip-row' },
-          c.conditions.map((id) => {
-            const info = conds.find((x) => x.id === id);
-            return chip(info?.name || prettify(id), { title: info ? info.description.slice(0, 300) : null, className: 'ch-cond', onRemove: () => mutate((x) => { x.conditions = x.conditions.filter((y) => y !== id); }) });
-          }),
-          select([{ value: '', label: c.conditions.length ? 'Add…' : 'Add condition…' }, ...conds.filter((x) => !c.conditions.includes(x.id)).map((x) => ({ value: x.id, label: x.name }))], '',
-            (v) => v && mutate((x) => { x.conditions = [...x.conditions, v]; }), { class: 'select input-sm ch-cond-add', 'aria-label': 'Add condition', 'data-fk': 'cond-add' })))));
+  const exText = ex ? `Exhaustion ${ex}: −${ex * 2} to D20 Tests, −${ex * 5} ft Speed${ex >= 6 ? ' (death)' : ''}` : 'No Exhaustion';
+  const group = (label, attrs, ...ctl) => h('div', { class: 'ch-trk', ...attrs }, h('span', { class: 'ch-trk-label' }, label), h('div', { class: 'ch-trk-ctl' }, ctl));
+  return section('trackers', 'Hit dice & conditions', {
+    iconName: 'layers', className: 'ch-sec-trackers', attrs: { 'data-fold': FOLD_KEYS.trackers, hidden: !open },
+    actions: [h('button', { class: 'btn-icon btn-sm', type: 'button', title: 'Hide (the Hit points box shows anything active)', 'aria-label': 'Hide hit dice and conditions', onclick: () => toggleFold(FOLD_KEYS.trackers) }, icon('chevron-up'))],
+  },
+  h('div', { class: 'ch-trk-line' },
+    group('Hit dice', { 'data-stat': 'hit-dice' },
+      s.hitDice.length ? s.hitDice.map((hd) => h('span', { class: 'ch-trk-hd', title: `${hd.total - hd.used} of ${hd.total} d${hd.die} left` },
+        h('span', { class: 'num ch-die' }, `d${hd.die}`),
+        hd.total <= 12
+          ? pips({ max: hd.total, used: hd.used, label: `d${hd.die} hit dice`, fk: `hd${hd.die}`, onChange: (u) => mutate((x) => { x.hitDiceUsed[hd.die] = u; }) })
+          : numberInput(hd.used, (v) => mutate((x) => { x.hitDiceUsed[hd.die] = Math.max(0, Math.min(hd.total, v || 0)); }), { class: 'input input-sm ch-w-num', min: 0, max: hd.total, 'aria-label': `d${hd.die} hit dice used` }),
+        h('span', { class: 'num ch-trk-n' }, `${hd.total - hd.used}/${hd.total}`))) : h('span', { class: 'faint ui text-sm' }, '—')),
+    group('Death saves', { 'data-sec': 'death-saves' },
+      h('span', { class: 'ch-ds-mini' },
+        h('span', { class: 'ch-ds-letter', title: 'Successes' }, 'S'), deathBoxes('success', c.deathSaves.success),
+        h('span', { class: 'ch-ds-letter', title: 'Failures' }, 'F'), deathBoxes('fail', c.deathSaves.fail))),
+    group('Inspiration', { 'data-stat': 'inspiration' },
+      h('button', {
+        class: ['btn-icon', 'btn-sm', 'ch-insp', c.heroicInspiration && 'is-active'], type: 'button', 'aria-pressed': String(!!c.heroicInspiration), 'data-fk': 'insp',
+        title: c.heroicInspiration ? 'Heroic Inspiration: you have it (click to spend)' : 'Heroic Inspiration: none (click to gain)', 'aria-label': 'Heroic Inspiration',
+        onclick: () => mutate((x) => { x.heroicInspiration = !x.heroicInspiration; }),
+      }, icon('star'))),
+    group('Exhaustion', { 'data-stat': 'exhaustion', title: exText },
+      pips({ max: 6, used: ex, kind: 'mark', label: 'Exhaustion level', fk: 'exh', onChange: (u) => mutate((x) => { x.exhaustion = u; }) }),
+      h('span', { class: ['num', 'ch-trk-n', ex && 'danger-text'] }, String(ex))),
+    group('Conditions', { 'data-stat': 'conditions', class: 'ch-trk ch-trk-conds' },
+      c.conditions.map((id) => {
+        const info = conds.find((x) => x.id === id);
+        return chip(info?.name || prettify(id), { title: info ? info.description.slice(0, 300) : null, className: 'ch-cond', onRemove: () => mutate((x) => { x.conditions = x.conditions.filter((y) => y !== id); }) });
+      }),
+      select([{ value: '', label: '+' }, ...conds.filter((x) => !c.conditions.includes(x.id)).map((x) => ({ value: x.id, label: x.name }))], '',
+        (v) => v && mutate((x) => { x.conditions = [...x.conditions, v]; }), { class: 'select input-sm ch-cond-plus', 'aria-label': 'Add a condition', title: 'Add a condition', 'data-fk': 'cond-add' }))));
 }
 
 function deathBoxes(kind, n, fk = 'ds') {
@@ -411,7 +414,8 @@ function abilities(c, s) {
     const check = x.check ?? x.mod;
     return h('div', { class: 'ch-abil', 'data-stat': a.id },
       h('button', { class: 'ch-abil-check', type: 'button', onclick: () => rollToast(`${a.full} check`, check) },
-        h('span', { class: 'ch-abil-name' }, h('span', { class: 'sr-only' }, 'Roll '), a.full, h('span', { class: 'sr-only' }, ' check, score below')),
+        h('span', { class: 'ch-abil-name' }, h('span', { class: 'sr-only' }, 'Roll '),
+          h('span', { class: 'ch-ab-full' }, a.full), h('span', { class: 'ch-ab-short', 'aria-hidden': 'true' }, a.name), h('span', { class: 'sr-only' }, ' check, score below')),
         adjustedValue(s, `ability:${a.id}`, fmt(check), { className: 'ch-abil-mod' }),
         adjustedValue(s, `score:${a.id}`, String(x.score), { className: 'ch-abil-score' })),
       h('button', { class: 'ch-abil-save', type: 'button', onclick: () => rollToast(`${a.full} save`, x.save) },
