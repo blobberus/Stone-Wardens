@@ -108,7 +108,7 @@ a.ch-card:hover { background: var(--surface); }
 .ch-empty { margin-top: var(--space-4); }
 
 /* ---------- sheet: header and nav ------------------------------------------- */
-/* First row: identity | Hit points | AC · Init / Speed · Prof (2 × 2); the trackers strip spans the next row.
+/* First row: identity | Hit points | AC · Init / Speed · Prof (2 × 2).
    A size container: it follows the real width (icon rail or full sidebar). */
 .ch-head { container: ch-head / inline-size; margin-bottom: var(--space-3); }
 .ch-head-grid {
@@ -118,7 +118,8 @@ a.ch-card:hover { background: var(--surface); }
 }
 .ch-head-id { grid-area: id; display: flex; gap: var(--space-3); align-items: flex-start; min-width: 0; }
 .ch-head-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.ch-head-grid > .ch-hp { grid-area: hp; }
+.ch-head-grid > .ch-hp-col { grid-area: hp; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.ch-hp-col > .ch-hp { align-self: stretch; }
 .ch-head-grid > .ch-stats { grid-area: stats; }
 @container ch-head (max-width: 900px) {
   .ch-head-grid { grid-template-columns: minmax(0, 1fr) minmax(196px, 224px); grid-template-areas: "id id" "hp stats"; }
@@ -167,7 +168,7 @@ a.ch-card:hover { background: var(--surface); }
 .ch-warnings ul { margin: var(--space-2) 0 0; color: var(--ink-muted); }
 
 /* ---------- sheet: combat strip --------------------------------------------- */
-/* Header widgets: AC · Initiative / Speed · Proficiency (2 × 2), Hit points (folds), trackers strip (hidden by default) */
+/* Header widgets: AC · Initiative / Speed · Proficiency (2 × 2), Hit points (folds) with the Hide / Show trackers button under it */
 .ch-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .ch-stat {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; min-width: 0;
@@ -198,19 +199,22 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 .ch-hp-temp { margin-top: -2px; color: var(--info); text-align: right; }
 .ch-hp-edit { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
 .ch-hp-edit[hidden] { display: none; }
+/* Shown only while the trackers panel is hidden: chips for anything active, death saves at 0 HP */
 .ch-hp-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .ch-hp-foot .chip { height: 26px; padding: 0 10px; font-size: var(--text-xs); }
-.ch-trk-fold { margin-left: auto; font: 500 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink-muted); }
-.ch-trk-fold .icon { width: 14px; height: 14px; }
 .ch-insp-chip .icon { width: 14px; height: 14px; color: var(--gold); fill: currentColor; }
 .ch-hp-ds { padding: 4px 0 2px; border-top: 1px solid var(--rule); }
+.ch-ds-rows { display: grid; grid-template-columns: max-content max-content; align-items: center; gap: 4px var(--space-2); }
+.ch-ds-label { color: var(--ink-muted); }
+.ch-trk-toggle { height: 28px; padding: 0 10px; }
+.ch-trk-toggle .icon { width: 15px; height: 15px; }
 .ch-hp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .ch-hp-grid .field { gap: 2px; }
 .ch-hp-grid .field-label { font-size: var(--text-xs); line-height: 1.2; color: var(--ink-muted); }
 .ch-hp-actions { display: flex; gap: 6px; }
 .ch-hp-amt { flex: 1 1 auto; min-width: 0; }
 
-/* Ability scores | hit dice & conditions (hidden by default) in one row, same panel chrome and height; the panel
+/* Ability scores | hit dice & conditions (shown by default) in one row, same panel chrome and height; the panel
    drops below the scores when the row is too narrow for both. A size container (rail or full sidebar). */
 .ch-abil-row { container: ch-abilrow / inline-size; }
 .ch-page[data-mode="sheet"] > .ch-abil-row { margin-top: var(--space-3); }
@@ -247,8 +251,6 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 .ch-cond-add { width: auto; min-width: 8em; }
 .ch-cond { border-color: var(--danger); color: var(--danger); }
 .ch-die { font: 700 var(--text-sm) / 1 var(--font-ui); min-width: 2.2em; }
-.ch-ds-rows { display: grid; grid-template-columns: max-content max-content; align-items: center; gap: 4px var(--space-2); }
-.ch-ds-label { color: var(--ink-muted); }
 .ch-ds { display: inline-flex; gap: 5px; }
 .ch-ds-success input[type="checkbox"]:checked { background-color: var(--ok); border-color: var(--ok); }
 .ch-ds-fail input[type="checkbox"]:checked { background-color: var(--danger); border-color: var(--danger); }

@@ -156,7 +156,7 @@ function render() {
     // Compact D&D Beyond proportions: ability row, combat strip (HP on the right), then a narrow column
     // (skills, senses, collapsible proficiencies) | the wide column: actions window (Attacks · Spells · Bonus actions),
     // resources, inventory, currency (fills the space beside the skills); then features & traits, details, notes.
-    // Ability scores with the (hidden by default) hit dice & conditions panel to their right; below them when narrow.
+    // Ability scores with the hit dice & conditions panel (shown by default) to their right; below them when narrow.
     h('div', { class: 'ch-abil-row' }, h('div', { class: 'ch-abil-row-grid' }, abilities(c, s), trackers(c, s))),
     h('div', { class: 'ch-body' }, h('div', { class: 'ch-body-grid' },
       h('div', { class: 'ch-col ch-col-l' }, skills(c, s), passive(s), proficiencies(c, s)),
@@ -197,7 +197,7 @@ function header(c, s) {
             class: 'btn-icon btn-sm', type: 'button', title: 'Copy a [[char:…]] link', 'aria-label': 'Copy link',
             onclick: async () => { const t = `[[char:${c.name || c.id}]]`; try { await navigator.clipboard.writeText(t); toast(`Copied ${t}`); } catch { toast(t); } },
           }, icon('link'))))),
-    hpWidget(c, s),
+    h('div', { class: 'ch-hp-col' }, hpWidget(c, s), trackersToggle()),
     statGrid(s)));
 }
 
@@ -237,7 +237,7 @@ function watchNav(el) {
 // ---------- header widgets: HP, stats 2 × 2, trackers ----------
 
 // Folding regions remember open/closed per device (settings); a deep link opens a folded region for this session only.
-const FOLD_KEYS = { hp: 'chHpOpen', trackers: 'chTrackersOpen', profs: 'chProfsOpen' };
+const FOLD_KEYS = { hp: 'chHpOpen', trackers: 'chTrackersShown', profs: 'chProfsOpen' };
 const FORCED = new Set();
 const isOpen = (key) => FORCED.has(key) || !!getSetting(key);
 function toggleFold(key) {
@@ -257,9 +257,20 @@ function statGrid(s) {
     statBox({ label: 'Proficiency', value: adjustedValue(s, 'profBonus', fmt(s.profBonus)), stat: 'prof' }));
 }
 
+/** The Hide / Show trackers button under the HP widget (toggles the hit dice & conditions panel). */
+function trackersToggle() {
+  const shown = isOpen(FOLD_KEYS.trackers);
+  return h('button', {
+    class: 'btn btn-sm ch-trk-toggle', type: 'button', 'aria-expanded': String(shown), 'aria-controls': 'ch-sec-trackers', 'data-fk': 'trk-toggle',
+    title: shown ? 'Hide the hit dice & conditions panel (the Hit points box then shows anything active)' : 'Show hit dice, death saves, inspiration, exhaustion and conditions',
+    onclick: () => toggleFold(FOLD_KEYS.trackers),
+  }, icon('layers'), shown ? 'Hide trackers' : 'Show trackers');
+}
+
 /**
- * Hit points: folded = current / max, temp, the bar, chips for anything active in the trackers, the Trackers toggle;
- * open = + Current / Temp / Damage taken inputs and Amount → Damage / Heal. At 0 HP the death saves show here too.
+ * Hit points: folded = current / max, temp and the bar; open = + Current / Temp / Damage taken inputs and
+ * Amount → Damage / Heal. While the trackers panel is hidden, chips for anything active (and, at 0 HP, the death
+ * saves) show here instead.
  */
 function hpWidget(c, s) {
   const open = isOpen(FOLD_KEYS.hp);
@@ -274,10 +285,9 @@ function hpWidget(c, s) {
   const doDamage = () => { const n = Math.max(0, Number(amount.value) || 0); if (!n) return; mutate((x) => applyDamage(x, n, max)); };
   const doHeal = () => { const n = Math.max(0, Number(amount.value) || 0); if (!n) return; mutate((x) => applyHeal(x, n, max)); };
   amount.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? doHeal() : doDamage(); } });
-  const openTrackers = () => { if (!trk) toggleFold(FOLD_KEYS.trackers); };
   const active = trk ? [] : [
     ...c.conditions.map((id) => chip(conds.find((x) => x.id === id)?.name || prettify(id), { className: 'ch-cond', title: 'Active condition', onRemove: () => mutate((x) => { x.conditions = x.conditions.filter((y) => y !== id); }) })),
-    ex ? h('button', { class: 'chip ch-cond', type: 'button', title: `−${ex * 2} to D20 Tests, −${ex * 5} ft Speed`, onclick: openTrackers }, `Exhaustion ${ex}`) : null,
+    ex ? h('button', { class: 'chip ch-cond', type: 'button', title: `−${ex * 2} to D20 Tests, −${ex * 5} ft Speed (click to show the trackers)`, onclick: () => toggleFold(FOLD_KEYS.trackers) }, `Exhaustion ${ex}`) : null,
     c.heroicInspiration ? h('button', { class: 'chip ch-insp-chip', type: 'button', title: 'Heroic Inspiration (click to spend)', onclick: () => mutate((x) => { x.heroicInspiration = false; }) }, icon('star'), 'Inspired') : null,
   ].filter(Boolean);
   return h('div', { class: ['ch-hp', open && 'is-open', down && 'is-down'], 'data-sec': 'hp', 'data-fold': FOLD_KEYS.hp },
@@ -303,16 +313,12 @@ function hpWidget(c, s) {
     down && !trk ? h('div', { class: 'ch-ds-rows ch-hp-ds', role: 'group', 'aria-label': 'Death saving throws' },
       h('span', { class: 'ui text-xs ch-ds-label' }, 'Death saves: successes'), deathBoxes('success', c.deathSaves.success, 'hpds'),
       h('span', { class: 'ui text-xs ch-ds-label' }, 'Failures'), deathBoxes('fail', c.deathSaves.fail, 'hpds')) : null,
-    h('div', { class: 'ch-hp-foot' }, active,
-      h('button', {
-        class: 'ch-fold ch-trk-fold', type: 'button', 'aria-expanded': String(trk), 'aria-controls': 'ch-sec-trackers', 'data-fk': 'trk-fold',
-        title: 'Hit dice, death saves, inspiration, exhaustion and conditions', onclick: () => toggleFold(FOLD_KEYS.trackers),
-      }, icon(trk ? 'chevron-up' : 'chevron-down'), trk ? 'Hide trackers' : 'Hit dice & conditions')));
+    active.length ? h('div', { class: 'ch-hp-foot' }, active) : null);
 }
 
 /**
  * Hit dice, death saves, heroic inspiration, exhaustion, conditions: one compact line in a panel beside the ability
- * scores (below them when the row is narrow). Hidden by default; the HP widget's toggle shows it.
+ * scores (below them when the row is narrow). Shown by default; the button under the HP widget hides it.
  */
 function trackers(c, s) {
   const open = isOpen(FOLD_KEYS.trackers);
@@ -320,10 +326,7 @@ function trackers(c, s) {
   const conds = conditionList().filter((x) => x.id !== 'exhaustion');
   const exText = ex ? `Exhaustion ${ex}: −${ex * 2} to D20 Tests, −${ex * 5} ft Speed${ex >= 6 ? ' (death)' : ''}` : 'No Exhaustion';
   const group = (label, attrs, ...ctl) => h('div', { class: 'ch-trk', ...attrs }, h('span', { class: 'ch-trk-label' }, label), h('div', { class: 'ch-trk-ctl' }, ctl));
-  return section('trackers', 'Hit dice & conditions', {
-    iconName: 'layers', className: 'ch-sec-trackers', attrs: { 'data-fold': FOLD_KEYS.trackers, hidden: !open },
-    actions: [h('button', { class: 'btn-icon btn-sm', type: 'button', title: 'Hide (the Hit points box shows anything active)', 'aria-label': 'Hide hit dice and conditions', onclick: () => toggleFold(FOLD_KEYS.trackers) }, icon('chevron-up'))],
-  },
+  return section('trackers', 'Hit dice & conditions', { iconName: 'layers', className: 'ch-sec-trackers', attrs: { 'data-fold': FOLD_KEYS.trackers, hidden: !open } },
   h('div', { class: 'ch-trk-line' },
     group('Hit dice', { 'data-stat': 'hit-dice' },
       s.hitDice.length ? s.hitDice.map((hd) => h('span', { class: 'ch-trk-hd', title: `${hd.total - hd.used} of ${hd.total} d${hd.die} left` },
