@@ -6,10 +6,11 @@ import { href } from '../../core/router.js';
 import { store } from '../../core/store.js';
 import { fmtMod } from '../../core/util.js';
 import {
-  VIEW, DIR, ABILITIES, listCharacters, findCharacter, normalizeAnchor, isSelfWrite, idFromPath, flushPersist, totalLevel, mdSafe,
+  VIEW, DIR, TRASH_DIR, ABILITIES, listCharacters, findCharacter, normalizeAnchor, isSelfWrite, idFromPath, flushPersist, totalLevel, mdSafe,
 } from './data.js';
 import { ready, isReady, derive, entryName } from './bridge.js';
 import { renderRoster } from './roster.js';
+import { renderTrash, TRASH_ROUTE } from './trash.js';
 import { showSheet, hideSheet, sheetExternalChange } from './sheet.js';
 import { showBuilder } from './builder.js';
 import { showEditor, hideEditor, editorExternalChange } from './editor.js';
@@ -32,6 +33,11 @@ function show(route) {
     root.dataset.mode = mode;
     renderRoster(root);
     if (!isReady()) ready().then(() => { if (mode === 'roster' && isVisible()) renderRoster(root); });
+  } else if (id === TRASH_ROUTE) {
+    mode = 'trash'; currentId = null;
+    root.dataset.mode = 'roster';
+    renderTrash(root);
+    if (!isReady()) ready().then(() => { if (mode === 'trash' && isVisible()) renderTrash(root); });
   } else if (id === 'new') {
     mode = 'new'; currentId = null;
     root.dataset.mode = mode;
@@ -54,8 +60,11 @@ function show(route) {
 
 store.on((ev) => {
   if (!root) return;
-  if (ev.type === 'load') { if (isVisible() && mode === 'roster') renderRoster(root); return; }
-  const paths = (ev.path ? [ev.path] : ev.paths || []).filter((p) => p.startsWith(`${DIR}/`) && p.endsWith('.json') && !p.slice(DIR.length + 1).includes('/'));
+  const lists = () => { if (mode === 'roster') renderRoster(root); else if (mode === 'trash') renderTrash(root); };
+  if (ev.type === 'load') { if (isVisible()) lists(); return; }
+  const changed = ev.path ? [ev.path] : ev.paths || [];
+  if (changed.some((p) => p.startsWith(`${TRASH_DIR}/`)) && isVisible() && (mode === 'roster' || mode === 'trash')) { lists(); return; }
+  const paths = changed.filter((p) => p.startsWith(`${DIR}/`) && p.endsWith('.json') && !p.slice(DIR.length + 1).includes('/'));
   if (!paths.length) return;
   if (ev.type === 'put' && paths.every(isSelfWrite)) return; // our own debounced write
   if (!isVisible()) return; // show() re-renders on the next visit

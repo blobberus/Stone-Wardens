@@ -4,9 +4,10 @@ import { icon, select } from '../../core/ui.js';
 import { href } from '../../core/router.js';
 import { store } from '../../core/store.js';
 import { nameKey } from '../../core/util.js';
-import { VIEW, ABILITIES, listCharacters, pathOf, totalLevel } from './data.js';
+import { VIEW, ABILITIES, listCharacters, listTrash, pathOf, totalLevel } from './data.js';
 import { derive, entryName, pendingChoices } from './bridge.js';
 import { portrait, hpBar, fmt } from './widgets.js';
+import { TRASH_ROUTE } from './trash.js';
 
 const state = { q: '', sort: 'name' };
 
@@ -29,6 +30,7 @@ function sorted(list) {
 
 export function renderRoster(root) {
   const all = listCharacters().map((char) => ({ char, sheet: derive(char) }));
+  const trashed = listTrash().length;
   const term = nameKey(state.q);
   const shown = sorted(all.filter(({ char }) => !term || nameKey(`${char.name} ${char.player}`).includes(term)));
   const search = h('label', { class: 'search' }, icon('search'),
@@ -41,6 +43,8 @@ export function renderRoster(root) {
       h('h1', { class: 'view-title' }, 'Characters'),
       h('p', { class: 'view-sub' }, all.length ? `${all.length} sheet${all.length === 1 ? '' : 's'} in the party ledger. Open one to play, level up or edit.` : 'The party ledger is empty.'),
       h('div', { class: 'view-actions' },
+        h('a', { class: 'btn btn-ghost', href: href(VIEW, TRASH_ROUTE), title: 'Deleted sheets wait here until the folder is emptied' },
+          icon('trash'), 'Recently deleted', trashed ? h('span', { class: 'badge' }, String(trashed)) : null),
         h('a', { class: 'btn btn-primary', href: href(VIEW, 'new') }, icon('plus'), 'New character'))),
     all.length ? h('div', { class: 'toolbar ch-roster-tools' },
       search,

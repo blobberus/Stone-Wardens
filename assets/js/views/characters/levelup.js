@@ -1,19 +1,51 @@
 // Level Up dialog: pick the class to advance (or multiclass, gated by canMulticlass), review the
 // levelUpPlan (features, HP, slots), answer the new choice menus, then applyLevelUp.
+// XP aware: says when the level comes from experience ("1 of 3" when several are due, see levelUpFlow) or is a
+// milestone level (offers to raise XP to the new level's minimum). openLevelDown: the reverse, with a list of what
+// goes (features, choices, HP, slots, spells) and an offer to reset XP.
 import { h, mount } from '../../core/dom.js';
 import { icon, openModal, toast } from '../../core/ui.js';
 import { clone } from '../../core/util.js';
-import { totalLevel, prettify } from './data.js';
-import { cat, findEntry, entryName, derive, levelUpPlan, applyLevelUp, canMulticlass, allChoices, pendingChoices } from './bridge.js';
-import { renderChoiceGroups, isAnswered, currentValue } from './choices.js';
+import { totalLevel, prettify, normalize } from './data.js';
+import {
+  cat, findEntry, entryName, derive, levelUpPlan, applyLevelUp, canMulticlass, allChoices, pendingChoices, R, engine, rules as engineRules,
+  levelDown as bridgeLevelDown,
+} from './bridge.js';
+import { renderChoiceGroups, isAnswered, currentValue, valueNames } from './choices.js';
 import { md, rollDie, fmt } from './widgets.js';
+import { xpStatus, xpForLevel, setXp, lastLeveledClass, xpAfterLevelChange } from './engine-xp.js';
 
-/** openLevelUp(char, {onApply(nextChar)}) */
-export function openLevelUp(char, { onApply, classId: preset } = {}) {
+const n = (v) => (Number(v) || 0).toLocaleString('en-US');
+
+/**
+ * Level up once per due level: opens openLevelUp, and after each applied level opens the next while XP still has
+ * levels due (fromXp). onApply(next) runs after every level.
+ */
+export function levelUpFlow(char, { onApply, fromXp = true } = {}) {
+  const due = xpStatus(char, R()).due;
+  const total = fromXp && due > 1 ? due : 1;
+  const step = (doc, index) => openLevelUp(doc, {
+    chain: total > 1 ? { index, total } : null,
+    onApply: (next) => {
+      onApply?.(next);
+      if (index < total && xpStatus(next, R()).due > 0 && totalLevel(next) < 20) setTimeout(() => step(next, index + 1), 60);
+    },
+  });
+  return step(char, 1);
+}
+
+/** openLevelUp(char, {onApply(nextChar), classId, chain:{index,total}}) */
+export function openLevelUp(char, { onApply, classId: preset, chain = null } = {}) {
   const total = totalLevel(char);
   if (total >= 20) { toast('Already level 20.'); return null; }
-  const st = { classId: preset || char.classes[0]?.id || null, hpMode: 'average', hpRoll: null, work: null, plan: null };
+  const defaultClass = preset || (Array.isArray(char.levelOrder) && char.levelOrder.length ? lastLeveledClass(char) : null) || char.classes[0]?.id || null;
+  const st = { classId: defaultClass, hpMode: 'average', hpRoll: null, work: null, plan: null };
   st.beforePending = new Set((() => { try { return pendingChoices(char).map((c) => c.key); } catch { return []; } })());
+  // XP context: earned by experience, or a milestone level (XP below the new level's minimum)
+  const xs = xpStatus(char, R());
+  const need = total >= 1 ? xpForLevel(total + 1, R()) : 0;
+  const milestone = total >= 1 && xs.due === 0;
+  st.raiseXp = milestone && xs.xp < need;
   const body = h('div', { class: 'ch-lu' });
   const applyBtn = { label: 'Apply level', kind: 'primary', onClick: () => apply() };
 
@@ -58,12 +90,31 @@ export function openLevelUp(char, { onApply, classId: preset } = {}) {
     return list;
   }
 
+  function xpBanner() {
+    if (total < 1) return null;
+    if (xs.due > 0) {
+      const more = chain ? chain.total - chain.index : xs.due - 1;
+      return h('div', { class: 'callout ch-lu-xp', 'data-callout': 'success' },
+        h('div', { class: 'callout-title' }, chain ? `Level up ${chain.index} of ${chain.total} — from experience` : 'Level up from experience'),
+        h('div', { class: 'callout-content' }, h('p', null, `${n(xs.xp)} XP reaches level ${xs.xpLevel}.`,
+          more > 0 ? ` ${more} more level${more === 1 ? '' : 's'} ${chain ? (more === 1 ? 'follows' : 'follow') : (more === 1 ? 'is due' : 'are due')} after this one${chain ? '' : ' — level up again when you’re done'}.` : '')));
+    }
+    return h('div', { class: 'callout ch-lu-xp', 'data-callout': 'info' },
+      h('div', { class: 'callout-title' }, 'Milestone level-up'),
+      h('div', { class: 'callout-content stack stack-sm' },
+        h('p', null, `Levelling without the experience: ${n(xs.xp)} XP${need ? ` (level ${total + 1} normally needs ${n(need)})` : ''}.`),
+        xs.xp < need ? h('label', { class: 'checkbox' },
+          h('input', { type: 'checkbox', checked: st.raiseXp, 'data-fk': 'lu-raise-xp', onchange: (e) => { st.raiseXp = e.target.checked; } }),
+          h('span', null, `Raise XP to ${n(need)}, the level ${total + 1} minimum, so the XP bar stays in step`)) : null));
+  }
+
   function draw() {
     const opts = classOptions();
     const s = st.work ? derive(st.work) : null;
     const choices = st.work ? levelChoices() : [];
     const unanswered = choices.filter((c) => !isAnswered(c, currentValue(c, st.work))).length;
     mount(body,
+      xpBanner(),
       h('div', { class: 'ch-lu-classes' },
         h('h3', { class: 'ch-mini-head' }, total ? `Level ${total} → ${total + 1}: which class gains the level?` : 'Choose your first class'),
         h('div', { class: 'ch-cards' }, opts.map((o) => h('button', {
@@ -137,22 +188,140 @@ export function openLevelUp(char, { onApply, classId: preset } = {}) {
 
   function apply() {
     if (!st.work) return false;
-    onApply?.(st.work);
+    let next = st.work;
+    if (milestone && st.raiseXp && xs.xp < need) next = setXp(next, need, { note: `Milestone: level ${total + 1}` });
+    onApply?.(next);
     return true;
   }
 
   build();
-  const m = openModal({ title: 'Level up', wide: true, body, actions: [{ label: 'Cancel', kind: 'ghost' }, applyBtn] });
+  const m = openModal({ title: chain ? `Level up (${chain.index} of ${chain.total})` : 'Level up', wide: true, body, actions: [{ label: 'Cancel', kind: 'ghost' }, applyBtn] });
   draw();
   return m;
 }
 
-function slotTable(before = [], after = []) {
+// ---------- level down ----------
+
+function downPlan(char, classId) {
+  const E = engine();
+  const RR = engineRules();
+  if (E?.levelDownPlan && RR) {
+    try { return E.levelDownPlan(char, RR, classId); } catch (e) { console.error('[characters] levelDownPlan failed', e); }
+  }
+  const row = char.classes.find((r) => r.id === classId);
+  const next = bridgeLevelDown(char, classId);
+  const removesClass = !next.classes.some((r) => r.id === classId);
+  const hpBefore = derive(char).hpMax;
+  const hpAfter = derive(next).hpMax;
+  return {
+    classId, className: entryName('class', classId), fromLevel: row?.level || 0, toLevel: (row?.level || 1) - 1, removesClass, allowed: !!row,
+    totalBefore: totalLevel(char), totalAfter: totalLevel(next), features: [], choices: [], hpBefore, hpAfter, hpLost: Math.max(0, hpBefore - hpAfter),
+    spellsAtRisk: removesClass ? char.spells.filter((x) => x.class === classId).map((x) => ({ id: x.id, name: entryName('spell', x.id), level: Number(findEntry('spell', x.id)?.level) || 0, reason: 'class removed' })) : [],
+    next,
+  };
+}
+
+/** openLevelDown(char, {onApply(nextChar), classId}) — confirm, listing what that level takes away. */
+export function openLevelDown(char, { onApply, classId: preset } = {}) {
+  const total = totalLevel(char);
+  if (!total) { toast('There is no level to remove.'); return null; }
+  const latestKnown = Array.isArray(char.levelOrder) && char.levelOrder.length ? lastLeveledClass(char) : null;
+  const st = { classId: preset && char.classes.some((r) => r.id === preset) ? preset : lastLeveledClass(char), removeSpells: true, resetXp: true, plan: null };
+  const body = h('div', { class: 'ch-lu ch-ld' });
+  const sheetBefore = derive(char);
+
+  function draw() {
+    st.plan = downPlan(char, st.classId);
+    const p = st.plan;
+    const xpFix = xpAfterLevelChange(char.xp, p.totalAfter, 'down', R());
+    const slotsChanged = p.slotsBefore && p.slotsAfter && JSON.stringify(p.slotsBefore) !== JSON.stringify(p.slotsAfter);
+    const pactChanged = JSON.stringify(p.pactBefore ? [p.pactBefore.slots, p.pactBefore.level] : null) !== JSON.stringify(p.pactAfter ? [p.pactAfter.slots, p.pactAfter.level] : null);
+    const resLost = (p.resourcesBefore || []).map((b) => ({ b, a: (p.resourcesAfter || []).find((x) => x.key === b.key) }))
+      .filter(({ b, a }) => (Number(a?.max) || 0) < (Number(b.max) || 0));
+    const lost = [
+      p.hpLost ? h('li', null, h('strong', null, 'Hit points: '), `−${p.hpLost} maximum (${p.hpBefore} → ${p.hpAfter})`) : null,
+      p.subclass ? h('li', null, h('strong', null, 'Subclass: '), entryName('subclass', p.subclass)) : null,
+      p.features?.length ? h('li', null, h('strong', null, `Feature${p.features.length === 1 ? '' : 's'}: `),
+        p.features.map((f) => `${f.name || prettify(f.id)}${f.source ? ` (${f.source})` : ''}`).join(', ')) : null,
+      ...(p.choices || []).map((x) => {
+        const names = x.choice ? (() => { try { return valueNames(x.choice, x.value, { char, sheet: sheetBefore }); } catch { return ''; } })() : '';
+        return h('li', null, h('strong', null, `${x.label}: `), names || (typeof x.value === 'string' ? prettify(x.value) : 'your pick'));
+      }),
+      ...(p.trimmed || []).map((x) => {
+        const names = x.choice ? (() => { try { return valueNames(x.choice, x.removed, { char, sheet: sheetBefore }); } catch { return ''; } })() : '';
+        return h('li', null, h('strong', null, `${x.label}: `), `${x.before} → ${x.after}; the newest go: ${names || x.removed.map(prettify).join(', ')}`);
+      }),
+      p.alwaysLost?.length ? h('li', null, h('strong', null, 'Always-prepared spells: '), p.alwaysLost.map((x) => x.name).join(', ')) : null,
+      p.cantripsBefore > p.cantripsAfter ? h('li', null, h('strong', null, 'Cantrips known: '), `${p.cantripsBefore} → ${p.cantripsAfter}`) : null,
+      p.preparedBefore > p.preparedAfter ? h('li', null, h('strong', null, 'Prepared spells: '), `${p.preparedBefore} → ${p.preparedAfter}`) : null,
+      p.maxSpellLevelBefore > p.maxSpellLevelAfter ? h('li', null, h('strong', null, 'Highest spell level: '), `${p.maxSpellLevelBefore} → ${p.maxSpellLevelAfter || 'none'}`) : null,
+      pactChanged ? h('li', null, h('strong', null, 'Pact Magic: '), `${p.pactBefore ? `${p.pactBefore.slots} × level ${p.pactBefore.level}` : 'none'} → ${p.pactAfter ? `${p.pactAfter.slots} × level ${p.pactAfter.level}` : 'none'}`) : null,
+      ...resLost.map(({ b, a }) => h('li', null, h('strong', null, `${b.label}: `), `${b.max} → ${Number(a?.max) || 0}`)),
+      p.profBonusBefore != null && p.profBonusBefore !== p.profBonusAfter ? h('li', null, h('strong', null, 'Proficiency bonus: '), `${fmt(p.profBonusBefore)} → ${fmt(p.profBonusAfter)}`) : null,
+    ].filter(Boolean);
+    const others = char.classes.length > 1;
+    mount(body,
+      others ? h('div', { class: 'ch-lu-classes' },
+        h('h3', { class: 'ch-mini-head' }, 'Which class loses a level?'),
+        h('div', { class: 'ch-cards' }, char.classes.map((row) => h('button', {
+          type: 'button', class: ['ch-optcard', row.id === st.classId && 'is-selected'], 'aria-pressed': String(row.id === st.classId),
+          onclick: () => { st.classId = row.id; draw(); },
+        },
+        h('span', { class: 'ch-optcard-head' }, h('span', { class: 'ch-opt-name' }, entryName('class', row.id)),
+          h('span', { class: 'badge' }, row.level > 1 ? `${row.level} → ${row.level - 1}` : 'removed'),
+          row.id === latestKnown ? h('span', { class: 'badge badge-info', title: 'The class that gained the most recent level' }, 'latest') : null),
+        row.subclass ? h('span', { class: 'ch-optcard-desc' }, entryName('subclass', row.subclass)) : null)))) : null,
+      h('div', { class: 'ch-lu-summary' },
+        h('span', { class: 'ch-lu-big' }, p.removesClass ? `${p.className} ${p.fromLevel} → class removed` : `${p.className} ${p.fromLevel} → ${p.toLevel}`),
+        h('span', { class: 'muted' }, `Character level ${p.totalBefore} → ${p.totalAfter}`)),
+      p.totalAfter === 0 ? h('div', { class: 'callout', 'data-callout': 'warning' },
+        h('div', { class: 'callout-title' }, 'This removes the only class'),
+        h('div', { class: 'callout-content' }, h('p', null, 'The character goes back to level 0; choose a class again with Level up.'))) : null,
+      h('div', null,
+        h('h3', { class: 'ch-mini-head' }, 'What this level takes away'),
+        lost.length ? h('ul', { class: 'ch-ld-list ui text-sm' }, lost) : h('p', { class: 'muted ui text-sm' }, 'Nothing beyond the level itself.'),
+        slotsChanged ? h('div', { class: 'ch-ld-slots' }, h('h4', { class: 'ch-mini-head' }, 'Spell slots'), slotTable(p.slotsBefore, p.slotsAfter, { down: true })) : null),
+      p.spellsAtRisk?.length ? h('label', { class: 'checkbox ch-ld-opt' },
+        h('input', { type: 'checkbox', checked: st.removeSpells, onchange: (e) => { st.removeSpells = e.target.checked; } }),
+        h('span', null, p.removesClass ? `Also remove the ${p.className}’s ${p.spellsAtRisk.length} spell${p.spellsAtRisk.length === 1 ? '' : 's'}: ` : `Also remove ${p.spellsAtRisk.length} spell${p.spellsAtRisk.length === 1 ? '' : 's'} above the new highest level: `,
+          h('strong', null, p.spellsAtRisk.map((x) => `${x.name} (${x.level ? `level ${x.level}` : 'cantrip'})`).join(', ')))) : null,
+      xpFix.changed ? h('div', { class: 'stack stack-sm' },
+        h('label', { class: 'checkbox ch-ld-opt' },
+          h('input', { type: 'checkbox', checked: st.resetXp, 'data-fk': 'ld-reset-xp', onchange: (e) => { st.resetXp = e.target.checked; } }),
+          h('span', null, `Reset XP from ${n(char.xp)} to ${n(xpFix.xp)}, the level ${Math.max(1, p.totalAfter)} minimum`)),
+        h('p', { class: 'muted ui text-xs ch-ld-hint' }, `Otherwise ${n(char.xp)} XP still reaches a higher level and the sheet keeps offering a level up.`)) : null);
+  }
+
+  function apply() {
+    const p = st.plan;
+    if (!p?.allowed) return false;
+    let next = clone(p.next);
+    next.choices = next.choices || {};
+    if (p.removesClass) {
+      // the whole class goes: also its level-1 picks (skills, tools)
+      for (const k of Object.keys(next.choices)) if (k.includes(`@${p.classId}:`)) delete next.choices[k];
+      if (!(next.classes || []).length) next.skills = [];
+    }
+    if (st.removeSpells && p.spellsAtRisk?.length) {
+      const ids = new Set(p.spellsAtRisk.map((x) => x.id));
+      next.spells = (next.spells || []).filter((x) => !(x.class === p.classId && ids.has(x.id)));
+    }
+    const xpFix = xpAfterLevelChange(char.xp, p.totalAfter, 'down', R());
+    if (st.resetXp && xpFix.changed) next = setXp(next, xpFix.xp, { note: `Level down to ${p.totalAfter}` });
+    onApply?.(normalize(next));
+    return true;
+  }
+
+  draw();
+  return openModal({ title: 'Level down', wide: true, body, actions: [{ label: 'Cancel', kind: 'ghost' }, { label: 'Level down', kind: 'danger', onClick: () => apply() }] });
+}
+
+function slotTable(before = [], after = [], { down = false } = {}) {
   const levels = [];
   for (let i = 0; i < 9; i++) if ((before[i] || 0) || (after[i] || 0)) levels.push(i);
   return h('div', { class: 'table-wrap' }, h('table', { class: 'table table-dense' },
     h('thead', null, h('tr', null, h('th', null, ''), levels.map((i) => h('th', { class: 'num' }, `L${i + 1}`)))),
     h('tbody', null,
       h('tr', null, h('td', { class: 'cell-muted' }, 'Before'), levels.map((i) => h('td', { class: 'num' }, String(before[i] || 0)))),
-      h('tr', null, h('td', { class: 'cell-name' }, 'After'), levels.map((i) => h('td', { class: ['num', (after[i] || 0) > (before[i] || 0) && 'accent'] }, String(after[i] || 0)))))));
+      h('tr', null, h('td', { class: 'cell-name' }, 'After'), levels.map((i) => h('td', { class: ['num', down ? (after[i] || 0) < (before[i] || 0) && 'danger-text' : (after[i] || 0) > (before[i] || 0) && 'accent'] }, String(after[i] || 0)))))));
 }

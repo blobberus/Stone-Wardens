@@ -221,7 +221,9 @@ section('Monk 5');
   const q = qs.attacks.find((a) => a.weaponId === 'quarterstaff');
   eq('monk weapon uses DEX + MA die', [q?.ability, q?.damage], ['dex', '1d8+3']);
   const sh = E.derive({ ...c, inventory: [inv('s', 'armor', 'shield')] }, rules);
-  check('monk with shield loses Unarmored Defense', sh.ac.value === 10 + 3 + 2 && sh.speed.walk === 30, [sh.ac, sh.speed]);
+  // 2024 Armor Training: no Shield training -> no AC bonus from it (and Unarmored Defense is lost while holding it).
+  check('monk with shield loses Unarmored Defense (untrained shield: no AC)', sh.ac.value === 10 + 3 && sh.speed.walk === 30, [sh.ac, sh.speed]);
+  eq('untrained shield AC reason', [sh.adjust.ac?.base, sh.adjust.ac?.value, sh.adjust.ac?.reasons?.[0]?.amount], [15, 13, -2]);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -386,6 +388,112 @@ section('Species, feats, items, custom');
   const bard = E.derive(char({ baseAbilities: { str: 8, dex: 14, con: 12, int: 10, wis: 10, cha: 16 }, classes: [{ id: 'bard', level: 5 }] }), rules);
   eq('jack of all trades half prof', [bard.skills.athletics.half, bard.skills.athletics.bonus], [true, -1 + 1]);
   eq('bardic inspiration uses & recharge at 5', [res(bard, 'bardic-inspiration')?.max, res(bard, 'bardic-inspiration')?.recharge], [3, 'short']);
+}
+
+// ------------------------------------------------------------------------------------------------
+section('Proficiency overrides & sources');
+{
+  const pi = E.derive(fighter, rules).proficiencyInfo;
+  eq('athletics source = background', pi.skills.athletics.sources.map((x) => x.label), ['Background: Soldier']);
+  eq('perception source = class skill pick', pi.skills.perception.sources.map((x) => x.label), ['Class: Fighter']);
+  eq('STR save source = first class', pi.saves.str.sources.map((x) => x.label), ['Class: Fighter']);
+  eq('rules states', [pi.skills.athletics.rules, pi.skills.stealth.rules, pi.saves.str.rules, pi.saves.dex.rules, pi.skills.athletics.override], ['proficient', 'none', true, false, null]);
+  const ov = { ...fighter, overrides: { ...fighter.overrides, proficiency: { skills: { athletics: 'none', perception: 'expertise', stealth: 'proficient' }, saves: { str: false, dex: true } } } };
+  const s = E.derive(ov, rules);
+  eq('override removes a background skill', [s.skills.athletics.prof, s.skills.athletics.bonus], [false, 4]);
+  eq('override grants expertise (+ passive)', [s.skills.perception.expertise, s.skills.perception.bonus, s.passive.perception], [true, 1 + 6, 17]);
+  eq('override adds a skill', [s.skills.stealth.prof, s.skills.stealth.bonus], [true, 4]);
+  eq('override removes the class save / adds another', [s.abilities.str.saveProf, s.abilities.str.save, s.abilities.dex.saveProf, s.abilities.dex.save], [false, 4, true, 4]);
+  check('proficiency lists follow overrides', !s.proficiencies.skills.includes('athletics') && s.proficiencies.saves.includes('dex') && !s.proficiencies.saves.includes('str'));
+  eq('info: state / rules / override', [s.proficiencyInfo.skills.athletics.state, s.proficiencyInfo.skills.athletics.rules, s.proficiencyInfo.skills.athletics.override], ['none', 'proficient', 'none']);
+  eq('info: save override', [s.proficiencyInfo.saves.str.state, s.proficiencyInfo.saves.str.rules, s.proficiencyInfo.saves.str.override], [false, true, false]);
+  check('expertise choice options drop an un-proficient skill', !E.derive({ ...ov, classes: [{ id: 'rogue', level: 1 }], skills: ['acrobatics', 'perception', 'deception', 'insight'] }, rules).choices.find((c) => c.key === 'rogue-expertise@rogue:1')?.options.some((o) => o.id === 'athletics'));
+  const exs = E.derive({ ...fighter, extraProficiencies: { ...fighter.extraProficiencies, skills: ['history'], expertise: ['athletics'], saves: ['wis'] } }, rules);
+  eq('extraProficiencies still work', [exs.skills.history.prof, exs.skills.athletics.expertise, exs.abilities.wis.saveProf], [true, true, true]);
+  check('extra listed as its own source', exs.proficiencyInfo.skills.history.sources.some((x) => x.extra && x.label === 'Added in Edit all') && exs.proficiencyInfo.saves.wis.sources.some((x) => x.extra));
+  eq('extra: rules none, base proficient', [exs.proficiencyInfo.skills.history.rules, exs.proficiencyInfo.skills.history.base, exs.proficiencyInfo.skills.athletics.base], ['none', 'proficient', 'expertise']);
+  const both = E.derive({ ...fighter, extraProficiencies: { ...fighter.extraProficiencies, skills: ['history'] }, overrides: { ...fighter.overrides, proficiency: { skills: { history: 'none' }, saves: {} } } }, rules);
+  eq('override beats extraProficiencies', both.skills.history.prof, false);
+  const rg = E.derive(char({ classes: [{ id: 'rogue', level: 1 }], skills: ['acrobatics', 'perception', 'deception', 'insight'], choices: { 'rogue-expertise@rogue:1': ['stealth', 'perception'] } }), rules);
+  check('expertise source label from the class feature', rg.proficiencyInfo.skills.perception.sources.some((x) => x.level === 'expertise' && /^Rogue 1: /.test(x.label)), rg.proficiencyInfo.skills.perception.sources);
+  const res = E.derive(char({ species: { id: 'human' }, classes: [{ id: 'rogue', level: 4 }], choices: { 'rogue-ability-score-improvement@rogue:4': { feat: 'resilient', asi: { con: 1 } } } }), rules);
+  eq('Resilient save source', res.proficiencyInfo.saves.con.sources.map((x) => x.label), ['Feat: Resilient']);
+}
+
+// ------------------------------------------------------------------------------------------------
+section('Debuffs: exhaustion, conditions, penalties (sheet.adjust)');
+{
+  const ls = (s) => s.attacks.find((a) => a.weaponId === 'longsword');
+  eq('no debuffs -> empty adjust', E.derive({ ...fighter, inventory: fighter.inventory.slice(1) }, rules).adjust, {});
+  eq('chain mail: only the Stealth note', Object.keys(E.derive(fighter, rules).adjust), ['skill:stealth']);
+  const ex2 = E.derive({ ...fighter, exhaustion: 2 }, rules);
+  eq('exhaustion 2: save/skill/check/initiative/attack −4', [ex2.abilities.str.save, ex2.skills.athletics.bonus, ex2.abilities.str.check, ex2.initiative, ls(ex2).bonus], [3, 3, 0, -3, 3]);
+  eq('exhaustion 2: speed −10; AC, damage unchanged', [ex2.speed.walk, ex2.ac.value, ls(ex2).damage], [20, 19, '1d8+4']);
+  eq('exhaustion 2: passive scores count it', ex2.passive.perception, 10);
+  eq('adjust entry shape', ex2.adjust['skill:athletics'], { label: 'Athletics', format: 'mod', base: 7, value: 3, reasons: [{ label: 'Exhaustion 2', amount: -4 }] });
+  eq('adjust speed', [ex2.adjust.speed.base, ex2.adjust.speed.value, ex2.adjust.speed.reasons[0].amount], [30, 20, -10]);
+  check('AC is not a D20 Test', !ex2.adjust.ac && !ex2.adjust['damage:c']);
+  const wz = E.derive(char({ baseAbilities: { str: 8, dex: 14, con: 14, int: 16, wis: 12, cha: 10 }, classes: [{ id: 'wizard', level: 5 }], exhaustion: 1 }), rules);
+  const wsc = wz.spellcasting[0];
+  eq('exhaustion: spell attack −2, save DC unchanged', [wsc.attack, wsc.dc, wz.adjust['spellAttack:wizard']?.base, !!wz.adjust['spellDc:wizard']], [4, 14, 6, false]);
+  const drow = E.derive(char({ species: { id: 'elf', subspecies: 'elven-lineage-drow' }, classes: [{ id: 'rogue', level: 5 }], exhaustion: 1 }), rules);
+  check('exhaustion: innate spell attack key', drow.adjust['spellAttack:innate:species']?.value === drow.innate[0].attack && drow.adjust['spellAttack:innate:species'].base === drow.innate[0].attack + 2);
+
+  const po = E.derive({ ...fighter, conditions: ['poisoned'] }, rules);
+  eq('poisoned: rolls unchanged, passives −5', [po.skills.athletics.bonus, ls(po).bonus, po.passive.perception, po.passive.insight], [7, 7, 9, 6]);
+  const pa = po.adjust['attack:c'];
+  check('poisoned: attack note only', pa && pa.base === pa.value && pa.reasons.some((r) => r.label === 'Poisoned' && /Disadvantage on attack rolls/.test(r.note)), pa);
+  check('poisoned: checks noted (skills, abilities, initiative)', /Disadvantage on ability checks/.test(po.adjust['skill:history']?.reasons[0]?.note) && !!po.adjust['ability:wis'] && !!po.adjust.initiative);
+  eq('poisoned: passive reason', po.adjust['passive:insight']?.reasons, [{ label: 'Poisoned', amount: -5, note: 'Disadvantage on checks: −5 to passive scores' }]);
+  check('poisoned: saves untouched', !po.adjust['save:str']);
+
+  const gr = E.derive({ ...fighter, conditions: ['grappled'] }, rules);
+  eq('grappled: speed 0', gr.speed.walk, 0);
+  eq('grappled: speed reason', gr.adjust.speed.reasons, [{ label: 'Grappled', amount: -30, note: "Speed 0 (can't increase)" }]);
+  check('grappled: attack note', gr.adjust['attack:c']?.reasons.some((r) => /other than the grappler/.test(r.note)));
+  const g2 = E.derive({ ...fighter, conditions: ['grappled', 'poisoned'], exhaustion: 2 }, rules);
+  eq('exhaustion + grappled speed reasons sum', [g2.adjust.speed.base, g2.adjust.speed.value, g2.adjust.speed.reasons.map((r) => r.amount)], [30, 0, [-10, -20]]);
+
+  const pz = E.derive({ ...fighter, conditions: ['paralyzed'] }, rules);
+  check('paralyzed: auto-fail STR & DEX saves', /Automatically fails Strength/.test(pz.adjust['save:str']?.reasons[0]?.note) && /Automatically fails Dexterity/.test(pz.adjust['save:dex']?.reasons[0]?.note) && !pz.adjust['save:con']);
+  check('paralyzed implies Incapacitated (initiative)', pz.adjust.initiative?.reasons.some((r) => r.label === 'Incapacitated (from Paralyzed)'), pz.adjust.initiative);
+  eq('paralyzed: speed 0', pz.speed.walk, 0);
+  const rs = E.derive({ ...fighter, conditions: ['restrained'] }, rules);
+  check('restrained: Disadvantage on DEX saves only', /Disadvantage on Dexterity saving throws/.test(rs.adjust['save:dex']?.reasons[0]?.note) && !rs.adjust['save:str'] && rs.speed.walk === 0);
+  const un = E.derive({ ...fighter, conditions: ['unconscious'] }, rules);
+  check('unconscious implies Prone', un.adjust['attack:c']?.reasons.some((r) => r.label === 'Prone (from Unconscious)'));
+  const bl = E.derive({ ...fighter, conditions: ['blinded'] }, rules);
+  check('blinded: sight note on Perception', /sight/.test(bl.adjust['skill:perception']?.reasons[0]?.note) && /sight/.test(bl.adjust['passive:perception']?.reasons[0]?.note) && !bl.adjust['skill:athletics']);
+  eq('charmed changes no numbers', Object.keys(E.derive({ ...fighter, conditions: ['charmed'] }, rules).adjust), ['skill:stealth']);
+  const st = E.derive({ ...fighter, conditions: ['stunned'] }, rules);
+  check('stunned: no speed change (2024)', st.speed.walk === 30 && !st.adjust.speed);
+
+  const cursed = { ...fighter, abilities: [{ name: 'Curse of Frailty', modifiers: { abilities: { str: -2 }, ac: -1, skills: { stealth: -2 }, speed: -5 } }] };
+  const cu = E.derive(cursed, rules);
+  eq('curse: STR 17, AC 18, speed 25, stealth −1', [cu.abilities.str.score, cu.ac.value, cu.speed.walk, cu.skills.stealth.bonus], [17, 18, 25, -1]);
+  eq('curse: score reason', cu.adjust['score:str'].reasons, [{ label: 'Curse of Frailty', amount: -2 }]);
+  const ath = cu.adjust['skill:athletics'];
+  eq('curse: athletics via STR mod', [ath.base, ath.value, ath.reasons[0]], [7, 6, { label: 'Curse of Frailty', amount: -1, note: 'Strength score −2' }]);
+  eq('curse: AC reason', cu.adjust.ac.reasons, [{ label: 'Curse of Frailty', amount: -1 }]);
+  eq('curse: damage via STR mod', [cu.adjust['damage:c']?.base, cu.adjust['damage:c']?.value], ['1d8+4', '1d8+3']);
+  check('curse: stealth reasons (modifier + armor note)', cu.adjust['skill:stealth'].reasons.some((r) => r.amount === -2) && cu.adjust['skill:stealth'].reasons.some((r) => /Stealth/.test(r.note || '')));
+
+  const bag = E.derive({ ...fighter, inventory: [...fighter.inventory, inv('k', 'magic-item', 'bag-of-holding', { name: 'Cursed Bag', custom: { modifiers: { attack: -1, initiative: -2 } } })] }, rules);
+  eq('cursed item: attack −1, initiative −2', [ls(bag).bonus, bag.initiative, bag.adjust['attack:c'].reasons, bag.adjust.initiative.reasons], [6, -1, [{ label: 'Cursed Bag', amount: -1 }], [{ label: 'Cursed Bag', amount: -2 }]]);
+  const rusty = E.derive({ ...fighter, inventory: [fighter.inventory[0], inv('r', 'weapon', 'longsword', { name: 'Rusty Longsword', custom: { attackBonus: -1, damageBonus: -1 } })] }, rules);
+  const rl = rusty.attacks.find((a) => a.uid === 'r');
+  eq('negative weapon bonus', [rl.bonus, rl.damage, rusty.adjust['attack:r'].reasons, rusty.adjust['damage:r'].base], [6, '1d8+3', [{ label: 'Rusty Longsword', amount: -1 }], '1d8+4']);
+
+  const weak = E.derive({ ...fighter, baseAbilities: { ...fighter.baseAbilities, str: 8 }, choices: { ...fighter.choices, 'fighter-ability-score-improvement@fighter:4': { asi: { dex: 2 } } } }, rules);
+  eq('heavy armor below STR: speed reason', [weak.adjust.speed.base, weak.adjust.speed.value, weak.adjust.speed.reasons[0].amount, weak.adjust.speed.reasons[0].label], [30, 20, -10, 'Chain Mail (needs Strength 13)']);
+  const wl = E.derive(char({ baseAbilities: { str: 8, dex: 14, con: 14, int: 16, wis: 12, cha: 10 }, classes: [{ id: 'wizard', level: 5 }], inventory: [inv('l', 'armor', 'leather-armor')] }), rules);
+  check('armor without training: STR/DEX notes', /Disadvantage on Strength and Dexterity/.test(wl.adjust['save:dex']?.reasons[0]?.note) && !!wl.adjust['skill:stealth'] && !wl.adjust['save:int']);
+  check('armor without training: no spellcasting note', /Can't cast spells/.test(wl.adjust['spellAttack:wizard']?.reasons[0]?.note) && /Can't cast spells/.test(wl.adjust['spellDc:wizard']?.reasons[0]?.note));
+
+  const ovr = E.derive({ ...fighter, exhaustion: 1, overrides: { ...fighter.overrides, initiative: 5, speed: 40, ac: 12 }, abilities: [{ name: 'Hex', modifiers: { checks: -1, ac: -2 } }] }, rules);
+  eq('override + exhaustion: temp penalty applies on top', [ovr.initiative, ovr.speed.walk, ovr.ac.value], [3, 35, 12]);
+  eq('override drops the replaced penalty', [ovr.adjust.initiative.reasons, !!ovr.adjust.ac], [[{ label: 'Exhaustion 1', amount: -2 }], false]);
+  check('ordinary fields include the debuff', ovr.adjust['skill:athletics'].value === ovr.skills.athletics.bonus && ovr.skills.athletics.bonus === 7 - 2 - 1);
 }
 
 // ------------------------------------------------------------------------------------------------

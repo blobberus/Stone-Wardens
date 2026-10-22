@@ -31,6 +31,14 @@ export const SKILLS = [
   ['sleight-of-hand', 'Sleight of Hand', 'dex'], ['stealth', 'Stealth', 'dex'], ['survival', 'Survival', 'wis'],
 ].map(([id, name, ability]) => ({ id, name, ability }));
 
+/** Sheet highlight colour (ability boxes, proficiency marks): `char.style.accent`; null = this default (oxblood). */
+export const DEFAULT_ACCENT = '#7a1f1f';
+/** Presets = the theme-independent pin pigments (tokens.css), each readable with light or dark ink. */
+export const ACCENT_PRESETS = [
+  ['Oxblood', '#7a1f1f'], ['Vermilion', '#a8321c'], ['Ochre', '#82600f'], ['Verdigris', '#23675f'], ['Green', '#3b6b2a'],
+  ['Lapis', '#22507c'], ['Slate', '#465266'], ['Murrey', '#6e3a5c'], ['Umber', '#5c4a36'], ['Iron gall', '#1f1a14'],
+].map(([name, value]) => ({ name, value }));
+
 export const CURRENCY = [
   { id: 'cp', name: 'Copper', gp: 0.01 }, { id: 'sp', name: 'Silver', gp: 0.1 }, { id: 'ep', name: 'Electrum', gp: 0.5 },
   { id: 'gp', name: 'Gold', gp: 1 }, { id: 'pp', name: 'Platinum', gp: 10 },
@@ -106,7 +114,11 @@ export function blankCharacter({ name = '', player = '' } = {}) {
     hp: { current: null, temp: 0 }, hitDiceUsed: {}, deathSaves: { success: 0, fail: 0 },
     resourcesUsed: {}, conditions: [], exhaustion: 0, heroicInspiration: false, xp: 0,
     abilities: [],
-    overrides: { ac: null, speed: null, initiative: null, hpMax: null, profBonus: null, passivePerception: null, abilities: {}, saves: {}, skills: {} },
+    overrides: {
+      ac: null, speed: null, initiative: null, hpMax: null, profBonus: null, passivePerception: null, abilities: {}, saves: {}, skills: {},
+      proficiency: { skills: {}, saves: {} }, // Edit all: {skills:{stealth:'none'|'proficient'|'expertise'}, saves:{dex:true|false}}
+    },
+    style: { accent: null },
     details: { ...EMPTY_DETAILS },
     createdBy: getSetting('playerName') || '', created: now, updated: now,
   };
@@ -119,10 +131,13 @@ export function normalize(doc) {
   const base = blankCharacter();
   const d = isObj(doc) ? clone(doc) : {};
   const out = { ...base, ...d };
-  for (const k of ['species', 'background', 'baseAbilities', 'extraProficiencies', 'currency', 'hp', 'deathSaves', 'overrides', 'details']) {
+  for (const k of ['species', 'background', 'baseAbilities', 'extraProficiencies', 'currency', 'hp', 'deathSaves', 'overrides', 'style', 'details']) {
     out[k] = { ...base[k], ...(isObj(d[k]) ? d[k] : {}) };
   }
   for (const k of ['abilities', 'saves', 'skills']) out.overrides[k] = isObj(out.overrides[k]) ? out.overrides[k] : {};
+  const op = isObj(out.overrides.proficiency) ? out.overrides.proficiency : {};
+  out.overrides.proficiency = { skills: isObj(op.skills) ? op.skills : {}, saves: isObj(op.saves) ? op.saves : {} };
+  if (!/^#[0-9a-f]{6}$/i.test(out.style.accent || '')) out.style.accent = null;
   for (const k of Object.keys(base.extraProficiencies)) out.extraProficiencies[k] = Array.isArray(out.extraProficiencies[k]) ? out.extraProficiencies[k] : [];
   for (const k of ['classes', 'skills', 'feats', 'spells', 'inventory', 'conditions', 'abilities']) out[k] = Array.isArray(d[k]) ? d[k] : [];
   for (const k of ['choices', 'hitDiceUsed', 'resourcesUsed']) out[k] = isObj(d[k]) ? d[k] : {};
@@ -196,6 +211,49 @@ export function removeCharacter(id) {
   const p = timers.get(id);
   if (p) { clearTimeout(p.timer); timers.delete(id); }
   store.remove(pathOf(id));
+}
+
+// ---------- recently deleted (content/characters/recently-deleted/<id>.json, restorable until emptied) ----------
+
+export const TRASH_DIR = `${DIR}/recently-deleted`;
+export const trashPathOf = (id) => `${TRASH_DIR}/${id}.json`;
+
+/** [{char, trashed:{at, by}}], newest first. */
+export function listTrash() {
+  return store.list(TRASH_DIR)
+    .filter((d) => d.path.endsWith('.json') && d.data && typeof d.data === 'object')
+    .map(({ path, data }) => ({ char: normalize({ ...data, id: data.id || idFromPath(path) }), trashed: data.trashed || {} }))
+    .sort((a, b) => String(b.trashed.at || '').localeCompare(String(a.trashed.at || '')));
+}
+
+/** Move a sheet into Recently deleted. */
+export function trashCharacter(id) {
+  flushPersist(id);
+  const doc = store.get(pathOf(id));
+  if (!doc) return false;
+  store.put(trashPathOf(id), { ...doc, trashed: { at: new Date().toISOString(), by: getSetting('playerName') || '' } });
+  removeCharacter(id);
+  return true;
+}
+
+/** Put a deleted sheet back in the roster. Returns its (possibly new) id. */
+export function restoreCharacter(id) {
+  const doc = store.get(trashPathOf(id));
+  if (!doc) return null;
+  const { trashed, ...rest } = doc;
+  const target = store.has(pathOf(id)) ? `${id}-${shortId()}` : id;
+  store.put(pathOf(target), { ...rest, id: target });
+  store.remove(trashPathOf(id));
+  return target;
+}
+
+/** Delete a sheet from Recently deleted for good (plus its uploaded portrait if nothing else uses it). */
+export function purgeCharacter(id) {
+  const doc = store.get(trashPathOf(id));
+  store.remove(trashPathOf(id));
+  const pic = doc?.portrait;
+  if (typeof pic === 'string' && pic.startsWith(`${PORTRAIT_DIR}/`)
+    && ![...listCharacters(), ...listTrash().map((t) => t.char)].some((c) => c.portrait === pic)) store.remove(pic);
 }
 
 // ---------- small text helpers ----------

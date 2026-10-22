@@ -16,6 +16,12 @@ import { renderChoiceGroups, isAnswered, currentValue } from './choices.js';
 import { renderScores } from './scores.js';
 import { rerender, section, portraitField, md, fmt, chip, modifiersEditor, cleanModifiers, loading, entryModal } from './widgets.js';
 import { openLevelUp } from './levelup.js';
+import { deleteWithWarning } from './trash.js';
+// Save bars, highlight colour, proficiency tables
+import { store } from '../../core/store.js';
+import { saveNow } from '../../core/saving.js';
+import { hasPendingWrite, DEFAULT_ACCENT, ACCENT_PRESETS } from './data.js';
+import { accentOf, accentInk, profMark } from './widgets.js';
 
 const SECTIONS = [
   ['identity', 'Identity'], ['classes', 'Classes & levels'], ['origin', 'Species & background'], ['abilities', 'Ability scores'],
@@ -69,16 +75,15 @@ function mutate(fn, { redraw = true } = {}) {
 function render() {
   const c = E.char;
   const s = derive(c);
-  const blankOv = { ...c, overrides: { ac: null, speed: null, initiative: null, hpMax: null, profBonus: null, passivePerception: null, abilities: {}, saves: {}, skills: {} } };
+  const blankOv = { ...c, overrides: { ...blankOverrides(), proficiency: c.overrides.proficiency } };
   const computed = derive(blankOv);
   const choices = allChoices(c, s);
   const ctx = { c, s, computed, choices };
   rerender(E.root, () => mount(E.root,
     h('header', { class: 'view-head' },
       h('h1', { class: 'view-title' }, `Edit ${c.name || 'character'}`),
-      h('p', { class: 'view-sub' }, 'Every change applies instantly and is kept as a local draft; Save commits it for the party.'),
-      h('div', { class: 'view-actions' },
-        h('a', { class: 'btn btn-primary', href: href(VIEW, c.id) }, icon('check'), 'Back to sheet'))),
+      h('p', { class: 'view-sub' }, 'Every change applies instantly and is kept as a local draft; Save changes commits it for the party.')),
+    saveBar(c, 'top'),
     h('div', { class: 'ch-editor' },
       h('nav', { class: 'ch-editor-nav', 'aria-label': 'Edit sections' }, h('ul', { role: 'list' }, SECTIONS.map(([id, label]) => {
         const n = id === 'choices' ? choices.filter((x) => !isAnswered(x, currentValue(x, c))).length : 0;
@@ -87,8 +92,48 @@ function render() {
       }))),
       h('div', { class: 'ch-editor-main stack-lg stack' },
         identity(ctx), classes(ctx), origin(ctx), abilities(ctx), choicesSec(ctx), proficiencies(ctx), feats(ctx), spells(ctx),
-        overrides(ctx), advanced(ctx), details(ctx), danger(ctx)))));
+        overrides(ctx), advanced(ctx), details(ctx), danger(ctx))),
+    saveBar(c, 'bottom')));
+  refreshSaveBars();
 }
+
+const blankOverrides = () => ({ ac: null, speed: null, initiative: null, hpMax: null, profBonus: null, passivePerception: null, abilities: {}, saves: {}, skills: {} });
+
+// ---------- save bars (top, sticky, and bottom): flush the draft, then the same save as the sidebar ----------
+
+const isUnsaved = () => store.isDirty() || (!!E.id && hasPendingWrite(E.id));
+
+function saveBar(c, where) {
+  return h('div', { class: ['ch-savebar', `is-${where}`], 'data-savebar': where, role: where === 'top' ? 'region' : null, 'aria-label': where === 'top' ? 'Save' : null },
+    h('a', { class: 'btn', href: href(VIEW, c.id) }, icon('chevron-left'), 'Back to sheet'),
+    h('span', { class: 'spacer' }),
+    h('span', { class: 'ch-save-state ui text-sm', 'data-save-state': '', role: where === 'top' ? 'status' : null }),
+    h('button', { class: 'btn btn-primary', type: 'button', 'data-save-btn': '', 'data-fk': `save-${where}`, onclick: saveChanges }, icon('save'), h('span', { 'data-save-label': '' })));
+}
+
+async function saveChanges() {
+  if (!E.char || E.saving) return;
+  flushPersist(E.char.id);
+  if (!store.isDirty()) { refreshSaveBars(); return; }
+  E.saving = true;
+  refreshSaveBars();
+  try { await saveNow(); } finally { E.saving = false; refreshSaveBars(); }
+}
+
+function refreshSaveBars() {
+  if (!E.root?.isConnected) return;
+  const unsaved = isUnsaved();
+  E.root.querySelectorAll('[data-savebar]').forEach((bar) => {
+    const st = bar.querySelector('[data-save-state]');
+    const btn = bar.querySelector('[data-save-btn]');
+    const label = bar.querySelector('[data-save-label]');
+    if (st) st.textContent = E.saving ? 'Saving…' : unsaved ? 'Unsaved changes' : 'Everything is saved';
+    if (btn) { btn.disabled = !!E.saving || !unsaved; btn.classList.toggle('is-loading', !!E.saving); btn.title = unsaved ? 'Commit all unsaved changes (Ctrl+S)' : 'Nothing to save'; }
+    if (label) label.textContent = unsaved ? 'Save changes' : 'All saved';
+  });
+}
+
+store.on(() => queueMicrotask(refreshSaveBars));
 
 // ---------- sections ----------
 
@@ -99,7 +144,33 @@ function identity({ c }) {
       field('Player', input({ value: c.player, 'data-fk': 'e-player', onchange: (e) => mutate((x) => { x.player = e.target.value.trim(); }) })),
       field('Experience points', numberInput(c.xp, (v) => mutate((x) => { x.xp = Math.max(0, v || 0); }), { min: 0, 'data-fk': 'e-xp' }), xpHint(c))),
     portraitField(c, (v) => mutate((x) => { x.portrait = v; })),
+    accentField(c),
     h('p', { class: 'muted ui text-sm' }, `Created ${c.created ? new Date(c.created).toLocaleDateString() : '—'}${c.createdBy ? ` by ${c.createdBy}` : ''} · id ${c.id}`));
+}
+
+/** Sheet highlight colour: colour input + pigment presets + default, with a live sample ability box. */
+function accentField(c) {
+  const cur = accentOf(c);
+  const sample = h('div', { class: 'ch-abil ch-accent-sample', 'aria-hidden': 'true' },
+    h('div', { class: 'ch-abil-check' }, h('span', { class: 'ch-abil-name' }, 'Strength'), h('span', { class: 'ch-abil-mod num' }, '+3'), h('span', { class: 'ch-abil-score num' }, '16')),
+    h('div', { class: 'ch-abil-save' }, profMark('proficient'), h('span', { class: 'ch-abil-save-label' }, 'Save'), h('span', { class: 'ch-abil-save-val num' }, '+5')));
+  const paint = (hex) => { sample.setAttribute('style', `--ch-hl: ${hex}`); sample.dataset.hlInk = accentInk(hex); };
+  paint(cur);
+  const set = (hex) => mutate((x) => {
+    const v = /^#[0-9a-f]{6}$/i.test(hex || '') ? hex.toLowerCase() : null;
+    x.style = { ...(x.style || {}), accent: v && v !== DEFAULT_ACCENT ? v : null };
+  });
+  return h('div', { class: 'ch-accent-field' },
+    h('div', { class: 'stack stack-sm' },
+      h('span', { class: 'field-label ui' }, 'Highlight colour'),
+      h('div', { class: 'row ch-accent-row' },
+        h('input', { type: 'color', class: 'ch-color', value: cur, 'aria-label': 'Highlight colour', 'data-fk': 'e-accent', oninput: (e) => paint(e.target.value), onchange: (e) => set(e.target.value) }),
+        h('div', { class: 'ch-swatches', role: 'group', 'aria-label': 'Preset colours' }, ACCENT_PRESETS.map((p) => h('button', {
+          class: 'ch-swatch', type: 'button', style: `--sw: ${p.value}`, title: p.name, 'aria-label': p.name, 'aria-pressed': String(cur === p.value), onclick: () => set(p.value),
+        }))),
+        h('button', { class: 'btn btn-sm btn-ghost', type: 'button', disabled: !c.style?.accent, onclick: () => set(null), title: 'Back to the default oxblood' }, icon('undo'), 'Default')),
+      h('span', { class: 'field-hint' }, 'Colours the ability boxes and proficiency marks on the sheet; the lettering on it switches between light and dark to stay readable.')),
+    sample);
 }
 
 function xpHint(c) {
@@ -199,9 +270,101 @@ function choicesSec({ c, s, choices }) {
     renderChoiceGroups(choices, { char: c, sheet: s, mutate }, { empty: 'No class choices yet: add a class first.', exclude: (x) => isOriginChoice(x, c) }));
 }
 
-const PROF_KINDS = [
-  ['skills', 'Skills'], ['expertise', 'Expertise'], ['saves', 'Saving throws'], ['armor', 'Armor'], ['weapons', 'Weapons'], ['tools', 'Tools'], ['languages', 'Languages'],
-];
+// Skills, expertise and saves are edited in the tables below (overrides.proficiency); these stay simple add-lists.
+const PROF_KINDS = [['armor', 'Armor'], ['weapons', 'Weapons'], ['tools', 'Tools'], ['languages', 'Languages']];
+const LEVEL_NAME = { none: 'not proficient', proficient: 'proficient', expertise: 'expertise' };
+
+/**
+ * Store a skill's level: drop any extraProficiencies entry for it, then keep an override only where the result
+ * differs from what the rules (class, background, species, feats, choices) grant.
+ */
+function setSkillLevel(id, level, rulesLevel) {
+  mutate((x) => {
+    x.extraProficiencies.skills = x.extraProficiencies.skills.filter((y) => y !== id);
+    x.extraProficiencies.expertise = x.extraProficiencies.expertise.filter((y) => y !== id);
+    const ov = (x.overrides.proficiency = x.overrides.proficiency || { skills: {}, saves: {} });
+    ov.skills = { ...ov.skills };
+    if (level === rulesLevel) delete ov.skills[id]; else ov.skills[id] = level;
+  });
+}
+
+function setSaveProf(a, on, rulesOn) {
+  mutate((x) => {
+    x.extraProficiencies.saves = x.extraProficiencies.saves.filter((y) => y !== a);
+    const ov = (x.overrides.proficiency = x.overrides.proficiency || { skills: {}, saves: {} });
+    ov.saves = { ...ov.saves };
+    if (on === rulesOn) delete ov.saves[a]; else ov.saves[a] = on;
+  });
+}
+
+function sourceCell(sources, { changed, rulesText }) {
+  return h('td', { class: 'ch-prof-src ui text-sm' },
+    sources.length ? sources.map((x, i) => h('span', { class: ['ch-src', x.extra && 'is-extra'] }, i ? ' · ' : '', x.label, x.level === 'expertise' ? ' (expertise)' : '')) : h('span', { class: 'faint' }, '—'),
+    changed ? h('span', { class: 'badge badge-warn ch-src-changed', title: `The rules give: ${rulesText}` }, `changed · rules: ${rulesText}`) : null);
+}
+
+function profTables({ c, s }) {
+  const info = s.proficiencyInfo;
+  if (!info) return h('p', { class: 'muted ui text-sm' }, 'Proficiency details appear once the rules have loaded.');
+  const skillRows = skillList().map((sk) => {
+    const p = info.skills[sk.id] || { state: 'none', rules: 'none', sources: [] };
+    const x = s.skills[sk.id] || {};
+    const changed = p.state !== p.rules;
+    const name = sk.name;
+    return h('tr', { 'data-stat': sk.id, class: changed ? 'is-changed' : null },
+      h('td', { class: 'center' }, h('input', {
+        type: 'checkbox', class: 'checkbox', checked: p.state !== 'none', 'aria-label': `${name} proficiency`, 'data-fk': `pf-sk-${sk.id}`,
+        onchange: (e) => setSkillLevel(sk.id, e.target.checked ? (p.state === 'expertise' ? 'expertise' : 'proficient') : 'none', p.rules),
+      })),
+      h('td', { class: 'center' }, h('input', {
+        type: 'checkbox', class: 'checkbox', checked: p.state === 'expertise', 'aria-label': `${name} expertise`, 'data-fk': `pf-ex-${sk.id}`,
+        onchange: (e) => setSkillLevel(sk.id, e.target.checked ? 'expertise' : (p.state === 'none' ? 'none' : 'proficient'), p.rules),
+      })),
+      h('td', { class: 'cell-name' }, name, h('span', { class: 'ch-prof-ab ui' }, String(sk.ability).toUpperCase())),
+      h('td', { class: 'num' }, fmt(x.bonus)),
+      sourceCell(p.sources, { changed, rulesText: LEVEL_NAME[p.rules] }),
+      h('td', { class: 'cell-actions' }, changed || p.override != null || p.sources.some((y) => y.extra)
+        ? h('button', { class: 'btn btn-sm btn-ghost', type: 'button', title: `Reset to rules (${LEVEL_NAME[p.rules]})`, 'data-fk': `pf-rs-${sk.id}`, onclick: () => setSkillLevel(sk.id, p.rules, p.rules) }, icon('undo'), 'Reset')
+        : null));
+  });
+  const saveRows = ABILITIES.map((a) => {
+    const p = info.saves[a.id] || { state: false, rules: false, sources: [] };
+    const changed = p.state !== p.rules;
+    return h('tr', { 'data-stat': `save-${a.id}`, class: changed ? 'is-changed' : null },
+      h('td', { class: 'center' }, h('input', {
+        type: 'checkbox', class: 'checkbox', checked: !!p.state, 'aria-label': `${a.full} saving throw proficiency`, 'data-fk': `pf-sv-${a.id}`,
+        onchange: (e) => setSaveProf(a.id, e.target.checked, p.rules),
+      })),
+      h('td', { class: 'cell-name' }, a.full),
+      h('td', { class: 'num' }, fmt(s.abilities[a.id]?.save)),
+      sourceCell(p.sources, { changed, rulesText: p.rules ? 'proficient' : 'not proficient' }),
+      h('td', { class: 'cell-actions' }, changed || p.override != null || p.sources.some((y) => y.extra)
+        ? h('button', { class: 'btn btn-sm btn-ghost', type: 'button', title: `Reset to rules (${p.rules ? 'proficient' : 'not proficient'})`, 'data-fk': `pf-rsv-${a.id}`, onclick: () => setSaveProf(a.id, p.rules, p.rules) }, icon('undo'), 'Reset')
+        : null));
+  });
+  return h('div', { class: 'stack ch-prof-tables' },
+    h('div', null, h('h4', { class: 'ch-mini-head' }, 'Skills'),
+      h('div', { class: 'table-wrap' }, h('table', { class: 'table table-dense ch-prof-table' },
+        h('thead', null, h('tr', null, h('th', { class: 'center' }, 'Prof'), h('th', { class: 'center' }, 'Expertise'), h('th', null, 'Skill'), h('th', { class: 'num' }, 'Bonus'), h('th', null, 'Granted by'), h('th', { class: 'cell-actions' }, h('span', { class: 'sr-only' }, 'Reset')))),
+        h('tbody', null, skillRows)))),
+    h('div', null, h('h4', { class: 'ch-mini-head' }, 'Saving throws'),
+      h('div', { class: 'table-wrap' }, h('table', { class: 'table table-dense ch-prof-table' },
+        h('thead', null, h('tr', null, h('th', { class: 'center' }, 'Prof'), h('th', null, 'Saving throw'), h('th', { class: 'num' }, 'Bonus'), h('th', null, 'Granted by'), h('th', { class: 'cell-actions' }, h('span', { class: 'sr-only' }, 'Reset')))),
+        h('tbody', null, saveRows)))));
+}
+
+async function resetAllProficiency() {
+  const c = E.char;
+  const op = c.overrides.proficiency || { skills: {}, saves: {} };
+  const n = Object.keys(op.skills || {}).length + Object.keys(op.saves || {}).length
+    + c.extraProficiencies.skills.length + c.extraProficiencies.expertise.length + c.extraProficiencies.saves.length;
+  if (!n) { toast('Skills and saving throws already follow the rules.'); return; }
+  if (!(await confirmDialog(`Reset every skill and saving throw to what the rules grant? ${n} change${n === 1 ? '' : 's'} will be undone.`, { okLabel: 'Reset to rules' }))) return;
+  mutate((x) => {
+    x.overrides.proficiency = { skills: {}, saves: {} };
+    x.extraProficiencies.skills = []; x.extraProficiencies.expertise = []; x.extraProficiencies.saves = [];
+  });
+}
 
 function profOptions(kind) {
   switch (kind) {
@@ -216,8 +379,13 @@ function profOptions(kind) {
 }
 
 function proficiencies({ c, s }) {
-  return section('proficiencies', 'Extra proficiencies', { iconName: 'book-open', sub: 'On top of what class, species, background and feats grant.' },
-    h('div', { class: 'stack' }, PROF_KINDS.map(([kind, label]) => {
+  return section('proficiencies', 'Proficiencies', {
+    iconName: 'book-open', sub: 'Tick or untick any skill or saving throw, including ones your class, background, species or feats grant.',
+    actions: [h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: resetAllProficiency }, icon('undo'), 'Reset all to rules')],
+  },
+  profTables({ c, s }),
+  h('h4', { class: 'ch-mini-head ch-prof-extra-head' }, 'Extra armor, weapon, tool and language proficiencies'),
+  h('div', { class: 'stack' }, PROF_KINDS.map(([kind, label]) => {
       const list = c.extraProficiencies[kind] || [];
       const add = async () => {
         const opts = profOptions(kind).filter((o) => !list.includes(o.id));
@@ -287,7 +455,7 @@ function overrides({ c, s, computed }) {
   return section('overrides', 'Overrides', {
     iconName: 'settings',
     sub: 'Leave blank to use the computed value.',
-    actions: [h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: () => mutate((x) => { x.overrides = { ac: null, speed: null, initiative: null, hpMax: null, profBonus: null, passivePerception: null, abilities: {}, saves: {}, skills: {} }; }) }, icon('undo'), 'Clear all')],
+    actions: [h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: () => mutate((x) => { x.overrides = { ...blankOverrides(), proficiency: x.overrides.proficiency || { skills: {}, saves: {} } }; }), title: 'Clear the numbers below (skill and save proficiency stays as set in Proficiencies)' }, icon('undo'), 'Clear all')],
   },
   h('div', { class: 'field-grid' },
     num('ac', 'Armor Class', computed.ac.value),
@@ -435,10 +603,9 @@ function danger({ c }) {
       h('button', {
         class: 'btn btn-danger', type: 'button',
         onclick: async () => {
-          if (!(await confirmDialog(`Delete ${c.name || 'this character'}? The sheet is removed from the repository with the next Save. Journal links to it will show as unresolved.`, { title: 'Delete character', okLabel: 'Delete', danger: true }))) return;
-          removeCharacter(c.id);
+          if (!(await deleteWithWarning(c))) return;
           E.char = null; E.id = null;
-          toast(`${c.name || 'Character'} deleted. Save to apply it to the repository.`);
+          toast(`${c.name || 'Character'} moved to Recently deleted.`);
           navigate(href(VIEW));
         },
       }, icon('trash'), 'Delete character')));

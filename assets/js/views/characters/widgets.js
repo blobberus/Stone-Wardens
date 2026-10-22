@@ -5,7 +5,7 @@ import { icon, openModal, numberInput, input, select, toast } from '../../core/u
 import { renderInto, renderInline } from '../../core/markdown.js';
 import { store } from '../../core/store.js';
 import { fmtMod, clone, slugify } from '../../core/util.js';
-import { ABILITIES, PORTRAIT_DIR, initials, shortId } from './data.js';
+import { ABILITIES, PORTRAIT_DIR, DEFAULT_ACCENT, initials, shortId } from './data.js';
 import { renderEntry, skillList, damageTypes } from './bridge.js';
 
 export const fmt = (n) => fmtMod(Number(n) || 0);
@@ -73,9 +73,129 @@ export function statBox({ label, value, sub, stat, title, onClick, className }) 
   sub ? h('span', { class: 'ch-stat-sub' }, sub) : null);
 }
 
-/** Section panel with a heading row. */
-export function section(id, title, { iconName, actions = [], className, sub } = {}, ...body) {
-  return h('section', { class: ['panel', 'ch-sec', className], 'data-sec': id, id: `ch-sec-${id}`, 'aria-labelledby': `ch-h-${id}` },
+// ---------- debuffed values (sheet.adjust) ----------
+
+const fmtAdj = (v, format) => (v == null || v === '' ? '—' : format === 'mod' ? fmt(v) : format === 'ft' ? `${v} ft` : String(v));
+const fmtDelta = (n, format) => `${n >= 0 ? '+' : '−'}${Math.abs(n)}${format === 'ft' ? ' ft' : ''}`;
+const adjCard = { el: null, target: null, wired: false };
+const overlayRoot = () => document.querySelector('body > #overlays') || document.body;
+
+function adjBody(a) {
+  const changed = a.value !== a.base;
+  return [
+    h('div', { class: 'ch-adj-title' }, a.label),
+    changed ? h('div', { class: 'ch-adj-was' }, 'Normally ', h('strong', { class: 'num' }, fmtAdj(a.base, a.format)), ', now ', h('strong', { class: 'num ch-adj-now' }, fmtAdj(a.value, a.format))) : null,
+    h('ul', { class: 'ch-adj-reasons', role: 'list' }, a.reasons.map((r) => h('li', null,
+      h('span', { class: 'ch-adj-why' }, r.label),
+      r.amount ? h('span', { class: 'num ch-adj-amt' }, fmtDelta(r.amount, a.format === 'text' ? 'mod' : a.format)) : null,
+      r.note ? h('span', { class: 'ch-adj-note' }, r.note) : null))),
+  ];
+}
+
+function hideAdj(el) {
+  if (el && adjCard.target !== el) return;
+  adjCard.target = null;
+  if (adjCard.el) adjCard.el.hidden = true;
+}
+
+function showAdj(el) {
+  const a = el?._adj;
+  if (!a || !el.isConnected) return;
+  if (!adjCard.el || !adjCard.el.isConnected) adjCard.el = overlayRoot().appendChild(h('div', { class: 'ch-adj-card', role: 'tooltip', hidden: true }));
+  const card = adjCard.el;
+  card.replaceChildren(...adjBody(a).filter(Boolean));
+  card.hidden = false;
+  adjCard.target = el;
+  const r = el.getBoundingClientRect();
+  const w = card.offsetWidth;
+  const ht = card.offsetHeight;
+  const pad = 8;
+  let top = r.bottom + 6;
+  if (top + ht > window.innerHeight - pad) top = Math.max(pad, r.top - ht - 6);
+  const left = Math.min(Math.max(pad, r.left + r.width / 2 - w / 2), window.innerWidth - w - pad);
+  card.style.top = `${Math.round(top)}px`;
+  card.style.left = `${Math.round(Math.max(pad, left))}px`;
+}
+
+function wireAdj() {
+  if (adjCard.wired) return;
+  adjCard.wired = true;
+  // Keyboard: focusing the value (or the roll button around it) shows the card.
+  document.addEventListener('focusin', (e) => {
+    const t = e.target;
+    if (!(t instanceof Element) || !t.matches(':focus-visible')) return;
+    const el = t.closest('.ch-adj') || t.querySelector?.('.ch-adj');
+    if (el) showAdj(el);
+  });
+  document.addEventListener('focusout', (e) => { if (adjCard.target && e.target instanceof Element && (e.target === adjCard.target || e.target.contains(adjCard.target))) hideAdj(); });
+  document.addEventListener('pointerdown', (e) => { if (adjCard.target && !adjCard.target.contains(e.target)) hideAdj(); }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideAdj(); });
+  window.addEventListener('scroll', () => hideAdj(), { capture: true, passive: true });
+  window.addEventListener('resize', () => hideAdj(), { passive: true });
+}
+
+/**
+ * A displayed stat that debuffs may have changed. key: a `sheet.adjust` key ('ac', 'skill:stealth', 'spellAttack:wizard', …);
+ * text: the already-formatted value. Lowered values get `.ch-adj.is-debuff` (debuff colour), note-only debuffs
+ * (Disadvantage, auto-fail…) `.is-noted` with a small marker; both show a card with the normal value and every reason
+ * while hovered or focused (tap toggles it on touch).
+ */
+export function adjustedValue(sheet, key, text, { className } = {}) {
+  const a = sheet?.adjust?.[key];
+  if (!a || !a.reasons?.length) return h('span', { class: ['num', className] }, String(text));
+  const changed = a.value !== a.base;
+  const said = a.reasons.map((r) => `${r.label}${r.amount ? ` ${fmtDelta(r.amount, a.format === 'text' ? 'mod' : a.format)}` : ''}${r.note ? `: ${r.note}` : ''}`).join('; ');
+  const el = h('span', { class: ['num', 'ch-adj', changed ? 'is-debuff' : 'is-noted', className], 'data-adj': key, tabindex: '0' },
+    String(text),
+    changed ? null : h('span', { class: 'ch-adj-mark', 'aria-hidden': 'true' }),
+    h('span', { class: 'sr-only' }, changed ? ` (normally ${fmtAdj(a.base, a.format)}: ${said})` : ` (${said})`));
+  el._adj = a;
+  wireAdj();
+  el.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') showAdj(el); });
+  el.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') hideAdj(el); });
+  el.addEventListener('pointerup', (e) => { if (e.pointerType === 'touch') { if (adjCard.target === el) hideAdj(); else showAdj(el); } });
+  queueMicrotask(() => {
+    // Inside a roll button the button takes the focus; a stray card from a re-render is dropped.
+    if (el.parentElement?.closest('button, a, [tabindex]')) el.removeAttribute('tabindex');
+    if (adjCard.target && !adjCard.target.isConnected) hideAdj();
+  });
+  return el;
+}
+
+// ---------- highlight colour & proficiency marks ----------
+
+export const accentOf = (char) => (/^#[0-9a-f]{6}$/i.test(char?.style?.accent || '') ? char.style.accent.toLowerCase() : DEFAULT_ACCENT);
+
+function luminance(hex) {
+  const ch = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+
+/** 'light' | 'dark': the ink (tokens --pin-glyph / --pin-ink, same in both themes) with more contrast on the colour. */
+export function accentInk(hex) {
+  const L = luminance(/^#[0-9a-f]{6}$/i.test(hex || '') ? hex : DEFAULT_ACCENT);
+  const light = (0.955 + 0.05) / (L + 0.05); // --pin-glyph #fffaf0
+  const dark = (L + 0.05) / (0.0108 + 0.05); // --pin-ink #1f1a14
+  return light >= dark ? 'light' : 'dark';
+}
+
+/** Attributes carrying a character's highlight colour (`--ch-hl` + data-hl-ink) for a container. */
+export function accentAttrs(char) {
+  const hex = accentOf(char); // validated #rrggbb, safe in a style string (h() can't set custom properties from an object)
+  return { style: `--ch-hl: ${hex}`, 'data-hl-ink': accentInk(hex) };
+}
+
+const PROF_TEXT = { none: 'Not proficient', proficient: 'Proficient', expertise: 'Expertise', half: 'Half proficiency (Jack of All Trades)' };
+
+/** Display-only proficiency mark: level 'none' | 'proficient' | 'expertise' | 'half'. */
+export function profMark(level, { title } = {}) {
+  const lv = PROF_TEXT[level] ? level : 'none';
+  return h('span', { class: ['ch-pmark', `is-${lv}`], role: 'img', 'aria-label': PROF_TEXT[lv], title: title || PROF_TEXT[lv] });
+}
+
+/** Section panel with a heading row. attrs: extra attributes for the <section> (style, data-*). */
+export function section(id, title, { iconName, actions = [], className, sub, attrs } = {}, ...body) {
+  return h('section', { ...(attrs || {}), class: ['panel', 'ch-sec', className], 'data-sec': id, id: `ch-sec-${id}`, 'aria-labelledby': `ch-h-${id}` },
     h('header', { class: 'panel-head ch-sec-head' },
       iconName ? icon(iconName) : null,
       h('h2', { class: 'ch-sec-title', id: `ch-h-${id}` }, title),

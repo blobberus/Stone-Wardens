@@ -43,8 +43,11 @@ import { buildRules, loadRules, invalidateRules } from './engine-rules.js';
 import { compute, averageHp } from './engine-derive.js';
 import { getChoiceValue, setChoice as setChoiceRaw, featPrereqReason } from './engine-choices.js';
 import { itemStats } from './engine-items.js';
+import { lastLeveledClass } from './engine-xp.js';
 
 export { buildRules, loadRules, invalidateRules, itemStats, averageHp, getChoiceValue, featPrereqReason };
+export { XP_TABLE, xpTable, xpForLevel, levelForXp, xpStatus, xpLevelsCrossed, addXp, setXp, xpAfterLevelChange, lastLeveledClass } from './engine-xp.js';
+export { spellStats, spellIssues, addSpellIssues, onCasterList, parseDice, rollDice, diceText, cantripTier } from './engine-spells.js';
 export const ENGINE_VERSION = 1;
 
 const ensureRules = (rules) => (rules && rules.classById ? rules : buildRules(rules || {}));
@@ -298,6 +301,8 @@ export function applyLevelUp(char, rules, classId, opts = {}) {
   const after = compute(next, R).sheet.hpMax;
   const cur = c.hp?.current == null || c.hp?.current === '' ? before : toNum(c.hp.current);
   next.hp = { ...(isObj(next.hp) ? next.hp : {}), current: Math.max(0, Math.min(after, cur + (after - before))), temp: toNum(next.hp?.temp) };
+  // levelOrder: which class each gained level went to (most recent last) -> "level down" defaults to the latest one
+  next.levelOrder = [...asArray(next.levelOrder).filter((x) => typeof x === 'string'), classId].slice(-20);
   return next;
 }
 
@@ -321,7 +326,80 @@ export function levelDown(char, rules, classId) {
   }
   const max = compute(next, R).sheet.hpMax;
   if (next.hp && next.hp.current != null) next.hp = { ...next.hp, current: Math.min(toNum(next.hp.current), max) };
+  if (Array.isArray(next.levelOrder)) {
+    const i = next.levelOrder.lastIndexOf(classId);
+    if (i >= 0) next.levelOrder = [...next.levelOrder.slice(0, i), ...next.levelOrder.slice(i + 1)];
+  }
   return next;
+}
+
+/**
+ * What levelDown(char, rules, classId) would take away: {classId, className, fromLevel, toLevel, removesClass,
+ * totalBefore, totalAfter, features:[{id, name, source, level}], choices:[{key, label, value, choice}], hpBefore,
+ * hpAfter, hpLost, slotsBefore, slotsAfter, pactBefore, pactAfter, maxSpellLevelBefore, maxSpellLevelAfter,
+ * cantripsBefore, cantripsAfter, preparedBefore, preparedAfter, profBonusBefore, profBonusAfter, subclass (id lost)|null,
+ * spellsAtRisk:[{id, name, level, reason}] (this class's spells above the new highest spell level, or all of them
+ * when the class goes), resourcesBefore, resourcesAfter, next (the resulting doc), isLatest (classId is the
+ * most recently levelled class), trimmed:[{key, label, before, after, removed:[id]}] (running-total picks such as
+ * Eldritch Invocations cut back to the new count in `next`, newest first), alwaysLost:[{id, name, level}]}
+ */
+export function levelDownPlan(char, rules, classId) {
+  const R = ensureRules(rules);
+  const c = isObj(char) ? char : {};
+  const { sheet: before, ctx: bctx } = compute(c, R);
+  const row = bctx.classes.find((x) => x.id === classId);
+  const cls = R.classById[classId];
+  if (!row) {
+    return { classId, className: cls?.name || classId, fromLevel: 0, toLevel: 0, removesClass: false, totalBefore: before.totalLevel, totalAfter: before.totalLevel, features: [], choices: [], hpLost: 0, spellsAtRisk: [], next: clone(c), allowed: false };
+  }
+  const next = levelDown(c, R, classId);
+  let { sheet: after, ctx: actx } = compute(next, R);
+  // Running-total picks (Eldritch Invocations, Weapon Mastery, …) that now allow fewer: drop the newest extras
+  const trimmed = [];
+  for (const ch of after.choices) {
+    const v = next.choices?.[ch.key];
+    const cap = toNum(ch.count, NaN);
+    const was = before.choices.find((x) => x.key === ch.key);
+    if (!Array.isArray(v) || !Number.isFinite(cap) || cap < 0 || v.length <= cap || !(toNum(was?.count) > cap)) continue;
+    trimmed.push({ key: ch.key, label: ch.label || ch.key, before: v.length, after: cap, removed: v.slice(cap), choice: was });
+    next.choices = { ...next.choices, [ch.key]: v.slice(0, cap) };
+  }
+  if (trimmed.length) ({ sheet: after, ctx: actx } = compute(next, R));
+  const aKeys = new Set(actx.grants.map(grantKey));
+  const features = bctx.grants
+    .filter((g) => !aKeys.has(grantKey(g)) && !(g.sourceType === 'feat' && g.id === 'ability-score-improvement'))
+    .map((g) => ({ id: g.id, name: g.name, source: g.sourceType === 'feat' ? 'Feat' : g.source, sourceType: g.sourceType, level: g.classLevel ?? g.charLevel ?? null }));
+  const byKey = new Map(before.choices.map((x) => [x.key, x]));
+  const kept = isObj(next.choices) ? next.choices : {};
+  const choices = Object.entries(isObj(c.choices) ? c.choices : {}).filter(([k]) => !(k in kept))
+    .map(([key, value]) => ({ key, value, label: byKey.get(key)?.label || key, choice: byKey.get(key) || null }));
+  const sb = before.spellcasting.find((s) => s.class === classId);
+  const sa = after.spellcasting.find((s) => s.class === classId);
+  const removesClass = !next.classes.some((x) => x.id === classId);
+  const maxAfter = toNum(sa?.maxSpellLevel);
+  const spellsAtRisk = asArray(c.spells).filter((s) => isObj(s) && s.id && s.class === classId).map((s) => {
+    const rec = R.spellById[s.id];
+    const level = rec ? toNum(rec.level) : toNum(s.level);
+    const reason = removesClass ? 'class removed' : level > 0 && level > maxAfter ? `above level ${maxAfter || 0}` : null;
+    return reason ? { id: s.id, name: rec?.name || s.id, level, reason } : null;
+  }).filter(Boolean);
+  const subclassRow = c.classes?.find?.((x) => x?.id === classId);
+  const nextRow = next.classes.find((x) => x.id === classId);
+  return {
+    classId, className: cls?.name || classId, fromLevel: row.level, toLevel: row.level - 1, removesClass,
+    totalBefore: before.totalLevel, totalAfter: after.totalLevel, allowed: true,
+    features, choices,
+    hpBefore: before.hpMax, hpAfter: after.hpMax, hpLost: Math.max(0, before.hpMax - after.hpMax),
+    slotsBefore: before.slots, slotsAfter: after.slots, pactBefore: before.pact, pactAfter: after.pact,
+    maxSpellLevelBefore: toNum(sb?.maxSpellLevel), maxSpellLevelAfter: maxAfter,
+    cantripsBefore: toNum(sb?.cantrips), cantripsAfter: toNum(sa?.cantrips), preparedBefore: toNum(sb?.prepared), preparedAfter: toNum(sa?.prepared),
+    profBonusBefore: before.profBonus, profBonusAfter: after.profBonus,
+    subclass: subclassRow?.subclass && !nextRow?.subclass ? subclassRow.subclass : null,
+    resourcesBefore: before.resources.map((r) => ({ key: r.key, label: r.label, max: r.max })),
+    resourcesAfter: after.resources.map((r) => ({ key: r.key, label: r.label, max: r.max })),
+    spellsAtRisk, isLatest: lastLeveledClass(c) === classId, next, trimmed,
+    alwaysLost: asArray(sb?.alwaysPrepared).filter((id) => !asArray(sa?.alwaysPrepared).includes(id)).map((id) => ({ id, name: R.spellById[id]?.name || id, level: toNum(R.spellById[id]?.level) })),
+  };
 }
 
 // ----- spells & items --------------------------------------------------------------------------

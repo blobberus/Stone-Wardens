@@ -5,7 +5,7 @@
   "portrait": null,
   "species": {
     "id": "elf",
-    "subspecies": null,
+    "subspecies": "elven-lineage-drow",
     "size": null
   },
   "background": {
@@ -18,10 +18,11 @@
   "classes": [
     {
       "id": "rogue",
-      "level": 1,
+      "level": 2,
       "subclass": null,
       "hp": [
-        8
+        8,
+        5
       ]
     }
   ],
@@ -67,6 +68,11 @@
     "rogue-weapon-mastery@rogue:1": [
       "dagger",
       "dart"
+    ],
+    "species:subspecies": "elven-lineage-drow",
+    "species:elven-lineage/spellcasting-ability": "int",
+    "species:keen-senses": [
+      "insight"
     ]
   },
   "skills": [
@@ -85,7 +91,14 @@
     "languages": []
   },
   "feats": [],
-  "spells": [],
+  "spells": [
+    {
+      "id": "command",
+      "class": null,
+      "prepared": true,
+      "always": false
+    }
+  ],
   "slotsUsed": [
     0,
     0,
@@ -100,15 +113,15 @@
   "pactUsed": 0,
   "inventory": [
     {
-      "uid": "fmfsfo",
-      "kind": "weapon",
-      "ref": "spear",
-      "name": "Spear",
       "qty": 1,
       "equipped": true,
       "attuned": false,
       "notes": "",
-      "custom": null
+      "custom": null,
+      "uid": "fmfsfo",
+      "kind": "weapon",
+      "ref": "spear",
+      "name": "Spear"
     }
   ],
   "currency": {
@@ -119,10 +132,12 @@
     "pp": 0
   },
   "hp": {
-    "current": 8,
-    "temp": 0
+    "current": 13,
+    "temp": 25
   },
-  "hitDiceUsed": {},
+  "hitDiceUsed": {
+    "8": 0
+  },
   "deathSaves": {
     "success": 0,
     "fail": 0
@@ -173,5 +188,5 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-22T04:25:57.154Z",
-  "updated": "2026-10-22T04:26:46.448Z"
+  "updated": "2026-10-22T05:03:30.233Z"
 }

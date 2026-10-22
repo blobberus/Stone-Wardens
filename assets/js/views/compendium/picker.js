@@ -22,9 +22,12 @@ const narrow = () => matchMedia('(max-width: 759px)').matches;
  *   opts.multi     return an array (checkboxes + "Add N")
  *   opts.selected  (multi) ids or entries to pre-select
  *   opts.query     initial search text;  opts.kind  initial tab;  opts.allowCreate (default true)
+ *   opts.widen     {label, filter?, on?, hint?}: adds a "Show all…" checkbox; while ticked the list uses widen.filter
+ *                  (default: every entry) instead of opts.filter
+ *   opts.mark      (entry) => null | string | {label, title}: a small warning badge on a row (e.g. "off-list")
  * Resolves the chosen entry (merged compendium entry, with kind/origin), an array when multi, or null.
  */
-export async function openPicker(kinds, { title, filter, multi = false, selected = [], query = '', kind: startKind, allowCreate = true, confirmLabel } = {}) {
+export async function openPicker(kinds, { title, filter, multi = false, selected = [], query = '', kind: startKind, allowCreate = true, confirmLabel, widen = null, mark = null } = {}) {
   const kindList = [].concat(kinds || []).filter(isKind);
   if (!kindList.length) throw new Error('openPicker: no valid kinds');
   const pred = typeof filter === 'function' ? filter : null;
@@ -32,7 +35,13 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
 
   return new Promise((resolve) => {
     let result = null;
-    const lists = new Map(); // kind -> entries (after pred)
+    const raw = new Map(); // kind -> every entry
+    const lists = new Map(); // kind -> entries (after pred, or widen.filter while widened)
+    let widened = !!widen?.on;
+    const refilter = () => {
+      const f = widened ? (typeof widen?.filter === 'function' ? widen.filter : null) : pred;
+      for (const [k, l] of raw) lists.set(k, f ? l.filter(f) : l);
+    };
     const fvals = new Map(kindList.map((k) => [k, { ...preset }]));
     const chosen = new Map(); // key -> entry (multi)
     let active = kindList.includes(startKind) ? startKind : kindList[0];
@@ -47,9 +56,12 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
     const count = h('span', { class: 'cp-pick-count muted' });
     const listEl = h('ul', { class: 'picker-list cp-pick-list', id: 'cp-pick-list', role: 'listbox', 'aria-multiselectable': multi ? 'true' : null, tabindex: -1 });
     const preview = h('div', { class: 'cp-pick-preview', 'aria-live': 'polite' });
+    const widenBox = widen ? h('label', { class: 'checkbox cp-pick-widen', title: widen.hint || null },
+      h('input', { type: 'checkbox', checked: widened, onchange: (e) => { widened = e.target.checked; refilter(); cursor = 0; drawTabs(); run(); } }),
+      h('span', null, widen.label || 'Show all')) : null;
     const body = h('div', { class: 'cp-picker' },
       tabs,
-      h('div', { class: 'cp-pick-bar' }, h('label', { class: 'search cp-pick-search' }, icon('search'), q), filtersBox, count),
+      h('div', { class: 'cp-pick-bar' }, h('label', { class: 'search cp-pick-search' }, icon('search'), q), filtersBox, widenBox, count),
       h('div', { class: 'cp-pick-main' }, listEl, preview));
 
     const actions = [];
@@ -65,8 +77,9 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
     listEl.append(h('li', { class: 'picker-empty' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), ' Loading…'));
 
     // ----- data -----
-    Promise.all([rulesReady(), preloadAll().catch(() => null), ...kindList.map((k) => listEntries(k).then((l) => lists.set(k, pred ? l.filter(pred) : l)))])
+    Promise.all([rulesReady(), preloadAll().catch(() => null), ...kindList.map((k) => listEntries(k).then((l) => raw.set(k, l)))])
       .then(() => {
+        refilter();
         for (const s of [].concat(selected || [])) {
           const id = typeof s === 'string' ? s : s?.id;
           for (const k of kindList) { const e = lists.get(k).find((x) => x.id === id && (typeof s === 'string' || !s.kind || s.kind === k)); if (e) { chosen.set(keyOf(e), e); break; } }
@@ -136,6 +149,9 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
     function showMore() { limit += PAGE; drawList(); }
     function row(e, i) {
       const isChosen = chosen.has(keyOf(e));
+      let mk = null;
+      if (typeof mark === 'function') { try { mk = mark(e); } catch { mk = null; } }
+      if (typeof mk === 'string') mk = { label: mk };
       return h('li', {
         class: ['picker-item', 'cp-pick-row', i === cursor && 'is-active', isChosen && 'is-selected'],
         role: 'option', 'aria-selected': String(multi ? isChosen : i === cursor), 'data-i': i,
@@ -147,7 +163,8 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
         h('span', { class: 'picker-item-title' }, e.name,
           e.origin === 'custom' ? h('span', { class: 'badge badge-accent cp-mini' }, 'Custom') : null,
           e.origin === 'stub' ? h('span', { class: 'badge cp-mini', title: e.source || '' }, e.source || 'Stub') : null,
-          e.legacy ? h('span', { class: 'badge cp-mini' }, '2014') : null),
+          e.legacy ? h('span', { class: 'badge cp-mini' }, '2014') : null,
+          mk?.label ? h('span', { class: 'badge badge-warn cp-mini', title: mk.title || null }, mk.label) : null),
         h('span', { class: 'muted' }, statLine(e))));
     }
     function setCursor(i, scroll = true) {

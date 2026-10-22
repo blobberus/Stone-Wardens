@@ -31,6 +31,8 @@ Only player decisions are stored; everything derivable is computed by `derive()`
   "currency": { "cp": 0, "sp": 0, "ep": 0, "gp": 0, "pp": 0 },
   "hp": { "current": 44, "temp": 0 }, "hitDiceUsed": { "10": 0 }, "deathSaves": { "success": 0, "fail": 0 },
   "resourcesUsed": { "rage": 1 }, "conditions": [], "exhaustion": 0, "heroicInspiration": false, "xp": 0,
+  "xpLog": [ { "at": "ISO", "delta": 450, "total": 450, "note": "Goblin ambush" } ],   // optional; see "XP & levels" below
+  "levelOrder": ["fighter", "wizard"],                                                // optional; class of each level gained
   "abilities": [ { "ref": "ability/second-wind-plus" }, { "name": "Stoneborn Grit", "description": "…", "uses": 1,
                    "recharge": "long", "modifiers": { "ac": 1 } } ],   // advanced: extra/custom abilities
   "overrides": { "ac": null, "speed": null, "initiative": null, "hpMax": null, "profBonus": null,
@@ -146,6 +148,50 @@ multiclass slots per the 2024 multiclass table (full + half(round up) + third(ro
 ## Compendium API — `assets/js/views/compendium/api.js`
 ```js
 openPicker(kinds, {title, filter, multi}) -> Promise<entry|entry[]|null>  // kinds: 'weapon' | ['weapon','armor',…]
+//   + {widen:{label, filter?, hint?, on?}}  a "Show all…" checkbox: while ticked the list uses widen.filter instead of filter
+//   + {mark:(entry) => null|string|{label,title}}  a small warning badge on a row (the sheet marks "off-list" spells)
 openEntryEditor(kind, entry?) -> Promise<savedEntry|null>                 // create/edit custom entries (saved to repo library)
 renderEntry(entry) -> Node                                                // stat block + markdown description
 ```
+
+## XP & levels — `engine-xp.js` (pure; re-exported by `engine.js`), UI `xp.js` + `levelup.js`
+Doc fields: `xp` (≥ 0), `xpLog` (newest last, capped at 30: `{at, delta, total, note?, set?}`; `set:true` = "set exact"),
+`levelOrder` (class id of every level gained through `applyLevelUp`, most recent last; `levelDown` pops the last
+occurrence; may be shorter than the total level for characters built directly at a level). Thresholds: `rules.json`
+`xpByLevel` (fallback `XP_TABLE`).
+```js
+xpTable(rules) -> [20]            xpForLevel(level, rules) -> min XP      levelForXp(xp, rules) -> 1..20
+xpStatus(char, rules) -> {xp, level, xpLevel, due, floor, next, toNext, pct, atMax, levelForNext}   // due: levels earned, not taken
+xpLevelsCrossed(beforeXp, afterXp, level, rules) -> n   // > 0 only when the change crosses a NEW threshold above level
+addXp(char, delta, {note, at}) / setXp(char, value, {note, at}) -> char   // new doc + xpLog entry (never below 0)
+xpAfterLevelChange(xp, newLevel, 'up'|'down', rules) -> {xp, changed, reason}  // milestone up: raise to the minimum;
+                                                                                 // down: reset if XP still reaches higher
+lastLeveledClass(char) -> classId|null                    // from levelOrder, else the last class in `classes`
+levelDownPlan(char, rules, classId) -> {fromLevel, toLevel, removesClass, totalBefore, totalAfter, features, choices,
+  hpBefore, hpAfter, hpLost, slotsBefore/After, pactBefore/After, maxSpellLevelBefore/After, cantripsBefore/After,
+  preparedBefore/After, profBonusBefore/After, subclass, resourcesBefore/After, spellsAtRisk, alwaysLost, trimmed, next, isLatest}
+  // engine.js; `next` = levelDown() + running-total picks (Invocations, Weapon Mastery…) cut back to the new count
+```
+Flow: the sheet header shows an XP meter (click → Experience window: add / subtract / set, history, XP table, "Level up
+(ignore XP)", "Level down…"). When an XP change crosses a threshold (`xpLevelsCrossed > 0`) the window closes and
+`levelUpFlow` opens Level Up once per due level ("1 of 3"); cancelling leaves "Level up · N due" on the header (it never
+re-triggers on load). A level taken while no level is due is a milestone: Level Up offers to raise XP to the new level's
+minimum. `openLevelDown` lists what goes and offers to remove now-uncastable spells and to reset XP.
+
+## Spell numbers & compatibility — `engine-spells.js` (pure; re-exported by `engine.js`)
+```js
+spellStats(record, {charLevel, caster:{attack, dc, mod}|null}) -> {attack, toHit, save, dc, damage:[{dice, bonus, type,
+  typeName, mod, alt, text}], damageText, heal:{dice, bonus, text, all?, upTo?}|null, count:{count, unit}|null,
+  scaling:{kind:'dice'|'count', tiers, current, next}|null, upcast:{what, dice|count, unit?, above, text}|null, parsed, higherLevel}
+spellIssues(record, sc, {className}) -> [{code:'no-caster'|'not-on-list'|'too-high', text}]   // sc = sheet.spellcasting[i]
+addSpellIssues(records, sc, {className}) -> [{record, issues (+'cantrip-limit'|'prepared-limit'), prepared}]
+onCasterList(record, sc)   parseDice('2d10 + 3')   diceText({dice, bonus})   rollDice(expr|{dice,bonus}, rand)   cantripTier(level)
+```
+Structured `attack` / `save` / `damage` first; the description is read only for: other damage types in the same
+sentence (Flame Strike, Ice Storm; "or" = alternatives), "X damage equal to 1d8 plus your spellcasting ability modifier",
+"XdY (+N) <Type> damage" when the record has no `damage` (Magic Missile, Disintegrate), "damage of the chosen type",
+dart/ray counts, and healing ("regains Hit Points equal to 2d8 plus your spellcasting ability modifier", fixed ≥ 10 HP).
+Cantrips scale by character level (5/11/17); levelled spells show base dice + the upcast rule. The sheet renders
+to-hit / DC through `adjustedValue(sheet, 'spellAttack:<class>' | 'spellDc:<class>' | '…:innate:<group>')`.
+Spells added anyway (off the class list, above the highest slot level, no spellcasting class) are stored normally and
+get a live "off-list" mark on the sheet; nothing is blocked.

@@ -15,7 +15,15 @@ import {
 } from './bridge.js';
 import { renderChoice, valueNames, currentValue } from './choices.js';
 import { rerender, pips, statBox, section, md, mdInline, portrait, entryModal, chip, hpBar, fmt, rollDie } from './widgets.js';
-import { openLevelUp } from './levelup.js';
+import { levelUpFlow, openLevelDown } from './levelup.js';
+// XP / level and spell (v2) helpers — own import lines (aliased) so they never clash with the shared ones above
+import { xpMeter, openXpWindow, levelsDue } from './xp.js';
+import { spellStats, spellIssues, addSpellIssues, rollDice } from './engine-spells.js';
+import { adjustedValue as adjValue } from './widgets.js';
+import { choiceDialog as choiceDlg } from '../../core/ui.js';
+// Debuffed values, highlight colour and proficiency marks (abilities / skills / combat / attacks / nav)
+import { adjustedValue, accentAttrs, profMark } from './widgets.js';
+import { getSetting, setSetting } from '../../core/settings.js';
 
 const S = { root: null, id: null, char: null, sheet: null, stale: false, notesEditing: false, openFeatures: new Set() };
 
@@ -132,10 +140,17 @@ function render() {
         h('a', { class: 'btn btn-sm', href: editHref('choices') }, 'Make choices'))) : null,
     s.warnings.length ? h('details', { class: 'ch-warnings' }, h('summary', { class: 'muted ui text-sm' }, icon('info'), ` ${s.warnings.length} rules note${s.warnings.length === 1 ? '' : 's'}`),
       h('ul', { class: 'ui text-sm' }, s.warnings.map((w) => h('li', null, String(w))))) : null,
+    // D&D Beyond proportions: ability row, combat strip, then senses & proficiencies | skills | actions & features.
+    abilities(c, s),
     combat(c, s),
+    h('div', { class: 'ch-body' }, h('div', { class: 'ch-body-grid' },
+      h('div', { class: 'ch-col ch-col-l' }, passive(s), proficiencies(c, s)),
+      h('div', { class: 'ch-col ch-col-m' }, skills(c, s)),
+      h('div', { class: 'ch-col ch-col-r' }, attacks(c, s), resources(c, s), features(c, s)))),
+    spells(c, s),
     h('div', { class: 'ch-layout' },
-      h('div', { class: 'ch-col ch-col-a' }, abilities(c, s), passive(s), proficiencies(c, s)),
-      h('div', { class: 'ch-col ch-col-b' }, skills(c, s), attacks(c, s), spells(c, s), features(c, s), resources(c, s), inventory(c, s), currency(c))),
+      h('div', { class: 'ch-col ch-col-a' }, currency(c)),
+      h('div', { class: 'ch-col ch-col-b' }, inventory(c, s))),
     details(c, s),
     notes(c)));
 }
@@ -146,6 +161,8 @@ function header(c, s) {
   const bg = c.background.id ? entryName('background', c.background.id) : '';
   const align = c.details.alignment ? ((R().alignments || []).find((a) => a.id === c.details.alignment)?.name || c.details.alignment) : '';
   const lvl = totalLevel(c);
+  const due = levelsDue(c);
+  const meta = [align, c.player ? `Player: ${c.player}` : ''].filter(Boolean).join(' · ');
   return h('header', { class: 'ch-head' },
     h('a', { class: 'btn btn-ghost btn-sm ch-back', href: href(VIEW) }, icon('chevron-left'), 'All characters'),
     h('div', { class: 'ch-head-main' },
@@ -153,10 +170,15 @@ function header(c, s) {
       h('div', { class: 'ch-head-id' },
         h('h1', { class: 'ch-name' }, c.name || 'Unnamed'),
         h('p', { class: 'ch-line' }, [lvl ? `Level ${lvl}` : 'Level 0', [species, sub ? `(${sub})` : ''].filter(Boolean).join(' '), s.classLine, bg].filter(Boolean).join(' · ')),
-        h('p', { class: 'ch-meta ui' },
-          [align, c.player ? `Player: ${c.player}` : '', `XP ${Number(c.xp) || 0}`].filter(Boolean).join(' · ')))),
+        meta ? h('p', { class: 'ch-meta ui' }, meta) : null,
+        h('div', { class: 'ch-xp-row' },
+          xpMeter(c, { onOpen: () => xpWindow(), onAdd: () => xpWindow('amount') }),
+          lvl ? h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => levelDownDialog(), title: 'Remove the most recent level (confirms first)', 'data-fk': 'lvl-down' }, h('span', { class: 'ch-flip' }, icon('level-up')), 'Level down') : null))),
     h('div', { class: 'ch-head-actions' },
-      h('button', { class: 'btn btn-primary', type: 'button', onclick: levelUp, disabled: lvl >= 20, title: lvl >= 20 ? 'Already level 20' : 'Gain a level' }, icon('level-up'), lvl ? 'Level up' : 'Choose a class'),
+      h('button', {
+        class: ['btn', 'btn-primary', due && 'ch-lu-due'], type: 'button', onclick: () => levelUp(), disabled: lvl >= 20, 'data-fk': 'lvl-up',
+        title: lvl >= 20 ? 'Already level 20' : due ? `Your XP has reached level ${lvl + due}` : lvl ? 'Gain a level now (milestone — ignores XP)' : 'Choose a first class',
+      }, icon('level-up'), !lvl ? 'Choose a class' : due ? (due > 1 ? `Level up · ${due} due` : 'Level up available') : 'Level up'),
       h('button', { class: 'btn', type: 'button', onclick: shortRestDialog, title: 'Spend Hit Dice; recharge short-rest features' }, icon('clock'), 'Short rest'),
       h('button', { class: 'btn', type: 'button', onclick: longRestDialog, title: 'Regain HP, slots and features' }, icon('moon'), 'Long rest'),
       h('a', { class: 'btn', href: editHref(), title: 'Edit every field, choice and override' }, icon('edit'), 'Edit all'),
@@ -166,10 +188,35 @@ function header(c, s) {
       }, icon('link'))));
 }
 
+// Sticky section bar; once the name in the header scrolls away, "Name · Player" fills its empty right side.
+const NAV = { io: null, stuck: false, id: null };
+
 function nav(s) {
-  const items = [['hp', 'Combat'], ['abilities', 'Abilities'], ['skills', 'Skills'], ['attacks', 'Attacks'],
-    (s.spellcasting.length || S.char.spells.length) ? ['spells', 'Spells'] : null, ['features', 'Features'], ['inventory', 'Inventory'], ['details', 'Details'], ['notes', 'Notes']].filter(Boolean);
-  return h('nav', { class: 'ch-nav', 'aria-label': 'Sheet sections' }, items.map(([id, label]) => h('button', { class: 'chip', type: 'button', onclick: () => goSection(id) }, label)));
+  const c = S.char;
+  if (NAV.id !== S.id) { NAV.id = S.id; NAV.stuck = false; }
+  const items = [['abilities', 'Abilities'], ['hp', 'Combat'], ['passive', 'Senses'], ['skills', 'Skills'], ['attacks', 'Attacks'], ['features', 'Features'],
+    (s.spellcasting.length || c.spells.length) ? ['spells', 'Spells'] : null, ['inventory', 'Inventory'], ['details', 'Details'], ['notes', 'Notes']].filter(Boolean);
+  const el = h('nav', { class: ['ch-nav', NAV.stuck && 'is-stuck'], 'aria-label': 'Sheet sections' },
+    h('div', { class: 'ch-nav-chips' }, items.map(([id, label]) => h('button', { class: 'chip', type: 'button', onclick: () => goSection(id) }, label))),
+    h('button', {
+      class: 'ch-nav-who', type: 'button', title: 'Back to the top',
+      onclick: () => (S.root.closest('.view') || window).scrollTo({ top: 0, behavior: 'smooth' }),
+    }, h('span', { class: 'ch-nav-name' }, c.name || 'Unnamed'), c.player ? h('span', { class: 'ch-nav-player' }, ` · ${c.player}`) : null));
+  queueMicrotask(() => watchNav(el));
+  return el;
+}
+
+function watchNav(el) {
+  NAV.io?.disconnect();
+  NAV.io = null;
+  const name = S.root?.querySelector('.ch-name') || S.root?.querySelector('.ch-head');
+  if (!el.isConnected || !name || typeof IntersectionObserver !== 'function') return;
+  NAV.io = new IntersectionObserver(([e]) => {
+    if (!e) return;
+    NAV.stuck = !e.isIntersecting && e.boundingClientRect.top < (e.rootBounds ? e.rootBounds.top : 0);
+    el.classList.toggle('is-stuck', NAV.stuck);
+  }, { root: S.root.closest('.view'), rootMargin: `-${Math.ceil(el.offsetHeight)}px 0px 0px 0px` });
+  NAV.io.observe(name);
 }
 
 // ---------- combat strip ----------
@@ -187,15 +234,14 @@ function combat(c, s) {
   const conds = conditionList().filter((x) => x.id !== 'exhaustion');
   return h('section', { class: 'ch-combat', 'data-sec': 'combat', 'aria-label': 'Combat' },
     h('div', { class: 'ch-combat-stats' },
-      statBox({ label: 'Armor Class', value: s.ac.value, sub: s.armorWorn?.name || (s.shield ? 'Shield' : 'Unarmored'), stat: 'ac', title: s.ac.formula, onClick: () => acInfo(s) }),
-      statBox({ label: 'Initiative', value: fmt(s.initiative), stat: 'initiative', title: 'Roll initiative', onClick: () => rollToast('Initiative', s.initiative) }),
-      statBox({ label: 'Speed', value: `${s.speed.walk ?? 0} ft`, sub: speedSub || null, stat: 'speed' }),
-      statBox({ label: 'Proficiency', value: fmt(s.profBonus), stat: 'prof' }),
-      statBox({ label: 'Size', value: s.size || '—', stat: 'size', className: 'ch-stat-small' })),
+      statBox({ label: 'Armor Class', value: adjustedValue(s, 'ac', String(s.ac.value)), sub: s.armorWorn?.name || (s.shield ? 'Shield' : 'Unarmored'), stat: 'ac', title: s.adjust?.ac ? null : s.ac.formula, onClick: () => acInfo(s) }),
+      statBox({ label: 'Initiative', value: adjustedValue(s, 'initiative', fmt(s.initiative)), stat: 'initiative', title: s.adjust?.initiative ? null : 'Roll initiative', onClick: () => rollToast('Initiative', s.initiative) }),
+      statBox({ label: 'Speed', value: adjustedValue(s, 'speed', `${s.speed.walk ?? 0} ft`), sub: speedSub || null, stat: 'speed' }),
+      statBox({ label: 'Proficiency', value: adjustedValue(s, 'profBonus', fmt(s.profBonus)), stat: 'prof' })),
     h('div', { class: 'ch-hp', 'data-sec': 'hp' },
       h('div', { class: 'ch-hp-top' },
         h('span', { class: 'ch-stat-label' }, icon('heart'), ' Hit points'),
-        h('span', { class: 'ch-hp-now num', title: 'Current + temporary' }, String(cur + temp), h('span', { class: 'ch-hp-max' }, ` / ${max}`))),
+        h('span', { class: 'ch-hp-now num', title: s.adjust?.hpMax ? null : 'Current + temporary' }, String(cur + temp), h('span', { class: 'ch-hp-max' }, ' / ', adjustedValue(s, 'hpMax', String(max))))),
       hpBar(cur, max, temp),
       h('div', { class: 'ch-hp-grid' },
         h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Current'),
@@ -263,10 +309,14 @@ function applyHeal(x, n, max) {
 }
 
 function acInfo(s) {
+  const adj = s.adjust?.ac;
   openModal({
     title: `Armor Class ${s.ac.value}`,
     body: h('div', { class: 'stack' },
       h('p', null, s.ac.formula || 'Computed from armor, shield, Dexterity and features.'),
+      adj ? h('div', { class: 'callout ch-ac-adj', 'data-callout': 'warning' },
+        h('div', { class: 'callout-title' }, adj.value !== adj.base ? `Lowered from ${adj.base}` : 'Penalties'),
+        h('ul', { class: 'callout-content ui text-sm' }, adj.reasons.map((r) => h('li', null, h('strong', null, r.label), r.amount ? ` ${fmt(r.amount)}` : '', r.note ? ` — ${r.note}` : '')))) : null,
       Array.isArray(s.ac.parts) && s.ac.parts.length ? h('ul', { class: 'ui text-sm' }, s.ac.parts.map((p) => h('li', null, typeof p === 'string' ? p : `${p.label || p.name || ''} ${p.value != null ? fmt(p.value) : ''}`.trim()))) : null,
       s.armorWorn ? h('p', { class: 'muted' }, `Armor worn: ${s.armorWorn.name || ''}${s.armorWorn.proficient === false ? ' (not proficient)' : ''}${s.armorWorn.stealthDisadvantage ? ' · Disadvantage on Stealth' : ''}`) : null,
       s.shield ? h('p', { class: 'muted' }, `Shield: ${s.shield.name || 'Shield'} (+${s.shield.ac ?? 2})${s.shield.proficient === false ? ' (not proficient)' : ''}`) : null,
@@ -277,70 +327,78 @@ function acInfo(s) {
 
 // ---------- abilities, saves, passive, skills ----------
 
+/** "Proficient · Background: Soldier" for a mark's tooltip; notes a change made in Edit all. */
+function profTitle(level, info) {
+  const word = { none: 'Not proficient', proficient: 'Proficient', expertise: 'Expertise', half: 'Half proficiency (Jack of All Trades)' }[level] || 'Not proficient';
+  const src = (info?.sources || []).filter((x) => level === 'expertise' || x.level !== 'expertise').map((x) => x.label);
+  const changed = info && info.override != null && info.override !== info.rules;
+  return [word, level !== 'none' && level !== 'half' && src.length ? `from ${src.join(', ')}` : '', changed ? '(changed in Edit all)' : ''].filter(Boolean).join(' ');
+}
+
 function abilities(c, s) {
-  const extra = new Set(c.extraProficiencies.saves);
-  return section('abilities', 'Abilities & saving throws', { iconName: 'd20', actions: [h('a', { class: 'btn btn-ghost btn-sm', href: editHref('abilities') }, icon('edit'), 'Scores')] },
-    h('div', { class: 'ch-abils', 'data-sec': 'saves' }, ABILITIES.map((a) => {
-      const x = s.abilities[a.id];
-      const locked = x.saveProf && !extra.has(a.id);
-      return h('div', { class: 'ch-abil', 'data-stat': a.id },
-        h('button', { class: 'ch-abil-check', type: 'button', title: `Roll a ${a.full} check`, onclick: () => rollToast(`${a.full} check`, x.mod) },
-          h('span', { class: 'ch-abil-name' }, a.full),
-          h('span', { class: 'ch-abil-mod num' }, fmt(x.mod)),
-          h('span', { class: 'ch-abil-score num' }, String(x.score))),
-        h('div', { class: 'ch-abil-save' },
-          h('input', {
-            type: 'checkbox', class: 'checkbox', checked: !!x.saveProf, disabled: locked, 'data-fk': `save-${a.id}`,
-            title: locked ? 'Granted by your class or a feature' : 'Proficient in this saving throw',
-            'aria-label': `${a.full} saving throw proficiency`,
-            onchange: (e) => mutate((y) => { const set = new Set(y.extraProficiencies.saves); e.target.checked ? set.add(a.id) : set.delete(a.id); y.extraProficiencies.saves = [...set]; }),
-          }),
-          h('button', { class: 'ch-link-btn ui text-sm', type: 'button', title: `Roll a ${a.full} saving throw`, onclick: () => rollToast(`${a.full} save`, x.save) }, `Save ${fmt(x.save)}`)));
-    })));
+  const saves = s.proficiencyInfo?.saves || {};
+  return section('abilities', 'Abilities & saving throws', {
+    iconName: 'd20', attrs: accentAttrs(c), className: 'ch-sec-abils', sub: 'Click to roll.',
+    actions: [h('a', { class: 'btn btn-ghost btn-sm', href: editHref('abilities') }, icon('edit'), 'Scores'),
+      h('a', { class: 'btn btn-ghost btn-sm', href: editHref('proficiencies'), title: 'Saving throw proficiencies are changed in Edit all' }, icon('edit'), 'Saves')],
+  },
+  h('div', { class: 'ch-abils', 'data-sec': 'saves' }, ABILITIES.map((a) => {
+    const x = s.abilities[a.id];
+    const check = x.check ?? x.mod;
+    return h('div', { class: 'ch-abil', 'data-stat': a.id },
+      h('button', { class: 'ch-abil-check', type: 'button', 'aria-label': `${a.full} check`, onclick: () => rollToast(`${a.full} check`, check) },
+        h('span', { class: 'ch-abil-name' }, a.full),
+        adjustedValue(s, `ability:${a.id}`, fmt(check), { className: 'ch-abil-mod' }),
+        adjustedValue(s, `score:${a.id}`, String(x.score), { className: 'ch-abil-score' })),
+      h('button', { class: 'ch-abil-save', type: 'button', 'aria-label': `${a.full} saving throw`, onclick: () => rollToast(`${a.full} save`, x.save) },
+        profMark(x.saveProf ? 'proficient' : 'none', { title: profTitle(x.saveProf ? 'proficient' : 'none', saves[a.id]) }),
+        h('span', { class: 'ch-abil-save-label' }, 'Save'),
+        adjustedValue(s, `save:${a.id}`, fmt(x.save), { className: 'ch-abil-save-val' })));
+  })));
 }
 
 function passive(s) {
   return section('passive', 'Passive scores & senses', { iconName: 'eye' },
     h('dl', { class: 'ch-dl' },
-      h('dt', null, 'Passive Perception'), h('dd', { class: 'num', 'data-stat': 'passive-perception' }, String(s.passive.perception)),
-      h('dt', null, 'Passive Insight'), h('dd', { class: 'num' }, String(s.passive.insight)),
-      h('dt', null, 'Passive Investigation'), h('dd', { class: 'num' }, String(s.passive.investigation)),
+      h('dt', null, 'Passive Perception'), h('dd', { class: 'num', 'data-stat': 'passive-perception' }, adjustedValue(s, 'passive:perception', String(s.passive.perception))),
+      h('dt', null, 'Passive Insight'), h('dd', { class: 'num' }, adjustedValue(s, 'passive:insight', String(s.passive.insight))),
+      h('dt', null, 'Passive Investigation'), h('dd', { class: 'num' }, adjustedValue(s, 'passive:investigation', String(s.passive.investigation))),
+      h('dt', null, 'Size'), h('dd', { 'data-stat': 'size' }, s.size || '—'),
       s.senses ? [h('dt', null, 'Senses'), h('dd', null, Array.isArray(s.senses) ? s.senses.join(', ') : typeof s.senses === 'object' ? Object.entries(s.senses).map(([k, v]) => `${prettify(k)} ${v} ft.`).join(', ') : String(s.senses))] : null));
 }
 
+// Compact skill list (D&D Beyond sizing): mark · ability · name · bonus box. "Proficient only" folds it (per device).
 function skills(c, s) {
-  const extra = new Set(c.extraProficiencies.skills);
-  const exp = new Set(c.extraProficiencies.expertise);
-  return section('skills', 'Skills', { iconName: 'compass', sub: 'Tick to add proficiency or expertise; click a bonus to roll.' },
-    h('div', { class: 'table-wrap' }, h('table', { class: 'table table-dense ch-skills' },
-      h('thead', null, h('tr', null, h('th', { class: 'center', title: 'Proficient' }, 'Prof'), h('th', { class: 'center', title: 'Expertise' }, 'Exp'), h('th', null, 'Skill'), h('th', null, 'Ability'), h('th', { class: 'num' }, 'Bonus'))),
-      h('tbody', null, skillList().map((sk) => {
-        const x = s.skills[sk.id];
-        const lockedProf = x.prof && !extra.has(sk.id) && !c.skills.includes(sk.id);
-        const fromClass = c.skills.includes(sk.id) && !extra.has(sk.id);
-        const lockedExp = x.expertise && !exp.has(sk.id);
-        return h('tr', { 'data-stat': sk.id, class: x.prof ? 'is-prof' : null },
-          h('td', { class: 'center' }, h('input', {
-            type: 'checkbox', class: 'checkbox', checked: !!x.prof, disabled: lockedProf || fromClass, 'data-fk': `sk-${sk.id}`,
-            title: lockedProf ? 'Granted by background, species or a feature' : fromClass ? 'Class skill (change in Edit all → Choices)' : 'Proficient',
-            'aria-label': `${sk.name} proficiency`,
-            onchange: (e) => mutate((y) => { const set = new Set(y.extraProficiencies.skills); e.target.checked ? set.add(sk.id) : set.delete(sk.id); y.extraProficiencies.skills = [...set]; }),
-          })),
-          h('td', { class: 'center' }, h('input', {
-            type: 'checkbox', class: 'checkbox', checked: !!x.expertise, disabled: lockedExp || (!x.prof && !x.expertise), 'data-fk': `ex-${sk.id}`,
-            title: lockedExp ? 'Expertise from a class feature' : 'Expertise (double proficiency)', 'aria-label': `${sk.name} expertise`,
-            onchange: (e) => mutate((y) => { const set = new Set(y.extraProficiencies.expertise); e.target.checked ? set.add(sk.id) : set.delete(sk.id); y.extraProficiencies.expertise = [...set]; }),
-          })),
-          h('td', { class: 'cell-name' }, sk.name),
-          h('td', { class: 'cell-muted ui' }, String(x.ability || sk.ability).toUpperCase()),
-          h('td', { class: 'num' }, h('button', { class: 'ch-link-btn num ch-bonus', type: 'button', title: `Roll ${sk.name}`, onclick: () => rollToast(sk.name, x.bonus) }, fmt(x.bonus))));
-      })))));
+  const info = s.proficiencyInfo?.skills || {};
+  const level = (x) => (x.expertise ? 'expertise' : x.prof ? 'proficient' : x.half ? 'half' : 'none');
+  const all = skillList().map((sk) => ({ sk, x: s.skills[sk.id] }));
+  const folded = !!getSetting('chSkillsFolded') && all.some(({ x }) => x.prof || x.expertise);
+  const rows = folded ? all.filter(({ x }) => x.prof || x.expertise) : all;
+  return section('skills', 'Skills', {
+    iconName: 'compass', attrs: accentAttrs(c), className: 'ch-sec-skills',
+    actions: [
+      h('button', {
+        class: 'btn-icon btn-sm', type: 'button', 'aria-pressed': String(folded), 'aria-label': folded ? 'Show all skills' : 'Show proficient skills only',
+        title: folded ? 'Show all 18 skills' : 'Show proficient skills only', onclick: () => { setSetting('chSkillsFolded', !folded); render(); },
+      }, icon(folded ? 'chevron-down' : 'chevron-up')),
+      h('a', { class: 'btn-icon btn-sm', href: editHref('proficiencies'), title: 'Change proficiency and expertise (Edit all)', 'aria-label': 'Change skill proficiencies' }, icon('edit'))],
+  },
+  h('div', { class: 'ch-skl-head ui', 'aria-hidden': 'true' }, h('span', null, 'Prof'), h('span', null, 'Mod'), h('span', null, 'Skill'), h('span', null, 'Bonus')),
+  h('ul', { class: 'ch-skl', role: 'list', 'aria-label': 'Skills' }, rows.map(({ sk, x }) => h('li', { class: ['ch-skl-row', x.prof && 'is-prof'], 'data-stat': sk.id },
+    profMark(level(x), { title: profTitle(level(x), info[sk.id]) }),
+    h('span', { class: 'ch-skl-ab ui' }, String(x.ability || sk.ability).toUpperCase()),
+    h('span', { class: 'ch-skl-name' }, sk.name),
+    h('button', { class: 'ch-skl-bonus', type: 'button', 'aria-label': `Roll ${sk.name}`, onclick: () => rollToast(sk.name, x.bonus) }, adjustedValue(s, `skill:${sk.id}`, fmt(x.bonus)))))),
+  h('p', { class: 'ch-plegend ui text-xs' },
+    h('span', null, profMark('proficient'), 'Proficient'), h('span', null, profMark('expertise'), 'Expertise'),
+    all.some(({ x }) => x.half) ? h('span', null, profMark('half'), 'Half') : null,
+    folded ? h('span', null, `${all.length - rows.length} more hidden`) : null));
 }
 
 function proficiencies(c, s) {
   const list = (items, kind) => (items?.length ? h('div', { class: 'row ch-chip-row' }, [...new Set(items)].map((id) => h('span', { class: 'chip' }, profName(kind, id)))) : h('span', { class: 'faint ui text-sm' }, 'None'));
   const res = [...new Set([...(s.resistances || [])])];
-  return section('proficiencies', 'Proficiencies & languages', { iconName: 'book-open', actions: [h('a', { class: 'btn btn-ghost btn-sm', href: editHref('proficiencies') }, icon('edit'), 'Edit')] },
+  return section('proficiencies', 'Proficiencies & languages', { iconName: 'book-open', actions: [h('a', { class: 'btn-icon btn-sm', href: editHref('proficiencies'), title: 'Edit proficiencies', 'aria-label': 'Edit proficiencies' }, icon('edit'))] },
     h('div', { class: 'stack stack-sm ch-profs' },
       h('div', null, h('h4', { class: 'ch-mini-head' }, 'Armor'), list(s.proficiencies.armor, 'armor')),
       h('div', null, h('h4', { class: 'ch-mini-head' }, 'Weapons'), list(s.proficiencies.weapons, 'weapons')),
@@ -370,8 +428,9 @@ function attacks(c, s) {
       return h('tr', { 'data-stat': a.uid || (a.unarmed ? 'unarmed' : null), class: a.proficient === false ? 'is-unproficient' : null },
         h('td', { class: 'cell-name' }, entry ? h('button', { class: 'ch-link-btn', type: 'button', onclick: () => entryModal(entry) }, a.name) : a.name,
           a.properties?.length ? h('div', { class: 'ch-props' }, a.properties.map((p, pi) => h('span', { class: 'ch-prop', title: propertyInfo(p)?.description?.slice(0, 300) || null }, a.propertyNames?.[pi] || prettify(p)))) : null),
-        h('td', { class: 'num' }, h('button', { class: 'ch-link-btn num ch-bonus', type: 'button', title: `Roll to hit with ${a.name}`, onclick: () => rollToast(`${a.name} to hit`, a.bonus) }, typeof a.bonus === 'number' ? fmt(a.bonus) : String(a.bonus ?? ''))),
-        h('td', null, h('span', { class: 'num' }, a.damage || ''), a.damageType ? ` ${prettify(a.damageType)}` : '', a.versatile ? h('div', { class: 'cell-muted text-xs ui' }, `Two-handed: ${a.versatile}`) : null),
+        h('td', { class: 'num' }, h('button', { class: 'ch-link-btn num ch-bonus', type: 'button', 'aria-label': `Roll to hit with ${a.name}`, onclick: () => rollToast(`${a.name} to hit`, a.bonus) },
+          adjustedValue(s, `attack:${a.uid || (a.unarmed ? 'unarmed' : '')}`, typeof a.bonus === 'number' ? fmt(a.bonus) : String(a.bonus ?? '')))),
+        h('td', null, adjustedValue(s, `damage:${a.uid || (a.unarmed ? 'unarmed' : '')}`, a.damage || ''), a.damageType ? ` ${prettify(a.damageType)}` : '', a.versatile ? h('div', { class: 'cell-muted text-xs ui' }, `Two-handed: ${a.versatile}`) : null),
         h('td', { class: 'cell-muted' }, range),
         h('td', null, m ? h('span', { class: 'badge badge-accent', title: m.description || '' }, m.name || prettify(m.id)) : h('span', { class: 'faint' }, '—')),
         h('td', { class: ['cell-muted', a.proficient === false && 'danger-text'] }, notesText));
@@ -381,12 +440,85 @@ function attacks(c, s) {
 
 // ---------- spellcasting ----------
 
+/** The casting numbers behind a spell row: its class's spellcasting, or the species/feat (innate) group. */
+function spellCaster(x, s) {
+  const sc = x.class ? s.spellcasting.find((y) => y.class === x.class) : null;
+  if (sc) return { sc, key: sc.class, attack: sc.attack, dc: sc.dc, mod: sc.mod ?? s.abilities[sc.ability]?.mod ?? 0, label: sc.name || entryName('class', sc.class) };
+  const g = x.innate || !x.class ? (s.innate || []).find((y) => y.key === x.group || (y.spells || []).includes(x.id)) : null;
+  if (g && (x.innate || x.always)) return { sc: null, key: `innate:${g.key}`, attack: g.attack, dc: g.dc, mod: s.abilities[g.ability]?.mod ?? 0, label: g.source || 'Innate' };
+  return null;
+}
+
 function spellRows(c, s) {
   const src = Array.isArray(s.spells) ? s.spells : c.spells;
+  const lvl = Number(s.totalLevel) || totalLevel(c) || 1;
   return src.map((x) => {
     const entry = findEntry('spell', x.id);
-    return { ...x, entry, name: x.name || entry?.name || prettify(x.id), level: Number(x.level ?? entry?.level ?? 0) };
+    const caster = spellCaster(x, s);
+    const stored = !x.always && !x.innate && c.spells.some((y) => y.id === x.id && (y.class || null) === (x.class || null));
+    // Off-list: stored spells that don't fit the class (not on its list, too high, no spellcasting) — shown, never blocked
+    const issues = entry && stored ? spellIssues(entry, caster?.sc || null, { className: x.class ? entryName('class', x.class) : null }) : [];
+    return {
+      ...x, entry, name: x.name || entry?.name || prettify(x.id), level: Number(x.level ?? entry?.level ?? 0), caster, stored, issues,
+      stats: entry ? spellStats(entry, { charLevel: lvl, caster }) : null,
+    };
   });
+}
+
+/** Roll a spell's damage or healing into a toast ("Fire Bolt: 2d10 (3, 7) = 10 Fire"). */
+function rollSpellEffect(name, parts, { heal = false, count = null } = {}) {
+  const out = [];
+  for (const d of parts) {
+    const r = rollDice({ dice: d.dice, bonus: d.bonus });
+    if (!r) continue;
+    out.push(`${d.dice}${d.bonus ? ` ${d.bonus < 0 ? '−' : '+'} ${Math.abs(d.bonus)}` : ''} (${r.rolls.join(', ')}) = ${r.total}${heal ? ' HP' : d.typeName ? ` ${d.typeName}` : ''}`);
+    if (d.alt) break;
+  }
+  if (!out.length) return;
+  toast(`${name}${heal ? ' heals' : ''}: ${out.join(' + ')}${count && count.count > 1 ? ` — each of ${count.count} ${count.unit}s` : ''}`, { type: 'info', timeout: 6000 });
+}
+
+/** To-hit / save DC and damage / healing chips of one spell row. */
+function spellFx(r, s) {
+  const st = r.stats;
+  if (!st) return null;
+  const key = r.caster?.key;
+  const chips = [];
+  if (st.attack) {
+    chips.push(st.toHit != null
+      ? h('button', { class: 'ch-spell-chip ch-spell-hit', type: 'button', title: `Roll a ${st.attack} spell attack with ${r.name}`, onclick: () => rollToast(`${r.name} (spell attack)`, st.toHit), 'data-fk': `hit-${r.class || r.group}-${r.id}` },
+        adjValue(s, `spellAttack:${key}`, fmt(st.toHit)), h('span', { class: 'ch-spell-chip-label' }, 'to hit'))
+      : h('span', { class: 'ch-spell-chip is-muted', title: 'No spellcasting ability for this spell' }, `${prettify(st.attack)} spell attack`));
+  }
+  if (st.save) {
+    const ab = (ABILITIES.find((a) => a.id === st.save)?.name || st.save.toUpperCase());
+    chips.push(st.dc != null
+      ? h('span', { class: 'ch-spell-chip ch-spell-dc', title: `${ABILITIES.find((a) => a.id === st.save)?.full || ab} saving throw` }, h('span', { class: 'ch-spell-chip-label' }, 'DC'), adjValue(s, `spellDc:${key}`, String(st.dc)), ` ${ab}`)
+      : h('span', { class: 'ch-spell-chip is-muted' }, `${ab} save`));
+  }
+  const tip = [st.scaling?.next ? `At character level ${st.scaling.next.level}: ${st.scaling.kind === 'count' ? `${st.scaling.next.count} ${st.count?.unit || 'beam'}s` : st.scaling.next.dice}.` : '', st.higherLevel ? `${r.level ? 'Using a higher-level spell slot' : 'Cantrip upgrade'}: ${st.higherLevel}` : '', st.parsed ? '(Read from the spell text.)' : ''].filter(Boolean).join('\n');
+  if (st.damage.length) {
+    const count = st.count && st.count.count > 1 ? `${st.count.count} × ` : '';
+    chips.push(h('button', { class: 'ch-spell-chip ch-spell-dmg', type: 'button', title: `Roll damage${tip ? `\n${tip}` : ''}`, onclick: () => rollSpellEffect(r.name, st.damage, { count: st.count }), 'data-fk': `dmg-${r.class || r.group}-${r.id}` },
+      h('span', { class: 'num' }, `${count}${st.damageText}`)));
+  }
+  if (st.heal) {
+    const rollable = !!st.heal.dice;
+    chips.push(h(rollable ? 'button' : 'span', { class: 'ch-spell-chip ch-spell-heal', type: rollable ? 'button' : null, title: `${rollable ? 'Roll healing' : 'Healing'}${tip ? `\n${tip}` : ''}`, onclick: rollable ? () => rollSpellEffect(r.name, [st.heal], { heal: true }) : null },
+      icon('heart'), h('span', { class: 'num' }, st.heal.text)));
+  }
+  return chips.length ? h('div', { class: 'ch-spell-fx' }, chips) : null;
+}
+
+/** Second line of a spell row: casting time · range · class, plus cantrip scaling / upcast note. */
+function spellMeta(r) {
+  const st = r.stats;
+  const note = st?.scaling && r.level === 0
+    ? (st.scaling.next ? `${st.scaling.kind === 'count' ? `${st.scaling.next.count} ${st.count?.unit || 'beam'}s` : st.scaling.next.dice} at level ${st.scaling.next.level}` : '')
+    : st?.upcast && (st.damage.length || st.heal || st.upcast.what === 'count') ? `Higher slots ${st.upcast.what === 'count' ? `+1 ${st.upcast.unit}` : `+${st.upcast.dice}`} each` : '';
+  return h('div', { class: 'ch-spell-meta muted ui' },
+    [r.entry?.castingTime, r.entry?.range, r.class ? entryName('class', r.class) : r.source].filter(Boolean).join(' · '),
+    note ? [' · ', h('span', { class: 'ch-spell-up', title: st.higherLevel || null }, note)] : null);
 }
 
 function spells(c, s) {
@@ -409,16 +541,16 @@ function spells(c, s) {
   s.spellcasting.length ? h('div', { class: 'ch-casters' }, s.spellcasting.map((sc) => h('div', { class: 'ch-caster' },
     h('strong', null, entryName('class', sc.class) || prettify(sc.class)),
     h('span', { class: 'badge' }, String(sc.ability || '').toUpperCase()),
-    h('span', null, 'Save DC ', h('strong', { class: 'num' }, String(sc.dc))),
-    h('span', null, 'Attack ', h('button', { class: 'ch-link-btn num', type: 'button', onclick: () => rollToast('Spell attack', sc.attack) }, fmt(sc.attack))),
+    h('span', null, 'Save DC ', adjValue(s, `spellDc:${sc.class}`, String(sc.dc), { className: 'ch-caster-num' })),
+    h('span', null, 'Attack ', h('button', { class: 'ch-link-btn ch-bonus', type: 'button', title: 'Roll a spell attack', onclick: () => rollToast(`${entryName('class', sc.class)} spell attack`, sc.attack) }, adjValue(s, `spellAttack:${sc.class}`, fmt(sc.attack)))),
     sc.cantrips ? h('span', { class: cantripCount(sc) > sc.cantrips ? 'danger-text' : 'muted' }, `Cantrips ${cantripCount(sc)}/${sc.cantrips}`) : null,
     sc.prepared ? h('span', { class: preparedCount(sc) > sc.prepared ? 'danger-text' : 'muted' }, `Prepared ${preparedCount(sc)}/${sc.prepared}`) : null,
     sc.spellbook ? h('span', { class: 'muted' }, `Spellbook ${sc.spellbook.count}${sc.spellbook.size ? `/${sc.spellbook.size}+` : ''}`) : null))) : null,
   innate.length ? h('div', { class: 'ch-casters' }, innate.map((g) => h('div', { class: 'ch-caster' },
     h('strong', null, g.source || 'Innate'),
     h('span', { class: 'badge' }, String(g.ability || '').toUpperCase()),
-    h('span', null, 'Save DC ', h('strong', { class: 'num' }, String(g.dc))),
-    h('span', null, 'Attack ', h('button', { class: 'ch-link-btn num', type: 'button', onclick: () => rollToast('Spell attack', g.attack) }, fmt(g.attack))),
+    h('span', null, 'Save DC ', adjValue(s, `spellDc:innate:${g.key}`, String(g.dc), { className: 'ch-caster-num' })),
+    h('span', null, 'Attack ', h('button', { class: 'ch-link-btn ch-bonus', type: 'button', title: 'Roll a spell attack', onclick: () => rollToast(`${g.source || 'Innate'} spell attack`, g.attack) }, adjValue(s, `spellAttack:innate:${g.key}`, fmt(g.attack)))),
     h('span', { class: 'muted' }, (g.spells || []).map((id) => entryName('spell', id)).join(', '))))) : null,
   s.slots.some(Boolean) || s.pact ? h('div', { class: 'ch-slots', 'data-sec': 'slots' },
     s.slots.map((n, i) => (n ? h('div', { class: 'ch-slot-row' },
@@ -429,19 +561,34 @@ function spells(c, s) {
       h('span', { class: 'ch-slot-lvl' }, `Pact (L${s.pact.level ?? s.pact.slotLevel ?? '?'})`),
       pips({ max: s.pact.slots, used: c.pactUsed, label: 'Pact Magic slots', fk: 'pact', onChange: (u) => mutate((y) => { y.pactUsed = u; }) }),
       h('span', { class: 'muted ui text-xs' }, 'short rest')) : null) : null,
-  rows.length ? h('div', { class: 'ch-spell-levels' }, [...byLevel.keys()].sort((a, b) => a - b).map((lvl) => h('div', { class: 'ch-spell-level' },
-    h('h4', { class: 'ch-mini-head' }, lvl === 0 ? 'Cantrips' : `Level ${lvl}`),
-    h('ul', { class: 'ch-spell-list', role: 'list' }, byLevel.get(lvl).sort((a, b) => a.name.localeCompare(b.name)).map((r) => h('li', { class: ['ch-spell', r.prepared || r.always || lvl === 0 ? 'is-prepared' : 'is-unprepared'], 'data-stat': r.id },
+  rows.length ? h('div', { class: 'ch-spell-levels' }, [...byLevel.keys()].sort((a, b) => a - b).map((lvl) => {
+    const slots = lvl > 0 ? Number(s.slots[lvl - 1]) || 0 : 0;
+    const pactLvl = s.pact ? Number(s.pact.level) || 0 : 0;
+    const pactHere = lvl > 0 && pactLvl >= lvl;
+    return h('div', { class: 'ch-spell-level' },
+      h('h4', { class: 'ch-mini-head ch-spell-lvl-head' }, lvl === 0 ? 'Cantrips' : `Level ${lvl}`,
+        h('span', { class: 'ch-spell-lvl-sub' }, [
+          lvl === 0 ? 'at will' : slots ? `${Math.max(0, slots - (c.slotsUsed[lvl - 1] || 0))} of ${slots} slots left` : '',
+          pactHere ? (pactLvl === lvl ? `${Math.max(0, s.pact.slots - (c.pactUsed || 0))} of ${s.pact.slots} pact slots` : `cast with level ${pactLvl} pact slots`) : '',
+          lvl > 0 && !slots && !pactHere ? 'no slots' : ''].filter(Boolean).join(' · '))),
+      h('ul', { class: 'ch-spell-list', role: 'list' }, byLevel.get(lvl).sort((a, b) => a.name.localeCompare(b.name)).map((r) => h('li', {
+        class: ['ch-spell', r.prepared || r.always || lvl === 0 ? 'is-prepared' : 'is-unprepared', r.issues.length && 'is-off'], 'data-stat': r.id,
+      },
       lvl > 0 ? h('input', {
-        type: 'checkbox', class: 'checkbox', checked: !!(r.prepared || r.always), disabled: !!r.always, 'data-fk': `prep-${r.class}-${r.id}`,
+        type: 'checkbox', class: 'checkbox ch-spell-prep', checked: !!(r.prepared || r.always), disabled: !!r.always, 'data-fk': `prep-${r.class}-${r.id}`,
         title: r.always ? 'Always prepared' : 'Prepared', 'aria-label': `Prepare ${r.name}`, onchange: (e) => togglePrepared(r, e.target.checked),
       }) : h('span', { class: 'ch-spell-dot', 'aria-hidden': 'true' }),
-      h('button', { class: 'ch-link-btn ch-spell-name', type: 'button', onclick: () => r.entry ? entryModal(r.entry) : toast('This spell is not in the SRD; see your book.') }, r.name),
-      r.always ? h('span', { class: 'badge badge-info', title: r.source || 'Always prepared' }, icon('lock'), 'always') : null,
-      r.entry?.concentration ? h('span', { class: 'badge', title: 'Concentration' }, 'C') : null,
-      r.entry?.ritual ? h('span', { class: 'badge', title: 'Ritual' }, 'R') : null,
-      h('span', { class: 'ch-spell-meta muted ui' }, [r.entry?.castingTime, r.entry?.range, r.class ? entryName('class', r.class) : r.source].filter(Boolean).join(' · ')),
-      !r.always && c.spells.some((x) => x.id === r.id) ? h('button', { class: 'btn-icon btn-sm ch-row-x', type: 'button', 'aria-label': `Remove ${r.name}`, onclick: () => removeSpell(r) }, icon('close')) : null)))))) : h('p', { class: 'muted ui text-sm' }, 'No spells chosen yet.'));
+      h('div', { class: 'ch-spell-id' },
+        h('div', { class: 'ch-spell-title' },
+          h('button', { class: 'ch-link-btn ch-spell-name', type: 'button', onclick: () => r.entry ? entryModal(r.entry) : toast('This spell is not in the SRD; see your book.') }, r.name),
+          r.always ? h('span', { class: 'badge badge-info', title: r.source || 'Always prepared' }, icon('lock'), 'always') : null,
+          r.entry?.concentration ? h('span', { class: 'badge', title: 'Concentration' }, 'C') : null,
+          r.entry?.ritual ? h('span', { class: 'badge', title: 'Ritual' }, 'R') : null,
+          r.issues.length ? h('span', { class: 'ch-spell-off', tabindex: 0, title: `Added anyway: ${r.issues.map((i) => i.text).join(' ')}`, 'aria-label': `Off-list: ${r.issues.map((i) => i.text).join(' ')}` }, 'off-list') : null),
+        spellMeta(r)),
+      spellFx(r, s),
+      !r.always && r.stored ? h('button', { class: 'btn-icon btn-sm ch-row-x', type: 'button', 'aria-label': `Remove ${r.name}`, title: 'Remove', onclick: () => removeSpell(r) }, icon('close')) : h('span', { class: 'ch-row-x', 'aria-hidden': 'true' })))));
+  })) : h('p', { class: 'muted ui text-sm' }, 'No spells chosen yet.'));
 }
 
 async function addSpells(s) {
@@ -461,21 +608,45 @@ async function addSpells(s) {
   const avail = sc ? availableSpells(S.char, sc.class) : null;
   const allowed = avail?.spells?.length ? new Set(avail.spells.map((e) => e.id)) : null;
   const max = avail?.maxLevel ?? sc?.maxSpellLevel ?? 9;
-  const have = new Set(S.char.spells.filter((x) => !sc || x.class === sc.class).map((x) => x.id));
+  const className = sc ? entryName('class', sc.class) : '';
+  // already known for this class: stored picks + always-prepared / granted spells (re-adding would hide "always")
+  const have = new Set([...S.char.spells, ...(Array.isArray(s.spells) ? s.spells : [])].filter((x) => (x.class || null) === (sc?.class || null)).map((x) => x.id));
+  const issuesOf = (e) => (sc ? spellIssues(e, sc, { className }) : []);
   const res = await openPicker('spell', {
-    title: sc ? `${entryName('class', sc.class)} spells (up to level ${max})` : 'Add spells',
+    title: sc ? `${className} spells (up to level ${max})` : 'Add spells',
     multi: true,
     filter: (e) => !have.has(e.id) && (!allowed || allowed.has(e.id)),
+    // Any spell may be added; the ones that don't fit get a notice first and an "off-list" mark on the sheet.
+    widen: sc ? { label: 'Show all spells', hint: `Include spells outside the ${className} list or above level ${max}. You’ll be told why they don’t fit and can add them anyway.`, filter: (e) => !have.has(e.id) } : null,
+    mark: sc ? (e) => { const is = issuesOf(e); return is.length ? { label: is.some((i) => i.code === 'not-on-list') ? 'off-list' : 'too high', title: is.map((i) => i.text).join(' ') } : null; } : null,
   });
-  const picked = [].concat(res || []).filter(Boolean);
+  let picked = [].concat(res || []).filter(Boolean);
   if (!picked.length) return;
+  // Compatibility notice (never blocks): list, slot level, cantrip / prepared limits, no spellcasting class
+  let plan = addSpellIssues(picked, sc, { className });
+  if (!sc) plan = plan.map((x) => ({ ...x, issues: [{ code: 'no-caster', text: s.innate?.length ? 'Not tied to a spellcasting class: it uses no class’s attack bonus or save DC.' : `${S.char.name || 'This character'} has no spellcasting class, so the sheet can’t show an attack bonus or save DC.` }] }));
+  const bad = plan.filter((x) => x.issues.length);
+  if (bad.length) {
+    const fits = plan.length - bad.length;
+    const choice = await choiceDlg(h('div', { class: 'stack stack-sm ch-offlist-notice' },
+      h('p', null, sc ? `${bad.length === 1 ? 'This spell doesn’t' : `${bad.length} of these spells don’t`} fit ${className} ${sc.classLevel ?? ''} as built:` : 'A heads-up before adding:'),
+      h('ul', { class: 'ui text-sm' }, bad.map((x) => h('li', null, h('strong', null, x.record.name), ` (${Number(x.record.level) ? `level ${x.record.level}` : 'cantrip'}) — `, x.issues.map((i) => i.text).join(' ')))),
+      h('p', { class: 'muted ui text-sm' }, 'You can still add them (a house rule, a scroll, a DM’s gift…). They get a small “off-list” mark on the sheet.')),
+    [{ label: 'Cancel', value: null, kind: 'ghost' }, fits ? { label: `Add only the ${fits} that fit`, value: 'fits' } : null, { label: bad.length === plan.length ? 'Add anyway' : 'Add all anyway', value: 'all', kind: 'primary' }].filter(Boolean),
+    { title: 'Not a usual pick for this build' });
+    if (!choice) return;
+    if (choice === 'fits') plan = plan.filter((x) => !x.issues.length);
+  }
+  picked = plan.map((x) => x.record);
   mutate((y) => {
-    for (const e of picked) {
-      if (y.spells.some((x) => x.id === e.id && x.class === (sc?.class || null))) continue;
-      y.spells.push({ id: e.id, class: sc?.class || null, prepared: true, always: false });
+    for (const x of plan) {
+      if (y.spells.some((z) => z.id === x.record.id && (z.class || null) === (sc?.class || null))) continue;
+      y.spells.push({ id: x.record.id, class: sc?.class || null, prepared: x.prepared, always: false });
     }
   });
-  toast(`Added ${picked.length} spell${picked.length === 1 ? '' : 's'}.`);
+  const off = plan.filter((x) => x.issues.some((i) => ['not-on-list', 'too-high', 'no-caster'].includes(i.code))).length;
+  const unprepared = plan.filter((x) => !x.prepared).length;
+  toast(`Added ${picked.length} spell${picked.length === 1 ? '' : 's'}${off ? ` (${off} off-list)` : ''}${unprepared ? `; ${unprepared} went into the spellbook unprepared (no room to prepare)` : ''}.`);
 }
 
 // ---------- features & resources ----------
@@ -753,9 +924,26 @@ function notes(c) {
 
 // ---------- level up & rests ----------
 
-function levelUp() {
+/** Level Up: chained once per due level when XP earned several (fromXp), else a single (milestone) level. */
+function levelUp({ fromXp = true } = {}) {
   flushPersist(S.id);
-  openLevelUp(S.char, { onApply: (next) => { replaceChar(next); toast(`${next.name || 'Character'} is now level ${totalLevel(next)}.`, { type: 'success' }); } });
+  levelUpFlow(S.char, { fromXp, onApply: (next) => { replaceChar(next); toast(`${next.name || 'Character'} is now level ${totalLevel(next)}.`, { type: 'success' }); } });
+}
+
+function levelDownDialog() {
+  flushPersist(S.id);
+  openLevelDown(S.char, { onApply: (next) => { replaceChar(next); toast(`${next.name || 'Character'} is now level ${totalLevel(next)}.`); } });
+}
+
+/** The Experience window (award / set XP; reaching a threshold opens Level Up). */
+function xpWindow(focus) {
+  flushPersist(S.id);
+  openXpWindow({
+    getChar: () => S.char, focus,
+    apply: (next) => replaceChar(next),
+    levelUp: ({ fromXp } = {}) => levelUp({ fromXp }),
+    levelDown: () => levelDownDialog(),
+  });
 }
 
 function shortRestDialog() {
