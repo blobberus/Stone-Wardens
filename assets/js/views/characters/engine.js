@@ -51,6 +51,7 @@ export { spellStats, spellIssues, addSpellIssues, onCasterList, parseDice, rollD
 export { isBonusActionSpell, bonusActionOptions, bonusActionFeatures, featureHealing, offhandAttacks } from './engine-actions.js';
 export { entryFit, weaponFit, armorFit, toolFit, focusFor, attunementFit, spellFit } from './engine-prof.js';
 export { TAGS, TAG_IDS, featureTags, normalizeTags, customAbilityRecords, tagFeatures, advantageSources, attacksPerAction } from './engine-tags.js';
+export { FAV_KINDS, featureFavKey, customAbilityIds, normalizeFavorites, isFavorite, toggleFavorite, hasFavorites, favoritesFirst, removeAbilityFavorites } from './engine-favs.js';
 export const ENGINE_VERSION = 1;
 
 const ensureRules = (rules) => (rules && rules.classById ? rules : buildRules(rules || {}));

@@ -30,6 +30,9 @@ import { lastLeveledClass } from './engine-xp.js';
 // Debuffed values, highlight colour and proficiency marks (abilities / skills / combat / attacks / nav)
 import { adjustedValue, accentAttrs, profMark } from './widgets.js';
 import { getSetting, setSetting } from '../../core/settings.js';
+// Favourites (stars on items, weapons, skills, features; the Favourites tab)
+import { featureFavKey, isFavorite, toggleFavorite, favoritesFirst } from './engine-favs.js';
+import { abilityName } from './data.js';
 
 const S = { root: null, id: null, char: null, sheet: null, stale: false, notesEditing: false, openFeatures: new Set() };
 
@@ -445,13 +448,62 @@ function passive(s) {
       s.senses ? [h('dt', null, 'Senses'), h('dd', null, Array.isArray(s.senses) ? s.senses.join(', ') : typeof s.senses === 'object' ? Object.entries(s.senses).map(([k, v]) => `${prettify(k)} ${v} ft.`).join(', ') : String(s.senses))] : null));
 }
 
+// ---------- favourites: a star in each entry's own menu, a star in its row, listed first, the Favourites tab ----------
+
+/** Ids starred for one kind ('items' | 'skills' | 'features') as a Set. */
+const favSet = (c, kind) => new Set(c.favorites?.[kind] || []);
+
+/** The small filled gold star shown before a favourite's name in its row. */
+const favMark = () => h('span', { class: 'ch-fav-mark', title: 'Favourite', 'aria-label': 'Favourite', role: 'img' }, icon('star'));
+
+/** "Favourite" toggle for an entry's own menu (modal or expanded row): saves at once and repaints itself. */
+function favButton(kind, key, what) {
+  const btn = h('button', { class: 'btn btn-sm ch-fav-btn', type: 'button', 'data-fk': `fav-${kind}-${key}` });
+  const paint = () => {
+    const on = isFavorite(S.char, kind, key);
+    btn.classList.toggle('is-active', on);
+    btn.setAttribute('aria-pressed', String(on));
+    btn.title = on ? `Remove ${what} from your favourites` : `Star ${what}: it is listed first and in the Favourites tab`;
+    mount(btn, icon('star'), on ? 'Favourite' : 'Add to favourites');
+  };
+  btn.addEventListener('click', () => { mutate((x) => { toggleFavorite(x, kind, key); }); paint(); });
+  paint();
+  return btn;
+}
+
+/** Row for the top of an entry modal holding its Favourite toggle. */
+const favRow = (kind, key, what) => h('div', { class: 'ch-fav-row' }, favButton(kind, key, what));
+
+/** A skill's own menu: what it covers, the numbers, roll, and the Favourite toggle. */
+function skillModal(sk) {
+  const s = S.sheet;
+  const x = s.skills[sk.id];
+  if (!x) return;
+  const lvl = x.expertise ? 'expertise' : x.prof ? 'proficient' : x.half ? 'half' : 'none';
+  const desc = sk.description || skillList().find((k) => k.id === sk.id)?.description || '';
+  openModal({
+    title: sk.name,
+    body: h('div', { class: 'stack ch-skill-info' },
+      favRow('skills', sk.id, sk.name),
+      h('dl', { class: 'ch-dl' },
+        h('dt', null, 'Ability'), h('dd', null, abilityName(x.ability || sk.ability)),
+        h('dt', null, 'Proficiency'), h('dd', null, profMark(lvl), ' ', profTitle(lvl, s.proficiencyInfo?.skills?.[sk.id])),
+        h('dt', null, 'Bonus'), h('dd', { class: 'num' }, adjustedValue(s, `skill:${sk.id}`, fmt(x.bonus)))),
+      desc ? md(desc) : null,
+      h('p', { class: 'muted ui text-sm' }, h('a', { href: editHref('proficiencies') }, 'Change proficiency or expertise'), ' in Edit all.')),
+    actions: [{ label: 'Close', kind: 'ghost' }, { label: `Roll ${sk.name}`, kind: 'primary', onClick: () => rollToast(sk.name, x.bonus) }],
+  });
+}
+
 // Compact skill list (D&D Beyond sizing): mark · ability · name · bonus box. "Proficient only" folds it (per device).
+// The name opens the skill's menu (Favourite toggle); favourites are listed first and stay when folded.
 function skills(c, s) {
   const info = s.proficiencyInfo?.skills || {};
   const level = (x) => (x.expertise ? 'expertise' : x.prof ? 'proficient' : x.half ? 'half' : 'none');
-  const all = skillList().map((sk) => ({ sk, x: s.skills[sk.id] }));
+  const favs = favSet(c, 'skills');
+  const all = favoritesFirst(skillList().map((sk) => ({ sk, x: s.skills[sk.id] })), ({ sk }) => favs.has(sk.id));
   const folded = !!getSetting('chSkillsFolded') && all.some(({ x }) => x.prof || x.expertise);
-  const rows = folded ? all.filter(({ x }) => x.prof || x.expertise) : all;
+  const rows = folded ? all.filter(({ sk, x }) => x.prof || x.expertise || favs.has(sk.id)) : all;
   return section('skills', 'Skills', {
     iconName: 'compass', attrs: accentAttrs(c), className: 'ch-sec-skills',
     actions: [
@@ -462,10 +514,11 @@ function skills(c, s) {
       h('a', { class: 'btn-icon btn-sm', href: editHref('proficiencies'), title: 'Change proficiency and expertise (Edit all)', 'aria-label': 'Change skill proficiencies' }, icon('edit'))],
   },
   h('div', { class: 'ch-skl-head ui', 'aria-hidden': 'true' }, h('span', null, 'Prof'), h('span', null, 'Mod'), h('span', null, 'Skill'), h('span', null, 'Bonus')),
-  h('ul', { class: 'ch-skl', role: 'list', 'aria-label': 'Skills' }, rows.map(({ sk, x }) => h('li', { class: ['ch-skl-row', x.prof && 'is-prof'], 'data-stat': sk.id },
+  h('ul', { class: 'ch-skl', role: 'list', 'aria-label': 'Skills' }, rows.map(({ sk, x }) => h('li', { class: ['ch-skl-row', x.prof && 'is-prof', favs.has(sk.id) && 'is-fav'], 'data-stat': sk.id },
     profMark(level(x), { title: profTitle(level(x), info[sk.id]) }),
     h('span', { class: 'ch-skl-ab ui' }, String(x.ability || sk.ability).toUpperCase()),
-    h('span', { class: 'ch-skl-name' }, sk.name),
+    h('button', { class: 'ch-skl-name', type: 'button', title: `${sk.name}: details and Favourite`, 'data-fk': `skl-${sk.id}`, onclick: () => skillModal(sk) },
+      favs.has(sk.id) ? favMark() : null, sk.name),
     h('button', { class: 'ch-skl-bonus', type: 'button', onclick: () => rollToast(sk.name, x.bonus) }, h('span', { class: 'sr-only' }, `Roll ${sk.name} `), adjustedValue(s, `skill:${sk.id}`, fmt(x.bonus)))))),
   h('p', { class: 'ch-plegend ui text-xs' },
     h('span', null, profMark('proficient'), 'Proficient'), h('span', null, profMark('expertise'), 'Expertise'),
@@ -499,7 +552,8 @@ function proficiencies(c, s) {
 const TABS = new Map(); // character id -> last open tab (this session)
 
 function actionTabs(c, s) {
-  const list = [['attacks', 'Attacks', attacks(c, s)], ['spells', 'Spells', spells(c, s)], ['bonus-actions', 'Bonus actions', bonusActions(c, s)]].filter(([, , el]) => el);
+  const list = [['favorites', [h('span', { class: 'ch-tab-star', 'aria-hidden': 'true' }, icon('star')), h('span', { class: 'ch-tab-label' }, 'Favourites')], favoritesTab(c, s)],
+    ['attacks', 'Attacks', attacks(c, s)], ['spells', 'Spells', spells(c, s)], ['bonus-actions', 'Bonus actions', bonusActions(c, s)]].filter(([, , el]) => el);
   let cur = TABS.get(S.id);
   if (!list.some(([id]) => id === cur)) cur = list[0][0];
   const keys = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
@@ -534,10 +588,66 @@ function selectTab(id, { focus = false } = {}) {
   win.querySelectorAll('[role="tabpanel"]').forEach((p) => { p.hidden = p.dataset.tab !== id; });
 }
 
+/** "+5 to hit" and "1d8+3 Slashing" roll chips for an attack row. */
+function attackChips(a, label) {
+  return [
+    h('button', { class: 'ch-spell-chip ch-spell-hit', type: 'button', title: `Roll to hit with ${label}`, onclick: () => rollToast(`${label} to hit`, a.bonus) }, h('span', { class: 'num' }, fmt(a.bonus)), h('span', { class: 'ch-spell-chip-label' }, 'to hit')),
+    a.damage ? h('button', { class: 'ch-spell-chip ch-spell-dmg', type: 'button', title: 'Roll damage', onclick: () => rollPlain(label, a.damage, a.damageType) }, h('span', { class: 'num' }, `${a.damage} ${prettify(a.damageType || '')}`.trim())) : null];
+}
+
+/**
+ * Favourites tab: starred weapons (equipped ones roll from here), skills, other items and features, in the order
+ * they were starred. Null (no tab) while nothing starred still exists on the sheet.
+ */
+function favoritesTab(c, s) {
+  const fav = c.favorites || {};
+  const items = (fav.items || []).map((uid) => c.inventory.find((i) => i.uid === uid)).filter(Boolean);
+  const atkByUid = new Map(s.attacks.filter((a) => a.uid).map((a) => [a.uid, a]));
+  const weapons = items.filter((it) => atkByUid.has(it.uid));
+  const others = items.filter((it) => !atkByUid.has(it.uid));
+  const skillsList = (fav.skills || []).map((id) => skillList().find((k) => k.id === id)).filter((sk) => sk && s.skills[sk.id]);
+  const featByKey = new Map(s.features.map((f) => [featureFavKey(f), f]));
+  const feats = (fav.features || []).map((k) => featByKey.get(k)).filter(Boolean);
+  if (!weapons.length && !others.length && !skillsList.length && !feats.length) return null;
+  const resByKey = new Map(s.resources.map((r) => [r.key, r]));
+  const resOf = (f) => (f.uses && typeof f.uses === 'object' && f.uses.key && resByKey.get(f.uses.key)) || (typeof f.uses === 'string' && resByKey.get(f.uses)) || resByKey.get(f.id) || null;
+  const itemName = (it) => {
+    const e = findEntry(it.kind, it.ref);
+    return e ? h('button', { class: 'ch-link-btn ch-ba-name', type: 'button', onclick: () => entryInfo(e, { item: it }) }, it.name || e.name)
+      : h('button', { class: 'ch-link-btn ch-ba-name', type: 'button', onclick: () => editItem(it) }, it.name || prettify(it.ref));
+  };
+  const group = (title, sub, list) => h('div', { class: 'ch-ba-group ch-fav-group' },
+    h('h4', { class: 'ch-mini-head ch-spell-lvl-head' }, title, sub ? h('span', { class: 'ch-spell-lvl-sub' }, sub) : null), list);
+  return section('favorites', 'Favourites', { iconName: 'star', className: 'ch-sec-favs', sub: 'Star an entry in its own menu to keep it here.' },
+    weapons.length ? group('Weapons', 'equipped', h('ul', { class: 'ch-ba-list', role: 'list' }, weapons.map((it) => {
+      const a = atkByUid.get(it.uid);
+      return h('li', { class: 'ch-ba ch-ba-row', 'data-stat': `fav-${it.uid}` }, itemName(it), h('span', { class: 'ch-ba-chips' }, attackChips(a, a.name)));
+    }))) : null,
+    skillsList.length ? group('Skills', 'click to roll', h('div', { class: 'ch-fav-skills' }, skillsList.map((sk) => {
+      const x = s.skills[sk.id];
+      return h('button', { class: ['ch-spell-chip', 'ch-fav-skill', (x.prof || x.expertise) && 'is-prof'], type: 'button', title: `Roll ${sk.name}`, 'data-fk': `fav-roll-${sk.id}`, onclick: () => rollToast(sk.name, x.bonus) },
+        h('span', null, sk.name), h('span', { class: 'num' }, fmt(x.bonus)));
+    }))) : null,
+    others.length ? group('Items', null, h('ul', { class: 'ch-ba-list', role: 'list' }, others.map((it) => h('li', { class: 'ch-ba ch-ba-row', 'data-stat': `fav-${it.uid}` },
+      h('span', { class: 'ch-ba-name' }, itemName(it), Number(it.qty) !== 1 ? h('span', { class: 'ch-inv-kind' }, `× ${it.qty}`) : null),
+      h('span', { class: 'ch-ba-chips' },
+        it.kind === 'weapon' && !it.equipped ? h('span', { class: 'badge', title: 'Tick Equipped in the inventory to roll its attack here' }, 'not equipped') : null,
+        it.equipped && it.kind !== 'weapon' ? h('span', { class: 'badge' }, 'equipped') : null,
+        it.attuned ? h('span', { class: 'badge badge-accent' }, 'attuned') : null,
+        h('button', { class: 'btn-icon btn-sm', type: 'button', 'aria-label': `Edit ${it.name}`, title: 'Edit', onclick: () => editItem(it) }, icon('edit'))))))) : null,
+    feats.length ? group('Features & traits', null, h('ul', { class: 'ch-ba-list', role: 'list' }, feats.map((f) => {
+      const res = resOf(f);
+      return h('li', { class: 'ch-ba ch-ba-row', 'data-stat': `fav-${f.id || f.name}` },
+        h('span', { class: 'ch-ba-name' }, h('button', { class: 'ch-link-btn', type: 'button', onclick: () => featureModal(f) }, f.name), f.source ? h('span', { class: 'badge' }, f.source) : null),
+        res ? h('span', { class: 'ch-ba-chips' }, resourcePips(res, false, '-fav')) : null);
+    }))) : null);
+}
+
 // ---------- attacks ----------
 
 function attacks(c, s) {
-  const rows = s.attacks;
+  const favs = favSet(c, 'items');
+  const rows = favoritesFirst(s.attacks, (a) => a.uid && favs.has(a.uid));
   return section('attacks', 'Attacks', {
     iconName: 'sword',
     actions: [h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => addItems(['weapon']) }, icon('plus'), 'Weapon')],
@@ -551,7 +661,8 @@ function attacks(c, s) {
       const range = typeof a.range === 'object' && a.range ? `${a.range.normal}${a.range.long ? `/${a.range.long}` : ''} ft` : a.range || '';
       const notesText = Array.isArray(a.notes) ? a.notes.join(' · ') : a.notes || '';
       return h('tr', { 'data-stat': a.uid || (a.unarmed ? 'unarmed' : null), class: a.proficient === false ? 'is-unproficient' : null },
-        h('td', { class: 'cell-name' }, entry ? h('button', { class: 'ch-link-btn', type: 'button', onclick: () => entryInfo(entry, { item }) }, a.name) : a.name,
+        h('td', { class: 'cell-name' }, a.uid && favs.has(a.uid) ? favMark() : null,
+          entry ? h('button', { class: 'ch-link-btn', type: 'button', onclick: () => entryInfo(entry, { item }) }, a.name) : a.name,
           a.properties?.length ? h('div', { class: 'ch-props' }, a.properties.map((p, pi) => h('span', { class: 'ch-prop', title: propertyInfo(p)?.description?.slice(0, 300) || null }, a.propertyNames?.[pi] || prettify(p)))) : null),
         h('td', { class: 'num' }, h('button', { class: 'ch-link-btn num ch-bonus', type: 'button', onclick: () => rollToast(`${a.name} to hit`, a.bonus) },
           h('span', { class: 'sr-only' }, `Roll to hit with ${a.name} `), adjustedValue(s, `attack:${a.uid || (a.unarmed ? 'unarmed' : '')}`, typeof a.bonus === 'number' ? fmt(a.bonus) : String(a.bonus ?? '')))),
@@ -757,9 +868,7 @@ function bonusActions(c, s) {
   const resOf = (f) => (f.uses && typeof f.uses === 'object' && f.uses.key && resByKey.get(f.uses.key)) || (typeof f.uses === 'string' && resByKey.get(f.uses)) || resByKey.get(f.id) || null;
   const off = offhandAttacks(s);
   const unarmed = s.attacks.find((a) => a.unarmed);
-  const atkChips = (a, label) => [
-    h('button', { class: 'ch-spell-chip ch-spell-hit', type: 'button', title: `Roll to hit with ${label}`, onclick: () => rollToast(`${label} to hit`, a.bonus) }, h('span', { class: 'num' }, fmt(a.bonus)), h('span', { class: 'ch-spell-chip-label' }, 'to hit')),
-    a.damage ? h('button', { class: 'ch-spell-chip ch-spell-dmg', type: 'button', title: 'Roll damage', onclick: () => rollPlain(label, a.damage, a.damageType) }, h('span', { class: 'num' }, `${a.damage} ${prettify(a.damageType || '')}`.trim())) : null];
+  const atkChips = attackChips;
   const featItem = ({ feature: f, options }) => {
     const res = resOf(f);
     const heal = options.map((o) => featureHealing(o.text, s.classes)).find(Boolean);
@@ -809,7 +918,8 @@ function rollPlain(label, dice, type = null, bonus = 0) {
 function featureModal(f) {
   openModal({
     title: f.name, wide: true,
-    body: h('div', { class: 'stack' }, f.source ? h('p', { class: 'muted ui text-sm' }, f.source) : null, md(f.description, { empty: 'No description.' })),
+    body: h('div', { class: 'stack' }, favRow('features', featureFavKey(f), f.name),
+      f.source ? h('p', { class: 'muted ui text-sm' }, f.source) : null, md(f.description, { empty: 'No description.' })),
     actions: [{ label: 'Close', kind: 'ghost' }],
   });
 }
@@ -915,7 +1025,10 @@ function features(c, s) {
   const resByKey = new Map(s.resources.map((r) => [r.key, r]));
   const tagging = featureTagging(c, s);
   const tagsOf = new Map(tagging.tagged.map((x) => [x.feature, x.tags]));
-  const item = (f) => feature(f, choiceByKey, resByKey, tagsOf.get(f) || []);
+  const favs = favSet(c, 'features');
+  const isFav = (f) => favs.has(featureFavKey(f));
+  const item = (f) => feature(f, choiceByKey, resByKey, tagsOf.get(f) || [], isFav(f));
+  const favFirst = (list) => favoritesFirst(list, isFav);
   const seg = h('div', { class: 'ch-seg ch-feat-views', role: 'group', 'aria-label': 'Features view' },
     [['all', 'All'], ['smart', 'Smart']].map(([id, label]) => h('button', {
       class: ['ch-seg-btn', v.view === id && 'is-active'], type: 'button', 'aria-pressed': String(v.view === id), 'data-fk': `feat-view-${id}`,
@@ -924,7 +1037,7 @@ function features(c, s) {
     }, label)));
   let body;
   if (!s.features.length) body = h('p', { class: 'muted ui text-sm' }, 'No features yet. Choose a class, species and background.');
-  else if (v.view === 'smart') body = smartFeatures(c, s, tagging, item, v.tag);
+  else if (v.view === 'smart') body = smartFeatures(c, s, tagging, item, v.tag, favFirst);
   else {
     const groups = new Map();
     for (const f of s.features) {
@@ -934,7 +1047,7 @@ function features(c, s) {
     }
     body = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, g]) => h('div', { class: 'ch-feat-group' },
       h('h3', { class: 'ch-feat-group-title' }, g.label, h('span', { class: 'ch-feat-count' }, String(g.list.length))),
-      h('div', { class: 'ch-feat-cols' }, g.list.map(item))));
+      h('div', { class: 'ch-feat-cols' }, favFirst(g.list).map(item))));
   }
   return section('features', 'Features & traits', {
     iconName: 'scroll',
@@ -946,7 +1059,7 @@ function features(c, s) {
 }
 
 /** Smart view: tag chips with counts, then the character's related numbers and the matching features. */
-function smartFeatures(c, s, tagging, item, tag) {
+function smartFeatures(c, s, tagging, item, tag, favFirst = (l) => l) {
   const untagged = tagging.tagged.filter((x) => !x.tags.length).map((x) => x.feature);
   const ALWAYS = new Set(['magic', 'attack', 'weaponry', 'leveling', 'interaction', 'advantages', 'defense']);
   const tags = [...TAGS.filter((t) => ALWAYS.has(t.id) || tagging.counts[t.id]), ...(untagged.length ? [{ id: 'other', label: 'Other', hint: 'No smart tag' }] : [])];
@@ -959,7 +1072,7 @@ function smartFeatures(c, s, tagging, item, tag) {
       onclick: () => setFeatView({ view: 'smart', tag: t.id }),
     }, t.label, h('span', { class: 'ch-smart-n num' }, String(t.id === 'other' ? untagged.length : tagging.counts[t.id] || 0))))),
     aspects ? h('div', { class: 'ch-aspects', 'aria-label': 'On your sheet' }, aspects) : null,
-    list.length ? h('div', { class: 'ch-feat-group' }, h('div', { class: 'ch-feat-cols' }, list.map(item)))
+    list.length ? h('div', { class: 'ch-feat-group' }, h('div', { class: 'ch-feat-cols' }, favFirst(list).map(item)))
       : h('p', { class: 'muted ui text-sm' }, `No features tagged ${tags.find((t) => t.id === cur)?.label || cur} yet.`));
 }
 
@@ -1053,7 +1166,7 @@ function setAllFeatures(open) {
   S.root.querySelectorAll('details.ch-feat').forEach((d) => { d.open = open; });
 }
 
-function feature(f, choiceByKey, resByKey, tags = []) {
+function feature(f, choiceByKey, resByKey, tags = [], fav = false) {
   const fid = f.id || f.name;
   const res = (f.uses && typeof f.uses === 'object' && f.uses.key && resByKey.get(f.uses.key)) || (typeof f.uses === 'string' && resByKey.get(f.uses)) || resByKey.get(f.id) || null;
   const choice = f.choiceKey ? choiceByKey.get(f.choiceKey) : null;
@@ -1073,6 +1186,7 @@ function feature(f, choiceByKey, resByKey, tags = []) {
   };
   const det = h('details', { class: 'ch-feat', 'data-stat': fid, open: S.openFeatures.has(fid) },
     h('summary', null,
+      fav ? favMark() : null,
       h('span', { class: 'ch-feat-name' }, f.name),
       f.levels?.length > 1 ? h('span', { class: 'badge' }, `Lv ${f.levels.join(', ')}`) : f.level ? h('span', { class: 'badge' }, `Lv ${f.level}`) : null,
       f.via ? h('span', { class: 'ch-feat-pick' }, `via ${f.via}`) : null,
@@ -1080,7 +1194,9 @@ function feature(f, choiceByKey, resByKey, tags = []) {
       h('span', { class: 'spacer' }),
       res ? resourcePips(res, true) : null),
     body,
-    choice ? h('div', { class: 'ch-feat-choice row' }, h('button', { class: 'btn btn-sm', type: 'button', onclick: () => openChoice(choice) }, icon('edit'), picks ? 'Change choice' : 'Choose')) : null);
+    // The open row is the feature's own menu: its Favourite toggle (repaints the sheet) and, if any, its choice
+    h('div', { class: 'ch-feat-choice row' }, favButton('features', featureFavKey(f), f.name),
+      choice ? h('button', { class: 'btn btn-sm', type: 'button', onclick: () => openChoice(choice) }, icon('edit'), picks ? 'Change choice' : 'Choose') : null));
   det.addEventListener('toggle', () => { if (det.open) { S.openFeatures.add(fid); fill(); } else S.openFeatures.delete(fid); });
   if (det.open) fill();
   return det;
@@ -1101,16 +1217,16 @@ function openChoice(choice) {
   });
 }
 
-function resourcePips(r, compact = false) {
+function resourcePips(r, compact = false, fkSuffix = compact ? '-c' : '') {
   const max = Number(r.max) || 0;
   if (!max) return null;
   const set = (u) => mutate((y) => { y.resourcesUsed[r.key] = Math.max(0, Math.min(max, u)); });
   if (max > 10) {
     return h('span', { class: 'ch-res-num', onclick: (e) => { if (compact) e.preventDefault(); e.stopPropagation(); } },
-      numberInput(Math.max(0, max - (r.used || 0)), (v) => set(max - (v ?? max)), { class: 'input input-sm ch-w-num', min: 0, max, 'aria-label': `${r.label} remaining`, 'data-fk': `res-${r.key}${compact ? '-c' : ''}` }),
+      numberInput(Math.max(0, max - (r.used || 0)), (v) => set(max - (v ?? max)), { class: 'input input-sm ch-w-num', min: 0, max, 'aria-label': `${r.label} remaining`, 'data-fk': `res-${r.key}${fkSuffix}` }),
       h('span', { class: 'muted ui text-xs' }, ` / ${max}`));
   }
-  const p = pips({ max, used: r.used, label: r.label, fk: `res-${r.key}${compact ? '-c' : ''}`, onChange: set });
+  const p = pips({ max, used: r.used, label: r.label, fk: `res-${r.key}${fkSuffix}`, onChange: set });
   if (compact) p.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); });
   return p;
 }
@@ -1156,12 +1272,13 @@ function fitBlock(entry, opts) {
     f.lines.length ? h('ul', { class: 'ch-fit-lines', role: 'list' }, f.lines.map((l) => h('li', { class: `is-${l.tone}` }, l.text))) : null);
 }
 
-/** Entry modal from the sheet: what this means for the character, then the stat block. */
+/** Entry modal from the sheet: what this means for the character, then the stat block (+ Favourite for an owned item). */
 function entryInfo(entry, opts = {}) {
   if (!entry) return null;
+  const it = opts.item && S.char?.inventory.some((x) => x.uid === opts.item.uid) ? opts.item : null;
   return openModal({
     title: entry.name, wide: true,
-    body: h('div', { class: 'ch-entry-info' }, fitBlock(entry, opts), renderEntry(entry)),
+    body: h('div', { class: 'ch-entry-info' }, it ? favRow('items', it.uid, it.name || entry.name) : null, fitBlock(entry, opts), renderEntry(entry)),
     actions: [{ label: 'Close', kind: 'ghost' }],
   });
 }
@@ -1207,6 +1324,7 @@ function itemWeight(it) {
 }
 
 function inventory(c, s) {
+  const favs = favSet(c, 'items');
   const attuned = c.inventory.filter((i) => i.attuned).length;
   const enc = s.encumbrance;
   const carried = Number(enc.carried ?? c.inventory.reduce((n, i) => n + itemWeight(i), 0)) || 0;
@@ -1224,7 +1342,7 @@ function inventory(c, s) {
     h('span', { class: attuned > 3 ? 'danger-text' : 'muted' }, `Attuned ${attuned}/3`)),
   c.inventory.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'table table-dense ch-inv' },
     h('thead', null, h('tr', null, h('th', { class: 'center', title: 'Equipped' }, 'Equip'), h('th', { class: 'center', title: 'Attuned' }, 'Attune'), h('th', null, 'Item'), h('th', { class: 'num' }, 'Qty'), h('th', { class: 'num' }, 'Weight'), h('th', { class: 'cell-actions' }, h('span', { class: 'sr-only' }, 'Actions')))),
-    h('tbody', null, c.inventory.map((it) => {
+    h('tbody', null, favoritesFirst(c.inventory, (it) => favs.has(it.uid)).map((it) => {
       const e = findEntry(it.kind, it.ref);
       const resolved = (s.items || []).find((x) => x.uid === it.uid);
       const canAttune = !!(resolved?.requiresAttunement || e?.attunement || it.custom?.attunement || it.attuned);
@@ -1232,7 +1350,7 @@ function inventory(c, s) {
       return h('tr', { 'data-stat': it.uid, class: it.equipped ? 'is-equipped' : null },
         h('td', { class: 'center' }, canEquip ? h('input', { type: 'checkbox', class: 'checkbox', checked: !!it.equipped, 'aria-label': `Equip ${it.name}`, 'data-fk': `eq-${it.uid}`, onchange: (ev) => mutate((y) => { const t = y.inventory.find((x) => x.uid === it.uid); if (t) t.equipped = ev.target.checked; }) }) : null),
         h('td', { class: 'center' }, canAttune ? h('input', { type: 'checkbox', class: 'checkbox', checked: !!it.attuned, 'aria-label': `Attune ${it.name}`, 'data-fk': `at-${it.uid}`, onchange: (ev) => mutate((y) => { const t = y.inventory.find((x) => x.uid === it.uid); if (t) t.attuned = ev.target.checked; }) }) : null),
-        h('td', { class: 'cell-name' },
+        h('td', { class: 'cell-name' }, favs.has(it.uid) ? favMark() : null,
           e ? h('button', { class: 'ch-link-btn', type: 'button', onclick: () => entryInfo(e, { item: it }) }, it.name || e.name) : (it.name || prettify(it.ref)),
           h('span', { class: 'ch-inv-kind' }, [e ? entryKindLabel(e) : prettify(it.kind), e?.origin === 'custom' ? 'custom' : ''].filter(Boolean).join(' · ')),
           it.notes ? h('div', { class: 'ch-inv-notes' }, mdInline(it.notes)) : null),
@@ -1240,7 +1358,7 @@ function inventory(c, s) {
         h('td', { class: 'num cell-muted' }, itemWeight(it) ? `${round(itemWeight(it))} lb` : '—'),
         h('td', { class: 'cell-actions' },
           h('button', { class: 'btn-icon btn-sm', type: 'button', 'aria-label': `Edit ${it.name}`, title: 'Edit', onclick: () => editItem(it) }, icon('edit')),
-          h('button', { class: 'btn-icon btn-sm', type: 'button', 'aria-label': `Remove ${it.name}`, title: 'Remove', onclick: async () => { if (await confirmDialog(`Remove ${it.name} from the inventory?`, { okLabel: 'Remove', danger: true })) mutate((y) => { y.inventory = y.inventory.filter((x) => x.uid !== it.uid); }); } }, icon('trash'))));
+          h('button', { class: 'btn-icon btn-sm', type: 'button', 'aria-label': `Remove ${it.name}`, title: 'Remove', onclick: async () => { if (await confirmDialog(`Remove ${it.name} from the inventory?`, { okLabel: 'Remove', danger: true })) mutate((y) => { y.inventory = y.inventory.filter((x) => x.uid !== it.uid); toggleFavorite(y, 'items', it.uid, false); }); } }, icon('trash'))));
     })))) : h('div', { class: 'empty-state ch-inv-empty' }, icon('backpack'), h('p', null, 'The pack is empty. Add weapons, armor, gear or magic items from the library, or create your own.')));
 }
 
@@ -1264,6 +1382,7 @@ function editItem(it) {
   openModal({
     title: `Edit ${it.name}`, wide: true,
     body: h('div', { class: 'stack' },
+      favRow('items', it.uid, it.name || e?.name || 'this item'), // saved at once, like the sheet's own ticks
       h('div', { class: 'field-grid' },
         field('Name', input({ value: draft.name || '', onchange: (ev) => { draft.name = ev.target.value; } })),
         field('Quantity', numberInput(draft.qty, (v) => { draft.qty = Math.max(0, v ?? 0); }, { min: 0 })),

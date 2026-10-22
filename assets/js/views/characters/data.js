@@ -3,6 +3,7 @@
 import { store } from '../../core/store.js';
 import { nameKey, clone } from '../../core/util.js';
 import { getSetting } from '../../core/settings.js';
+import { normalizeFavorites } from './engine-favs.js';
 
 export const VIEW = 'characters';
 export const DIR = 'content/characters';
@@ -115,6 +116,7 @@ export function blankCharacter({ name = '', player = '' } = {}) {
     hp: { current: null, temp: 0 }, hitDiceUsed: {}, deathSaves: { success: 0, fail: 0 },
     resourcesUsed: {}, conditions: [], exhaustion: 0, heroicInspiration: false, xp: 0,
     abilities: [],
+    favorites: { items: [], skills: [], features: [] }, // starred entries (engine-favs.js)
     overrides: {
       ac: null, speed: null, initiative: null, hpMax: null, profBonus: null, passivePerception: null, abilities: {}, saves: {}, skills: {},
       proficiency: { skills: {}, saves: {} }, // Edit all: {skills:{stealth:'none'|'proficient'|'expertise'}, saves:{dex:true|false}}
@@ -146,6 +148,7 @@ export function normalize(doc) {
   out.slotsUsed = Array.from({ length: 9 }, (_, i) => Number(out.slotsUsed?.[i]) || 0);
   out.classes = out.classes.filter((c) => c && c.id).map((c) => ({ ...c, level: Math.max(1, Number(c.level) || 1), hp: Array.isArray(c.hp) ? c.hp : [] }));
   out.inventory = out.inventory.filter(Boolean).map((it) => ({ qty: 1, equipped: false, attuned: false, notes: '', custom: null, ...it, uid: it.uid || shortId() }));
+  out.favorites = normalizeFavorites(d.favorites, out); // drops stars of deleted items / removed custom abilities
   return out;
 }
 

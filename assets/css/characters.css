@@ -773,6 +773,36 @@ div.ch-optcard { cursor: default; }
   .ch-kind-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* ---------- favourites ---------- */
+/* Star toggle in an entry's own menu (gold outline, filled when starred; no tinted backdrop), the small star in a
+   favourite's row, the Favourites tab of the actions window. i-star takes --icon-fill. */
+.ch-fav-row { display: flex; align-items: center; gap: var(--space-2); }
+.ch-fav-btn .icon { width: 18px; height: 18px; color: var(--gold); }
+.ch-fav-btn.is-active { border-color: var(--gold); --icon-fill: var(--gold); }
+.ch-fav-btn:not(.is-active):hover .icon { --icon-fill: color-mix(in srgb, var(--gold) 30%, transparent); }
+.ch-fav-mark { display: inline-flex; flex: none; margin-right: 4px; vertical-align: -0.15em; color: var(--gold); --icon-fill: var(--gold); }
+.ch-fav-mark .icon { width: 14px; height: 14px; }
+.ch-tab-star { display: inline-flex; margin-right: 5px; vertical-align: -0.2em; color: var(--gold); --icon-fill: var(--gold); }
+.ch-tab-star .icon { width: 15px; height: 15px; }
+/* Phones: four tabs don't fit, so Favourites keeps only its star (the word stays for screen readers) */
+@media (max-width: 479px) {
+  .ch-tab[data-tab="favorites"] .ch-tab-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  .ch-tab[data-tab="favorites"] .ch-tab-star { margin-right: 0; }
+  .ch-tab[data-tab="favorites"] .ch-tab-star .icon { width: 18px; height: 18px; }
+}
+.ch-fav-skills { display: flex; flex-wrap: wrap; gap: 6px; }
+.ch-fav-skill { gap: 8px; }
+.ch-fav-skill.is-prof > span:first-child { font-weight: 700; }
+.ch-fav-group .ch-ba-name .ch-inv-kind { margin-left: 6px; }
+/* Skill names open the skill's menu */
+button.ch-skl-name {
+  display: block; min-width: 0; padding: 0; margin: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer;
+  text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 0.2em;
+}
+button.ch-skl-name:hover { color: var(--link); text-decoration-color: currentColor; }
+button.ch-skl-name:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-radius: var(--radius-sm); }
+.ch-skill-info .ch-dl { margin: 0; }
+
 /* ---------- xp & levels ---------- */
 /* Header meter (xp.js), Experience window, milestone / level-down dialogs (levelup.js) */
 .ch-xp-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-2); min-width: 0; }

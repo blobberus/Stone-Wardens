@@ -123,6 +123,11 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   conditions show as chips in the HP widget) -> narrow column skills, senses, proficiencies (foldable) | wide column actions window (tabs
   Attacks / Spells / Bonus actions),
   resources, inventory, currency -> features (All | Smart tag view) -> details, notes. Tuned for the collapsed sidebar (container queries).
+- Favourites: doc field `favorites {items: [inventory uid], skills: [skill id], features: ['<sourceType>:<id>']}`
+  (pure helpers in `engine-favs.js`, normalized in data.js `normalize`). A gold-star "Favourite" toggle sits in each
+  entry's own menu (item edit + info modals, skill modal from the skill name, expanded feature row, feature modal);
+  starred entries show a star in their row, sort first in their list, and fill a "Favourites" tab placed first in the
+  actions window (shown only when something starred exists; star-only label on phones).
 
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).

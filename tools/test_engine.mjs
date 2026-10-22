@@ -497,6 +497,46 @@ section('Debuffs: exhaustion, conditions, penalties (sheet.adjust)');
 }
 
 // ------------------------------------------------------------------------------------------------
+section('Favourites (engine-favs.js)');
+{
+  const doc = {
+    inventory: [inv('w1', 'weapon', 'longsword'), inv('g1', 'gear', 'rope-hempen')],
+    abilities: [{ name: 'Grit' }, { ref: 'ability/stoneborn-grit' }, { id: 'luck-x1', name: 'Luck' }, { name: 'Hex' }],
+    favorites: { items: ['w1', 'gone', 'w1', 7], skills: ['stealth', 'stealth', ''], features: ['class:fighter-second-wind', 'custom:custom-0', 'custom:stoneborn-grit', 'custom:luck-x1', 'custom:custom-9', 'custom:deleted-y'] },
+  };
+  const n = E.normalizeFavorites(doc.favorites, doc);
+  eq('normalize: deleted items, duplicates and non-strings dropped', n.items, ['w1']);
+  eq('normalize: skills unique', n.skills, ['stealth']);
+  eq('normalize: class features kept, custom only while the ability exists', n.features, ['class:fighter-second-wind', 'custom:custom-0', 'custom:stoneborn-grit', 'custom:luck-x1']);
+  eq('normalize: missing / junk -> empty lists', E.normalizeFavorites(null, {}), { items: [], skills: [], features: [] });
+  eq('custom ability ids follow the engine (inline index, ref, explicit id)', E.customAbilityIds(doc.abilities), ['custom-0', 'stoneborn-grit', 'luck-x1', 'custom-3']);
+
+  const c = { inventory: doc.inventory };
+  check('toggle on creates the store', E.toggleFavorite(c, 'skills', 'arcana') === true && E.isFavorite(c, 'skills', 'arcana') && E.hasFavorites(c));
+  check('toggle again turns it off', E.toggleFavorite(c, 'skills', 'arcana') === false && !E.isFavorite(c, 'skills', 'arcana') && !E.hasFavorites(c));
+  E.toggleFavorite(c, 'items', 'g1', true); E.toggleFavorite(c, 'items', 'g1', true);
+  eq('explicit on is idempotent', c.favorites.items, ['g1']);
+  check('unknown kind / empty key ignored', E.toggleFavorite(c, 'spells', 'x') === false && E.toggleFavorite(c, 'items', '') === false && !('spells' in c.favorites));
+  eq('favoritesFirst is stable', E.favoritesFirst(['a', 'b', 'c', 'd'], (x) => x === 'c' || x === 'a'), ['a', 'c', 'b', 'd']);
+
+  // Removing an inline ability: its star goes, later index-named ones shift with their abilities
+  const r = { abilities: [{ name: 'A' }, { name: 'B' }, { name: 'C' }, { ref: 'ability/stoneborn-grit' }], favorites: { items: [], skills: [], features: ['custom:custom-1', 'custom:custom-2', 'custom:stoneborn-grit', 'class:x'] } };
+  E.removeAbilityFavorites(r, 1);
+  r.abilities.splice(1, 1);
+  eq('remove ability: star dropped, later inline stars shift down', r.favorites.features, ['custom:custom-1', 'custom:stoneborn-grit', 'class:x']);
+  check('remove ability: shifted key now names C', E.customAbilityIds(r.abilities)[1] === 'custom-1' && r.abilities[1].name === 'C');
+
+  // Feature keys from a derived sheet are stable across levels (same key at 1 and 5)
+  const f1 = E.derive({ ...char(), classes: [{ id: 'fighter', level: 1, hp: [10] }] }, rules);
+  const f5 = E.derive({ ...char(), classes: [{ id: 'fighter', level: 5, hp: [10, 6, 6, 6, 6] }] }, rules);
+  const sw1 = f1.features.find((f) => /second wind/i.test(f.name));
+  const sw5 = f5.features.find((f) => /second wind/i.test(f.name));
+  check('feature key: Second Wind same at level 1 and 5', !!sw1 && E.featureFavKey(sw1) === E.featureFavKey(sw5) && E.featureFavKey(sw1).startsWith('class:'), [sw1 && E.featureFavKey(sw1), sw5 && E.featureFavKey(sw5)]);
+  const withAb = E.derive({ ...char(), classes: [{ id: 'fighter', level: 1, hp: [10] }], abilities: [{ name: 'Grit', description: 'x' }] }, rules);
+  check('feature key: inline custom ability -> custom:custom-0', withAb.features.some((f) => E.featureFavKey(f) === 'custom:custom-0'));
+}
+
+// ------------------------------------------------------------------------------------------------
 console.log(`\n${passed} passed, ${failures.length} failed`);
 if (failures.length) {
   for (const f of failures) console.log(`  FAIL ${f}`);

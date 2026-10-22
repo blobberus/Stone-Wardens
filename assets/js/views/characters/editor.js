@@ -26,6 +26,7 @@ import { accentOf, accentInk, profMark } from './widgets.js';
 import { setXp, xpLevelsCrossed, xpStatus, charLevel } from './engine-xp.js';
 import { levelUpFlow } from './levelup.js';
 import { TAGS as SMART_TAGS, normalizeTags as normSmartTags } from './engine-tags.js'; // manual tags on custom abilities
+import { removeAbilityFavorites } from './engine-favs.js'; // a removed ability drops its sheet star
 
 const SECTIONS = [
   ['identity', 'Identity'], ['classes', 'Classes & levels'], ['origin', 'Species & background'], ['abilities', 'Ability scores'],
@@ -540,7 +541,7 @@ function advanced({ c }) {
         h('span', { class: 'spacer' }),
         h('button', { class: 'btn-icon btn-sm', type: 'button', title: 'Edit', 'aria-label': `Edit ${rec.name}`, onclick: () => (refId && base && !ab.name ? editShared(base) : editInline(i)) }, icon('edit')),
         refId && base && !ab.name ? h('button', { class: 'btn btn-sm btn-ghost', type: 'button', title: 'Copy into this character to tweak it without changing the library', onclick: () => mutate((x) => { const { id: _i, kind: _k, origin: _o, path: _p, ...rest } = base; x.abilities[i] = { ...clone(rest), ...x.abilities[i], name: base.name, ref: undefined }; delete x.abilities[i].ref; }) }, icon('copy'), 'Make local copy') : null,
-        h('button', { class: 'btn-icon btn-sm', type: 'button', title: 'Remove', 'aria-label': `Remove ${rec.name}`, onclick: async () => { if (await confirmDialog(`Remove ${rec.name || 'this ability'} from ${c.name}?`, { okLabel: 'Remove', danger: true })) mutate((x) => { x.abilities.splice(i, 1); }); } }, icon('trash'))),
+        h('button', { class: 'btn-icon btn-sm', type: 'button', title: 'Remove', 'aria-label': `Remove ${rec.name}`, onclick: async () => { if (await confirmDialog(`Remove ${rec.name || 'this ability'} from ${c.name}?`, { okLabel: 'Remove', danger: true })) mutate((x) => { removeAbilityFavorites(x, i); x.abilities.splice(i, 1); }); } }, icon('trash'))),
       rec.description ? md(rec.description) : null,
       mods ? h('p', { class: 'ui text-sm accent' }, mods) : null);
   })) : h('p', { class: 'faint ui text-sm' }, 'No special abilities yet.'));
