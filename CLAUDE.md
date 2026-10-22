@@ -99,6 +99,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 ## UI / CSS conventions
 - Use tokens from `tokens.css` only (`--bg --surface --surface-2 --ink --ink-muted --accent --accent-ink
   --danger --ok --border --font-display --font-body --font-mono --radius --shadow --space-1..6`).
+- Icons: `icon(name)` -> sprite `assets/img/icons.svg#i-<name>`; map-marker glyphs are `mk-<name>` (pass `'mk-city'`).
 - Shared classes (base.css): `.btn .btn-primary .btn-ghost .btn-danger .btn-sm .btn-icon`, `.input .select
   .textarea .field`, `.card .panel .badge .chip .table .toolbar .tabs .tab .muted .stack .row .grid
   .empty-state .prose` (rendered markdown) `.callout`.

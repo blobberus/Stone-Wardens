@@ -3,11 +3,14 @@ import { h, clear } from './dom.js';
 import { suggestLinks } from './links.js';
 import { renderInto } from './markdown.js';
 
-const overlays = () => document.getElementById('overlays') || document.body;
+// `body > #overlays`: rendered headings get slug ids, so a heading "Overlays" must not capture modals.
+const overlays = () => document.querySelector('body > #overlays') || document.body;
 
 export function icon(name, size) {
   const svg = h('svg', { class: 'icon', 'aria-hidden': 'true', ...(size ? { width: size, height: size } : {}) });
-  svg.append(h('use', { href: `assets/img/icons.svg#i-${name}` }));
+  // UI icons are `i-<name>`; map-marker glyphs are `mk-<name>` and are passed through as-is.
+  const id = name.startsWith('mk-') || name.startsWith('i-') ? name : `i-${name}`;
+  svg.append(h('use', { href: `assets/img/icons.svg#${id}` }));
   return svg;
 }
 

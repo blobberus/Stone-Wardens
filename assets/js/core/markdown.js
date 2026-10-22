@@ -162,13 +162,36 @@ export function extractTags(src) {
   return [...tags];
 }
 
-/** Toggle the n-th task checkbox in markdown source. */
+/**
+ * Toggle the n-th task checkbox in markdown source. Counts tasks the way they render:
+ * inside blockquotes/callouts too, but never inside code fences, %%comments%% or frontmatter.
+ */
 export function toggleTask(src, index, checked) {
+  const { body } = parseFrontmatter(src);
+  const offset = src.length - body.length;
+  const lines = body.split('\n');
   let i = -1;
-  return src.replace(/^(\s*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\])/gm, (all, a, _x, b) => {
+  let fence = null;
+  let inComment = false;
+  for (let n = 0; n < lines.length; n++) {
+    const line = lines[n];
+    const unquoted = line.replace(/^(\s*>)+\s?/, '');
+    const f = /^\s*(```+|~~~+)/.exec(unquoted);
+    if (fence) { if (f && f[1][0] === fence[0] && f[1].length >= fence.length) fence = null; continue; }
+    if (f && !inComment) { fence = f[1]; continue; }
+    const marks = (line.replace(/`[^`]*`/g, '').match(/%%/g) || []).length;
+    const wasComment = inComment;
+    if (marks % 2) inComment = !inComment;
+    if (wasComment || (marks && /^[^%]*%%/.test(line) && marks % 2)) continue;
+    const m = /^((?:\s*>)*\s*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\])/.exec(line);
+    if (!m) continue;
     i += 1;
-    return i === index ? `${a}${checked ? 'x' : ' '}${b}` : all;
-  });
+    if (i === index) {
+      lines[n] = `${m[1]}${checked ? 'x' : ' '}${m[3]}${line.slice(m[0].length)}`;
+      return src.slice(0, offset) + lines.join('\n');
+    }
+  }
+  return src;
 }
 
 /** Markdown -> sanitized HTML string. Frontmatter is stripped. */
@@ -240,7 +263,8 @@ export function renderInto(el, src, opts = {}) {
     span.replaceChildren(title, body);
   });
 
-  const boxes = [...el.querySelectorAll('li > input[type="checkbox"]')];
+  // Tight lists render `li > input`, loose ones `li > p > input`; embedded notes' tasks belong to them.
+  const boxes = [...el.querySelectorAll('li input[type="checkbox"]')].filter((b) => !b.closest('.embed'));
   boxes.forEach((box, i) => {
     box.closest('li')?.classList.add('task-list-item');
     if (!opts.onTaskToggle) return;
