@@ -26,7 +26,7 @@ const RULES = {
   magic: /\bconcentration on\b|\bspells?\b|\bspellcasting\b|\bcantrips?\b|\bspell slots?\b|\britual\b|\bmagic(al)?\b|\barcane\b|\bchannel divinity\b|\bsorcery points?\b|\bpact magic\b|\binvocation/i,
   attack: /\bwhenever you hit\b|\bdeflect attacks\b|\battack rolls?\b|\bextra attack\b|\battacks? (?:action|twice|three times)|\bmake (?:one|two|an?|three) (?:\w+ ){0,3}attacks?\b|\bunarmed strikes?\b|\bsneak attack\b|\bcritical hits?\b|\bsmite\b|\bextra (?:\d+d\d+ )?(?:\w+ )?damage\b|\bdeals? (?:an )?extra\b|\bon a hit\b|\bwhen you hit\b|\bdamage (?:rolls?|dice|die)\b|\brage damage\b|\binitiative\b/i,
   weaponry: /\bweapons?\b|\bweapon mastery\b|\bmastery propert|\bfighting style\b|\barchery\b|\bdueling\b|\bthrown\b|\bammunition\b|\bfinesse\b|\bmartial arts\b/i,
-  defense: /\barmor class\b|\bAC\b|\bresistance\b|\bimmun(?:e|ity|ities)\b|\bresistances\b|\bbonus (?:to|on) (?:\w+ ){0,3}saving throws?\b|\byour total for an? [^.]*saving throw|\baura of protection\b|\byou (?:have|gain|make|succeed|add|can)[^.]{0,50}\bsaving throws?\b|\bsaving throws? (?:you make|against)\b|\bproficiency in (?:\w+ ){0,2}saving throws?\b|\breduces? (?:the )?(?:\w+ ){0,3}damage\b|\bdamage (?:you|it) take\b|\bdodge\b|\bevasion\b|\bunarmored defense\b|\btemporary hit points\b|\bhit point maximum\b|\bdeath saving\b|\bcan't be (?:charmed|frightened|surprised)\b|\bdisengage\b|\bshields?\b/i,
+  defense: /\barmor class\b|\bAC\b|\bresistance\b|\bimmun(?:e|ity|ities)\b|\bresistances\b|\bbonus (?:to|on) (?:\w+ ){0,3}saving throws?\b|\byour total for an? [^.]*saving throw|\baura of protection\b|\byou (?:have|gain|succeed|add)[^.]{0,50}\bsaving throws?\b|\bsaving throws? you make\b|\bproficiency in (?:\w+ ){0,2}saving throws?\b|\breduces? (?:the )?(?:\w+ ){0,3}damage\b|\bdamage (?:you|it) take\b|\bdodge\b|\bevasion\b|\bunarmored defense\b|\btemporary hit points\b|\bhit point maximum\b|\bdeath saving\b|\bcan't be (?:charmed|frightened|surprised)\b|\bdisengage\b/i,
   advantages: /\badvantage\b|\bdisadvantage\b|\breroll\b/i,
   interaction: /\bcharisma (?:check|\()|\bpersuasion\b|\bdeception\b|\bintimidat|\binsight\b|\bperformance\b|\blanguages?\b|\btelepath|\bspeak (?:with|to)\b|\bcommunicat|\bcharmed\b|\bfrightened\b|\bsocial\b|\binspir(e|ation)\b/i,
   leveling: /\bwhen you reach (?:\w+ )?levels?\b|\bat (?:\w+ )?levels? \d+|\blevels? \d+ \(|\bincreases? (?:to|when|as|by \d+ when)\b|\bability score improvement\b|\bepic boon\b|\bsubclass\b|\bas you gain levels\b|\bimproves? (?:at|when)\b|\bscores? increases?\b|\b(?:origin|general) feat\b|\bgain (?:an?|one) feat\b/i,
@@ -102,11 +102,15 @@ const sentencesOf = (s) => String(s || '').replace(/\*\*|__/g, '').split(/(?<=[.
  */
 export function advantageSources(sheet, { conditions = [] } = {}) {
   const out = [];
+  // A source GIVES (Dis)Advantage ("you have Advantage on…", "give yourself Advantage", "with Advantage"); conditions
+  // such as Sneak Attack's "if you have Advantage" or "you don't need Advantage" are requirements, not sources.
+  const GIVES = /\b(?:have|has|gain|gains|get|gets) (Advantage|Disadvantage)\b|\bgives? (?:\w+ ){0,2}(Advantage|Disadvantage)\b|\bwith (Advantage|Disadvantage)\b|\bimposes? (Advantage|Disadvantage)\b|\b(Advantage|Disadvantage) on\b/gi;
   const push = (from, source, s) => {
-    const adv = /\badvantage\b/i.test(s.replace(/disadvantage/gi, ''));
-    const dis = /\bdisadvantage\b/i.test(s);
-    if (!adv && !dis) return;
-    out.push({ kind: adv && dis ? 'both' : adv ? 'advantage' : 'disadvantage', source, text: s.slice(0, 260), from });
+    const core = s.replace(/\bif (?:you|it|they|the target|the creature) (?:have|has) (?:Advantage|Disadvantage)[^,.;]*/gi, '')
+      .replace(/\b(?:don't|doesn't|do not) (?:need|have) (?:Advantage|Disadvantage)[^,.;]*/gi, '');
+    const kinds = new Set([...core.matchAll(GIVES)].map((m) => (m.slice(1).find(Boolean) || '').toLowerCase()).filter(Boolean));
+    if (!kinds.size) return;
+    out.push({ kind: kinds.size > 1 ? 'both' : [...kinds][0], source, text: s.slice(0, 260), from });
   };
   for (const f of Array.isArray(sheet?.features) ? sheet.features : []) for (const s of sentencesOf(f.description)) push('feature', f.name, s);
   for (const c of conditions) for (const s of sentencesOf(c.description)) push('condition', c.name, s);

@@ -876,8 +876,8 @@ function features(c, s) {
   return section('features', 'Features & traits', {
     iconName: 'scroll',
     actions: [seg,
-      h('button', { class: 'btn-icon btn-sm', type: 'button', title: 'Expand all', 'aria-label': 'Expand all', onclick: () => setAllFeatures(true) }, icon('chevron-down')),
-      h('button', { class: 'btn-icon btn-sm', type: 'button', title: 'Collapse all', 'aria-label': 'Collapse all', onclick: () => setAllFeatures(false) }, icon('chevron-up')),
+      h('button', { class: 'btn-icon btn-sm ch-feat-fold', type: 'button', title: 'Expand all', 'aria-label': 'Expand all', onclick: () => setAllFeatures(true) }, icon('chevron-down')),
+      h('button', { class: 'btn-icon btn-sm ch-feat-fold', type: 'button', title: 'Collapse all', 'aria-label': 'Collapse all', onclick: () => setAllFeatures(false) }, icon('chevron-up')),
       h('a', { class: 'btn btn-ghost btn-sm', href: editHref('advanced'), title: 'Add a special ability (Edit all → Advanced)' }, icon('plus'), 'Ability')],
   }, body);
 }

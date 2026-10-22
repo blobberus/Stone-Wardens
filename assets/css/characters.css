@@ -853,3 +853,59 @@ button.ch-spell-chip:focus-visible { outline: 2px solid var(--focus); outline-of
   .ch-trash-row { flex-wrap: wrap; }
   .ch-trash-actions { width: 100%; justify-content: flex-end; }
 }
+
+/* ---------- proficiency labels & smart features ---------- */
+/* "For this character" block at the top of entry modals (sheet.js fitBlock) */
+.ch-fit { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--space-3); padding: var(--space-2) var(--space-3); background: var(--surface-2); border-radius: var(--radius); }
+.ch-fit-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.ch-fit-who { font: 700 var(--text-sm) / 1.2 var(--font-ui); margin-right: 2px; }
+.ch-fit-lines { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; font: 400 var(--text-sm) / 1.4 var(--font-ui); }
+.ch-fit-lines > li { padding-left: 10px; border-left: 2px solid var(--border-strong); }
+.ch-fit-lines > li.is-warn { border-left-color: var(--warn); }
+.ch-fit-lines > li.is-ok { border-left-color: var(--ok); }
+
+/* Features & traits on the sheet: compact rows, two columns when the section is wide */
+[data-sec="features"] .ch-sec-body { container: ch-feats / inline-size; }
+[data-sec="features"] .ch-feat-group + .ch-feat-group { margin-top: var(--space-3); }
+[data-sec="features"] .ch-feat-group-title { display: flex; align-items: baseline; gap: 6px; padding-bottom: 2px; border-bottom: 1px solid var(--border); }
+.ch-feat-count { font-weight: 400; font-size: var(--text-xs); color: var(--ink-muted); }
+[data-sec="features"] details.ch-feat > summary { min-height: 32px; padding: 3px 4px; }
+[data-sec="features"] .ch-feat-name { font-size: var(--text-sm); }
+[data-sec="features"] .ch-feat-body { padding: 0 4px var(--space-2) 24px; }
+[data-sec="features"] .ch-feat-choice { padding: 0 4px var(--space-2) 24px; }
+@container ch-feats (min-width: 760px) {
+  .ch-feat-cols { columns: 2; column-gap: var(--space-6); }
+  .ch-feat-cols > details.ch-feat { break-inside: avoid; }
+  .ch-feat-cols > details.ch-feat:last-child { border-bottom: 1px solid var(--rule); }
+}
+.ch-feat-views .ch-seg-btn { height: 28px; padding: 0 10px; }
+.ch-feat-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: var(--space-2) 0 0; }
+.ch-feat-tag {
+  height: 22px; padding: 0 8px; font: 500 var(--text-xs) / 1 var(--font-ui); color: var(--ink-muted); cursor: pointer;
+  background: transparent; border: 1px solid var(--border); border-radius: var(--radius-pill);
+}
+.ch-feat-tag:hover { color: var(--ink); border-color: var(--border-strong); }
+
+/* Smart view: tag chips with counts, the character's related numbers, then the features */
+.ch-smart { display: flex; flex-direction: column; gap: var(--space-3); }
+.ch-smart-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.ch-smart-tag { height: 28px; gap: 6px; }
+.ch-smart-n { font-size: var(--text-xs); color: var(--ink-muted); }
+.ch-smart-tag.is-active .ch-smart-n { color: inherit; }
+.ch-aspects { padding: var(--space-2) var(--space-3); background: var(--surface-2); border-radius: var(--radius); }
+.ch-aspect-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px var(--space-4); margin: 0; font: 400 var(--text-sm) / 1.45 var(--font-ui); }
+.ch-aspect { display: contents; }
+.ch-aspect > dt { color: var(--ink-muted); font-weight: 500; }
+.ch-aspect > dd { margin: 0; min-width: 0; }
+.ch-aspect-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.ch-aspect-chips .chip { height: 24px; font-size: var(--text-xs); }
+.ch-aspect-list { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+@media (max-width: 600px) {
+  .ch-aspect-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .ch-aspect > dd { margin-bottom: 6px; }
+  .ch-feat-fold { display: none; }
+  /* one swipeable row of tags instead of five wrapped lines */
+  .ch-smart-tags { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(var(--space-4) * -1); padding: 0 var(--space-4) 2px; }
+  .ch-smart-tags::-webkit-scrollbar { display: none; }
+  .ch-smart-tag { flex: none; }
+}

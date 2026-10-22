@@ -65,8 +65,8 @@ export function attunementFit(entry, sheet, { speciesName = '' } = {}) {
   }
   const named = ['barbarian', 'bard', 'cleric', 'druid', 'fighter', 'monk', 'paladin', 'ranger', 'rogue', 'sorcerer', 'warlock', 'wizard'].filter((c) => low.includes(c));
   if (named.some((c) => classes.includes(c))) return { required: true, note, meets: true, reason: '' };
-  const sp = String(speciesName || '').toLowerCase();
-  if (sp && low.includes(sp)) return { required: true, note, meets: true, reason: '' };
+  const sp = String(speciesName || '').toLowerCase().replace(/[^a-z ]/g, '').trim();
+  if (sp && new RegExp(`\\b${sp}\\b`).test(low)) return { required: true, note, meets: true, reason: '' }; // "Orc" ≠ "sORCerer"
   if (named.length) return { required: true, note, meets: false, reason: `Attunement ${note}` };
   return { required: true, note, meets: null, reason: '' };
 }

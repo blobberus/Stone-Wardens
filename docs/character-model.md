@@ -34,7 +34,8 @@ Only player decisions are stored; everything derivable is computed by `derive()`
   "xpLog": [ { "at": "ISO", "delta": 450, "total": 450, "note": "Goblin ambush" } ],   // optional; see "XP & levels" below
   "levelOrder": ["fighter", "wizard"],                                                // optional; class of each level gained
   "abilities": [ { "ref": "ability/second-wind-plus" }, { "name": "Stoneborn Grit", "description": "…", "uses": 1,
-                   "recharge": "long", "modifiers": { "ac": 1 } } ],   // advanced: extra/custom abilities
+                   "recharge": "long", "modifiers": { "ac": 1 }, "tags": ["defense"] } ],   // advanced: extra/custom abilities;
+                                                                       // optional `tags` = smart-tag ids (engine-tags.js TAGS)
   "overrides": { "ac": null, "speed": null, "initiative": null, "hpMax": null, "profBonus": null,
                  "passivePerception": null, "abilities": {}, "saves": {}, "skills": {},   // number = replace; skills/saves values are flat BONUS
                  "proficiency": { "skills": { "athletics": "none", "stealth": "expertise" }, "saves": { "dex": true } } },
@@ -260,3 +261,33 @@ offhandAttacks(sheet) -> {eligible, reason, twoWeaponFighting, nick, options:[{u
 Riders and restrictions ("Whenever you … with a Bonus Action", "As part of the Bonus Action…", "can do only one of the
 following: … or take a Bonus Action") are not grants. Off-hand (2024 Light property): two equipped Light weapons (or a
 stack of 2), damage without the ability modifier unless negative (Two-Weapon Fighting keeps it); Nick noted.
+
+## Proficiency labels — `engine-prof.js` (pure; re-exported by `engine.js`)
+```js
+entryFit(entry, sheet, {base, speciesName}) -> {badges:[{label, tone:'ok'|'warn'|'info'|'muted', title}], lines:[{text, tone}]}
+  // weapon: Proficient / Not proficient (+ "Mastery: Vex"); armor: Trained / No training (+ STR need, Stealth);
+  // gear tools: Proficient / Not proficient, foci: "Focus"; magic items: via `base` weapon/armor + attunement
+  // ("by a Cleric or Paladin" → Can't attune); spells: Prepared / Known / In spellbook / Off-list / Too high /
+  // No spellcasting; feats: Taken / Prerequisite
+weaponFit(w, sheet)  armorFit(a, sheet)  toolFit(g, sheet)  focusFor(g, sheet)  attunementFit(entry, sheet, {speciesName})  spellFit(record, sheet)
+```
+The sheet shows `badges` in picker rows (openPicker `mark`, which now accepts an array of `{label, title, tone}`) and
+`badges` + `lines` at the top of entry modals (inventory, attacks, spells, item edit). 2024 consequences: no
+Proficiency Bonus to attacks (weapon) / checks (tool); armor without training = Disadvantage on Str/Dex D20 Tests and
+no spellcasting.
+
+## Smart tags — `engine-tags.js` (pure; re-exported by `engine.js`), UI `sheet.js` `features()` (All | Smart)
+```js
+TAGS  [{id, label, hint}]  magic attack weaponry defense advantages interaction leveling healing movement senses
+      exploration skills reactions resources
+featureTags(feature, record?) -> [tagId]        // rules text + uses/levels/choiceKey + record.modifiers + record.tags
+normalizeTags(ids|labels|"a, b") -> [tagId]     customAbilityRecords(char, abilityById) -> Map(featureId -> record)
+tagFeatures(features, {records}) -> {tagged:[{feature, tags}], byTag:{tag:[…]}, counts:{tag:n}}
+advantageSources(sheet, {conditions}) -> [{kind:'advantage'|'disadvantage'|'both', source, text, from}]   // features,
+       // active conditions, equipped/attuned magic items, armor (Stealth, no training), Exhaustion
+attacksPerAction(features) -> 1..4               // Extra Attack / Two / Three Extra Attacks
+```
+Smart view: tag chips with counts (the seven asked-for tags always, others when used, "Other" for untagged), the
+character's related numbers (Defense → AC/HP/save profs/resistances; Magic → DC/attack/slots/magic items; Leveling → XP
+and `levelUpPlan` of the latest class + open choices; Advantages → every source; …), then the tagged features. The
+view and tag are remembered per device in localStorage `sw:characters:features`.

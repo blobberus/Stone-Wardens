@@ -285,6 +285,7 @@ section('proficiency labels (engine-prof)');
   const cs = E.derive(cleric, rules);
   const mi = (id) => kind('magic-item', rules.magicItems.find((x) => x.attunementNote === id) || {});
   eq('attunement by class', [P.attunementFit(mi('by a Cleric or Paladin'), cs).meets, P.attunementFit(mi('by a Sorcerer, Warlock, or Wizard'), cs).meets, P.attunementFit(mi('by a Spellcaster'), cs).meets, P.attunementFit(mi('by a Spellcaster'), rs).meets], [true, false, true, false]);
+  eq('species name inside a class name doesn\'t count (Orc / Sorcerer)', P.attunementFit(mi('by a Druid, Sorcerer, Warlock, or Wizard'), rs, { speciesName: 'Orc' }).meets, false);
   eq('species attunement', [P.attunementFit(mi('by a Dwarf or a Creature Attuned to a Belt of Dwarvenkind'), cs, { speciesName: 'Dwarf' }).meets, P.attunementFit(mi('by a Dwarf or a Creature Attuned to a Belt of Dwarvenkind'), cs).meets], [true, null]);
   const sl = (id) => P.entryFit(kind('spell', spell(id)), cs).badges.map((b) => b.label);
   eq('cleric spells: prepared / castable / too high / off-list', [sl('bless'), sl('cure-wounds'), sl('flame-strike'), sl('fireball')], [['Prepared'], [], ['Too high'], ['Off-list']]);

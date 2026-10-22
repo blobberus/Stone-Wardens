@@ -107,14 +107,15 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 - Per-device UI state in localStorage `sw:journal:*`. Other views link notes with `href('journal', first || '_', rest)`.
 
 ## Characters tab
-- Engine (pure, Node-testable): `engine.js` facade + `engine-{rules,choices,derive,adjust,items,known,spells,actions,xp,util}.js`.
+- Engine (pure, Node-testable): `engine.js` facade + `engine-{rules,choices,derive,adjust,items,known,spells,actions,prof,tags,xp,util}.js`
+  (prof = "proficient / not proficient" labels for pickers and entry modals; tags = Smart features view tags).
   Contract and doc shape: `docs/character-model.md`. `derive()` -> Sheet incl. `adjust[key] = {base, value, reasons}`
   (debuffs already applied to the shown numbers; UI renders them with widgets.js `adjustedValue(sheet, key, text)`).
 - Doc fields beyond the basics: `overrides.proficiency` (final say on skill/save prof), `style.accent` (highlight
-  colour, default `#7a1f1f`), `xpLog`, `levelOrder`. Deleting moves a sheet to `recently-deleted/` (trash.js).
+  colour, default `#7a1f1f`), `xpLog`, `levelOrder`, `abilities[].tags` (manual Smart tags). Deleting moves a sheet to `recently-deleted/` (trash.js).
 - Sheet order: header (XP meter) -> abilities row -> combat strip (stats | trackers | HP on the right) -> narrow
   column skills, senses, proficiencies (foldable) | wide column actions window (tabs Attacks / Spells / Bonus actions),
-  resources, inventory, currency -> features -> details, notes. Tuned for the collapsed sidebar (container queries).
+  resources, inventory, currency -> features (All | Smart tag view) -> details, notes. Tuned for the collapsed sidebar (container queries).
 
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).
