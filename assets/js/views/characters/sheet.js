@@ -18,7 +18,7 @@ import { rerender, pips, statBox, section, md, mdInline, portrait, entryModal, c
 import { levelUpFlow, openLevelDown } from './levelup.js';
 // XP / level and spell (v2) helpers — own import lines (aliased) so they never clash with the shared ones above
 import { xpMeter, openXpWindow, levelsDue } from './xp.js';
-import { spellStats, spellIssues, addSpellIssues, rollDice } from './engine-spells.js';
+import { spellStats, spellIssues, addSpellIssues, rollDice, shortCastingTime, shortRange, spellFxKeys, spellPasses, spellFilterOptions } from './engine-spells.js';
 import { adjustedValue as adjValue } from './widgets.js';
 import { choiceDialog as choiceDlg } from '../../core/ui.js';
 import { isBonusActionSpell, bonusActionFeatures, featureHealing, offhandAttacks } from './engine-actions.js';
@@ -161,13 +161,12 @@ function render() {
       h('ul', { class: 'ui text-sm' }, s.warnings.map((w) => h('li', null, String(w))))) : null,
     // Compact D&D Beyond proportions: ability row, combat strip (HP on the right), then a narrow column
     // (skills, senses, collapsible proficiencies) | the wide column: actions window (Attacks · Spells · Bonus actions),
-    // resources, inventory, currency (fills the space beside the skills); then features & traits, details, notes.
-    // Ability scores with the hit dice & conditions panel (shown by default) to their right; below them when narrow.
+    // resources, inventory, currency and the compact features & traits (filling the space beside the skills);
+    // then details, notes. Ability scores with the hit dice & conditions panel (shown by default) to their right.
     h('div', { class: 'ch-abil-row' }, h('div', { class: 'ch-abil-row-grid' }, abilities(c, s), trackers(c, s))),
     h('div', { class: 'ch-body' }, h('div', { class: 'ch-body-grid' },
       h('div', { class: 'ch-col ch-col-l' }, skills(c, s), passive(s), proficiencies(c, s)),
-      h('div', { class: 'ch-col ch-col-r' }, actionTabs(c, s), resources(c, s), inventory(c, s), currency(c)))),
-    features(c, s),
+      h('div', { class: 'ch-col ch-col-r' }, actionTabs(c, s), resources(c, s), inventory(c, s), currency(c), features(c, s)))),
     details(c, s),
     notes(c)));
 }
@@ -697,9 +696,12 @@ function spellRows(c, s) {
     const stored = !x.always && !x.innate && c.spells.some((y) => y.id === x.id && (y.class || null) === (x.class || null));
     // Off-list: stored spells that don't fit the class (not on its list, too high, no spellcasting) — shown, never blocked
     const issues = entry && stored ? spellIssues(entry, caster?.sc || null, { className: x.class ? entryName('class', x.class) : null }) : [];
+    const stats = entry ? spellStats(entry, { charLevel: lvl, caster }) : null;
+    const level = Number(x.level ?? entry?.level ?? 0);
     return {
-      ...x, entry, name: x.name || entry?.name || prettify(x.id), level: Number(x.level ?? entry?.level ?? 0), caster, stored, issues,
-      stats: entry ? spellStats(entry, { charLevel: lvl, caster }) : null,
+      ...x, entry, name: x.name || entry?.name || prettify(x.id), level, caster, stored, issues, stats,
+      keys: entry ? spellFxKeys(entry, stats) : [], ready: !!(x.prepared || x.always || level === 0),
+      from: x.class ? entryName('class', x.class) : caster?.label || x.source || '',
     };
   });
 }
@@ -718,12 +720,13 @@ function rollSpellEffect(name, parts, { heal = false, count = null } = {}) {
   toast(`${name}${heal ? ' heals' : ''}: ${out.join('')}${weapon}${count && count.count > 1 ? ` — each of ${count.count} ${count.unit}s` : ''}`, { type: 'info', timeout: 6000 });
 }
 
-/** To-hit / save DC and damage / healing chips of one spell row. */
-function spellFx(r, s, fx = '') {
+/** Chips of one spell row: {hit: to-hit / save DC, effect: damage / healing}. */
+function spellChips(r, s, fx = '') {
   const st = r.stats;
-  if (!st) return null;
+  if (!st) return { hit: [], effect: [] };
   const key = r.caster?.key;
   const chips = [];
+  const effect = [];
   if (st.attack) {
     const what = st.attack === 'weapon' ? 'weapon attack using your spellcasting ability' : `${st.attack} spell attack`;
     chips.push(st.toHit != null
@@ -737,34 +740,30 @@ function spellFx(r, s, fx = '') {
       ? h('span', { class: 'ch-spell-chip ch-spell-dc', title: `${ABILITIES.find((a) => a.id === st.save)?.full || ab} saving throw` }, h('span', { class: 'ch-spell-chip-label' }, 'DC'), adjValue(s, `spellDc:${key}`, String(st.dc)), ` ${ab}`)
       : h('span', { class: 'ch-spell-chip is-muted' }, `${ab} save`));
   }
-  const tip = [st.scaling?.next ? `At character level ${st.scaling.next.level}: ${st.scaling.kind === 'count' ? `${st.scaling.next.count} ${st.count?.unit || 'beam'}s` : st.scaling.next.dice}.` : '', st.higherLevel ? `${r.level ? 'Using a higher-level spell slot' : 'Cantrip upgrade'}: ${st.higherLevel}` : '', st.parsed ? '(Read from the spell text.)' : ''].filter(Boolean).join('\n');
+  const tip = [spellUpNote(r), st.higherLevel ? `${r.level ? 'Using a higher-level spell slot' : 'Cantrip upgrade'}: ${st.higherLevel}` : '', st.parsed ? '(Read from the spell text.)' : ''].filter(Boolean).join('\n');
   // one chip per effect: Ice Knife "1d10 Piercing" + "2d6 Cold"; Flame Strike "5d6 Fire + 5d6 Radiant"
   (st.damageGroups || []).forEach((g, gi) => {
     const count = gi === 0 && st.count && st.count.count > 1 ? `${st.count.count} × ` : '';
     const rollable = g.parts.some((d) => d.dice);
     const title = [rollable ? 'Roll damage' : 'Damage', (st.damageGroups.length > 1 || g.parts.some((d) => d.weapon)) && g.note ? g.note : '', gi === 0 ? tip : ''].filter(Boolean).join('\n');
-    chips.push(h(rollable ? 'button' : 'span', {
+    effect.push(h(rollable ? 'button' : 'span', {
       class: ['ch-spell-chip', 'ch-spell-dmg', gi > 0 && 'is-secondary'], type: rollable ? 'button' : null, title,
       onclick: rollable ? () => rollSpellEffect(r.name, g.parts, { count: gi === 0 ? st.count : null }) : null, 'data-fk': `dmg-${r.class || r.group}-${r.id}-${gi}${fx}`,
     }, h('span', { class: 'num' }, `${count}${g.text}`.replace(/\//g, '/​')))); // let "Acid/Cold/…" wrap
   });
   if (st.heal) {
     const rollable = !!st.heal.dice;
-    chips.push(h(rollable ? 'button' : 'span', { class: 'ch-spell-chip ch-spell-heal', type: rollable ? 'button' : null, title: [rollable ? 'Roll healing' : 'Healing', st.heal.note, tip].filter(Boolean).join('\n'), onclick: rollable ? () => rollSpellEffect(r.name, [st.heal], { heal: true }) : null },
+    effect.push(h(rollable ? 'button' : 'span', { class: 'ch-spell-chip ch-spell-heal', type: rollable ? 'button' : null, title: [rollable ? 'Roll healing' : 'Healing', st.heal.note, tip].filter(Boolean).join('\n'), onclick: rollable ? () => rollSpellEffect(r.name, [st.heal], { heal: true }) : null },
       icon('heart'), h('span', { class: 'num' }, st.heal.text)));
   }
-  return chips.length ? h('div', { class: 'ch-spell-fx' }, chips) : null;
+  return { hit: chips, effect };
 }
 
-/** Second line of a spell row: casting time · range · class, plus cantrip scaling / upcast note. */
-function spellMeta(r, extra = null) {
+/** Cantrip scaling ("3d10 at level 11") or upcast ("Higher slots +1d6 each") note of a spell row, or ''. */
+function spellUpNote(r) {
   const st = r.stats;
-  const note = st?.scaling && r.level === 0
-    ? (st.scaling.next ? `${st.scaling.kind === 'count' ? `${st.scaling.next.count} ${st.count?.unit || 'beam'}s` : st.scaling.next.dice} at level ${st.scaling.next.level}` : '')
-    : st?.upcast && (st.damage.length || st.heal || st.upcast.what === 'count') ? `Higher slots ${st.upcast.what === 'count' ? `+1 ${st.upcast.unit}` : `+${st.upcast.dice}`} each` : '';
-  return h('div', { class: 'ch-spell-meta muted ui' },
-    [extra, extra ? null : r.entry?.castingTime, r.entry?.range, r.class ? entryName('class', r.class) : r.source].filter(Boolean).join(' · '),
-    note ? [' · ', h('span', { class: 'ch-spell-up', title: st.higherLevel || null }, note)] : null);
+  if (st?.scaling && r.level === 0) return st.scaling.next ? `${st.scaling.kind === 'count' ? `${st.scaling.next.count} ${st.count?.unit || 'beam'}s` : st.scaling.next.dice} at level ${st.scaling.next.level}` : '';
+  return st?.upcast && (st.damage.length || st.heal || st.upcast.what === 'count') ? `Higher slots ${st.upcast.what === 'count' ? `+1 ${st.upcast.unit}` : `+${st.upcast.dice}`} each` : '';
 }
 
 function togglePrepared(r, on) {
@@ -778,24 +777,46 @@ function removeSpell(r) {
   mutate((y) => { y.spells = y.spells.filter((x) => !(x.id === r.id && (x.class || null) === (r.class || null))); });
 }
 
-/** One spell line (Spells tab and Bonus actions tab): prepare box, name + badges, meta, to-hit/DC + damage chips, remove. */
-function spellItem(r, s, { extraMeta = null } = {}) {
+/**
+ * One spell line (Spells tab and Bonus actions tab): prepare box (lock when always prepared, dot for cantrips) |
+ * name + badges (+ where it comes from) | casting time | range | to hit / save DC | damage / healing | remove.
+ * On a narrow list the columns wrap under the name. data-* feed the Spells tab filter (applySpellFilter).
+ *   opts.time / timeTitle  replace the casting time cell (Bonus actions tab: the spell level)
+ *   opts.from              show the spell's class / source after its name (several sources on the sheet)
+ */
+function spellItem(r, s, { time = null, timeTitle = null, from = false, fk = '' } = {}) {
   const lvl = r.level;
-  return h('li', { class: ['ch-spell', r.prepared || r.always || lvl === 0 ? 'is-prepared' : 'is-unprepared', r.issues.length && 'is-off'], 'data-stat': r.id },
-    lvl > 0 ? h('input', {
-      type: 'checkbox', class: 'checkbox ch-spell-prep', checked: !!(r.prepared || r.always), disabled: !!r.always, 'data-fk': `prep-${r.class}-${r.id}${extraMeta ? '-ba' : ''}`,
-      title: r.always ? 'Always prepared' : 'Prepared', 'aria-label': `Prepare ${r.name}`, onchange: (e) => togglePrepared(r, e.target.checked),
-    }) : h('span', { class: 'ch-spell-dot', 'aria-hidden': 'true' }),
+  const { hit, effect } = spellChips(r, s, fk);
+  const none = () => h('span', { class: 'ch-spell-none faint', 'aria-hidden': 'true' }, '—');
+  const range = r.entry?.range ? shortRange(r.entry.range) : '';
+  return h('li', {
+    class: ['ch-spell', r.ready ? 'is-prepared' : 'is-unprepared', r.issues.length && 'is-off'], 'data-stat': r.id,
+    'data-lvl': String(lvl), 'data-fx': r.keys.join(' '), 'data-ready': r.ready ? '1' : '0', 'data-name': r.name,
+  },
+    r.always ? h('span', { class: 'ch-spell-lock', title: `Always prepared${r.source ? ` (${r.source})` : ''}`, role: 'img', 'aria-label': 'Always prepared' }, icon('lock'))
+      : lvl > 0 ? h('input', {
+        type: 'checkbox', class: 'checkbox ch-spell-prep', checked: !!r.prepared, 'data-fk': `prep-${r.class}-${r.id}${fk}`,
+        title: 'Prepared', 'aria-label': `Prepare ${r.name}`, onchange: (e) => togglePrepared(r, e.target.checked),
+      }) : h('span', { class: 'ch-spell-dot', title: 'Cantrip: always ready', 'aria-hidden': 'true' }),
     h('div', { class: 'ch-spell-id' },
-      h('div', { class: 'ch-spell-title' },
-        h('button', { class: 'ch-link-btn ch-spell-name', type: 'button', onclick: () => r.entry ? entryInfo(r.entry) : toast('This spell is not in the SRD; see your book.') }, r.name),
-        r.always ? h('span', { class: 'badge badge-info', title: r.source || 'Always prepared' }, icon('lock'), 'always') : null,
-        r.entry?.concentration ? h('span', { class: 'badge', title: 'Concentration' }, 'C') : null,
-        r.entry?.ritual ? h('span', { class: 'badge', title: 'Ritual' }, 'R') : null,
-        r.issues.length ? h('span', { class: 'ch-spell-off', tabindex: 0, title: `Added anyway: ${r.issues.map((i) => i.text).join(' ')}`, 'aria-label': `Off-list: ${r.issues.map((i) => i.text).join(' ')}` }, 'off-list') : null),
-      spellMeta(r, extraMeta)),
-    spellFx(r, s, extraMeta ? '-ba' : ''),
+      h('button', { class: 'ch-link-btn ch-spell-name', type: 'button', title: spellUpNote(r) || null, onclick: () => r.entry ? entryInfo(r.entry) : toast('This spell is not in the SRD; see your book.') }, r.name),
+      r.entry?.concentration ? h('span', { class: 'badge', title: 'Concentration' }, 'C') : null,
+      r.entry?.ritual ? h('span', { class: 'badge', title: 'Ritual' }, 'R') : null,
+      r.issues.length ? h('span', { class: 'ch-spell-off', tabindex: 0, title: `Added anyway: ${r.issues.map((i) => i.text).join(' ')}`, 'aria-label': `Off-list: ${r.issues.map((i) => i.text).join(' ')}` }, 'off-list') : null,
+      from && r.from ? h('span', { class: 'ch-spell-from' }, r.from) : null),
+    h('div', { class: 'ch-spell-cols' },
+      h('span', { class: 'ch-spell-time', title: timeTitle || r.entry?.castingTime || null }, time || shortCastingTime(r.entry?.castingTime) || '—'),
+      h('span', { class: ['ch-spell-range', !range && 'is-empty'], title: r.entry?.range || null }, range || '—'),
+      hit.length ? h('span', { class: 'ch-spell-hit' }, hit) : none(),
+      effect.length ? h('span', { class: 'ch-spell-fx' }, effect) : none()),
     !r.always && r.stored ? h('button', { class: 'btn-icon btn-sm ch-row-x', type: 'button', 'aria-label': `Remove ${r.name}`, title: 'Remove', onclick: () => removeSpell(r) }, icon('close')) : h('span', { class: 'ch-row-x', 'aria-hidden': 'true' }));
+}
+
+/** Heading of a block of spell rows; on a wide list it also labels the columns. */
+function spellHead(title, sub, { time = 'Time' } = {}) {
+  return h('h4', { class: 'ch-mini-head ch-spell-lvl-head' },
+    h('span', { class: 'ch-spell-lvl-t' }, title, sub ? h('span', { class: 'ch-spell-lvl-sub' }, sub) : null),
+    h('span', { class: 'ch-spell-col-labels', 'aria-hidden': 'true' }, [time, 'Range', 'Hit / DC', 'Effect'].map((t) => h('span', null, t))));
 }
 
 /** "2 of 3 slots left" / "cast with level 3 pact slots" / "at will" for a spell level. */
@@ -824,36 +845,113 @@ function spells(c, s) {
   const preparedCount = (sc) => sc.preparedCount ?? c.spells.filter((x) => x.class === sc.class && x.prepared && !x.always && (Number(findEntry('spell', x.id)?.level) || 0) > 0).length;
   const cantripCount = (sc) => sc.cantripCount ?? c.spells.filter((x) => x.class === sc.class && (Number(findEntry('spell', x.id)?.level) || 0) === 0 && !x.always).length;
   const innate = Array.isArray(s.innate) ? s.innate : [];
-  return section('spells', 'Spellcasting', {
+  const several = new Set(rows.map((r) => r.from)).size > 1;
+  const el = section('spells', 'Spellcasting', {
     iconName: 'sparkle',
     actions: [add],
   },
-  s.spellcasting.length ? h('div', { class: 'ch-casters' }, s.spellcasting.map((sc) => h('div', { class: 'ch-caster' },
+  s.spellcasting.length || innate.length ? h('div', { class: 'ch-casters' }, s.spellcasting.map((sc) => h('div', { class: 'ch-caster' },
     h('strong', null, entryName('class', sc.class) || prettify(sc.class)),
     h('span', { class: 'badge' }, String(sc.ability || '').toUpperCase()),
     h('span', null, 'Save DC ', adjValue(s, `spellDc:${sc.class}`, String(sc.dc), { className: 'ch-caster-num' })),
     h('span', null, 'Attack ', h('button', { class: 'ch-link-btn ch-bonus', type: 'button', title: 'Roll a spell attack', onclick: () => rollToast(`${entryName('class', sc.class)} spell attack`, sc.attack) }, adjValue(s, `spellAttack:${sc.class}`, fmt(sc.attack)))),
     sc.cantrips ? h('span', { class: cantripCount(sc) > sc.cantrips ? 'danger-text' : 'muted' }, `Cantrips ${cantripCount(sc)}/${sc.cantrips}`) : null,
     sc.prepared ? h('span', { class: preparedCount(sc) > sc.prepared ? 'danger-text' : 'muted' }, `Prepared ${preparedCount(sc)}/${sc.prepared}`) : null,
-    sc.spellbook ? h('span', { class: 'muted' }, `Spellbook ${sc.spellbook.count}${sc.spellbook.size ? `/${sc.spellbook.size}+` : ''}`) : null))) : null,
-  innate.length ? h('div', { class: 'ch-casters' }, innate.map((g) => h('div', { class: 'ch-caster' },
+    sc.spellbook ? h('span', { class: 'muted' }, `Spellbook ${sc.spellbook.count}${sc.spellbook.size ? `/${sc.spellbook.size}+` : ''}`) : null)),
+  innate.map((g) => h('div', { class: 'ch-caster' },
     h('strong', null, g.source || 'Innate'),
     h('span', { class: 'badge' }, String(g.ability || '').toUpperCase()),
     h('span', null, 'Save DC ', adjValue(s, `spellDc:innate:${g.key}`, String(g.dc), { className: 'ch-caster-num' })),
     h('span', null, 'Attack ', h('button', { class: 'ch-link-btn ch-bonus', type: 'button', title: 'Roll a spell attack', onclick: () => rollToast(`${g.source || 'Innate'} spell attack`, g.attack) }, adjValue(s, `spellAttack:innate:${g.key}`, fmt(g.attack)))),
     h('span', { class: 'muted' }, (g.spells || []).map((id) => entryName('spell', id)).join(', '))))) : null,
+  // Slots on one line: "Slots 1st ●●●● 2nd ●●● · Pact 3rd ●●"; what's left is in each level's heading
   s.slots.some(Boolean) || s.pact ? h('div', { class: 'ch-slots', 'data-sec': 'slots' },
-    s.slots.map((n, i) => (n ? h('div', { class: 'ch-slot-row' },
-      h('span', { class: 'ch-slot-lvl' }, `Level ${i + 1}`),
-      pips({ max: n, used: c.slotsUsed[i], label: `Level ${i + 1} slots`, fk: `slot${i}`, onChange: (u) => mutate((y) => { y.slotsUsed[i] = u; }) }),
-      h('span', { class: 'muted ui text-xs' }, `${Math.max(0, n - (c.slotsUsed[i] || 0))} left`)) : null)),
-    s.pact ? h('div', { class: 'ch-slot-row ch-pact' },
-      h('span', { class: 'ch-slot-lvl' }, `Pact (L${s.pact.level ?? s.pact.slotLevel ?? '?'})`),
-      pips({ max: s.pact.slots, used: c.pactUsed, label: 'Pact Magic slots', fk: 'pact', onChange: (u) => mutate((y) => { y.pactUsed = u; }) }),
-      h('span', { class: 'muted ui text-xs' }, 'short rest')) : null) : null,
+    h('span', { class: 'ch-slots-label' }, 'Slots'),
+    s.slots.map((n, i) => (n ? h('span', { class: 'ch-slot-row', title: `Level ${i + 1}: ${Math.max(0, n - (c.slotsUsed[i] || 0))} of ${n} left` },
+      h('span', { class: 'ch-slot-lvl' }, ordinal(i + 1)),
+      pips({ max: n, used: c.slotsUsed[i], label: `Level ${i + 1} slots`, fk: `slot${i}`, onChange: (u) => mutate((y) => { y.slotsUsed[i] = u; }) })) : null)),
+    s.pact ? h('span', { class: 'ch-slot-row ch-pact', title: 'Pact Magic slots come back on a short rest' },
+      h('span', { class: 'ch-slot-lvl' }, `Pact ${ordinal(s.pact.level ?? s.pact.slotLevel ?? '?')}`),
+      pips({ max: s.pact.slots, used: c.pactUsed, label: 'Pact Magic slots', fk: 'pact', onChange: (u) => mutate((y) => { y.pactUsed = u; }) })) : null) : null,
+  rows.length >= 4 ? spellFilterBar(rows) : null,
   rows.length ? h('div', { class: 'ch-spell-levels' }, [...byLevel.keys()].sort((a, b) => a - b).map((lvl) => h('div', { class: 'ch-spell-level' },
-    h('h4', { class: 'ch-mini-head ch-spell-lvl-head' }, lvl === 0 ? 'Cantrips' : `Level ${lvl}`, h('span', { class: 'ch-spell-lvl-sub' }, slotText(lvl, c, s))),
-    h('ul', { class: 'ch-spell-list', role: 'list' }, byLevel.get(lvl).sort((a, b) => a.name.localeCompare(b.name)).map((r) => spellItem(r, s)))))) : h('p', { class: 'muted ui text-sm' }, 'No spells chosen yet.'));
+    spellHead(lvl === 0 ? 'Cantrips' : `Level ${lvl}`, slotText(lvl, c, s)),
+    h('ul', { class: 'ch-spell-list', role: 'list' }, byLevel.get(lvl).sort((a, b) => a.name.localeCompare(b.name)).map((r) => spellItem(r, s, { from: several })))))) : h('p', { class: 'muted ui text-sm' }, 'No spells chosen yet.'),
+  rows.length >= 4 ? h('div', { class: 'ch-sf-none muted ui text-sm', hidden: true }, 'No spells match these filters. ',
+    h('button', { class: 'ch-link-btn', type: 'button', onclick: (e) => setSpellFilter(e, null) }, 'Clear filters')) : null);
+  applySpellFilter(el);
+  return el;
+}
+
+const ordinal = (n) => (Number.isFinite(Number(n)) ? `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}` : String(n));
+
+// ---------- Spells tab filter: level · effect (damage, healing, a damage type, concentration…) · prepared · name ----------
+
+const SPELL_FILTERS = new Map(); // character id -> {level, fx, prepared, q} (this session)
+const NO_SPELL_FILTER = { level: null, fx: null, prepared: false, q: '' };
+const spellFilter = () => SPELL_FILTERS.get(S.id) || NO_SPELL_FILTER;
+
+/** Change the filter (patch null = clear it) and show / hide the rows in place, without repainting the sheet. */
+function setSpellFilter(e, patch) {
+  SPELL_FILTERS.set(S.id, patch ? { ...spellFilter(), ...patch } : NO_SPELL_FILTER);
+  const sec = e.currentTarget.closest('[data-sec="spells"]');
+  if (!patch) { const q = sec?.querySelector('.ch-sf-q'); if (q) q.value = ''; }
+  applySpellFilter(sec);
+}
+
+/** Chips for the levels and effects present, a Prepared toggle, a name search and a "5 of 19 · Clear" note. */
+function spellFilterBar(rows) {
+  const f = spellFilter();
+  const opts = spellFilterOptions(rows);
+  const chip = (label, n, attrs, onclick, title = null) => h('button', { class: ['chip', 'ch-sf-chip'], type: 'button', 'aria-pressed': 'false', title, onclick, ...attrs },
+    label, n != null ? h('span', { class: 'ch-sf-n num' }, String(n)) : null);
+  return h('div', { class: 'ch-sf', role: 'group', 'aria-label': 'Filter spells' },
+    h('div', { class: 'ch-sf-row' },
+      opts.levels.length > 1 ? h('div', { class: 'ch-sf-group', role: 'group', 'aria-label': 'Spell level' },
+        chip('All', rows.length, { 'data-sf-level': 'all', 'data-fk': 'sf-level-all' }, (e) => setSpellFilter(e, { level: null })),
+        opts.levels.map((o) => chip(o.level ? ordinal(o.level) : 'Cantrips', o.n, { 'data-sf-level': String(o.level), 'data-fk': `sf-level-${o.level}` },
+          (e) => setSpellFilter(e, { level: spellFilter().level === o.level ? null : o.level }), o.level ? `Level ${o.level} spells` : null))) : null,
+      chip('Prepared', null, { 'data-sf-prep': '', 'data-fk': 'sf-prep' }, (e) => setSpellFilter(e, { prepared: !spellFilter().prepared }), 'Only spells you can cast now: cantrips and prepared spells'),
+      h('span', { class: 'spacer' }),
+      h('input', {
+        class: 'input input-sm ch-sf-q', type: 'search', placeholder: 'Find a spell', value: f.q, 'aria-label': 'Find a spell by name', 'data-fk': 'sf-q',
+        oninput: (e) => setSpellFilter(e, { q: e.target.value }),
+      })),
+    opts.effects.length ? h('div', { class: 'ch-sf-group ch-sf-fx', role: 'group', 'aria-label': 'Effect' },
+      opts.effects.map((o) => chip(o.label, o.n, { 'data-sf-fx': o.key, 'data-fk': `sf-fx-${o.key}` }, (e) => setSpellFilter(e, { fx: spellFilter().fx === o.key ? null : o.key })))) : null,
+    h('p', { class: 'ch-sf-status muted ui text-xs', hidden: true, 'aria-live': 'polite' },
+      h('span', { class: 'ch-sf-count' }), ' · ',
+      h('button', { class: 'ch-link-btn', type: 'button', 'data-fk': 'sf-clear', onclick: (e) => setSpellFilter(e, null) }, 'Clear filters')));
+}
+
+/** Show the spell rows (and level blocks) passing the current filter; mark the active chips. */
+function applySpellFilter(sec) {
+  if (!sec) return;
+  const f = spellFilter();
+  let shown = 0;
+  let total = 0;
+  sec.querySelectorAll('.ch-spell-level').forEach((block) => {
+    let any = false;
+    block.querySelectorAll('li.ch-spell').forEach((li) => {
+      const ok = spellPasses({ level: Number(li.dataset.lvl), keys: (li.dataset.fx || '').split(' ').filter(Boolean), ready: li.dataset.ready === '1', name: li.dataset.name }, f);
+      li.hidden = !ok;
+      total += 1;
+      if (ok) { shown += 1; any = true; }
+    });
+    block.hidden = !any;
+  });
+  const on = (el, yes) => { el.setAttribute('aria-pressed', String(yes)); el.classList.toggle('is-active', yes); };
+  sec.querySelectorAll('[data-sf-level]').forEach((b) => on(b, b.dataset.sfLevel === (f.level == null ? 'all' : String(f.level))));
+  sec.querySelectorAll('[data-sf-fx]').forEach((b) => on(b, b.dataset.sfFx === f.fx));
+  sec.querySelectorAll('[data-sf-prep]').forEach((b) => on(b, !!f.prepared));
+  const active = f.level != null || !!f.fx || !!f.prepared || !!String(f.q || '').trim();
+  const status = sec.querySelector('.ch-sf-status');
+  if (status) {
+    status.hidden = !active || !shown;
+    status.querySelector('.ch-sf-count').textContent = `Showing ${shown} of ${total} spells`;
+  }
+  const none = sec.querySelector('.ch-sf-none');
+  if (none) none.hidden = !(active && !shown);
 }
 
 // ---------- bonus actions (content of the "Bonus actions" tab) ----------
@@ -889,9 +987,9 @@ function bonusActions(c, s) {
   };
   const groups = [
     baSpells.length ? h('div', { class: 'ch-ba-group' },
-      h('h4', { class: 'ch-mini-head ch-spell-lvl-head' }, 'Spells', h('span', { class: 'ch-spell-lvl-sub' }, 'cast as a Bonus Action')),
-      h('div', { class: 'ch-spell-levels ch-ba-spells' }, h('ul', { class: 'ch-spell-list', role: 'list' },
-        baSpells.map((r) => spellItem(r, s, { extraMeta: r.level ? `Level ${r.level}: ${slotText(r.level, c, s)}` : 'Cantrip' }))))) : null,
+      h('div', { class: 'ch-spell-levels ch-ba-spells' }, h('div', { class: 'ch-spell-level' }, spellHead('Spells', 'cast as a Bonus Action', { time: 'Level' }),
+        h('ul', { class: 'ch-spell-list', role: 'list' },
+          baSpells.map((r) => spellItem(r, s, { time: r.level ? `Level ${r.level}` : 'Cantrip', timeTitle: r.level ? `Level ${r.level}: ${slotText(r.level, c, s)}` : 'Cantrip: at will', fk: '-ba' })))))) : null,
     feats.length ? h('div', { class: 'ch-ba-group' },
       h('h4', { class: 'ch-mini-head ch-spell-lvl-head' }, 'Features & traits'),
       h('ul', { class: 'ch-ba-list', role: 'list' }, feats.map(featItem))) : null,
@@ -1048,9 +1146,9 @@ function features(c, s) {
       if (!groups.has(k)) groups.set(k, { label, list: [] });
       groups.get(k).list.push(f);
     }
-    body = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, g]) => h('div', { class: 'ch-feat-group' },
+    body = h('div', { class: 'ch-feat-flow' }, [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, g]) => h('div', { class: 'ch-feat-group' },
       h('h3', { class: 'ch-feat-group-title' }, g.label, h('span', { class: 'ch-feat-count' }, String(g.list.length))),
-      h('div', { class: 'ch-feat-cols' }, favFirst(g.list).map(item))));
+      h('div', { class: 'ch-feat-cols' }, favFirst(g.list).map(item)))));
   }
   return section('features', 'Features & traits', {
     iconName: 'scroll',
@@ -1075,7 +1173,7 @@ function smartFeatures(c, s, tagging, item, tag, favFirst = (l) => l) {
       onclick: () => setFeatView({ view: 'smart', tag: t.id }),
     }, t.label, h('span', { class: 'ch-smart-n num' }, String(t.id === 'other' ? untagged.length : tagging.counts[t.id] || 0))))),
     aspects ? h('div', { class: 'ch-aspects', 'aria-label': 'On your sheet' }, aspects) : null,
-    list.length ? h('div', { class: 'ch-feat-group' }, h('div', { class: 'ch-feat-cols' }, favFirst(list).map(item)))
+    list.length ? h('div', { class: 'ch-feat-flow' }, h('div', { class: 'ch-feat-group' }, h('div', { class: 'ch-feat-cols' }, favFirst(list).map(item))))
       : h('p', { class: 'muted ui text-sm' }, `No features tagged ${tags.find((t) => t.id === cur)?.label || cur} yet.`));
 }
 

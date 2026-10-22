@@ -22,7 +22,7 @@
       "subclass": null,
       "hp": [
         8,
-        5
+        6
       ]
     }
   ],
@@ -125,7 +125,7 @@
   "pactUsed": 0,
   "inventory": [
     {
-      "qty": 1,
+      "qty": 3,
       "equipped": true,
       "attuned": false,
       "notes": "",
@@ -165,12 +165,17 @@
   },
   "resourcesUsed": {},
   "conditions": [
-    "petrified"
+    "charmed"
   ],
   "exhaustion": 0,
   "heroicInspiration": true,
   "xp": 0,
   "abilities": [],
+  "favorites": {
+    "items": [],
+    "skills": [],
+    "features": []
+  },
   "overrides": {
     "ac": null,
     "speed": null,
@@ -187,7 +192,15 @@
     }
   },
   "style": {
-    "accent": "#1f1a14"
+    "accent": "#465266",
+    "page": "#d6d3cc",
+    "panel": "#eeece7",
+    "border": "#9a958a",
+    "borderStyle": "ridge",
+    "borderWidth": 2,
+    "corners": "square",
+    "headingFont": null,
+    "textFont": null
   },
   "details": {
     "alignment": "",
@@ -218,5 +231,5 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-22T04:25:57.154Z",
-  "updated": "2026-10-22T20:03:41.440Z"
+  "updated": "2026-10-22T22:11:55.735Z"
 }

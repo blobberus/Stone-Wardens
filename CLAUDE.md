@@ -128,7 +128,14 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   shown by default, setting `chTrackersShown`; beside the abilities, below them when narrow; while hidden, active
   conditions show as chips in the HP widget) -> narrow column skills, senses, proficiencies (foldable) | wide column actions window (tabs
   Attacks / Spells / Bonus actions),
-  resources, inventory, currency -> features (All | Smart tag view) -> details, notes. Tuned for the collapsed sidebar (container queries).
+  resources, inventory, currency, features (All | Smart tag view; compact rows, groups flow through two columns)
+  -> details, notes. Tuned for the collapsed sidebar (container queries).
+- Spells tab: casters line, one-line slot pips, then one spell per row in columns (prepare | name | time | range |
+  hit/DC | effect | remove; the level headings label the columns; two lines below 640px of list width). Filter bar
+  (4+ spells): level chips, Prepared, name search, effect chips (Damage, Healing, each damage type present,
+  Concentration, Ritual, Bonus action, Reaction); one choice per group, all combined. Pure helpers in engine-spells.js
+  (`spellFxKeys`, `spellPasses`, `spellFilterOptions`, `shortCastingTime`, `shortRange`); the sheet only toggles
+  `hidden` on rows (state per character for the session), so typing never repaints the sheet.
 - Favourites: doc field `favorites {items: [inventory uid], skills: [skill id], features: ['<sourceType>:<id>']}`
   (pure helpers in `engine-favs.js`, normalized in data.js `normalize`). A gold-star "Favourite" toggle sits in each
   entry's own menu (item edit + info modals, skill modal from the skill name, expanded feature row, feature modal);
@@ -137,7 +144,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).
-- Rules engine: `node tools/test_engine.mjs` and `node tools/test_spells.mjs` (spell numbers, XP; both must stay
+- Rules engine: `node tools/test_engine.mjs` and `node tools/test_spells.mjs` (spell numbers, XP, spell filters; both must stay
   green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). `node tools/audit_spells.mjs` lists spells whose text implies numbers
   the sheet doesn't show (11 known, intentional gaps).
 - Syntax: portable `node --check`. Markdown renderer can be exercised in Node by stubbing `DOMPurify.sanitize`.

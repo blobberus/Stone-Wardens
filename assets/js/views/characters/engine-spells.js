@@ -347,3 +347,69 @@ export function addSpellIssues(records, sc, { className } = {}) {
     return { record, issues, prepared: prep };
   });
 }
+
+// ----- sheet list: short columns and filters ---------------------------------------------------
+
+/** "Action" / "Bonus" / "Reaction" / "1 min" / "8 hr" for the one-line spell rows. */
+export function shortCastingTime(text) {
+  const t = String(text || '').trim();
+  if (/^bonus action/i.test(t)) return 'Bonus';
+  if (/^reaction/i.test(t)) return 'Reaction';
+  if (/^action/i.test(t)) return 'Action';
+  const m = t.match(/^(\d+)\s*(minute|hour|round|day)s?\b/i);
+  return m ? `${m[1]} ${{ minute: 'min', hour: 'hr', round: 'rnd', day: 'day' }[m[2].toLowerCase()]}` : t;
+}
+
+/** "120 feet" -> "120 ft", "Self (15-foot cone)" -> "Self (15-ft cone)". */
+export const shortRange = (text) => String(text || '').trim().replace(/(\d+)([- ])(?:feet|foot)\b/gi, '$1$2ft');
+
+/** Effect filters of the Spells tab, in chip order (damage types only appear when a listed spell deals them). */
+export const SPELL_FX = [['damage', 'Damage'], ['heal', 'Healing'], ...DAMAGE_TYPES.split('|').map((t) => [t, cap(t)]),
+  ['conc', 'Concentration'], ['ritual', 'Ritual'], ['bonus', 'Bonus action'], ['reaction', 'Reaction']];
+
+/**
+ * The effect filter keys a spell matches (record = spell entry, stats = spellStats(record)):
+ * "damage", "heal", each damage type ("fire"…), "conc", "ritual", "bonus" / "reaction" (casting time).
+ */
+export function spellFxKeys(record, stats = null) {
+  const r = record && typeof record === 'object' ? record : {};
+  const st = stats || spellStats(r);
+  const known = new Set(DAMAGE_TYPES.split('|'));
+  const types = new Set();
+  for (const d of st.damage || []) {
+    for (const t of Array.isArray(d.types) && d.types.length ? d.types : [d.type]) if (known.has(String(t || '').toLowerCase())) types.add(String(t).toLowerCase());
+  }
+  const ct = String(r.castingTime || '');
+  return [(st.damageGroups || []).length && 'damage', st.heal && 'heal', ...types, r.concentration && 'conc', r.ritual && 'ritual',
+    /^bonus action/i.test(ct) && 'bonus', /^reaction/i.test(ct) && 'reaction'].filter(Boolean);
+}
+
+const foldText = (s) => String(s || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+/**
+ * Does a spell row pass the Spells tab filter? row = {level, keys (spellFxKeys), ready (cantrip / prepared /
+ * always), name}; filter = {level: null | n, fx: null | key, prepared: bool, q: name text}. Every set part must match.
+ */
+export function spellPasses(row, filter = {}) {
+  const { level = null, fx = null, prepared = false, q = '' } = filter || {};
+  if (level != null && num(row?.level) !== num(level)) return false;
+  if (fx && !(row?.keys || []).includes(fx)) return false;
+  if (prepared && !row?.ready) return false;
+  const needle = foldText(q);
+  return !needle || foldText(row?.name).includes(needle);
+}
+
+/** Chips for the rows present: levels [{level, n}] ascending, effects [{key, label, n}] in SPELL_FX order. */
+export function spellFilterOptions(rows) {
+  const levels = new Map();
+  const fx = new Map();
+  for (const r of rows || []) {
+    const l = num(r.level);
+    levels.set(l, (levels.get(l) || 0) + 1);
+    for (const k of new Set(r.keys || [])) fx.set(k, (fx.get(k) || 0) + 1);
+  }
+  return {
+    levels: [...levels.entries()].sort((a, b) => a[0] - b[0]).map(([level, n]) => ({ level, n })),
+    effects: SPELL_FX.filter(([k]) => fx.has(k)).map(([key, label]) => ({ key, label, n: fx.get(key) })),
+  };
+}

@@ -319,6 +319,33 @@ section('smart tags (engine-tags)');
   check('advantage sources: features, conditions, exhaustion', adv.some((x) => x.source === 'Rage' && x.kind === 'advantage') && adv.some((x) => x.source === 'Reckless Attack') && adv.some((x) => x.from === 'condition' && x.kind === 'disadvantage') && adv.some((x) => x.from === 'exhaustion'), adv.map((x) => `${x.source}:${x.kind}`));
 }
 
+section('spell list columns and filters');
+{
+  eq('short casting times', ['Action', 'Bonus Action', 'Reaction, which you take when you are hit', '1 minute', '10 minutes', '8 hours', 'Action (Overgrowth) or 8 hours (Enrichment)'].map(E.shortCastingTime),
+    ['Action', 'Bonus', 'Reaction', '1 min', '10 min', '8 hr', 'Action']);
+  eq('short ranges', ['120 feet', 'Self', 'Touch', 'Self (15-foot cone)', '1 mile'].map(E.shortRange), ['120 ft', 'Self', 'Touch', 'Self (15-ft cone)', '1 mile']);
+  eq('Fire Bolt keys', E.spellFxKeys(spell('fire-bolt')), ['damage', 'fire']);
+  eq('Cure Wounds keys', E.spellFxKeys(spell('cure-wounds')), ['heal']);
+  eq('Healing Word: healing + bonus action', E.spellFxKeys(spell('healing-word')), ['heal', 'bonus']);
+  eq('Shield: reaction only', E.spellFxKeys(spell('shield')), ['reaction']);
+  eq('Detect Magic: concentration + ritual', E.spellFxKeys(spell('detect-magic')), ['conc', 'ritual']);
+  check('Ice Knife: piercing and cold', ['damage', 'piercing', 'cold'].every((k) => E.spellFxKeys(spell('ice-knife')).includes(k)), E.spellFxKeys(spell('ice-knife')));
+  check('Wish deals no (incidental) damage', !E.spellFxKeys(spell('wish')).includes('damage'), E.spellFxKeys(spell('wish')));
+  const rows = ['fire-bolt', 'light', 'cure-wounds', 'burning-hands', 'shield', 'scorching-ray'].map((id) => ({ level: spell(id).level, keys: E.spellFxKeys(spell(id)), ready: id !== 'shield', name: spell(id).name }));
+  const pass = (f) => rows.filter((r) => E.spellPasses(r, f)).map((r) => r.name);
+  eq('no filter keeps all', pass({}).length, 6);
+  eq('level 1', pass({ level: 1 }), ['Cure Wounds', 'Burning Hands', 'Shield']);
+  eq('cantrips (level 0)', pass({ level: 0 }), ['Fire Bolt', 'Light']);
+  eq('fire', pass({ fx: 'fire' }), ['Fire Bolt', 'Burning Hands', 'Scorching Ray']);
+  eq('level 1 + fire', pass({ level: 1, fx: 'fire' }), ['Burning Hands']);
+  eq('healing', pass({ fx: 'heal' }), ['Cure Wounds']);
+  eq('prepared only', pass({ prepared: true }).includes('Shield'), false);
+  eq('name search folds case and spaces', pass({ q: '  fire  BOLT ' }), ['Fire Bolt']);
+  const opts = E.spellFilterOptions(rows);
+  eq('level chips', opts.levels, [{ level: 0, n: 2 }, { level: 1, n: 3 }, { level: 2, n: 1 }]);
+  eq('effect chips in order, only present ones', opts.effects.map((x) => `${x.key}:${x.n}`), ['damage:3', 'heal:1', 'fire:3', 'reaction:1']);
+}
+
 // ------------------------------------------------------------------------------------------------
 console.log(`\n${passed} passed, ${failures.length} failed`);
 if (failures.length) { for (const f of failures) console.log(`  FAIL ${f}`); process.exit(1); }

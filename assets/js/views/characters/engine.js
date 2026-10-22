@@ -47,7 +47,7 @@ import { lastLeveledClass } from './engine-xp.js';
 
 export { buildRules, loadRules, invalidateRules, itemStats, averageHp, getChoiceValue, featPrereqReason };
 export { XP_TABLE, xpTable, xpForLevel, levelForXp, xpStatus, xpLevelsCrossed, addXp, setXp, xpAfterLevelChange, lastLeveledClass } from './engine-xp.js';
-export { spellStats, spellIssues, addSpellIssues, onCasterList, parseDice, rollDice, diceText, cantripTier } from './engine-spells.js';
+export { spellStats, spellIssues, addSpellIssues, onCasterList, parseDice, rollDice, diceText, cantripTier, shortCastingTime, shortRange, SPELL_FX, spellFxKeys, spellPasses, spellFilterOptions } from './engine-spells.js';
 export { isBonusActionSpell, bonusActionOptions, bonusActionFeatures, featureHealing, offhandAttacks } from './engine-actions.js';
 export { entryFit, weaponFit, armorFit, toolFit, focusFor, attunementFit, spellFit } from './engine-prof.js';
 export { TAGS, TAG_IDS, featureTags, normalizeTags, customAbilityRecords, tagFeatures, advantageSources, attacksPerAction } from './engine-tags.js';
