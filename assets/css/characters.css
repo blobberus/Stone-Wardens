@@ -5,10 +5,8 @@
 
 /* position: relative keeps absolutely positioned bits (.sr-only table headers) inside the scrolling view;
    without it they hang off the initial containing block and widen the phone layout viewport. */
-.ch-page { position: relative; max-width: 1320px; margin: 0 auto; --ch-stick: calc(var(--space-5) * -1); }
-/* Sticky bars (sheet nav, Edit all save bar) sit flush with the top of the scroller: `top` is measured inside
-   the view's top padding, so pull them up by it (shell.css: --space-5, phones --space-4). */
-@media (max-width: 759px) { .ch-page { --ch-stick: calc(var(--space-4) * -1); } }
+.ch-page { position: relative; max-width: 1320px; margin: 0 auto; --ch-stick: var(--stick-top, 0px); }
+/* Sticky bars (sheet nav, Edit all save bar) sit flush with the top of the scroller via shell.css --stick-top. */
 .ch-page[data-mode="roster"] { max-width: 1400px; }
 
 /* ---------- small shared bits ------------------------------------------------ */

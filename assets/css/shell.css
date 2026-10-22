@@ -26,8 +26,11 @@ body:has(> .app:not([hidden])) { overflow: hidden; }
   overscroll-behavior: contain;
   padding: var(--space-5) var(--view-pad) var(--space-7);
   scroll-padding-top: var(--space-5);
+  /* Sticky bars and table heads use `top: var(--stick-top)` so they sit flush with the top edge instead of
+     stopping below the padding (where scrolled content would show through). Equals minus the top padding. */
+  --stick-top: calc(var(--space-5) * -1);
 }
-.view[data-view="map"] { overflow: hidden; padding: 0; }
+.view[data-view="map"] { overflow: hidden; padding: 0; --stick-top: 0px; }
 
 /* ---------- Sidebar -------------------------------------------------------- */
 .sidebar {
@@ -182,7 +185,7 @@ body:has(> .app:not([hidden])) { overflow: hidden; }
   .sidebar .sb-footer { padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); }
   .sidebar .sb-save { height: 44px; }
   .views { height: calc(100dvh - var(--topbar-h)); margin-top: var(--topbar-h); }
-  .view { padding: var(--space-4) var(--space-4) var(--space-7); }
+  .view { padding: var(--space-4) var(--space-4) var(--space-7); --stick-top: calc(var(--space-4) * -1); }
 }
 
 /* ---------- Shared view header -------------------------------------------- */
@@ -228,12 +231,14 @@ body:has(> .app:not([hidden])) { overflow: hidden; }
   padding: var(--space-4) var(--space-3);
   background: var(--bg);
   border-right: 1px solid var(--border);
+  --stick-top: calc(var(--space-4) * -1);
 }
 .split-main {
   min-width: 0;
   overflow: auto;
   overscroll-behavior: contain;
   padding: var(--space-5) var(--view-pad) var(--space-7);
+  --stick-top: calc(var(--space-5) * -1);
 }
 @media (max-width: 899px) {
   .split { grid-template-columns: minmax(0, 1fr); }
