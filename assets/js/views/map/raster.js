@@ -7,6 +7,7 @@
 // Tile canvases are CPU-backed on purpose: drawing a big bitmap into GPU canvases costs ~90x more.
 
 const TILE = 256;
+const OVERLAP = 1; // CSS px each tile reaches into the next one
 const MIN_LEVEL = 512; // smallest pyramid level (long side)
 const MIN_SVG_SIDE = 3000; // small SVGs are rasterised larger so they stay sharp when zoomed in
 const FRAME_BUDGET = 6; // ms of tile drawing per animation frame
@@ -133,9 +134,11 @@ export function createImageLayer(source) {
 
   function drawTile(c, coords) {
     const g = ctx2d(c);
-    const span = TILE / 2 ** coords.z; // image px covered by this tile
-    const x0 = coords.x * span;
-    const y0 = coords.y * span;
+    // Each tile is 1 CSS px bigger than the grid step and overlaps its neighbour with real image
+    // content, so no hairline seams show when the level is scaled to a fractional zoom.
+    const span = (TILE + OVERLAP) / 2 ** coords.z; // image px covered by this tile
+    const x0 = (coords.x * TILE) / 2 ** coords.z;
+    const y0 = (coords.y * TILE) / 2 ** coords.z;
     const k = c.width / span; // canvas px per image px
     let lv = top;
     for (const l of levels) if (l.sx >= k * 0.98) lv = l; // smallest level that is still sharp enough
@@ -175,10 +178,15 @@ export function createImageLayer(source) {
 
   const Layer = L.GridLayer.extend({
     createTile(coords, done) {
-      const c = canvas(TILE * dpr, TILE * dpr);
+      const c = canvas((TILE + OVERLAP) * dpr, (TILE + OVERLAP) * dpr);
       queue.push({ c, coords, done });
       if (!raf) raf = requestAnimationFrame(pump);
       return c;
+    },
+    _initTile(tile) {
+      L.GridLayer.prototype._initTile.call(this, tile);
+      tile.style.width = `${TILE + OVERLAP}px`;
+      tile.style.height = `${TILE + OVERLAP}px`;
     },
     onRemove(map) {
       queue.length = 0;
@@ -202,7 +210,7 @@ export function createImageLayer(source) {
     minZoom: -30,
     maxZoom: 30,
     maxNativeZoom,
-    updateWhenZooming: true,
+    updateWhenZooming: true, // tiles are cheap, so long zooms switch to sharper levels on the way
     keepBuffer: 2,
     className: 'map-tiles',
     bounds: L.latLngBounds([[-H, 0], [0, W]]),

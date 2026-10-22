@@ -93,10 +93,11 @@ export async function deleteMapFlow(mapId) {
   ].filter(Boolean);
   let pins = 'move';
   if (places) {
+    const anchor = data.linksTo(m.id).find((l) => l.map === parent.id);
     pins = await choiceDialog(
       h('div', { class: 'stack' },
         h('p', null, `“${m.name}” has ${plural(places, 'place')}. What should happen to ${places === 1 ? 'it' : 'them'}?`),
-        h('p', { class: 'muted' }, `Moved places are gathered around ${data.linksTo(m.id).some((l) => l.map === parent.id) ? 'the place that opened this map' : 'the middle'} of “${parent.name}”, ready to be arranged in Edit map.`),
+        h('p', { class: 'muted' }, `${places === 1 ? 'A moved place goes' : 'Moved places are gathered'} ${anchor ? `next to “${anchor.name}”` : 'in the middle'} on “${parent.name}”, ready to be arranged in Edit map.`),
         facts.length ? h('p', null, facts.join(' ')) : null),
       [
         { label: 'Cancel', value: null, kind: 'ghost' },

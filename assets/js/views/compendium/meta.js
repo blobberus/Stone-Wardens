@@ -4,6 +4,7 @@ import { KINDS, kindInfo, srd, cached, entries } from '../../core/compendium.js'
 import { href } from '../../core/router.js';
 import { h } from '../../core/dom.js';
 import { nameKey } from '../../core/util.js';
+import { rankName } from '../map/ranks.js';
 
 // ---------- rules (sync access after load) ----------
 
@@ -279,7 +280,7 @@ export function statLine(e) {
     case 'class': return [`Hit die d${e.hitDie || '?'}`, primaryAbility(e), e.spellcasting ? CASTER_KINDS[e.spellcasting.kind] || 'Spellcaster' : null].filter((x) => x && x !== '—').join(' · ');
     case 'subclass': return [`${className(e.class)} subclass`, e.summary].filter(Boolean).join(' · ');
     case 'background': return [abilList(e.abilityScores), e.feat?.id ? entryName('feat', e.feat.id) : null, (e.skills || []).map(skillName).join(', ')].filter(Boolean).join(' · ');
-    case 'location-type': return ['Location type', e.major ? 'Major place' : null].filter(Boolean).join(' · ');
+    case 'location-type': return `Location type · rank ${typeRankText(e)}`;
     default: return '';
   }
 }
@@ -313,8 +314,13 @@ const mapReady = import('../map/data.js').then((m) => { mapData = m; }).catch(()
 /** Built-in map types as compendium-like entries (origin 'builtin'), when the map module is available. */
 export function builtinLocationTypes() {
   if (!mapData?.BUILTIN_TYPES) return [];
-  return mapData.BUILTIN_TYPES.map((t) => ({ id: t.id, name: t.name, icon: t.icon, color: t.color, major: t.rank === 1, kind: 'location-type', origin: 'builtin' }));
+  return mapData.BUILTIN_TYPES.map((t) => ({ id: t.id, name: t.name, icon: t.icon, color: t.color, rank: t.rank, major: t.rank === 1, kind: 'location-type', origin: 'builtin' }));
 }
+
+/** A location type's default map rank (older docs only have `major`). */
+export const typeRank = (e) => Number(e.rank) || (e.major ? 1 : 3);
+/** "2 · Notable" */
+export const typeRankText = (e) => `${typeRank(e)} · ${rankName(typeRank(e))}`;
 export const MARKER_ICONS = [
   'city', 'town', 'village', 'temple', 'danger', 'dungeon', 'ruins', 'castle', 'port', 'camp',
   'cave', 'forest', 'mountain', 'landmark', 'tavern', 'shop', 'portal', 'battle', 'quest', 'custom',
@@ -471,7 +477,7 @@ export const COLUMNS = {
   'location-type': [
     C('', swatchCell, { key: 'icon', sort: (e) => e.icon || '' }),
     NAME,
-    C('Major place', (e) => yes(e.major)),
+    C('Default rank', typeRankText, { sort: typeRank }),
     C('Source', (e) => (e.origin === 'builtin' ? 'Built-in' : e.overrides ? `Custom override${e.createdBy ? ` · ${e.createdBy}` : ''}` : `Custom${e.createdBy ? ` · ${e.createdBy}` : ''}`), { cls: 'cell-muted' })],
 };
 export const columnsFor = (kind) => COLUMNS[kind] || [NAME, SOURCE];

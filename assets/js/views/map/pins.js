@@ -65,7 +65,9 @@ export function PinMarker() {
     const L = window.L;
     PinClass = L.Marker.extend({
       _setPos(pos) {
-        if (this._icon) L.DomUtil.setPosition(this._icon, pos);
+        // Culled pins (display:none, see index.js cull) only remember where they are.
+        if (this._icon && this._culled) this._icon._leaflet_pos = pos;
+        else if (this._icon) L.DomUtil.setPosition(this._icon, pos);
         const z = Math.round(-this._latlng.lat) + this.options.zIndexOffset;
         if (z !== this._zIndex) { this._zIndex = z; this._resetZIndex(); }
       },

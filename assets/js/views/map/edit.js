@@ -30,7 +30,7 @@ function reconcile(parent, nodes) {
 /**
  * ctx: {root, leaflet(), mapId(), info(), locations(), typeOf, types(), marker(id) -> {marker, loc},
  *       toLatLng(x, y), toXY(latlng), clampXY(p), applyStates(), focusLoc(loc, zoom), openDetails(id), exit(),
- *       replaceImage(), newSubmap({name, parent}) -> Promise<id|null>, setBandPreview(bands|null), zoomU()}
+ *       replaceImage(), newSubmap({name, parent}) -> Promise<id|null>, setBandPreview(bands|null), zoomU(), rankShift()}
  */
 export function createEditor(ctx) {
   const st = { open: false, sel: new Set(), openRow: null, q: '', drag: null, nudge: null, undo: [], rows: new Map() };
@@ -460,12 +460,15 @@ export function createEditor(ctx) {
     if (!bandsEl.open) { clear(bandsBody); return; }
     const b = curBands();
     const u = Math.round(ctx.zoomU() * 100);
+    const sh = ctx.rankShift();
     mount(bandsBody,
-      h('p', { class: 'map-edit-hint' }, 'Each rank shows between two zoom positions: 0% is fully zoomed out, 100% fully zoomed in. While this is open the map previews it (other ranks hide again).'),
+      h('p', { class: 'map-edit-hint' }, 'Each band shows between two zoom positions: 0% is fully zoomed out, 100% fully zoomed in. While this is open the map previews the bands.'),
+      sh ? h('p', { class: 'map-edit-hint' }, `The most important places here are rank ${sh + 1}, so rank ${sh + 1} uses the first band.`) : null,
       h('ul', { class: 'map-bands', role: 'list' }, RANKS.map((r, i) => {
         const [a, z] = b[i];
-        return h('li', { class: 'map-band' },
-          h('span', { class: 'map-band-name' }, `${r.rank} · ${r.name}`),
+        const who = RANKS[i + sh];
+        return h('li', { class: ['map-band', !who && 'is-unused'] },
+          h('span', { class: 'map-band-name' }, who ? `${who.rank} · ${who.name}` : `Band ${i + 1}`),
           h('span', { class: 'map-band-track', 'aria-hidden': 'true' },
             h('i', { class: `map-band-seg rank-${r.rank}`, style: `left:${a}%;width:${z - a}%` }),
             h('b', { class: 'map-band-now', style: `left:${u}%` })),

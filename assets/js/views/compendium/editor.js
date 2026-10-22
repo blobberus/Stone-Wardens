@@ -7,6 +7,7 @@ import { saveCustom, entries, cached, preloadAll } from '../../core/compendium.j
 import { uid, slugify, clone, nameKey } from '../../core/util.js';
 import { store } from '../../core/store.js';
 import * as M from './meta.js';
+import { RANKS } from '../map/ranks.js';
 
 // ---------- path helpers ----------
 
@@ -231,7 +232,7 @@ const BLANK = {
   class: () => ({ hitDie: 8, primaryAbility: [], saves: [], proficiencies: { armor: [], weapons: ['simple'], tools: [] }, skillChoices: { choose: 2, from: [] }, spellcasting: null, features: [], description: '' }),
   subclass: () => ({ class: null, summary: '', description: '', features: [] }),
   background: () => ({ abilityScores: [], feat: { id: null, note: null }, skills: [], tool: null, equipment: { text: '', options: [] }, description: '' }),
-  'location-type': () => ({ icon: 'mk-landmark', color: pinColors()[6] || '#22507c', major: false }),
+  'location-type': () => ({ icon: 'mk-landmark', color: pinColors()[6] || '#22507c', rank: 3, major: false }),
 };
 
 const opt = (obj) => Object.entries(obj).map(([value, label]) => ({ value, label }));
@@ -667,6 +668,7 @@ const FORMS = {
 
   'location-type': {
     build(f, d) {
+      if (!RANKS.some((r) => r.rank === Number(d.rank))) d.rank = d.major ? 1 : 3;
       const colors = pinColors();
       const preview = () => h('div', { class: 'cp-loc-preview' }, M.locationSwatch(d, 40), h('span', null, (d.name || '').trim() || 'New type'));
       const icons = h('div', { class: 'cp-icon-grid', role: 'radiogroup', 'aria-label': 'Icon' });
@@ -692,13 +694,15 @@ const FORMS = {
         f.dyn(preview),
         f.fld('Icon', icons, { wide: true }),
         f.fld('Colour', sw, { wide: true }),
-        f.check('major', 'Major place (its label stays visible when the map is zoomed out)'),
+        f.fld('Default rank', f.sel('rank', RANKS.map((r) => ({ value: String(r.rank), label: `${r.rank} · ${r.name} — ${r.hint}` }))),
+          { wide: true, hint: 'Places of this type use it unless they pick their own rank. Rank 1 shows fully zoomed out; lower ranks appear as you zoom in.' }),
         d._builtin ? h('p', { class: 'muted cp-note' }, 'This changes the built-in type for everyone on the map.') : null,
       ];
     },
     validate: () => [],
     normalize(d) {
-      d.major = !!d.major;
+      d.rank = Math.min(4, Math.max(1, Math.round(Number(d.rank)) || 3));
+      d.major = d.rank === 1; // kept in step for older readers of `major`
       if (!M.MARKER_ICONS.includes(d.icon)) d.icon = 'mk-custom';
       delete d._builtin;
     },

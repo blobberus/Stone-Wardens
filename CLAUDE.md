@@ -31,7 +31,8 @@ assets/js/views/<v>/  one folder per tab: map, characters, journal, compendium, 
 srd/                  generated SRD 5.2 JSON (tools/build_srd.py) + srd/stubs/*.json; read-only at runtime
 content/              ALL user data, written by the site through the GitHub API
   characters/<id>.json  characters/recently-deleted/<id>.json (trash, `trashed:{at,by}`)
-  locations/<id>.json  map/config.json (+ uploaded map image)
+  locations/<id>.json (optional `map` sub-map id, `submap` it opens, `rank` 1-4)  map/config.json (+ map image)
+  maps/<mapId>.json + maps/<mapId>/<image>   sub-maps {id,name,parent,image,width,height}; docs/map-model.md
   journal/<chapter-slug>/_chapter.json + <note-slug>.md      (notes outside chapters: journal/*.md)
   library/<kind>/<id>.json   kinds: weapon armor gear magic-item spell feat ability species class subclass
                              background location-type
@@ -75,7 +76,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 - `links.js`: `registerLinkType(prefix, {label, resolve(target, anchor) -> {href,title,exists}|null,
   suggest(q) -> [{label, value}]})`. `resolveLink(raw)`; un-prefixed `[[X]]` -> journal note, else first exact
   name match across types, else unresolved (click offers to create note).
-  Prefixes: `map:` locations, `char:` characters (`[[char:Name#hp]]` anchors a sheet section/stat),
+  Prefixes: `map:` locations and sub-maps (place id > map id > place name > map name; `[[map:Map#Place]]`), `char:` characters (`[[char:Name#hp]]` anchors a sheet section/stat),
   `note:` journal, `doc:` warden's library, compendium kinds: `weapon: armor: gear: item: spell: feat:
   ability: species: class: subclass: background:`.
 - `markdown.js`: Obsidian-flavoured: `[[wikilinks|alias]]`, `[[x#heading]]`, `![[embed]]` (notes/images),
@@ -93,7 +94,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 - `assets/js/views/<id>/index.js` default-exports `{id, title, icon, mount(el), show(route), hide?()}`; `main.js`
   imports the ids in `VIEW_IDS` (a failed import shows an error tab instead of breaking the app). Views register
   their link types at import time and re-render from `store.on` events.
-- Routes: `#/map[/loc/<id>]`, `#/characters[/<id>[/<section>]]`, `#/journal[/<chapter>|_[/<note>]][?h=|tag=|q=]`,
+- Routes: `#/map[/loc/<id>]`, `#/map/m/<mapId>[/loc/<id>]` (sub-maps), `#/characters[/<id>[/<section>]]`, `#/journal[/<chapter>|_[/<note>]][?h=|tag=|q=]`,
   `#/journal/new?title=`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`.
 
 ## Characters tab

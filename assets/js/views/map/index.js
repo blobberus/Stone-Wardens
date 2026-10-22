@@ -129,7 +129,7 @@ function mountView(el) {
     showAllRanks: () => setHiddenRanks([]),
     allZoom: () => S.allZoom,
     setAllZoom,
-    rankWhere: (r) => rankWhere(r, S.zoomU, S.bands),
+    rankWhere: (r) => rankWhere(bandOf(r), S.zoomU, S.bands),
     editing,
     resetAll: () => { setHidden([]); setHiddenRanks([]); setAllZoom(false); },
   });
@@ -170,7 +170,7 @@ function mountView(el) {
     toLatLng,
     toXY,
     clampXY,
-    applyStates: () => { for (const e of S.markers.values()) applyState(e); },
+    applyStates: () => { cull(); for (const e of S.markers.values()) applyState(e); },
     focusLoc: (loc, zoom) => (zoom ? flyToLoc(loc) : ensureVisible(loc)),
     openDetails: (id) => openLocation(id, { fly: false }),
     exit: () => toggleEdit(false),
@@ -178,6 +178,7 @@ function mountView(el) {
     newSubmap: ({ name, parent }) => openNewMapDialog({ parent, name }),
     setBandPreview: (b) => { S.bandPreview = b; updateRanks(); },
     zoomU: () => S.zoomU,
+    rankShift: () => S.rankShift || 0,
   });
   addBtn = h('button', {
     class: 'btn btn-primary map-tool-btn map-add', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Add location',
@@ -246,6 +247,8 @@ function mountView(el) {
   S.map.on('click', onMapClick);
   S.map.on('contextmenu', onContextMenu);
   S.map.on('zoom', updateRanks);
+  S.map.on('move viewreset', cull);
+  S.map.on('zoomstart', () => S.root.classList.add('is-zooming'));
   S.map.on('zoomend', onZoomEnd);
   S.map.on('movestart zoomstart', () => closeCtx());
   S.map.on('moveend', saveView);
@@ -392,7 +395,12 @@ function updateZoomLimits() {
   S.fitZoom = Math.floor(fit * 4) / 4;
   S.map.setMinZoom(S.fitZoom - 0.75);
   S.map.setMaxZoom(Math.max(S.fitZoom + 4.5, 2)); // well past 1:1 for detail
-  S.map.setMaxBounds(S.bounds.pad(0.25));
+  // Like setMaxBounds, minus its immediate animated pan: a fit/restore right after would stop that
+  // pan, whose 'moveend' then started another pan that dragged the view off the new image.
+  const m = S.map;
+  m.off('moveend', m._panInsideMaxBounds);
+  m.options.maxBounds = S.bounds.pad(0.25);
+  m.on('moveend', m._panInsideMaxBounds);
   updateRanks();
   if (S.needsFit) { S.needsFit = false; restoreView(); }
 }
@@ -439,6 +447,19 @@ function zoomStep(dir) {
 
 // ---------- hierarchy (rank panes) ----------
 
+/**
+ * Bands are relative to the highest rank present (after filters) on this map: on a city map whose
+ * most important places are rank 3, rank 3 uses the "fully zoomed out" band, rank 4 the next one.
+ */
+function updateShift() {
+  let top = 4;
+  for (const e of S.markers.values()) {
+    if (e.rank < top && !S.hidden.has(e.type.id) && !S.hiddenRanks.has(e.rank)) top = e.rank;
+  }
+  S.rankShift = S.markers.size ? top - 1 : 0;
+}
+const bandOf = (r) => Math.max(1, Math.min(4, r - (S.rankShift || 0)));
+
 /** Pane opacities from the zoom: called every zoom frame, so it only touches 4 elements. */
 function updateRanks() {
   if (!S.map || !S.panes[1]) return;
@@ -449,7 +470,7 @@ function updateRanks() {
   const bands = S.bandPreview || S.bands;
   const showAll = S.allZoom || (editing() && !S.bandPreview);
   for (const r of RANK_IDS) {
-    const band = rankOpacity(r, u, bands);
+    const band = rankOpacity(bandOf(r), u, bands);
     const op = Math.round((showAll ? 1 : band) * 40) / 40;
     const lbl = band >= 0.7 || (S.allZoom && !editing());
     const p = S.panes[r];
@@ -462,7 +483,33 @@ function updateRanks() {
   }
 }
 
+/**
+ * Pins far outside the view get display:none, so a zoom frame only moves the pins you can see.
+ * (Measured: 400 pins zoomed in cost ~3 ms/frame of re-layerising in Chrome; culled, ~0.7 ms.)
+ */
+function cull() {
+  if (!S.map || !S.markers.size) return;
+  const mp = S.map._getMapPanePos();
+  const size = S.map.getSize();
+  const mx = 200;
+  for (const e of S.markers.values()) {
+    const el = e.marker._icon;
+    const p = el?._leaflet_pos;
+    if (!p) continue;
+    const x = p.x + mp.x;
+    const y = p.y + mp.y;
+    const out = x < -mx || x > size.x + mx || y < -mx || y > size.y + mx;
+    if (e.culled === out) continue;
+    e.culled = out;
+    e.marker._culled = out;
+    if (!out) L.DomUtil.setPosition(el, p); // it skipped position writes while hidden
+    el.classList.toggle('is-culled', out);
+  }
+}
+
 function onZoomEnd() {
+  S.root.classList.remove('is-zooming');
+  cull();
   updateRanks();
   if (legend.pop.isOpen) legend.pop.refresh();
   editor.onZoom();
@@ -561,6 +608,9 @@ function syncMarkers() {
   for (const [id, e] of S.markers) {
     if (!seen.has(id)) { e.marker.remove(); S.markers.delete(id); }
   }
+  cull();
+  updateShift();
+  updateRanks();
   legend.update();
   search.refresh();
   updateEmpty();
@@ -581,6 +631,7 @@ function applyState(e) {
   el.classList.toggle('is-dimmed', !!S.match && !S.match.has(e.id) && !sel && !editing());
   el.classList.toggle('is-moving', S.moveId === e.id);
   el.classList.toggle('is-picked', editor.isSelected(e.id));
+  el.classList.toggle('is-culled', !!e.culled);
   el.setAttribute('aria-label', `${e.loc.name}, ${e.type.name}, rank ${e.rank}${e.sub ? ', has its own map' : ''}`);
   el.removeAttribute('title');
   const name = paneName(isPinned(e) ? 'pin' : e.rank);
@@ -634,6 +685,7 @@ function allTypeIds() {
 function afterFilter() {
   savePrefs();
   for (const e of S.markers.values()) updateVisibility(e);
+  updateShift();
   legend.update();
   updateRanks();
   updateEmpty();
@@ -758,8 +810,20 @@ async function copyMapLink() {
 
 // ---------- edit mode ----------
 
+/** Keep the view centred in the part of the map beside / above the edit panel. */
+function recentreForPanel(opening, size) {
+  if (!S.map) return;
+  if (S.map.getZoom() <= S.fitZoom + 0.3) { fitMap(true); return; }
+  const sheet = isSheet();
+  const dx = sheet ? 0 : (size.w + 16) / 2;
+  const dy = sheet ? size.h / 2 : 0;
+  const k = opening ? 1 : -1;
+  S.map.panBy([-dx * k, dy * k], { animate: !reduceMotion() });
+}
+
 async function toggleEdit(on = !editing()) {
   if (on === editing()) return;
+  const panel = { w: editor.el.offsetWidth, h: editor.el.offsetHeight }; // measured while still shown (closing)
   if (on) {
     if (drawer.isOpen && !(await closeDrawer())) return;
     if (S.mode === 'moving') finishMove(false);
@@ -772,6 +836,9 @@ async function toggleEdit(on = !editing()) {
     editor.close();
   }
   S.root.classList.toggle('is-editing', on);
+  addBtn.classList.toggle('btn-primary', !on && !drawer.isOpen); // "Done" is the primary action now
+  if (on) requestAnimationFrame(() => recentreForPanel(true, { w: editor.el.offsetWidth, h: editor.el.offsetHeight }));
+  else recentreForPanel(false, panel);
   S.bandPreview = null;
   for (const e of S.markers.values()) {
     updateVisibility(e);
@@ -789,7 +856,7 @@ async function toggleEdit(on = !editing()) {
 /** The drawer brings its own primary action, so the toolbar's Add button steps down to secondary. */
 function setDrawerOpen(on) {
   S.root.classList.toggle('has-drawer', on);
-  addBtn.classList.toggle('btn-primary', !on);
+  addBtn.classList.toggle('btn-primary', !on && !editing());
 }
 
 function setHash(id) {
@@ -831,7 +898,7 @@ function flyToLoc(loc) {
   const min = S.map.getMinZoom();
   const max = S.map.getMaxZoom();
   // Close enough that the place's own rank band is showing.
-  const [a, z] = (S.bands[data.rankOf(loc) - 1] || [0, 100]).map((v) => min + ((max - min) * v) / 100);
+  const [a, z] = (S.bands[bandOf(data.rankOf(loc)) - 1] || [0, 100]).map((v) => min + ((max - min) * v) / 100);
   const lo = Math.max(S.fitZoom + 1.5, a + 0.1);
   const zoom = Math.min(max - 0.5, Math.max(S.map.getZoom(), lo), Math.max(z - 0.2, lo));
   const c = centerFor(ll, zoom);
