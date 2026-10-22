@@ -106,7 +106,6 @@ async function enter(backend, scope) {
   wireSaving();
   start(viewsEl, { defaultView: 'map' });
   if (store.mode === 'sandbox') toast('Sandbox mode: changes stay in this browser only.', { timeout: 6000 });
-  else if (store.isDirty()) toast(`Restored ${store.dirtyPaths().length} unsaved change(s) from your last visit.`, { timeout: 6000 });
 }
 
 async function loadViews() {
@@ -217,5 +216,37 @@ function wireSaving() {
   };
   setInterval(pull, 120000);
   window.addEventListener('focus', () => { if (Date.now() - lastPull > 30000) pull(); });
+
+  // Remind players who leave changes uncommitted (auto-commit makes this unnecessary).
+  let dirtySince = store.isDirty() ? Date.now() : 0;
+  let lastNudge = 0;
+  let closeNudge = null;
+  const remindersOn = () => !getSetting('autoCommit') && Number(getSetting('saveReminder')) > 0;
+  const nudge = (earlier) => {
+    if (!remindersOn() || !store.isDirty() || store.saving) return;
+    lastNudge = Date.now();
+    closeNudge?.();
+    const n = store.dirtyPaths().length;
+    const what = `${n} unsaved change${n === 1 ? '' : 's'}`;
+    const where = store.mode === 'sandbox' ? '' : ` Save so the party can see ${n === 1 ? 'it' : 'them'}.`;
+    closeNudge = toast([
+      h('span', null, earlier ? `Restored ${what} from your last visit.${where}` : `${what} kept on this device only.${where}`),
+      h('button', { class: 'btn btn-sm btn-primary', type: 'button', onclick: save }, 'Save now'),
+    ], { timeout: 20000 });
+    btn.classList.add('is-nudge');
+    btn.addEventListener('animationend', () => btn.classList.remove('is-nudge'), { once: true });
+  };
+  store.on(() => {
+    if (store.isDirty()) { dirtySince ||= Date.now(); return; }
+    dirtySince = 0; lastNudge = 0;
+    closeNudge?.(); closeNudge = null;
+  });
+  setInterval(() => {
+    if (!dirtySince || document.visibilityState !== 'visible') return;
+    const every = Number(getSetting('saveReminder')) * 60000;
+    if (Date.now() >= Math.max(dirtySince, lastNudge) + every) nudge(false);
+  }, 30000);
+  if (dirtySince && remindersOn()) setTimeout(() => nudge(true), 1500);
+  else if (dirtySince) toast(`Restored ${store.dirtyPaths().length} unsaved change(s) from your last visit.`, { timeout: 6000 });
   update();
 }

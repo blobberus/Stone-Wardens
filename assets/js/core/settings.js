@@ -5,6 +5,7 @@ const DEFAULTS = {
   playerName: '',
   autoCommit: false,
   autoCommitDelay: 60, // seconds of inactivity before an automatic commit
+  saveReminder: 10, // minutes of uncommitted changes before a "save now" nudge (0 = off; unused with autoCommit)
   theme: 'light',
   sidebarCollapsed: false,
 };

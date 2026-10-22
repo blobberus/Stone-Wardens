@@ -32,7 +32,8 @@ To change the password or replace an expired token, run setup again.
 - Every edit is stored on your device as soon as you make it, so a crash or closed tab loses nothing.
 - **Save** (sidebar button or `Ctrl+S`) commits all your changes to the repo in one commit, and then everyone sees them.
   If you try to leave with unsaved work, the browser warns you first.
-- Auto-save to the repo can be switched on in **Settings**.
+- Auto-save to the repo can be switched on in **Settings**. While it is off, the site reminds you to save every
+  10 minutes when you have unsaved changes; the interval can be changed (or set to 0 to turn reminders off) in **Settings**.
 - The site checks for other players' changes every two minutes and whenever you return to the tab.
   If two people edit the same thing, you'll be asked which version to keep.
 

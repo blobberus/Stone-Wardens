@@ -488,6 +488,7 @@ button.chip:hover, a.chip:hover { background: var(--surface-2); color: var(--ink
 .toast > .icon { width: 18px; height: 18px; margin-top: 1px; color: var(--ink-muted); }
 .toast-msg, .toast > span { flex: 1; min-width: 0; padding-top: 1px; }
 .toast .btn-icon { width: 26px; height: 26px; margin: -3px -4px -3px 0; }
+.toast > .btn:not(.btn-icon) { flex: none; margin: -3px -2px -3px 0; }
 .toast .btn-icon .icon { width: 16px; height: 16px; }
 .toast-info { border-left-color: var(--info); }
 .toast-info > .icon { color: var(--info); }
