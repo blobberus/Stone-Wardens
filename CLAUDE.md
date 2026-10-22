@@ -97,6 +97,13 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 - Rules engine: `node tools/test_engine.mjs` (must stay green; add cases when changing engine*.js).
 - Syntax: portable `node --check`. Markdown renderer can be exercised in Node by stubbing `DOMPurify.sanitize`.
 
+## Status (2026-10-21)
+All tabs built and browser-QA'd (headless Chrome via CDP; Chrome extension was not connected). Pages live at
+https://blobberus.github.io/Stone-Wardens/. **Pending owner action:** create the fine-grained token and run
+`setup.html` (no `vault.json` yet). Known gaps: stub subclass/species mechanics beyond `engine-known.js` are prose
+only; feat prerequisites flagged not enforced; no two-weapon attacks; map pin rename doesn't rewrite old links;
+no PDF thumbnails (no pdf.js); stub entries marked `verify:true` need checking against the books.
+
 ## UI / CSS conventions
 - Use tokens from `tokens.css` only (`--bg --surface --surface-2 --ink --ink-muted --accent --accent-ink
   --danger --ok --border --font-display --font-body --font-mono --radius --shadow --space-1..6`).
