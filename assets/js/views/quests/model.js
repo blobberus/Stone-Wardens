@@ -2,7 +2,7 @@
 //
 // A quest is one JSON doc, content/quests/<id>.json:
 //   {id, title, type: 'main'|'minor'|'side', status: 'active'|'completed'|'failed', parent (minor: the main quest it
-//    leads to), characters: [tag], objectives: [{id, text, done}], description (markdown), rewards (markdown),
+//    leads to), characters: [name or link body, e.g. "note:Old Grim" (people.js)], objectives: [{id, text, done}], description (markdown), rewards (markdown),
 //    image (repo path or https URL, shown only when the quest is open), order, created, updated, createdBy}
 // The log lists main quests first, then minor quests (grouped under the main quest they lead to), then side quests.
 

@@ -91,6 +91,15 @@
 .qs-char { height: 28px; padding: 0 10px; font-size: var(--text-sm); }
 .qs-char .icon { width: 14px; height: 14px; color: var(--ink-muted); }
 .qs-char.is-pc .icon { color: var(--accent); }
+.qs-char.is-npc .icon { color: var(--link); }
+a.qs-char { color: var(--link); text-decoration: none; }
+a.qs-char:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+/* no page yet: the link starts a journal note for that name */
+.qs-char.is-missing { border-style: dashed; }
+a.qs-char.is-missing { color: var(--ink-muted); }
+/* suggestion list of "Relevant characters" and the objectives' [[ links (people.js, base.css .md-suggest) */
+.qs-suggest .icon { flex: none; width: 15px; height: 15px; color: var(--ink-muted); }
+.qs-suggest .md-suggest-item > span:not(.md-suggest-kind) { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .qs-sec { display: flex; flex-direction: column; gap: var(--space-2); }
 .qs-sec-title { display: flex; align-items: center; gap: 6px; margin: 0; padding-bottom: 3px; font: 700 var(--text-sm) / 1.3 var(--font-ui); color: var(--ink-muted); border-bottom: 1px solid var(--rule); }
 .qs-sec-title > .icon { width: 16px; height: 16px; }

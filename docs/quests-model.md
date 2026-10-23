@@ -16,7 +16,7 @@ The Quests tab (`assets/js/views/quests/`) is a video-game style quest log: the 
   "type": "main",               // main | minor | side
   "status": "active",           // active | completed | failed
   "parent": null,               // minor quests: id of the main quest they lead to
-  "characters": ["Brakka Stonehelm", "Archmage Velin"],   // tags; party members link to their sheets
+  "characters": ["char:Brakka Stonehelm", "note:Archmage Velin", "Old Grim"],   // link bodies or plain names (below)
   "objectives": [{ "id": "o1", "text": "Find the crater", "done": false }],
   "description": "Markdown, [[links]] work.",
   "rewards": "Markdown",
@@ -41,10 +41,22 @@ https). Unknown fields are kept.
 
 ## The open quest
 
-Type and status, Complete / Failed / Reopen, Edit; the image (click for full size); relevant characters (a sheet
-link when a party member has that name, else a page with that exact name such as an NPC note, else a plain tag);
-objectives with a progress bar (tick them off right there); description; rewards; for a main quest, its minor quests
-and "Add a minor quest". Edit (`#/quests/<id>/edit`) changes everything in place.
+Type and status, Complete / Failed / Reopen, Edit; the image (click for full size); relevant characters; objectives
+with a progress bar (tick them off right there); description; rewards; for a main quest, its minor quests and "Add a
+minor quest". Edit (`#/quests/<id>/edit`) changes everything in place.
+
+## Links (views/quests/people.js)
+
+- **Relevant characters** are chips that open what they name. An entry is either a link body picked from the
+  suggestions (`char:Mira` a party member's sheet, `note:Old Grim` a journal note, `map:Old Mill`, `doc:…`, `quest:…`,
+  compendium kinds) or a plain name, which opens a party member's sheet of that name, else any page of that exact name
+  (an NPC note first), else "start a note" for it (dashed chip), like an unresolved `[[link]]`.
+- **NPC notes** are journal notes tagged `#npc` (or `#npc/…`) or kept in a folder whose name has npc, people, cast or
+  characters in it. They get a person icon and come right after the party members in the suggestions.
+- **Suggestions** while typing a character: party members, NPC notes, other notes, then any other page; `map:`,
+  `doc:`, `quest:`… narrow to one kind. Enter or a click picks the highlighted one; Enter with no suggestion (or a
+  comma) keeps the typed name.
+- **Objectives, description, rewards** are markdown: `[[links]]` work, with the `[[` autocomplete in all three.
 
 Saving: creating, deleting, completing / failing / reopening and image changes commit right away (`saveSoon`);
 typing and ticking objectives follow the auto-save timer. Links: `[[quest:Title]]` (id or title).

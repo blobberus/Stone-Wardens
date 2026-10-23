@@ -8,7 +8,7 @@ import { h, mount, clear } from '../../core/dom.js';
 import { icon, toast, openModal, confirmDialog, field, input, select, markdownEditor, pickFromList } from '../../core/ui.js';
 import { store } from '../../core/store.js';
 import { navigate, href } from '../../core/router.js';
-import { registerLinkType, resolveLink, linkTypes, matchNames } from '../../core/links.js';
+import { registerLinkType, matchNames } from '../../core/links.js';
 import { renderInto } from '../../core/markdown.js';
 import { getSetting } from '../../core/settings.js';
 import { saveSoon, majorSaveOn } from '../../core/saving.js';
@@ -16,6 +16,7 @@ import { uid, slugify, debounce, fmtDate, stripExt, extOf, baseName } from '../.
 import { prepareImage, openViewer } from '../journal/gallery.js';
 import { registerHideable, isHidden, onDmMode } from '../../core/dm.js';
 import { visibilityToggle, hiddenChoice, hiddenMark } from '../../core/dm-ui.js';
+import { characterChip, characterSuggestions, attachSuggest, wikiSuggest, newEntries } from './people.js';
 import {
   QUEST_DIR, MEDIA_DIR, TYPES, STATUSES, VIEWS, typeOf, statusOf, normalizeQuest, newQuest, progress, questLog, stepsOf,
   viewCounts, findQuest, cleanTags,
@@ -235,7 +236,7 @@ function questView(q) {
     h('h2', { class: 'qs-quest-title' }, q.title),
     parent ? h('p', { class: 'qs-quest-parent' }, 'A step towards ', typeIcon('main'), h('a', { href: href(VIEW, parent.id) }, parent.title)) : null,
     q.image ? questImage(q) : null,
-    q.characters.length ? h('div', { class: 'qs-chars' }, h('span', { class: 'qs-label' }, 'Characters'), h('span', { class: 'qs-chips' }, q.characters.map(charChip))) : null,
+    q.characters.length ? h('div', { class: 'qs-chars' }, h('span', { class: 'qs-label' }, 'Characters'), h('span', { class: 'qs-chips' }, q.characters.map((c) => characterChip(c)))) : null,
     h('section', { class: 'qs-sec' },
       h('h3', { class: 'qs-sec-title' }, 'Objectives', p.total ? h('span', { class: 'qs-n num' }, `${p.done}/${p.total}`) : null),
       p.total ? h('div', { class: 'qs-prog', role: 'meter', 'aria-valuemin': 0, 'aria-valuemax': p.total, 'aria-valuenow': p.done, 'aria-label': 'Objectives done' },
@@ -274,15 +275,6 @@ function inlineMd(src) {
   const only = el.children.length === 1 && el.firstElementChild.tagName === 'P' ? el.firstElementChild : null;
   if (only) only.replaceWith(...only.childNodes);
   return el;
-}
-
-/** A relevant character: the sheet when one has that name, else a page with that exact name (an NPC note), else a tag. */
-function charChip(tag) {
-  const c = resolveLink(`char:${tag}`);
-  if (c?.exists && c.href) return h('a', { class: 'chip qs-char is-pc', href: c.href, title: c.title }, icon('user'), tag);
-  const n = resolveLink(tag);
-  if (n?.exists && n.href) return h('a', { class: 'chip qs-char', href: n.href, title: n.title }, icon('tag'), tag);
-  return h('span', { class: 'chip qs-char' }, icon('tag'), tag);
 }
 
 function questImage(q) {
@@ -338,8 +330,8 @@ function renderEditor(q) {
     field('Type', typeRow),
     parentRow,
     h('div', { class: 'qs-ed-row' }, field('Title', title), field('Status', status)),
-    field('Relevant characters', tagEditor(d, change), 'Party members link to their sheets; any other name (an NPC, a faction) is kept as a tag. Enter or comma adds one.'),
-    field('Objectives', objectivesEditor(d, change)),
+    field('Relevant characters', tagEditor(d, change), 'Pick a party member, an NPC (a journal note tagged #npc) or any page; type map:, doc:, quest:… for other kinds. A name with no page yet links to a new note for it. Enter or comma adds one.'),
+    field('Objectives', objectivesEditor(d, change), 'Type [[ to link a note, place, character or anything else on the site.'),
     field('Description', desc),
     field('Rewards', rewards),
     field('Image', imageEditor(d), 'Shown only when the quest is open, not in the log.')));
@@ -353,28 +345,33 @@ function finishEditing() {
   navigate(href(VIEW, id));
 }
 
+// Relevant characters: chips that show what each entry opens (people.js), and a suggestion list (party members,
+// NPC notes, other pages) that stores a link to the exact page picked. Plain typed names are kept as names.
 function tagEditor(d, change) {
   const chips = h('span', { class: 'qs-chips' });
-  const listId = 'qs-char-names';
-  const names = (linkTypes().find((t) => t.prefix === 'char')?.suggest('') || []).map((x) => x.value);
-  const inp = h('input', { class: 'input qs-tag-input', type: 'text', list: listId, placeholder: d.characters.length ? 'Add another…' : 'Name of a character or NPC', 'aria-label': 'Add a character' });
+  const inp = h('input', { class: 'input qs-tag-input', type: 'text', autocomplete: 'off', placeholder: d.characters.length ? 'Add another…' : 'A party member, an NPC or any page', 'aria-label': 'Add a character' });
   const draw = () => {
-    mount(chips, d.characters.map((tag) => h('span', { class: 'chip qs-char' }, tag,
-      h('button', { class: 'chip-x', type: 'button', 'aria-label': `Remove ${tag}`, title: 'Remove', onclick: () => { d.characters = d.characters.filter((x) => x !== tag); draw(); change(); inp.focus(); } }, icon('close')))));
+    mount(chips, d.characters.map((tag) => characterChip(tag, {
+      onRemove: () => { d.characters = d.characters.filter((x) => x !== tag); draw(); change(); inp.focus(); },
+    })));
   };
-  const add = () => {
-    const next = cleanTags([...d.characters, ...inp.value.split(',')]);
+  const addAll = (vals) => {
+    const next = cleanTags([...d.characters, ...newEntries(d.characters, vals)]); // one chip per page
     inp.value = '';
     if (next.length !== d.characters.length) { d.characters = next; draw(); change(); }
   };
+  attachSuggest(inp, {
+    context: (el) => ({ query: el.value }),
+    items: (q) => characterSuggestions(q, d.characters),
+    apply: (it) => { addAll([it.value]); inp.focus(); },
+  });
   inp.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(); }
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addAll(inp.value.split(',')); }
     else if (e.key === 'Backspace' && !inp.value && d.characters.length) { d.characters = d.characters.slice(0, -1); draw(); change(); }
   });
-  inp.addEventListener('change', () => { if (names.includes(inp.value.trim())) add(); }); // picked from the list
-  inp.addEventListener('blur', () => { if (inp.value.trim()) add(); });
+  inp.addEventListener('blur', () => { if (inp.value.trim()) addAll(inp.value.split(',')); });
   draw();
-  return h('div', { class: 'qs-tags' }, chips, inp, h('datalist', { id: listId }, names.map((n) => h('option', { value: n }))));
+  return h('div', { class: 'qs-tags' }, chips, inp);
 }
 
 function objectivesEditor(d, change) {
@@ -382,6 +379,7 @@ function objectivesEditor(d, change) {
   const draw = (focusId = null) => {
     const rows = d.objectives.map((o, i) => {
       const text = h('input', { class: 'input', type: 'text', value: o.text, placeholder: 'What has to be done', 'aria-label': `Objective ${i + 1}`, 'data-oid': o.id, oninput: (e) => { o.text = e.target.value; change(); } });
+      wikiSuggest(text); // [[ links, like the description (its Enter picks a suggestion first)
       text.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addAfter(i); } });
       const move = (k) => { const j = i + k; [d.objectives[i], d.objectives[j]] = [d.objectives[j], d.objectives[i]]; change(); draw(o.id); };
       return h('li', { class: 'qs-obj-row' },

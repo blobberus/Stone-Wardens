@@ -2,8 +2,9 @@
 
 Password-gated D&D 5e (**2024 rules / SRD 5.2**) campaign site on GitHub Pages for repo
 `blobberus/Stone-Wardens`. The original brief is `The Stone Wardens - A Fallen Firmament Campaign(1).md`.
-Tabs: **Map**, **Characters**, **Journal**, **Quests**, **Compendium** (SRD + custom library), **Warden's Library**
-(renders PDFs/DOCX from `wardens-library/`), **Settings**.
+Sidebar, in order (main.js `VIEW_IDS`): **Map**, **Quests**, **Characters**, **Journal**, **Warden's Library** (renders
+PDFs/DOCX from `wardens-library/`), **Compendium** (SRD + custom library), **Inbox**, **DM Screen** (DM mode only),
+**Settings** at the bottom. The sidebar title opens the landing page.
 
 ## Hard rules
 - **No build step.** Plain HTML/CSS + native ES modules. No npm deps at runtime; libs are vendored in `vendor/`
@@ -55,7 +56,10 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 - Writes: Git Data API batch commit (tree with base_tree -> commit -> update ref; retry on non-fast-forward).
   Conflict check: if remote sha != the sha we loaded, user chooses overwrite/keep theirs.
 - Every edit is saved immediately as a local draft (localStorage) -> survives reloads. "Save" (Ctrl+S) commits
-  all dirty docs. `beforeunload` warns when uncommitted. Optional auto-commit (Settings). Auto-pull on focus/2 min.
+  all dirty docs. `beforeunload` warns when uncommitted. Auto-commit (`autoCommit`, default on) 2 s (`autoCommitDelay`)
+  after the last edit (`store.scheduleAutoCommit`): at most one per 15 s per device while editing, paused 2 min after a
+  GitHub rate-limit error (every player shares the owner's token: ~500 writes/h, 3 per commit); edits made during a
+  save are committed after it. Auto-pull on focus/2 min.
   `main.js` `wireSaving` auto-saves `autoSaveMinutes` (default 5, 0 = off) after the first unsaved change; with that
   and auto-commit off it shows a "Save now" toast after `saveReminder` minutes instead. Views call `saveNow()` from
   `core/saving.js` for a Save button that behaves like the sidebar one. Big changes call `saveSoon(reason)` right
@@ -139,7 +143,10 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 - Quest log (left: Main, then Minor grouped under the main quest they lead to, then Side; symbols crown / diamond /
   chest; Active / Finished / All; search) | open quest (right: image only here, characters, objectives, description,
   rewards, a main quest's minor quests; edited in place). Pure model `views/quests/model.js`
-  (`node tools/test_quests.mjs`); docs/quests-model.md.
+  (`node tools/test_quests.mjs`); docs/quests-model.md. Links (`people.js`): relevant characters are link bodies
+  (`char:` sheet, `note:` NPC note = tagged #npc or in an npc/people folder, any other prefix) or plain names, shown as
+  chips that open their page; the editor suggests party members, NPCs, notes, other pages; objectives get `[[`
+  autocomplete (`wikiSuggest`).
 
 ## Journal tab
 - Obsidian-style vault (docs/journal-model.md): left pane Files (tree, drag-move, context menu) | Search (`tag:`
