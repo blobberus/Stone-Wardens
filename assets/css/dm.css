@@ -53,7 +53,7 @@ a.dm-note-link:hover { background: var(--surface-2); }
 .dm-mark { display: inline-flex; flex: none; vertical-align: -2px; margin-left: 6px; color: var(--gold); }
 .dm-mark .icon { width: 15px; height: 15px; }
 /* Where the switch sits in each tab */
-.jr-sheet-head > .dm-vis { align-self: flex-start; }
+.jr-sheet-head > .dm-vis, .qs-quest > .dm-vis { align-self: flex-start; }
 .map-drawer-body > .dm-vis { margin-bottom: var(--space-3); }
 .cp-actions > .dm-vis { margin-left: auto; }
 .wl-reader.is-folded .wl-reader-actions > .dm-vis { padding: 0 8px; font-size: var(--text-xs); }
@@ -76,6 +76,11 @@ a.dm-note-link:hover { background: var(--surface-2); }
 .dm-panel > .panel-head > .icon { width: 18px; height: 18px; color: var(--gold); }
 .dm-new-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
 .dm-create-btns { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.dm-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--space-3); }
+.dm-filter { height: 28px; padding: 0 10px; font-size: var(--text-sm); cursor: pointer; }
+.dm-filter .icon { width: 14px; height: 14px; }
+.dm-filter .dm-n { color: var(--ink-muted); }
+.dm-filter[aria-pressed="true"] .dm-n { color: inherit; opacity: 0.8; }
 .dm-group + .dm-group { margin-top: var(--space-3); }
 .dm-group-title { display: flex; align-items: baseline; gap: 6px; margin: 0 0 2px; padding-bottom: 2px; font: 700 var(--text-xs) / 1.3 var(--font-ui); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-muted); border-bottom: 1px solid var(--border); }
 .dm-n { font-weight: 400; }

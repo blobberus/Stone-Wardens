@@ -16,6 +16,26 @@ import { dmLogin } from '../../core/dm-ui.js';
 const VIEW = 'dm';
 let root = null;
 let queued = false;
+const filters = { hidden: '', released: '' }; // category shown in each list ('' = all), for this visit
+
+const pluralOf = (label) => (/y$/.test(label) ? `${label.slice(0, -1)}ies` : `${label}s`);
+const iconOf = (label) => hideableKinds().find((k) => k.label === label)?.icon || 'file';
+
+/** Category chips over a list (All, then each category in it, with counts); clears a filter whose category emptied. */
+function filterBar(list, key) {
+  const counts = new Map();
+  for (const x of list) counts.set(x.label, (counts.get(x.label) || 0) + 1);
+  if (filters[key] && !counts.has(filters[key])) filters[key] = '';
+  const rank = (label) => { const i = hideableKinds().findIndex((k) => k.label === label); return i < 0 ? 99 : i; };
+  const chip = (value, text, n, ic) => h('button', {
+    type: 'button', class: 'chip dm-filter', 'aria-pressed': String(filters[key] === value),
+    onclick: () => { filters[key] = value; render(); },
+  }, ic ? icon(ic) : null, text, h('span', { class: 'dm-n' }, String(n)));
+  return h('div', { class: 'dm-filters', role: 'group', 'aria-label': key === 'hidden' ? 'Show hidden' : 'Show released' },
+    chip('', 'All', list.length),
+    [...counts.keys()].sort((a, b) => rank(a) - rank(b)).map((label) => chip(label, pluralOf(label), counts.get(label), iconOf(label))));
+}
+const pick = (list, key) => (filters[key] ? list.filter((x) => x.label === filters[key]) : list);
 
 function render() {
   if (!root) return;
@@ -28,8 +48,13 @@ function render() {
         h('button', { class: 'btn btn-primary', type: 'button', onclick: () => dmLogin() }, icon('lock'), 'DM login')));
     return;
   }
+  // Released items are public again, so they are only in Released (a hidden copy of a released path wins: it was hidden again)
   const hidden = hiddenItems();
-  const released = releasedItems();
+  const released = releasedItems().filter((x) => !isHidden(x.path));
+  const hiddenBar = hidden.length ? filterBar(hidden, 'hidden') : null;
+  const releasedBar = released.length ? filterBar(released, 'released') : null;
+  const hiddenShown = pick(hidden, 'hidden');
+  const releasedShown = pick(released, 'released');
   mount(root,
     h('header', { class: 'view-head' },
       h('h1', { class: 'view-title' }, 'DM Screen'),
@@ -55,11 +80,12 @@ function render() {
       h('header', { class: 'panel-head' }, icon('eye-off'), h('h2', null, 'Hidden from players'), h('span', { class: 'badge' }, String(hidden.length)),
         h('span', { class: 'spacer' }),
         h('button', { class: 'btn btn-sm', type: 'button', onclick: hideExisting }, icon('eye-off'), 'Hide an existing item…')),
-      h('div', { class: 'panel-body' }, hidden.length ? groups(hidden, hiddenRow)
+      h('div', { class: 'panel-body' }, hidden.length
+        ? [hiddenBar, filters.hidden ? h('ul', { class: 'dm-list', role: 'list' }, hiddenShown.map(hiddenRow)) : groups(hiddenShown, hiddenRow)]
         : h('p', { class: 'muted ui text-sm' }, 'Nothing hidden. Create something with “Hidden from players” on, or hide an existing item.'))),
     h('section', { class: 'panel dm-panel' },
       h('header', { class: 'panel-head' }, icon('eye'), h('h2', null, 'Released'), h('span', { class: 'badge' }, String(released.length))),
-      h('div', { class: 'panel-body' }, released.length ? h('ul', { class: 'dm-list', role: 'list' }, released.map(releasedRow))
+      h('div', { class: 'panel-body' }, released.length ? [releasedBar, h('ul', { class: 'dm-list', role: 'list' }, releasedShown.map(releasedRow))]
         : h('p', { class: 'muted ui text-sm' }, 'Nothing released yet. Released items show here; “Hide again” takes one back.'))));
 }
 
@@ -83,7 +109,7 @@ function hiddenRow(x) {
 function releasedRow(x) {
   const gone = !store.has(x.path) && !isHidden(x.path) && !store.files(x.path).some((f) => f.path === x.path);
   return h('li', { class: 'dm-row' },
-    icon('check'),
+    icon(iconOf(x.label)),
     h('span', { class: 'dm-row-main' },
       x.href && !gone ? h('a', { class: 'dm-row-title', href: x.href }, x.title) : h('span', { class: 'dm-row-title' }, x.title),
       h('span', { class: 'dm-row-meta muted' }, [x.label, x.at ? `released ${fmtDate(x.at)}` : '', gone ? 'deleted since' : ''].filter(Boolean).join(' · '))),

@@ -73,7 +73,14 @@ The DM Screen's Create buttons open those forms (`#/quests?new=1`, `#/compendium
 
 Visibility follows the item: a hidden quest's or note's uploaded photos are hidden too (a visible one's are visible),
 and renaming or moving a note, a folder of notes or a library document keeps each file hidden or visible as it was.
+
+## DM Screen, Inbox, staying logged in
+
+- **DM Screen** (sidebar, below the Inbox; the tab exists only in DM mode): Create shortcuts; **Hidden from players**
+  (grouped by category, Release); **Released** (newest first, Hide again). A released item is public again, so it is
+  only in Released; hiding it again moves it back. Both lists have category chips (All, Quests, Compendium entries,
+  Journal notes, Library documents, Map places, Images, with counts) to show one kind at a time.
 - **Inbox** (navigation): notifications of the last 14 days, unread badge; read state per device (`sw:inbox`), "Mark
   all read".
 - DM mode stays on in the browser tab (sessionStorage) or, with "Keep DM mode on this device", on the device
-  (localStorage) until **Lock DM mode** (DM Screen).
+  (localStorage) until **Lock DM mode** (DM Screen) or "Lock the site on this device" (Settings).
