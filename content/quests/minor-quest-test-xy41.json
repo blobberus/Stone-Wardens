@@ -1,0 +1,16 @@
+{
+  "id": "minor-quest-test-xy41",
+  "title": "Minor quest test",
+  "type": "minor",
+  "status": "completed",
+  "parent": null,
+  "characters": [],
+  "objectives": [],
+  "description": "",
+  "rewards": "",
+  "image": null,
+  "created": "2026-10-23T01:52:47.874Z",
+  "updated": "2026-10-23T01:53:07.635Z",
+  "createdBy": "Blobberus",
+  "order": null
+}

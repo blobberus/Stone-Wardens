@@ -1,6 +1,14 @@
 {
   "items": [
     {
+      "path": "content/quests/minor-quest-test-xy41.json",
+      "title": "Minor quest test",
+      "label": "Quest",
+      "href": "#/quests/minor-quest-test-xy41",
+      "at": "2026-10-23T18:51:25.667Z",
+      "by": "Blobberus"
+    },
+    {
       "path": "content/quests/hidden-quest-test-nsda.json",
       "title": "Hidden Quest Test",
       "label": "Quest",
