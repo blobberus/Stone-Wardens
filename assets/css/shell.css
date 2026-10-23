@@ -113,6 +113,10 @@ a.sb-title:hover { color: var(--ink); text-decoration: underline; text-decoratio
 .sb-tab.is-active .icon, .sb-tab[aria-current="page"] .icon { color: var(--accent); }
 .sb-tab:focus-visible { outline-offset: -2px; }
 .sb-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Combat Ring: an outside link (new tab), first in the menu; the small arrow says so */
+.sb-ext-mark { display: inline-flex; margin-left: auto; color: var(--ink-muted); opacity: 0.7; }
+.sb-tab .sb-ext-mark .icon { width: 14px; height: 14px; }
+.sb-ext:hover .sb-ext-mark { opacity: 1; }
 .sb-count { margin-left: auto; font: 500 var(--text-xs) / 1 var(--font-ui); color: var(--ink-muted); font-variant-numeric: tabular-nums; }
 .sb-spacer { flex: 1 1 auto; min-height: var(--space-4); }
 .sb-tabs-bottom { padding-bottom: 8px; }
@@ -159,7 +163,8 @@ a.sb-title:hover { color: var(--ink); text-decoration: underline; text-decoratio
   .sidebar.is-collapsed .sb-brand { padding: 0 11px; }
   .sidebar.is-collapsed .sb-title,
   .sidebar.is-collapsed .sb-mark,
-  .sidebar.is-collapsed .sb-count { display: none; }
+  .sidebar.is-collapsed .sb-count,
+  .sidebar.is-collapsed .sb-ext-mark { display: none; }
   .sidebar.is-collapsed .sb-tabs { padding-inline: 9px; }
   .sidebar.is-collapsed .sb-tab { justify-content: center; width: 40px; padding: 0; }
   .sidebar.is-collapsed .sb-label,

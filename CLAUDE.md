@@ -2,7 +2,8 @@
 
 Password-gated D&D 5e (**2024 rules / SRD 5.2**) campaign site on GitHub Pages for repo
 `blobberus/Stone-Wardens`. The original brief is `The Stone Wardens - A Fallen Firmament Campaign(1).md`.
-Sidebar, in order (main.js `VIEW_IDS`): **Map**, **Quests**, **Characters**, **Journal**, **Warden's Library** (renders
+Sidebar, in order: **Combat Ring** (crossed swords; opens the sister battle-table site `../Combat-Ring/` in a new tab,
+main.js `combatRingLink`), then the tabs (main.js `VIEW_IDS`): **Map**, **Quests**, **Characters**, **Journal**, **Warden's Library** (renders
 PDFs/DOCX from `wardens-library/`), **Compendium** (SRD + custom library), **DM Screen** (DM mode only); at the
 bottom **Inbox** and **Settings** (DM login lives in Settings → DM mode). The sidebar title opens the landing page.
 

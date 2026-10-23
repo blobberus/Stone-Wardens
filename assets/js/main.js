@@ -12,8 +12,10 @@ import { setSaveHandler } from './core/saving.js';
 import { restoreDm } from './core/dm.js';
 import { wireDmShell } from './core/dm-ui.js';
 
-// Sidebar order (DM Screen shown only in DM mode). core/dm-ui.js puts the Inbox at the bottom, right above Settings.
+// Sidebar order (DM Screen shown only in DM mode), under the Combat Ring link. core/dm-ui.js puts the Inbox at the bottom,
+// right above Settings.
 const VIEW_IDS = ['map', 'quests', 'characters', 'journal', 'wardens-library', 'compendium', 'dm', 'settings'];
+const COMBAT_RING = 'https://blobberus.github.io/Combat-Ring/'; // used off Pages (localhost); on Pages it is ../Combat-Ring/
 const isLocalhost = ['localhost', '127.0.0.1', ''].includes(location.hostname);
 
 applyTheme();
@@ -146,6 +148,7 @@ function buildSidebar() {
   const top = $('.sb-tabs:not(.sb-tabs-bottom)', sb);
   const bottom = $('.sb-tabs-bottom', sb);
   clear(top); clear(bottom);
+  top.append(h('li', null, combatRingLink(sb)));
   for (const v of allViews()) {
     if (v.menu === false) continue; // e.g. the landing page, opened from the sidebar title
     const a = h('a', { class: 'sb-tab', href: `#/${v.id}`, 'data-view': v.id, title: v.title }, icon(v.icon || 'file'), h('span', { class: 'sb-label' }, v.title));
@@ -195,6 +198,15 @@ function buildSidebar() {
     sb.classList.remove('is-open');
     maybeHint(r);
   });
+}
+
+/** Combat Ring (the battle table, a sister site on the same Pages account) opens in a new tab, first in the menu. */
+function combatRingLink(sb) {
+  const url = location.hostname.endsWith('.github.io') ? new URL('../Combat-Ring/', location.href).href : COMBAT_RING;
+  return h('a', {
+    class: 'sb-tab sb-ext', href: store.mode === 'sandbox' ? `${url}?sandbox` : url, target: '_blank', rel: 'noopener',
+    title: 'Combat Ring (opens in a new tab)', onclick: () => sb.classList.remove('is-open'),
+  }, icon('swords'), h('span', { class: 'sb-label' }, 'Combat Ring'), h('span', { class: 'sb-ext-mark', 'aria-hidden': 'true' }, icon('external')));
 }
 
 // ---------- saving ----------
