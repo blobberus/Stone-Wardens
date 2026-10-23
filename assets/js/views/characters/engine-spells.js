@@ -388,28 +388,36 @@ const foldText = (s) => String(s || '').normalize('NFD').replace(/\p{M}/gu, '').
 
 /**
  * Does a spell row pass the Spells tab filter? row = {level, keys (spellFxKeys), ready (cantrip / prepared /
- * always), name}; filter = {level: null | n, fx: null | key, prepared: bool, q: name text}. Every set part must match.
+ * always), fav (starred), name}; filter = {level: null | n, fx: null | key, prepared: bool, favorite: bool, q: name
+ * text}. Every set part must match.
  */
 export function spellPasses(row, filter = {}) {
-  const { level = null, fx = null, prepared = false, q = '' } = filter || {};
+  const { level = null, fx = null, prepared = false, favorite = false, q = '' } = filter || {};
   if (level != null && num(row?.level) !== num(level)) return false;
   if (fx && !(row?.keys || []).includes(fx)) return false;
   if (prepared && !row?.ready) return false;
+  if (favorite && !row?.fav) return false;
   const needle = foldText(q);
   return !needle || foldText(row?.name).includes(needle);
 }
 
-/** Chips for the rows present: levels [{level, n}] ascending, effects [{key, label, n}] in SPELL_FX order. */
+/**
+ * Chips for the rows present: levels [{level, n}] ascending, effects [{key, label, n}] in SPELL_FX order, favorites
+ * = how many rows are starred (the Favorites chip shows only when > 0).
+ */
 export function spellFilterOptions(rows) {
   const levels = new Map();
   const fx = new Map();
+  let favorites = 0;
   for (const r of rows || []) {
     const l = num(r.level);
     levels.set(l, (levels.get(l) || 0) + 1);
     for (const k of new Set(r.keys || [])) fx.set(k, (fx.get(k) || 0) + 1);
+    if (r.fav) favorites += 1;
   }
   return {
     levels: [...levels.entries()].sort((a, b) => a[0] - b[0]).map(([level, n]) => ({ level, n })),
     effects: SPELL_FX.filter(([k]) => fx.has(k)).map(([key, label]) => ({ key, label, n: fx.get(key) })),
+    favorites,
   };
 }

@@ -31,8 +31,8 @@ import { lastLeveledClass } from './engine-xp.js';
 import { adjustedValue, accentAttrs, profMark } from './widgets.js';
 import { applySkin } from './skin.js';
 import { getSetting, setSetting } from '../../core/settings.js';
-// Favourites (stars on items, weapons, skills, features; the Favourites tab)
-import { featureFavKey, isFavorite, toggleFavorite, favoritesFirst } from './engine-favs.js';
+// Favourites (stars on items, weapons, skills, features, spells; the Favourites tab)
+import { featureFavKey, spellFavKey, isFavorite, toggleFavorite, favoritesFirst, dropSpellFavorite } from './engine-favs.js';
 import { abilityName } from './data.js';
 
 const S = { root: null, id: null, char: null, sheet: null, stale: false, notesEditing: false, openFeatures: new Set() };
@@ -598,8 +598,9 @@ function attackChips(a, label) {
 }
 
 /**
- * Favourites tab: starred weapons (equipped ones roll from here), skills, other items and features, in the order
- * they were starred. Null (no tab) while nothing starred still exists on the sheet.
+ * Favourites tab: starred weapons (equipped ones roll from here), spells (the Spells tab's rows, by level, so their
+ * to-hit and damage / healing chips roll here too), skills, other items and features, in the order they were starred.
+ * Null (no tab) while nothing starred still exists on the sheet.
  */
 function favoritesTab(c, s) {
   const fav = c.favorites || {};
@@ -610,7 +611,10 @@ function favoritesTab(c, s) {
   const skillsList = (fav.skills || []).map((id) => skillList().find((k) => k.id === id)).filter((sk) => sk && s.skills[sk.id]);
   const featByKey = new Map(s.features.map((f) => [featureFavKey(f), f]));
   const feats = (fav.features || []).map((k) => featByKey.get(k)).filter(Boolean);
-  if (!weapons.length && !others.length && !skillsList.length && !feats.length) return null;
+  const spellList = (fav.spells || []).length ? spellRows(c, s).filter((r) => r.fav) : [];
+  if (!weapons.length && !spellList.length && !others.length && !skillsList.length && !feats.length) return null;
+  const spellLevels = [...new Set(spellList.map((r) => r.level))].sort((a, b) => a - b);
+  const spellFrom = new Set(spellList.map((r) => r.from)).size > 1;
   const resByKey = new Map(s.resources.map((r) => [r.key, r]));
   const resOf = (f) => (f.uses && typeof f.uses === 'object' && f.uses.key && resByKey.get(f.uses.key)) || (typeof f.uses === 'string' && resByKey.get(f.uses)) || resByKey.get(f.id) || null;
   const itemName = (it) => {
@@ -625,6 +629,10 @@ function favoritesTab(c, s) {
       const a = atkByUid.get(it.uid);
       return h('li', { class: 'ch-ba ch-ba-row', 'data-stat': `fav-${it.uid}` }, itemName(it), h('span', { class: 'ch-ba-chips' }, attackChips(a, a.name)));
     }))) : null,
+    spellList.length ? group('Spells', null, h('div', { class: 'ch-spell-levels ch-fav-spells' }, spellLevels.map((lvl) => h('div', { class: 'ch-spell-level' },
+      spellHead(lvl === 0 ? 'Cantrips' : `Level ${lvl}`, slotText(lvl, c, s)),
+      h('ul', { class: 'ch-spell-list', role: 'list' }, spellList.filter((r) => r.level === lvl).sort((a, b) => a.name.localeCompare(b.name))
+        .map((r) => spellItem(r, s, { from: spellFrom, fk: '-fav', stat: `fav-spell-${r.favKey}` }))))))) : null,
     skillsList.length ? group('Skills', 'click to roll', h('div', { class: 'ch-fav-skills' }, skillsList.map((sk) => {
       const x = s.skills[sk.id];
       return h('button', { class: ['ch-spell-chip', 'ch-fav-skill', (x.prof || x.expertise) && 'is-prof'], type: 'button', title: `Roll ${sk.name}`, 'data-fk': `fav-roll-${sk.id}`, onclick: () => rollToast(sk.name, x.bonus) },
@@ -690,6 +698,7 @@ function spellCaster(x, s) {
 function spellRows(c, s) {
   const src = Array.isArray(s.spells) ? s.spells : c.spells;
   const lvl = Number(s.totalLevel) || totalLevel(c) || 1;
+  const favs = favSet(c, 'spells');
   return src.map((x) => {
     const entry = findEntry('spell', x.id);
     const caster = spellCaster(x, s);
@@ -698,10 +707,12 @@ function spellRows(c, s) {
     const issues = entry && stored ? spellIssues(entry, caster?.sc || null, { className: x.class ? entryName('class', x.class) : null }) : [];
     const stats = entry ? spellStats(entry, { charLevel: lvl, caster }) : null;
     const level = Number(x.level ?? entry?.level ?? 0);
+    const favKey = spellFavKey(x);
     return {
       ...x, entry, name: x.name || entry?.name || prettify(x.id), level, caster, stored, issues, stats,
       keys: entry ? spellFxKeys(entry, stats) : [], ready: !!(x.prepared || x.always || level === 0),
       from: x.class ? entryName('class', x.class) : caster?.label || x.source || '',
+      favKey, fav: favs.has(favKey),
     };
   });
 }
@@ -773,25 +784,44 @@ function togglePrepared(r, on) {
   });
 }
 
+/** A spell's own menu (its name in a row): the entry modal with the Favorite toggle; a short one for non-SRD spells. */
+function spellInfo(r) {
+  if (r.entry) return entryInfo(r.entry, { spell: r });
+  return openModal({
+    title: r.name,
+    body: h('div', { class: 'stack' }, favRow('spells', r.favKey, r.name),
+      r.from ? h('p', { class: 'muted ui text-sm' }, r.from) : null,
+      h('p', null, 'This spell is not in the SRD; see your book.')),
+    actions: [{ label: 'Close', kind: 'ghost' }],
+  });
+}
+
+/** Remove a stored spell and its star (kept when a feature still lists the same spell, always prepared). */
 function removeSpell(r) {
-  mutate((y) => { y.spells = y.spells.filter((x) => !(x.id === r.id && (x.class || null) === (r.class || null))); });
+  mutate((y) => {
+    y.spells = y.spells.filter((x) => !(x.id === r.id && (x.class || null) === (r.class || null)));
+    if (isFavorite(y, 'spells', r.favKey)) dropSpellFavorite(y, r.favKey, derive(y).spells);
+  });
 }
 
 /**
  * One spell line (Spells tab and Bonus actions tab): prepare box (lock when always prepared, dot for cantrips) |
  * name + badges (+ where it comes from) | casting time | range | to hit / save DC | damage / healing | remove.
  * On a narrow list the columns wrap under the name. data-* feed the Spells tab filter (applySpellFilter).
+ * A starred spell shows the gold star before its name; the name opens its menu (Favorite toggle), and with a mouse
+ * a small star at the end of the name cell toggles it right there (shown on hover / keyboard focus, takes no room).
  *   opts.time / timeTitle  replace the casting time cell (Bonus actions tab: the spell level)
  *   opts.from              show the spell's class / source after its name (several sources on the sheet)
+ *   opts.stat              data-stat of the row (default the spell id; other tabs prefix it so links find the Spells tab)
  */
-function spellItem(r, s, { time = null, timeTitle = null, from = false, fk = '' } = {}) {
+function spellItem(r, s, { time = null, timeTitle = null, from = false, fk = '', stat = null } = {}) {
   const lvl = r.level;
   const { hit, effect } = spellChips(r, s, fk);
   const none = () => h('span', { class: 'ch-spell-none faint', 'aria-hidden': 'true' }, '—');
   const range = r.entry?.range ? shortRange(r.entry.range) : '';
   return h('li', {
-    class: ['ch-spell', r.ready ? 'is-prepared' : 'is-unprepared', r.issues.length && 'is-off'], 'data-stat': r.id,
-    'data-lvl': String(lvl), 'data-fx': r.keys.join(' '), 'data-ready': r.ready ? '1' : '0', 'data-name': r.name,
+    class: ['ch-spell', r.ready ? 'is-prepared' : 'is-unprepared', r.issues.length && 'is-off', r.fav && 'is-fav'], 'data-stat': stat || r.id,
+    'data-lvl': String(lvl), 'data-fx': r.keys.join(' '), 'data-ready': r.ready ? '1' : '0', 'data-fav': r.fav ? '1' : '0', 'data-name': r.name,
   },
     r.always ? h('span', { class: 'ch-spell-lock', title: `Always prepared${r.source ? ` (${r.source})` : ''}`, role: 'img', 'aria-label': 'Always prepared' }, icon('lock'))
       : lvl > 0 ? h('input', {
@@ -799,11 +829,18 @@ function spellItem(r, s, { time = null, timeTitle = null, from = false, fk = '' 
         title: 'Prepared', 'aria-label': `Prepare ${r.name}`, onchange: (e) => togglePrepared(r, e.target.checked),
       }) : h('span', { class: 'ch-spell-dot', title: 'Cantrip: always ready', 'aria-hidden': 'true' }),
     h('div', { class: 'ch-spell-id' },
-      h('button', { class: 'ch-link-btn ch-spell-name', type: 'button', title: spellUpNote(r) || null, onclick: () => r.entry ? entryInfo(r.entry) : toast('This spell is not in the SRD; see your book.') }, r.name),
+      r.fav ? favMark() : null,
+      h('button', { class: 'ch-link-btn ch-spell-name', type: 'button', title: spellUpNote(r) || null, onclick: () => spellInfo(r) }, r.name),
       r.entry?.concentration ? h('span', { class: 'badge', title: 'Concentration' }, 'C') : null,
       r.entry?.ritual ? h('span', { class: 'badge', title: 'Ritual' }, 'R') : null,
       r.issues.length ? h('span', { class: 'ch-spell-off', tabindex: 0, title: `Added anyway: ${r.issues.map((i) => i.text).join(' ')}`, 'aria-label': `Off-list: ${r.issues.map((i) => i.text).join(' ')}` }, 'off-list') : null,
-      from && r.from ? h('span', { class: 'ch-spell-from' }, r.from) : null),
+      from && r.from ? h('span', { class: 'ch-spell-from' }, r.from) : null,
+      h('button', {
+        class: ['ch-spell-star', r.fav && 'is-active'], type: 'button', 'aria-pressed': String(!!r.fav), 'data-fk': `spstar-${r.favKey}${fk}`,
+        'aria-label': r.fav ? `Remove ${r.name} from favorites` : `Add ${r.name} to favorites`,
+        title: r.fav ? 'Remove from favorites' : 'Add to favorites (listed first and in the Favorites tab)',
+        onclick: () => mutate((y) => { toggleFavorite(y, 'spells', r.favKey); }),
+      }, icon('star'))),
     h('div', { class: 'ch-spell-cols' },
       h('span', { class: 'ch-spell-time', title: timeTitle || r.entry?.castingTime || null }, time || shortCastingTime(r.entry?.castingTime) || '—'),
       h('span', { class: ['ch-spell-range', !range && 'is-empty'], title: r.entry?.range || null }, range || '—'),
@@ -833,6 +870,8 @@ function slotText(lvl, c, s) {
 
 function spells(c, s) {
   const rows = spellRows(c, s);
+  // the Favorites chip goes with the last starred spell, and so does its filter
+  if (spellFilter().favorite && !rows.some((r) => r.fav)) SPELL_FILTERS.set(S.id, { ...spellFilter(), favorite: false });
   const add = h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => addSpells(s) }, icon('plus'), 'Spells');
   if (!s.spellcasting.length && !rows.length && !s.slots.some(Boolean) && !s.pact) {
     return section('spells', 'Spellcasting', { iconName: 'sparkle', actions: [add] },
@@ -876,7 +915,7 @@ function spells(c, s) {
   rows.length >= 4 ? spellFilterBar(rows) : null,
   rows.length ? h('div', { class: 'ch-spell-levels' }, [...byLevel.keys()].sort((a, b) => a - b).map((lvl) => h('div', { class: 'ch-spell-level' },
     spellHead(lvl === 0 ? 'Cantrips' : `Level ${lvl}`, slotText(lvl, c, s)),
-    h('ul', { class: 'ch-spell-list', role: 'list' }, byLevel.get(lvl).sort((a, b) => a.name.localeCompare(b.name)).map((r) => spellItem(r, s, { from: several })))))) : h('p', { class: 'muted ui text-sm' }, 'No spells chosen yet.'),
+    h('ul', { class: 'ch-spell-list', role: 'list' }, favoritesFirst(byLevel.get(lvl).sort((a, b) => a.name.localeCompare(b.name)), (r) => r.fav).map((r) => spellItem(r, s, { from: several })))))) : h('p', { class: 'muted ui text-sm' }, 'No spells chosen yet.'),
   rows.length >= 4 ? h('div', { class: 'ch-sf-none muted ui text-sm', hidden: true }, 'No spells match these filters. ',
     h('button', { class: 'ch-link-btn', type: 'button', onclick: (e) => setSpellFilter(e, null) }, 'Clear filters')) : null);
   applySpellFilter(el);
@@ -885,10 +924,10 @@ function spells(c, s) {
 
 const ordinal = (n) => (Number.isFinite(Number(n)) ? `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}` : String(n));
 
-// ---------- Spells tab filter: level · effect (damage, healing, a damage type, concentration…) · prepared · name ----------
+// ---------- Spells tab filter: level · effect (damage, healing, a damage type, concentration…) · prepared · favorites · name ----------
 
-const SPELL_FILTERS = new Map(); // character id -> {level, fx, prepared, q} (this session)
-const NO_SPELL_FILTER = { level: null, fx: null, prepared: false, q: '' };
+const SPELL_FILTERS = new Map(); // character id -> {level, fx, prepared, favorite, q} (this session)
+const NO_SPELL_FILTER = { level: null, fx: null, prepared: false, favorite: false, q: '' };
 const spellFilter = () => SPELL_FILTERS.get(S.id) || NO_SPELL_FILTER;
 
 /** Change the filter (patch null = clear it) and show / hide the rows in place, without repainting the sheet. */
@@ -899,7 +938,10 @@ function setSpellFilter(e, patch) {
   applySpellFilter(sec);
 }
 
-/** Chips for the levels and effects present, a Prepared toggle, a name search and a "5 of 19 · Clear" note. */
+/**
+ * Chips for the levels and effects present, Prepared and (with a starred spell) Favorites toggles, a name search and
+ * a "5 of 19 · Clear" note.
+ */
 function spellFilterBar(rows) {
   const f = spellFilter();
   const opts = spellFilterOptions(rows);
@@ -912,6 +954,8 @@ function spellFilterBar(rows) {
         opts.levels.map((o) => chip(o.level ? ordinal(o.level) : 'Cantrips', o.n, { 'data-sf-level': String(o.level), 'data-fk': `sf-level-${o.level}` },
           (e) => setSpellFilter(e, { level: spellFilter().level === o.level ? null : o.level }), o.level ? `Level ${o.level} spells` : null))) : null,
       chip('Prepared', null, { 'data-sf-prep': '', 'data-fk': 'sf-prep' }, (e) => setSpellFilter(e, { prepared: !spellFilter().prepared }), 'Only spells you can cast now: cantrips and prepared spells'),
+      opts.favorites ? chip([h('span', { class: 'ch-sf-star', 'aria-hidden': 'true' }, icon('star')), 'Favorites'], opts.favorites, { 'data-sf-fav': '', 'data-fk': 'sf-fav' },
+        (e) => setSpellFilter(e, { favorite: !spellFilter().favorite }), 'Only your starred spells') : null,
       h('span', { class: 'spacer' }),
       h('input', {
         class: 'input input-sm ch-sf-q', type: 'search', placeholder: 'Find a spell', value: f.q, 'aria-label': 'Find a spell by name', 'data-fk': 'sf-q',
@@ -933,7 +977,7 @@ function applySpellFilter(sec) {
   sec.querySelectorAll('.ch-spell-level').forEach((block) => {
     let any = false;
     block.querySelectorAll('li.ch-spell').forEach((li) => {
-      const ok = spellPasses({ level: Number(li.dataset.lvl), keys: (li.dataset.fx || '').split(' ').filter(Boolean), ready: li.dataset.ready === '1', name: li.dataset.name }, f);
+      const ok = spellPasses({ level: Number(li.dataset.lvl), keys: (li.dataset.fx || '').split(' ').filter(Boolean), ready: li.dataset.ready === '1', fav: li.dataset.fav === '1', name: li.dataset.name }, f);
       li.hidden = !ok;
       total += 1;
       if (ok) { shown += 1; any = true; }
@@ -944,7 +988,8 @@ function applySpellFilter(sec) {
   sec.querySelectorAll('[data-sf-level]').forEach((b) => on(b, b.dataset.sfLevel === (f.level == null ? 'all' : String(f.level))));
   sec.querySelectorAll('[data-sf-fx]').forEach((b) => on(b, b.dataset.sfFx === f.fx));
   sec.querySelectorAll('[data-sf-prep]').forEach((b) => on(b, !!f.prepared));
-  const active = f.level != null || !!f.fx || !!f.prepared || !!String(f.q || '').trim();
+  sec.querySelectorAll('[data-sf-fav]').forEach((b) => on(b, !!f.favorite));
+  const active = f.level != null || !!f.fx || !!f.prepared || !!f.favorite || !!String(f.q || '').trim();
   const status = sec.querySelector('.ch-sf-status');
   if (status) {
     status.hidden = !active || !shown;
@@ -1373,13 +1418,19 @@ function fitBlock(entry, opts) {
     f.lines.length ? h('ul', { class: 'ch-fit-lines', role: 'list' }, f.lines.map((l) => h('li', { class: `is-${l.tone}` }, l.text))) : null);
 }
 
-/** Entry modal from the sheet: what this means for the character, then the stat block (+ Favourite for an owned item). */
+/**
+ * Entry modal from the sheet: what this means for the character, then the stat block (+ Favourite for an owned item
+ * or, opts.spell = its row, a spell on the sheet).
+ */
 function entryInfo(entry, opts = {}) {
   if (!entry) return null;
   const it = opts.item && S.char?.inventory.some((x) => x.uid === opts.item.uid) ? opts.item : null;
+  const spKey = opts.spell ? spellFavKey(opts.spell) : '';
+  const sp = spKey && (S.sheet?.spells || []).some((x) => spellFavKey(x) === spKey) ? opts.spell : null;
   return openModal({
     title: entry.name, wide: true,
-    body: h('div', { class: 'ch-entry-info' }, it ? favRow('items', it.uid, it.name || entry.name) : null, fitBlock(entry, opts), renderEntry(entry)),
+    body: h('div', { class: 'ch-entry-info' }, it ? favRow('items', it.uid, it.name || entry.name) : sp ? favRow('spells', spKey, sp.name || entry.name) : null,
+      fitBlock(entry, opts), renderEntry(entry)),
     actions: [{ label: 'Close', kind: 'ghost' }],
   });
 }

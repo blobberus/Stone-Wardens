@@ -36,8 +36,9 @@ Only player decisions are stored; everything derivable is computed by `derive()`
   "abilities": [ { "ref": "ability/second-wind-plus" }, { "name": "Stoneborn Grit", "description": "…", "uses": 1,
                    "recharge": "long", "modifiers": { "ac": 1 }, "tags": ["defense"] } ],   // advanced: extra/custom abilities;
                                                                        // optional `tags` = smart-tag ids (engine-tags.js TAGS)
-  "favorites": { "items": ["a1b2"], "skills": ["stealth"], "features": ["class:fighter-second-wind", "custom:custom-0"] },
-                 // ^ starred entries (see "Favourites" below); weapons are inventory items, so they are `items` uids
+  "favorites": { "items": ["a1b2"], "skills": ["stealth"], "features": ["class:fighter-second-wind", "custom:custom-0"],
+                 "spells": ["class:wizard:fire-bolt", "feat:magic-initiate:light"] },
+                 // ^ starred entries (see "Favorites" below); weapons are inventory items, so they are `items` uids
   "overrides": { "ac": null, "speed": null, "initiative": null, "hpMax": null, "profBonus": null,
                  "passivePerception": null, "abilities": {}, "saves": {}, "skills": {},   // number = replace; skills/saves values are flat BONUS
                  "proficiency": { "skills": { "athletics": "none", "stealth": "expertise" }, "saves": { "dex": true } } },
@@ -70,15 +71,22 @@ these on the sheet) → `overrides.proficiency` (wins; can remove a granted prof
 proficiency; Edit all → Proficiencies ticks/unticks every skill and save: it clears the `extraProficiencies` entry for
 that id and stores an override only where the result differs from the rules ("Reset" = back to the rules).
 
-Favourites (`engine-favs.js`, pure): the player stars an inventory item or weapon, a skill, or a feature / trait in
-that entry's own menu (item edit and info modals, the skill modal opened from its name, an expanded feature row or
-the feature modal). `items` holds inventory `uid`s, `skills` skill ids, `features` keys `"<sourceType>:<feature id>"`
-(`featureFavKey(f)`; custom abilities are `custom:<ability id>`, inline ones without an id `custom:custom-<index>`).
-These survive renames and level changes; a feature that is missing for now (level down) keeps its star.
-`normalizeFavorites` (run by data.js `normalize`) drops non-strings, duplicates, uids no longer in the inventory and
-`custom:` keys whose ability is gone; removing an ability in Edit all calls `removeAbilityFavorites` first (shifts
-later `custom-<n>` keys). Starred entries get a gold star in their row, are listed first in their own list, and fill
-the Favourites tab (first tab of the actions window, only shown when something starred exists).
+Favorites (`engine-favs.js`, pure): the player stars an inventory item or weapon, a skill, a feature / trait, or a
+spell (cantrips included) in that entry's own menu (item edit and info modals, the skill modal opened from its name, an
+expanded feature row or the feature modal, the spell modal opened from its name; with a mouse also the small star
+shown on a spell row's hover). `items` holds inventory `uid`s, `skills` skill ids, `features` keys
+`"<sourceType>:<feature id>"` (`featureFavKey(f)`; custom abilities are `custom:<ability id>`, inline ones without an id
+`custom:custom-<index>`), `spells` keys `"<source group>:<spell id>"` (`spellFavKey(row)`: the derived spell's `group`,
+e.g. `class:wizard:fire-bolt`, `feat:magic-initiate:fire-bolt`, `species:faerie-fire`; a stored spell without a class
+is `other:<id>`), so a spell known from two sources is starred per row. These survive renames and level changes; a
+feature or granted spell that is missing for now (level down) keeps its star. `normalizeFavorites` (run by data.js
+`normalize`) drops non-strings, duplicates, uids no longer in the inventory, `custom:` keys whose ability is gone and
+malformed spell keys; removing an ability in Edit all calls `removeAbilityFavorites` first (shifts later
+`custom-<n>` keys); removing a stored spell (sheet or Edit all) calls `dropSpellFavorite` (kept while a feature still
+lists the same row). Starred entries get a gold star in their row, are listed first in their own list (spells: within
+their level), and fill the Favorites tab (first tab of the actions window, only shown when something starred exists;
+spells there use the Spells tab rows, by level, so their chips roll). The Spells tab filter has a Favorites chip
+(`spellPasses` `favorite`) while a listed spell is starred.
 
 Inventory `custom` (inline overrides of the ref'd record): any record field (`name damage damageType versatile
 properties mastery range weaponKind category ac{base,dex,maxDex} strMin weight description`) plus `base` (weapon/armor

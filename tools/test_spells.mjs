@@ -331,7 +331,8 @@ section('spell list columns and filters');
   eq('Detect Magic: concentration + ritual', E.spellFxKeys(spell('detect-magic')), ['conc', 'ritual']);
   check('Ice Knife: piercing and cold', ['damage', 'piercing', 'cold'].every((k) => E.spellFxKeys(spell('ice-knife')).includes(k)), E.spellFxKeys(spell('ice-knife')));
   check('Wish deals no (incidental) damage', !E.spellFxKeys(spell('wish')).includes('damage'), E.spellFxKeys(spell('wish')));
-  const rows = ['fire-bolt', 'light', 'cure-wounds', 'burning-hands', 'shield', 'scorching-ray'].map((id) => ({ level: spell(id).level, keys: E.spellFxKeys(spell(id)), ready: id !== 'shield', name: spell(id).name }));
+  const starred = new Set(['fire-bolt', 'shield']);
+  const rows = ['fire-bolt', 'light', 'cure-wounds', 'burning-hands', 'shield', 'scorching-ray'].map((id) => ({ level: spell(id).level, keys: E.spellFxKeys(spell(id)), ready: id !== 'shield', fav: starred.has(id), name: spell(id).name }));
   const pass = (f) => rows.filter((r) => E.spellPasses(r, f)).map((r) => r.name);
   eq('no filter keeps all', pass({}).length, 6);
   eq('level 1', pass({ level: 1 }), ['Cure Wounds', 'Burning Hands', 'Shield']);
@@ -341,9 +342,15 @@ section('spell list columns and filters');
   eq('healing', pass({ fx: 'heal' }), ['Cure Wounds']);
   eq('prepared only', pass({ prepared: true }).includes('Shield'), false);
   eq('name search folds case and spaces', pass({ q: '  fire  BOLT ' }), ['Fire Bolt']);
+  eq('favorites only', pass({ favorite: true }), ['Fire Bolt', 'Shield']);
+  eq('favorites + prepared', pass({ favorite: true, prepared: true }), ['Fire Bolt']);
+  eq('favorites + level 1', pass({ favorite: true, level: 1 }), ['Shield']);
+  eq('favorites + fire', pass({ favorite: true, fx: 'fire' }), ['Fire Bolt']);
+  eq('favorite off keeps unstarred rows', pass({ favorite: false }).length, 6);
   const opts = E.spellFilterOptions(rows);
   eq('level chips', opts.levels, [{ level: 0, n: 2 }, { level: 1, n: 3 }, { level: 2, n: 1 }]);
   eq('effect chips in order, only present ones', opts.effects.map((x) => `${x.key}:${x.n}`), ['damage:3', 'heal:1', 'fire:3', 'reaction:1']);
+  eq('favorites count (chip shown when > 0)', [opts.favorites, E.spellFilterOptions(rows.map((r) => ({ ...r, fav: false }))).favorites], [2, 0]);
 }
 
 // ------------------------------------------------------------------------------------------------

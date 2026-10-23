@@ -1,16 +1,26 @@
 // Favourites: entries a player stars for quick use. Pure helpers (Node-testable, no DOM).
-// Stored as char.favorites = { items: [inventory uid], skills: [skill id], features: ['<sourceType>:<feature id>'] }.
+// Stored as char.favorites = { items: [inventory uid], skills: [skill id], features: ['<sourceType>:<feature id>'],
+// spells: ['<source group>:<spell id>'] }.
 // Weapons are inventory items, so a favourite weapon is an `items` uid. Ids survive renames and level changes; a
-// feature that is gone for now (level down) keeps its star for when it comes back. Deleted inventory rows and
-// removed custom abilities drop theirs (normalizeFavorites / removeAbilityFavorites).
+// feature or granted spell that is gone for now (level down) keeps its star for when it comes back. Deleted inventory
+// rows and removed custom abilities drop theirs (normalizeFavorites / removeAbilityFavorites); so does a stored spell
+// removed from the sheet or Edit all (dropSpellFavorite).
 
-export const FAV_KINDS = ['items', 'skills', 'features'];
+export const FAV_KINDS = ['items', 'skills', 'features', 'spells'];
 
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 const uniqStrings = (v) => [...new Set((Array.isArray(v) ? v : []).filter((x) => typeof x === 'string' && x))];
 
 /** The favourites key of a derived sheet feature: "<sourceType>:<id>" (custom abilities: "custom:<ability id>"). */
 export const featureFavKey = (f) => `${f?.sourceType || 'other'}:${f?.id || f?.name || ''}`;
+
+/**
+ * The favorites key of a spell row: "<source group>:<spell id>", the group the engine gives each derived spell
+ * ("class:wizard:fire-bolt", "feat:magic-initiate:fire-bolt", "species:dancing-lights"), so a spell known from two
+ * sources is starred per row. A stored record {id, class} gets the same key as its row ("class:<class>"; "other" if
+ * it has no class). '' without an id.
+ */
+export const spellFavKey = (r) => (r?.id ? `${r.group || (r.class ? `class:${r.class}` : 'other')}:${r.id}` : '');
 
 /** Feature id of char.abilities[i], as engine-choices walkCustomAbilities assigns it (null for a broken entry). */
 function abilityIdAt(ab, i) {
@@ -33,11 +43,12 @@ export function normalizeFavorites(fav, char = {}) {
     items: uniqStrings(f.items).filter((uid) => uids.has(uid)),
     skills: uniqStrings(f.skills),
     features: uniqStrings(f.features).filter((k) => !k.startsWith('custom:') || custom.has(k)),
+    spells: uniqStrings(f.spells).filter((k) => /^.+:[^:]+$/.test(k)),
   };
 }
 
 const listOf = (char, kind) => {
-  if (!isObj(char.favorites)) char.favorites = { items: [], skills: [], features: [] };
+  if (!isObj(char.favorites)) char.favorites = { items: [], skills: [], features: [], spells: [] };
   if (!Array.isArray(char.favorites[kind])) char.favorites[kind] = [];
   return char.favorites[kind];
 };
@@ -55,6 +66,17 @@ export function toggleFavorite(char, kind, key, on) {
   if (next && !has) list.push(key);
   if (!next && has) list.splice(list.indexOf(key), 1);
   return next;
+}
+
+/**
+ * After a stored spell was removed: drop its star (key = spellFavKey) unless the sheet still lists that row
+ * (sheetSpells = derive(char).spells after the removal; a feature may grant the same spell, always prepared).
+ * Mutates `char`.
+ */
+export function dropSpellFavorite(char, key, sheetSpells = []) {
+  if (!key || !isFavorite(char, 'spells', key)) return;
+  if ((Array.isArray(sheetSpells) ? sheetSpells : []).some((x) => spellFavKey(x) === key)) return;
+  toggleFavorite(char, 'spells', key, false);
 }
 
 export const hasFavorites = (char) => FAV_KINDS.some((k) => (char?.favorites?.[k] || []).length);

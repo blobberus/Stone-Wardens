@@ -809,6 +809,24 @@ div.ch-optcard { cursor: default; }
 .ch-fav-skill { gap: 8px; }
 .ch-fav-skill.is-prof > span:first-child { font-weight: 700; }
 .ch-fav-group .ch-ba-name .ch-inv-kind { margin-left: 6px; }
+/* Spell rows (sheet.js spellItem): the mark before a starred name; with a mouse, a small star toggle at the right end
+   of the name cell, shown on row hover / keyboard focus and laid over the cell (it takes no room, so rows never wrap
+   for it); touch screens star a spell from its menu. Then the Favorites filter chip. */
+.ch-spell-id > .ch-fav-mark { margin-right: -2px; }
+.ch-spell-id { position: relative; }
+.ch-spell-star {
+  position: absolute; top: 50%; right: 0; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; margin: -12px 0 0;
+  color: var(--gold); background: var(--surface); border: 0; border-radius: var(--radius-sm); box-shadow: -6px 0 6px var(--surface);
+  opacity: 0; pointer-events: none; transition: opacity var(--dur) var(--ease);
+}
+.ch-spell-star .icon { width: 15px; height: 15px; }
+.ch-spell-star.is-active { --icon-fill: var(--gold); }
+.ch-spell-star:not(.is-active):hover { --icon-fill: color-mix(in srgb, var(--gold) 30%, transparent); }
+.ch-spell:hover .ch-spell-star, .ch-spell-star:focus-visible { opacity: 1; pointer-events: auto; }
+.ch-spell-star:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+@media (hover: none) { .ch-spell-star { display: none; } }
+.ch-sf-star { display: inline-flex; color: var(--gold); --icon-fill: var(--gold); }
+.ch-sf-star .icon { width: 13px; height: 13px; }
 /* Skill names open the skill's menu */
 button.ch-skl-name {
   display: block; min-width: 0; padding: 0; margin: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer;

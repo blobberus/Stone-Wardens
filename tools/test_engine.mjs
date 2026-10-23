@@ -508,7 +508,9 @@ section('Favourites (engine-favs.js)');
   eq('normalize: deleted items, duplicates and non-strings dropped', n.items, ['w1']);
   eq('normalize: skills unique', n.skills, ['stealth']);
   eq('normalize: class features kept, custom only while the ability exists', n.features, ['class:fighter-second-wind', 'custom:custom-0', 'custom:stoneborn-grit', 'custom:luck-x1']);
-  eq('normalize: missing / junk -> empty lists', E.normalizeFavorites(null, {}), { items: [], skills: [], features: [] });
+  eq('normalize: missing / junk -> empty lists', E.normalizeFavorites(null, {}), { items: [], skills: [], features: [], spells: [] });
+  eq('normalize: spells unique, "<source>:<spell id>" keys only', E.normalizeFavorites({ spells: ['class:wizard:fire-bolt', 'class:wizard:fire-bolt', 'feat:magic-initiate:light', 'fire-bolt', 3, ''] }, {}).spells,
+    ['class:wizard:fire-bolt', 'feat:magic-initiate:light']);
   eq('custom ability ids follow the engine (inline index, ref, explicit id)', E.customAbilityIds(doc.abilities), ['custom-0', 'stoneborn-grit', 'luck-x1', 'custom-3']);
 
   const c = { inventory: doc.inventory };
@@ -516,7 +518,9 @@ section('Favourites (engine-favs.js)');
   check('toggle again turns it off', E.toggleFavorite(c, 'skills', 'arcana') === false && !E.isFavorite(c, 'skills', 'arcana') && !E.hasFavorites(c));
   E.toggleFavorite(c, 'items', 'g1', true); E.toggleFavorite(c, 'items', 'g1', true);
   eq('explicit on is idempotent', c.favorites.items, ['g1']);
-  check('unknown kind / empty key ignored', E.toggleFavorite(c, 'spells', 'x') === false && E.toggleFavorite(c, 'items', '') === false && !('spells' in c.favorites));
+  check('unknown kind / empty key ignored', E.toggleFavorite(c, 'quests', 'x') === false && E.toggleFavorite(c, 'items', '') === false && !('quests' in c.favorites));
+  check('spells are a favorites kind', E.toggleFavorite(c, 'spells', 'class:wizard:fire-bolt') === true && E.isFavorite(c, 'spells', 'class:wizard:fire-bolt') && !E.isFavorite(c, 'spells', 'feat:magic-initiate:fire-bolt'));
+  E.toggleFavorite(c, 'spells', 'class:wizard:fire-bolt', false);
   eq('favoritesFirst is stable', E.favoritesFirst(['a', 'b', 'c', 'd'], (x) => x === 'c' || x === 'a'), ['a', 'c', 'b', 'd']);
 
   // Removing an inline ability: its star goes, later index-named ones shift with their abilities
@@ -534,6 +538,33 @@ section('Favourites (engine-favs.js)');
   check('feature key: Second Wind same at level 1 and 5', !!sw1 && E.featureFavKey(sw1) === E.featureFavKey(sw5) && E.featureFavKey(sw1).startsWith('class:'), [sw1 && E.featureFavKey(sw1), sw5 && E.featureFavKey(sw5)]);
   const withAb = E.derive({ ...char(), classes: [{ id: 'fighter', level: 1, hp: [10] }], abilities: [{ name: 'Grit', description: 'x' }] }, rules);
   check('feature key: inline custom ability -> custom:custom-0', withAb.features.some((f) => E.featureFavKey(f) === 'custom:custom-0'));
+
+  // Spell keys: one per sheet row, so Fire Bolt from the wizard and from Magic Initiate are starred apart
+  const wiz = char({
+    species: { id: 'human', size: 'Medium' }, background: { id: 'sage', abilityBonuses: { int: 2, con: 1 } }, classes: [{ id: 'wizard', level: 5, hp: [6, 4, 4, 4, 4] }],
+    spells: [{ id: 'fire-bolt', class: 'wizard' }, { id: 'shield', class: 'wizard', prepared: true }], choices: { 'feat:magic-initiate/1': ['fire-bolt', 'light'], 'feat:magic-initiate/2': ['sleep'] },
+  });
+  const ws = E.derive(wiz, rules);
+  const keys = ws.spells.map(E.spellFavKey);
+  check('spell keys: class and feat Fire Bolt differ', keys.includes('class:wizard:fire-bolt') && keys.includes('feat:magic-initiate:fire-bolt'), keys);
+  eq('spell keys: unique per row', new Set(keys).size, ws.spells.length);
+  eq('spell key: stored record = its row', E.spellFavKey(wiz.spells[1]), 'class:wizard:shield');
+  eq('spell key: no class -> other, no id -> empty', [E.spellFavKey({ id: 'light' }), E.spellFavKey({ class: 'wizard' }), E.spellFavKey(null)], ['other:light', '', '']);
+  const drowKeys = E.derive(char({ species: { id: 'elf', subspecies: 'elven-lineage-drow' }, classes: [{ id: 'rogue', level: 5 }] }), rules).spells.map(E.spellFavKey);
+  check('spell keys: species spells', drowKeys.includes('species:faerie-fire') && drowKeys.includes('species:darkness'), drowKeys);
+
+  // Removing a stored spell drops its star, unless a feature still lists the same row (Life Domain's Bless)
+  wiz.favorites = { items: [], skills: [], features: [], spells: ['class:wizard:shield', 'feat:magic-initiate:fire-bolt'] };
+  wiz.spells = wiz.spells.filter((x) => x.id !== 'shield');
+  E.dropSpellFavorite(wiz, 'class:wizard:shield', E.derive(wiz, rules).spells);
+  eq('drop spell star: removed spell unstarred, others kept', wiz.favorites.spells, ['feat:magic-initiate:fire-bolt']);
+  const life = char({ classes: [{ id: 'cleric', level: 3, subclass: 'life-domain', hp: [8, 5, 5] }], spells: [{ id: 'bless', class: 'cleric', prepared: true }], favorites: { spells: ['class:cleric:bless'] } });
+  check('Life Domain lists Bless itself (same key as the stored one)', E.derive(life, rules).spells.filter((x) => E.spellFavKey(x) === 'class:cleric:bless').length === 1);
+  life.spells = [];
+  E.dropSpellFavorite(life, 'class:cleric:bless', E.derive(life, rules).spells);
+  eq('drop spell star: kept while a feature grants the spell', life.favorites.spells, ['class:cleric:bless']);
+  E.dropSpellFavorite(life, 'class:cleric:bless', []);
+  eq('drop spell star: gone once nothing lists it', life.favorites.spells, []);
 }
 
 // ------------------------------------------------------------------------------------------------

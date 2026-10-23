@@ -182,15 +182,19 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   -> details, notes. Tuned for the collapsed sidebar (container queries).
 - Spells tab: casters line, one-line slot pips, then one spell per row in columns (prepare | name | time | range |
   hit/DC | effect | remove; the level headings label the columns; two lines below 640px of list width). Filter bar
-  (4+ spells): level chips, Prepared, name search, effect chips (Damage, Healing, each damage type present,
-  Concentration, Ritual, Bonus action, Reaction); one choice per group, all combined. Pure helpers in engine-spells.js
+  (4+ spells): level chips, Prepared, Favorites (while a listed spell is starred), name search, effect chips (Damage,
+  Healing, each damage type present, Concentration, Ritual, Bonus action, Reaction); one choice per group, all combined. Pure helpers in engine-spells.js
   (`spellFxKeys`, `spellPasses`, `spellFilterOptions`, `shortCastingTime`, `shortRange`); the sheet only toggles
   `hidden` on rows (state per character for the session), so typing never repaints the sheet.
-- Favourites: doc field `favorites {items: [inventory uid], skills: [skill id], features: ['<sourceType>:<id>']}`
-  (pure helpers in `engine-favs.js`, normalized in data.js `normalize`). A gold-star "Favourite" toggle sits in each
-  entry's own menu (item edit + info modals, skill modal from the skill name, expanded feature row, feature modal);
-  starred entries show a star in their row, sort first in their list, and fill a "Favourites" tab placed first in the
-  actions window (shown only when something starred exists; star-only label on phones).
+- Favorites: doc field `favorites {items: [inventory uid], skills: [skill id], features: ['<sourceType>:<id>'],
+  spells: ['<source group>:<spell id>']}` (spell key per sheet row, `spellFavKey`: `class:wizard:fire-bolt`,
+  `feat:magic-initiate:fire-bolt`; pure helpers in `engine-favs.js`, normalized in data.js `normalize`; removing a
+  stored spell calls `dropSpellFavorite`). A gold-star "Favorite" toggle sits in each entry's own menu (item edit +
+  info modals, skill modal from the skill name, expanded feature row, feature modal, spell modal from the spell name;
+  spell rows also get a small star toggle on mouse hover, laid over the name cell); starred entries show a star in
+  their row, sort first in their list (spells: in their level), and fill a "Favorites" tab placed first in the
+  actions window (shown only when something starred exists; star-only label on phones; spells there use the Spells
+  tab row, so their chips roll).
 
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).

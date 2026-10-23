@@ -30,7 +30,7 @@ import {
 import { setXp, xpLevelsCrossed, xpStatus, charLevel } from './engine-xp.js';
 import { levelUpFlow } from './levelup.js';
 import { TAGS as SMART_TAGS, normalizeTags as normSmartTags } from './engine-tags.js'; // manual tags on custom abilities
-import { removeAbilityFavorites } from './engine-favs.js'; // a removed ability drops its sheet star
+import { removeAbilityFavorites, dropSpellFavorite, spellFavKey } from './engine-favs.js'; // a removed ability / spell drops its sheet star
 
 const SECTIONS = [
   ['identity', 'Identity'], ['appearance', 'Sheet style'], ['classes', 'Classes & levels'], ['origin', 'Species & background'], ['abilities', 'Ability scores'],
@@ -540,7 +540,7 @@ function spells({ c, s }) {
           h('td', null, select(classOpts, sp.class || '', (v) => mutate((x) => { x.spells[i].class = v || null; }), { class: 'select input-sm', 'aria-label': 'Class', 'data-fk': `e-spc-${i}` })),
           h('td', { class: 'center' }, h('input', { type: 'checkbox', class: 'checkbox', checked: !!sp.prepared, 'aria-label': 'Prepared', 'data-fk': `e-spp-${i}`, onchange: (ev) => mutate((x) => { x.spells[i].prepared = ev.target.checked; }) })),
           h('td', { class: 'center' }, h('input', { type: 'checkbox', class: 'checkbox', checked: !!sp.always, 'aria-label': 'Always prepared', 'data-fk': `e-spa-${i}`, onchange: (ev) => mutate((x) => { x.spells[i].always = ev.target.checked; }) })),
-          h('td', { class: 'cell-actions' }, h('button', { class: 'btn-icon btn-sm', type: 'button', 'aria-label': `Remove ${e?.name || sp.id}`, title: 'Remove', onclick: () => mutate((x) => { x.spells.splice(i, 1); }) }, icon('trash'))));
+          h('td', { class: 'cell-actions' }, h('button', { class: 'btn-icon btn-sm', type: 'button', 'aria-label': `Remove ${e?.name || sp.id}`, title: 'Remove', onclick: () => mutate((x) => { const [gone] = x.spells.splice(i, 1); dropSpellFavorite(x, spellFavKey(gone), derive(x).spells); }) }, icon('trash'))));
       })))) : h('p', { class: 'faint ui text-sm' }, 'No spells recorded.'),
     h('p', { class: 'muted ui text-sm' }, 'Spells granted by features, species and feats are listed on the sheet automatically and don’t need to be added here.'));
 }
