@@ -177,6 +177,16 @@ class Store {
     return this.applyRemote(files);
   }
 
+  /**
+   * pull(), but only after the backend says the branch moved (a cheap check, free while nothing changed).
+   * -> the changed paths, or null when it didn't pull.
+   */
+  async pullIfChanged() {
+    if (this.saving || !this.backend) return null;
+    if (this.backend.headChanged && !(await this.backend.headChanged())) return null;
+    return this.pull();
+  }
+
   // ---------- reading ----------
 
   has(path) {

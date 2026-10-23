@@ -96,3 +96,146 @@ a.dm-row-title { color: var(--link); }
   .dm-row { flex-wrap: wrap; }
   .dm-row > .btn { margin-left: 30px; }
 }
+
+/* DM Screen pages (Hidden & released | Party) */
+.dm-tabs { margin-top: calc(var(--space-2) * -1); }
+
+/* ---------- Party (views/dm/party.js, #/dm/party): the party at a glance, to fill a DM Screen pane ----------
+   party-model.js fitGrid picks columns, rows, the card shape (tall | wide) and a scale (--pc-s) so every card fits
+   the view; everything inside a card is sized in em off that scale. Too small to fit: the cards scroll at scale 1. */
+.view.is-party { display: flex; flex-direction: column; padding: 10px 12px; scroll-padding-top: 10px; --stick-top: -10px; }
+.view.is-party:not(.is-party-scroll) { overflow: hidden; }
+.dm-screen.is-party { max-width: none; flex: 1 0 auto; min-height: 0; gap: 8px; }
+.dm-screen.is-party:not(.is-scroll) { flex: 1 1 0; }
+.dm-party-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 12px; border-bottom: 1px solid var(--border); }
+.dm-party-bar > .dm-tabs { margin: 0 0 -1px; border-bottom: 0; }
+.dm-party-bar .tab { height: 34px; }
+.dm-party-tools { display: flex; align-items: center; gap: 6px; margin-left: auto; padding-bottom: 4px; }
+.dm-party-empty { flex: 1 1 auto; }
+.dm-party-empty p { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+
+/* Live status: a dot and a word */
+.dm-live { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px; font: 500 var(--text-xs) / 1 var(--font-ui); color: var(--ink-muted); white-space: nowrap; cursor: default; }
+.dm-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); }
+.dm-live.is-online .dm-live-dot { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
+.dm-live.is-connecting .dm-live-dot { background: var(--warn); animation: sb-pulse 1s ease-in-out infinite alternate; }
+.dm-live.is-offline .dm-live-dot { background: var(--warn); }
+.dm-live.is-offline { color: var(--warn); }
+
+.dm-party-grid { display: grid; gap: 10px; grid-template-columns: repeat(var(--pc-cols, 3), minmax(0, 1fr)); }
+.dm-party-grid.is-fit { flex: 1 1 0; min-height: 0; grid-template-rows: repeat(var(--pc-rows, 2), minmax(0, 1fr)); }
+.dm-party-grid.is-scroll { grid-auto-rows: auto; padding-bottom: var(--space-4); }
+
+/* A card: who | AC · PP, then HP, abilities, effects, note */
+.dm-pc {
+  position: relative; display: grid; min-width: 0; min-height: 0; overflow: hidden;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-areas: "head" "hp" "abil" "fx" "note";
+  gap: 0.5em; padding: 0.625em 0.75em;
+  font-size: calc(16px * var(--pc-s, 1)); line-height: 1.2;
+  background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--pc-accent, var(--border-strong));
+  border-radius: var(--radius); cursor: pointer;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.dm-pc:hover { border-color: var(--border-strong); border-top-color: var(--pc-accent, var(--border-strong)); box-shadow: var(--shadow); }
+.dm-party-grid[data-shape="wide"] .dm-pc {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-areas: "head abil" "hp abil" "fx note";
+  column-gap: 1em;
+}
+.dm-pc-head { grid-area: head; display: flex; align-items: center; gap: 0.6em; min-width: 0; }
+.dm-pc-pic { flex: none; display: flex; }
+.dm-pc-pic .ch-portrait { width: 2.5em; height: 2.5em; }
+.dm-pc-pic .ch-crest { font-size: 0.9em; }
+.dm-pc[data-hp="dead"] .dm-pc-pic { filter: grayscale(1); opacity: 0.7; }
+.dm-pc-id { flex: 1 1 auto; min-width: 0; }
+.dm-pc-name { margin: 0; font: 700 1.0625em / 1.2 var(--font-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dm-pc-name a { color: var(--ink); text-decoration: none; }
+.dm-pc-name a:hover { text-decoration: underline; text-underline-offset: 0.15em; }
+.dm-pc-line { margin: 1px 0 0; font: 400 0.875em / 1.3 var(--font-ui); color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* AC (with a shield) and passive Perception */
+.dm-pc-def { flex: none; display: flex; gap: 0.3em; }
+.dm-pc-stat {
+  display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; column-gap: 0.15em;
+  min-width: 2.6em; padding: 0.2em 0.4em; text-align: center;
+  background: var(--surface-2); border-radius: var(--radius-sm);
+}
+.dm-pc-stat > .icon { width: 0.95em; height: 0.95em; color: var(--ink-muted); }
+.dm-pc-stat > b { font: 700 1.25em / 1.1 var(--font-body); color: var(--ink); }
+.dm-pc-stat-label { grid-column: 1 / -1; font: 600 0.8125em / 1.15 var(--font-ui); letter-spacing: 0.04em; color: var(--ink-muted); }
+.dm-pc-pp > b { grid-column: 1 / -1; }
+.dm-pc-stat.is-adjusted > b, .dm-pc-ab.is-adjusted .dm-pc-ab-score { color: var(--danger); }
+
+/* Hit points: label | bar | 32 / 44 +5; at 0, death saves instead of the bar */
+.dm-pc-hp { grid-area: hp; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.5em; min-width: 0; border-radius: var(--radius-sm); }
+.dm-pc-hp-label { display: inline-flex; align-items: center; gap: 0.25em; font: 600 0.875em / 1 var(--font-ui); color: var(--ink-muted); }
+.dm-pc-hp-label .icon { width: 1.05em; height: 1.05em; color: var(--danger); }
+.dm-pc-hp .ch-hpbar { height: 0.5em; }
+.dm-pc-hp-num { white-space: nowrap; font-family: var(--font-body); }
+.dm-pc-hp-num strong { font-size: 1.375em; line-height: 1; }
+.dm-pc-hp-max { font-size: 0.9375em; color: var(--ink-muted); }
+.dm-pc-temp { font-size: 0.9375em; font-weight: 700; color: var(--info); }
+.dm-pc[data-hp="dying"], .dm-pc[data-hp="dying"]:hover { border-color: var(--danger); }
+.dm-pc[data-hp="dying"] .dm-pc-hp-label, .dm-pc[data-hp="dead"] .dm-pc-hp-label { color: var(--danger); }
+.dm-pc[data-hp="stable"] .dm-pc-hp-label { color: var(--ok); }
+.dm-pc-saves { display: inline-flex; align-items: center; gap: 0.6em; }
+.dm-pc-saves-row { display: inline-flex; gap: 0.2em; }
+.dm-pc-pip { width: 0.7em; height: 0.7em; border-radius: 50%; border: 1.5px solid var(--border-strong); }
+.dm-pc-pip.is-ok.is-on { background: var(--ok); border-color: var(--ok); }
+.dm-pc-pip.is-fail.is-on { background: var(--danger); border-color: var(--danger); }
+
+/* The six abilities: name, modifier, score */
+.dm-pc-abil { grid-area: abil; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.25em; margin: 0; padding-top: 0.4em; border-top: 1px solid var(--rule); }
+.dm-party-grid[data-shape="wide"] .dm-pc-abil { align-content: center; padding-top: 0; border-top: 0; }
+.dm-pc-ab { display: flex; flex-direction: column; align-items: center; gap: 0.1em; min-width: 0; }
+.dm-pc-ab dt { font: 600 0.8125em / 1.15 var(--font-ui); letter-spacing: 0.04em; color: var(--ink-muted); }
+.dm-pc-ab dd { margin: 0; }
+.dm-pc-ab-mod { font: 700 1.125em / 1.1 var(--font-body); color: var(--ink); }
+.dm-pc-ab-score { min-width: 2em; padding: 0 0.3em; text-align: center; font: 500 0.8125em / 1.35 var(--font-ui); color: var(--ink-muted); background: var(--surface-2); border-radius: var(--radius-pill); }
+
+/* Conditions and other effects */
+.dm-pc-fx { grid-area: fx; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 0.3em; min-height: 0; margin: 0; padding: 0; overflow: hidden; list-style: none; }
+.dm-pc-fx-chip {
+  display: inline-flex; align-items: center; gap: 0.25em; padding: 0.15em 0.55em;
+  font: 600 0.8125em / 1.25 var(--font-ui); white-space: nowrap;
+  color: var(--danger); background: var(--danger-soft); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); border-radius: var(--radius-pill);
+}
+.dm-pc-fx-chip.is-exhaustion { color: var(--warn); background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+.dm-pc-fx-chip.is-inspiration { color: var(--ink); background: var(--surface); border-color: var(--gold); }
+.dm-pc-fx-chip.is-inspiration .icon { width: 1em; height: 1em; color: var(--gold); }
+.dm-pc-fx-chip.is-more { color: var(--ink-muted); background: var(--surface-2); border-color: var(--border); }
+.dm-pc-fx-none { font: 400 0.875em / 1.5 var(--font-ui); color: var(--ink-faint); }
+
+/* The private note: one line (its first line, or "Add a note"); open, it covers the abilities and effects */
+.dm-pc-note { grid-area: note; display: flex; flex-direction: column; min-width: 0; min-height: 0; cursor: auto; }
+.dm-pc-note-toggle {
+  display: flex; align-items: center; gap: 0.4em; width: 100%; min-height: 1.75em; padding: 0.15em 0.35em;
+  font: 400 0.875em / 1.3 var(--font-ui); color: var(--ink); text-align: left;
+  background: transparent; border: 1px dashed transparent; border-top-color: var(--rule); border-radius: var(--radius-sm); cursor: pointer;
+}
+.dm-pc-note-toggle:hover { background: var(--surface-2); border-color: var(--border); }
+.dm-pc-note-toggle > .icon { flex: none; width: 1.05em; height: 1.05em; color: var(--gold); }
+.dm-pc-note-peek { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dm-pc-note-peek.is-empty { color: var(--ink-faint); }
+.dm-pc-note-chev { display: inline-flex; color: var(--ink-muted); }
+.dm-pc-note-chev .icon { width: 1em; height: 1em; transition: transform var(--dur) var(--ease); }
+.dm-pc-note.is-open { grid-row: abil-start / note-end; grid-column: abil-start / note-end; z-index: 2; gap: 0.3em; background: var(--surface); }
+.dm-pc-note.is-open .dm-pc-note-toggle { border-color: transparent; border-bottom-color: var(--rule); }
+.dm-pc-note.is-open .dm-pc-note-chev .icon { transform: rotate(180deg); }
+.dm-pc-note-body { flex: 1 1 auto; display: flex; min-height: 0; }
+.dm-pc-note-body[hidden] { display: none; }
+.dm-pc-note-text { flex: 1 1 auto; min-height: 4.5em; height: auto; resize: none; font-size: 0.9375em; border-style: dashed; border-color: var(--gold); }
+.dm-party-grid.is-scroll .dm-pc-note-text { min-height: 6em; }
+
+/* A value that just changed (live) glows gold for a moment */
+.dm-pc .is-fresh { animation: dm-fresh 1.8s var(--ease) 1; }
+@keyframes dm-fresh { from { background-color: var(--gold-soft); box-shadow: 0 0 0 0.25em var(--gold-soft); } to { background-color: transparent; box-shadow: 0 0 0 0.25em transparent; } }
+@media (prefers-reduced-motion: reduce) { .dm-pc .is-fresh { animation-duration: 0.01ms; } }
+
+@media (max-width: 760px) {
+  .view.is-party { padding: 8px; }
+  .dm-party-tools { margin-left: 0; width: 100%; justify-content: flex-end; }
+}

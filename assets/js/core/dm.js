@@ -5,6 +5,7 @@
 //   content/dm/hidden/<rid>.json   one sealed envelope per hidden item: {path, text | bin, size, mime, sha, hiddenAt, by}
 //   content/dm/hidden/<rid>.bin    a hidden binary (library file, image): IV + ciphertext
 //   content/dm/released.json       what the DM released (plain: released items are public anyway)
+//   content/dm/party.json          the party view's notes (sealed; DM-only, never released: readSealed/writeSealed)
 //   content/inbox/<stamp>.json     one notification per release, shown in everyone's Inbox
 // While DM mode is unlocked, store.layer shows each hidden item at its own path, so every tab lists it where it was
 // made; edits to it are re-encrypted (a moment later) instead of written in the clear. New items are hidden when the
@@ -21,6 +22,7 @@ export const DM_VAULT = `${DM_DIR}/vault.json`;
 export const HIDDEN_DIR = `${DM_DIR}/hidden`;
 export const RELEASED_PATH = `${DM_DIR}/released.json`;
 export const INBOX_DIR = 'content/inbox';
+export const DM_PARTY = `${DM_DIR}/party.json`; // the party view's notes and roster (sealed, never released)
 const KEY_STORE = 'sw:dm';
 const PREFS = 'sw:dm:prefs';
 const INBOX_KEEP_DAYS = 30;
@@ -305,6 +307,24 @@ const layer = {
     return cands.some((x) => x.sha === sha);
   },
 };
+
+// ---------- DM-only documents ----------
+
+/**
+ * A document only the DM ever reads (the party view's notes): sealed with the DM data key at its own path under
+ * content/dm/ (outside the hidden layer, so it is never listed or released). -> value, or null (none yet, locked).
+ */
+export async function readSealed(path) {
+  if (!S.key) return null;
+  const env = store.get(path);
+  if (!env?.iv || !env?.data) return null;
+  try { return await openJson(S.key, env); } catch (e) { console.warn(`[dm] could not open ${path}`, e); return null; }
+}
+
+export async function writeSealed(path, value) {
+  if (!S.key) throw new Error('DM mode is locked.');
+  store.put(path, await sealJson(S.key, value));
+}
 
 // ---------- hide / release ----------
 

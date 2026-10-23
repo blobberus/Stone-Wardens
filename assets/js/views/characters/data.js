@@ -3,6 +3,8 @@
 import { store } from '../../core/store.js';
 import { nameKey, clone } from '../../core/util.js';
 import { getSetting } from '../../core/settings.js';
+import { shareLive, liveDoc } from '../../core/live.js';
+import { dmConfigured } from '../../core/dm.js';
 import { normalizeFavorites } from './engine-favs.js';
 import { normalizeStyle, STYLE_DEFAULTS } from './skin.js';
 
@@ -156,16 +158,30 @@ export function normalize(doc) {
 export const shortId = () => Math.random().toString(36).slice(2, 8);
 export const totalLevel = (char) => (char?.classes || []).reduce((n, c) => n + (Number(c.level) || 0), 0);
 
+// ---------- live copies (core/live.js) ----------
+
+// Every edit to a sheet also goes out on the live channel at once (while a DM is set up: only the DM's party view
+// watches it), so the DM sees it within a second instead of after the next commit.
+export const isSheetPath = (p) => /^content\/characters\/[^/]+\.json$/.test(p);
+shareLive((p) => isSheetPath(p) && dmConfigured());
+
+/** The stored doc, or the live copy another screen published when that is newer (only a watching screen has any). */
+function freshest(path, data) {
+  const live = liveDoc(path);
+  if (!data || !live?.data || typeof live.data !== 'object') return data;
+  return String(live.updated || '') > String(data.updated || '') ? clone(live.data) : data;
+}
+
 // ---------- listing & lookup ----------
 
 export function listCharacters() {
   return store.list(DIR)
     .filter((d) => d.path.endsWith('.json') && d.data && typeof d.data === 'object')
-    .map(({ path, data }) => normalize({ ...data, id: data.id || idFromPath(path) }));
+    .map(({ path, data }) => { const d = freshest(path, data); return normalize({ ...d, id: d.id || idFromPath(path) }); });
 }
 
 export function getCharacter(id) {
-  const data = store.get(pathOf(id));
+  const data = freshest(pathOf(id), store.get(pathOf(id)));
   return data ? normalize({ ...data, id: data.id || id }) : null;
 }
 

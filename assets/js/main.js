@@ -11,6 +11,7 @@ import { preloadAll } from './core/compendium.js';
 import { setSaveHandler } from './core/saving.js';
 import { restoreDm } from './core/dm.js';
 import { wireDmShell } from './core/dm-ui.js';
+import { configureLive } from './core/live.js';
 
 // Sidebar order (DM Screen shown only in DM mode), under the Combat Ring link. core/dm-ui.js puts the Inbox at the bottom,
 // right above Settings.
@@ -91,6 +92,7 @@ async function showGate(error) {
 
 async function enter(backend, scope) {
   store.use(backend, scope);
+  configureLive({ secret: backend.token || (backend.mode === 'sandbox' ? 'sandbox' : null), local: backend.mode === 'sandbox' });
   $('#gate').hidden = true;
   const app = $('#app');
   app.hidden = false;

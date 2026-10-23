@@ -43,6 +43,29 @@ export class GitHubBackend {
     return { commit: ref.object.sha, tree: commit.tree.sha };
   }
 
+  /**
+   * Has the branch moved since the last call? A conditional GET of the ref (If-None-Match): GitHub answers 304 when it
+   * hasn't, and a 304 doesn't count against the rate limit, so a screen can ask every few seconds.
+   */
+  async headChanged() {
+    const res = await fetch(`${API}/repos/${this.owner}/${this.repo}/git/ref/heads/${encodeURIComponent(this.branch)}`, {
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${this.token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(this.refTag ? { 'If-None-Match': this.refTag } : {}),
+      },
+    });
+    if (res.status === 304) return false;
+    if (!res.ok) throw new GitHubError(res.status, res.statusText);
+    this.refTag = res.headers.get('etag');
+    const sha = (await res.json())?.object?.sha;
+    const moved = sha !== this.refSha;
+    this.refSha = sha;
+    return moved;
+  }
+
   /** Full recursive listing of blobs: [{path, sha, size}] plus the head it came from. */
   async tree() {
     const head = await this.head();

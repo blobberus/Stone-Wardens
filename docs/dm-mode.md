@@ -30,6 +30,7 @@ password unlocks. Players' browsers only ever see ciphertext; so does anyone rea
 | `content/dm/hidden/<random>.bin` | a hidden binary (library document, image): 12-byte IV + ciphertext |
 | `content/dm/released.json` | the released log `{items: [{path, title, label, href, at, by}]}` (plain: those items are public) |
 | `content/inbox/<stamp>.json` | one notification per release `{id, at, title, label, href, path, by}`; pruned after 30 days |
+| `content/dm/party.json` | the party view's notes and who it leaves out, sealed `{v, iv, data}` (never listed or released; docs/dm-party.md) |
 
 Envelope file names are random, so they say nothing about the item; its real path is inside the envelope.
 
@@ -84,7 +85,10 @@ moved onto a hidden map is hidden; a copy of a hidden map starts hidden unless t
 
 ## DM Screen, Inbox, staying logged in
 
-- **DM Screen** (sidebar, below the Inbox; the tab exists only in DM mode): Create shortcuts; **Hidden from players**
+- **DM Screen** (sidebar, below the Inbox; the tab exists only in DM mode) has two pages under its tabs: **Hidden &
+  released** (`#/dm`) and **Party** (`#/dm/party`: every character's hit points, AC, passive Perception, abilities,
+  conditions and a private note, live; docs/dm-party.md). The menu's DM Screen link goes back to the page last shown.
+  Hidden & released: Create shortcuts; **Hidden from players**
   (grouped by category, Release); **Released** (newest first, Hide again). A released item is public again, so it is
   only in Released; hiding it again moves it back. Both lists have category chips (All, Quests, Compendium entries,
   Journal notes, Library documents, Map places, Images, with counts) to show one kind at a time.

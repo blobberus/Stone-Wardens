@@ -42,6 +42,7 @@ content/              ALL user data, written by the site through the GitHub API
                                 (sample: starfall-vale-p94a "Starfall Vale" + 2 places, safe to delete)
   quests/<id>.json  media/quests/<file>   quest log (docs/quests-model.md)
   dm/vault.json  dm/hidden/<rid>.json|.bin  dm/released.json  inbox/<stamp>.json   DM mode (docs/dm-mode.md)
+  dm/party.json                 the DM's party view notes (sealed, never released; docs/dm-party.md)
   journal/<folder…>/<note>.md   nested folders; optional _chapter.json in any folder = folder metadata
                                 {title, description, order} (also keeps empty folders in git); root notes journal/*.md
                                 frontmatter `images:` = reference photos (slideshow; docs/journal-model.md)
@@ -58,6 +59,11 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 - Reads: GitHub git-trees API (one recursive call) + blobs by sha, cached in IndexedDB by sha.
 - Writes: Git Data API batch commit (tree with base_tree -> commit -> update ref; retry on non-fast-forward).
   Conflict check: if remote sha != the sha we loaded, user chooses overwrite/keep theirs.
+  `store.pullIfChanged()` pulls only after `backend.headChanged()` (conditional GET of the ref; a 304 is free).
+- Live (`core/live.js` + `core/mqtt.js`, a copy of Combat Ring's): every local write of a character sheet is also
+  published at once over public MQTT brokers, gzip'd and AES-GCM sealed with a key from the token (HKDF), retained per
+  sheet; only the DM's party view subscribes. `characters/data.js` shows a live copy while its `updated` is newer than
+  the stored doc. Never written to the repo. Sandbox: BroadcastChannel. docs/dm-party.md.
 - Every edit is saved immediately as a local draft (localStorage) -> survives reloads. "Save" (Ctrl+S) commits
   all dirty docs. `beforeunload` warns when uncommitted. Auto-commit (`autoCommit`, default on) 2 s (`autoCommitDelay`)
   after the last edit (`store.scheduleAutoCommit`): at most one per 15 s per device while editing, paused 2 min after a
@@ -120,7 +126,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   their link types at import time and re-render from `store.on` events.
 - Routes: `#/map[/loc/<id>]`, `#/map/m/<mapId>[/loc/<id>]` (sub-maps), `#/characters[/<id>[/<section>]]`, `#/journal[/_|/<folder…>[/<note>]][?h=|q=|tag=|folder]`,
   `#/journal/new?title=`, `#/quests[/<id>[/edit]]`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`,
-  `#/dm` (DM Screen). `#/quests?new=1`, `#/compendium?new=1`, `#/wardens-library?upload=1` open the create forms.
+  `#/dm` (DM Screen), `#/dm/party` (its Party page). `#/quests?new=1`, `#/compendium?new=1`, `#/wardens-library?upload=1` open the create forms.
 
 ## Map tab
 - Model, routes, ranks and links: `docs/map-model.md`. Controls float over the map: search (top left) with the
@@ -147,7 +153,11 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   `{hidden: isHidden(source)}` so visibility follows the item. `registerHideable` may add `companions(path)` (hidden and
   released together, recorded as `with` in the envelope: a sub-map takes its places, image, pictures, fog, sub-maps) and
   `releaseBlock(path, data)` (a place of a hidden map can't be released alone); anything added to a hidden map is hidden. DM Screen tab (views/dm, menu only in DM mode): hidden
-  list + Release, released log + Hide again, hide an existing item, New-items-hidden default. Release posts
+  list + Release, released log + Hide again, hide an existing item, New-items-hidden default; a second tab **Party**
+  (`#/dm/party`, views/dm/party.js + pure party-model.js, docs/dm-party.md): every character on one screen (cards scale
+  to fit the view, up to six at a glance in a DM Screen pane) with HP, AC, passive Perception, abilities, conditions
+  and a private note each (sealed in `content/dm/party.json`, `dm.js readSealed/writeSealed`), live (core/live.js) with
+  GitHub checked every 5-20 s as a fallback; a card opens the sheet. Release posts
   `content/inbox/<stamp>.json`; Inbox in the navigation. In DM mode commit messages carry no names. Crypto tests:
   `node tools/test_dm.mjs`.
 
@@ -244,7 +254,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).
 - Rules engine: `node tools/test_engine.mjs` and `node tools/test_spells.mjs` (spell numbers, XP, spell filters; both must stay
-  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. Map design and fog: `node tools/test_mapdesign.mjs`. Character printouts: `node tools/test_print.mjs`. DM crypto: `node tools/test_dm.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
+  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. Map design and fog: `node tools/test_mapdesign.mjs`. Character printouts: `node tools/test_print.mjs`. Party view and live messages: `node tools/test_party.mjs`. DM crypto: `node tools/test_dm.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
   the sheet doesn't show (11 known, intentional gaps).
 - Syntax: portable `node --check`. Markdown renderer can be exercised in Node by stubbing `DOMPurify.sanitize`.
 

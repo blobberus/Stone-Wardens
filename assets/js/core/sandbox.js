@@ -15,6 +15,9 @@ export class SandboxBackend {
     };
   }
 
+  /** Other tabs may have committed: always worth a (cheap, local) pull. */
+  async headChanged() { return true; }
+
   async readBytes(sha) {
     const all = (await files.values()) || [];
     const f = all.find((x) => x.sha === sha);

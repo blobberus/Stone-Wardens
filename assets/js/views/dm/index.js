@@ -1,6 +1,8 @@
-// DM Screen (shown in the menu only in DM mode): everything hidden from the players, release it (players get an Inbox
-// notification), the released log with "Hide again", hide an existing item, create something hidden, DM settings.
-// The layer itself: core/dm.js; shared controls: core/dm-ui.js; docs/dm-mode.md.
+// DM Screen (shown in the menu only in DM mode), two pages under its tabs:
+// - #/dm: everything hidden from the players, release it (players get an Inbox notification), the released log with
+//   "Hide again", hide an existing item, create something hidden, DM settings. The layer itself: core/dm.js; shared
+//   controls: core/dm-ui.js; docs/dm-mode.md.
+// - #/dm/party: the party at a glance, live (party.js; docs/dm-party.md).
 import { h, mount } from '../../core/dom.js';
 import { icon, toast, confirmDialog, pickFromList, openModal } from '../../core/ui.js';
 import { store } from '../../core/store.js';
@@ -12,10 +14,12 @@ import {
   hideableKinds, isHidden, describe, DM_DIR, INBOX_DIR,
 } from '../../core/dm.js';
 import { dmLogin } from '../../core/dm-ui.js';
+import { renderParty, startParty, stopParty, partyEvent } from './party.js';
 
 const VIEW = 'dm';
 let root = null;
 let queued = false;
+let page = 'main'; // 'main' | 'party' (#/dm/party)
 const filters = { hidden: '', released: '' }; // category shown in each list ('' = all), for this visit
 
 const pluralOf = (label) => (/y$/.test(label) ? `${label.slice(0, -1)}ies` : `${label}s`);
@@ -37,8 +41,34 @@ function filterBar(list, key) {
 }
 const pick = (list, key) => (filters[key] ? list.filter((x) => x.label === filters[key]) : list);
 
+/** The DM Screen's pages. */
+function dmTabs() {
+  const tab = (id, to, ic, text) => h('a', { class: ['tab', page === id && 'is-active'], href: to, 'aria-current': page === id ? 'page' : null }, icon(ic), text);
+  return h('nav', { class: 'tabs dm-tabs', 'aria-label': 'DM Screen pages' },
+    tab('main', '#/dm', 'eye-off', 'Hidden & released'),
+    tab('party', '#/dm/party', 'users', 'Party'));
+}
+
+const visible = () => !!root?.isConnected && !root.closest('[hidden]');
+
+/** The party page fills the view (party.js fits the cards to it). */
+function partyChrome(on) {
+  root.classList.toggle('is-party', on);
+  const view = root.closest('.view');
+  view?.classList.toggle('is-party', on);
+  if (!on) view?.classList.remove('is-party-scroll');
+}
+
 function render() {
   if (!root) return;
+  const party = page === 'party' && isDm();
+  partyChrome(party);
+  if (party) {
+    renderParty(root, dmTabs());
+    if (visible()) startParty();
+    return;
+  }
+  stopParty();
   if (!isDm()) {
     mount(root,
       h('header', { class: 'view-head' }, h('h1', { class: 'view-title' }, 'DM Screen')),
@@ -62,6 +92,7 @@ function render() {
       h('div', { class: 'view-actions' },
         h('button', { class: 'btn btn-ghost', type: 'button', onclick: changePassword }, icon('edit'), 'Change DM password'),
         h('button', { class: 'btn', type: 'button', onclick: async () => { await lockDm(); toast('DM mode is off on this device.'); } }, icon('lock'), 'Lock DM mode'))),
+    dmTabs(),
     h('section', { class: 'panel dm-panel dm-create' },
       h('header', { class: 'panel-head' }, icon('plus'), h('h2', null, 'Create')),
       h('div', { class: 'panel-body stack' },
@@ -191,7 +222,7 @@ function changePassword() {
 function schedule() {
   if (queued) return;
   queued = true;
-  queueMicrotask(() => { queued = false; if (root?.isConnected && !root.closest('[hidden]')) render(); });
+  queueMicrotask(() => { queued = false; if (visible()) render(); });
 }
 
 export default {
@@ -203,12 +234,20 @@ export default {
     el.append(root);
     onDm(schedule);
     store.on((ev) => {
+      if (page === 'party') { if (isDm() && visible()) partyEvent(ev); return; } // the party page updates its cards in place
       const paths = ev.path ? [ev.path] : ev.paths || [];
       if (ev.type === 'load' || ev.type === 'saved' || paths.some((p) => p.startsWith(`${DM_DIR}/`))) schedule();
     });
   },
-  show() {
+  show(route) {
+    page = route?.parts?.[0] === 'party' ? 'party' : 'main';
+    // The menu's DM Screen link goes back to the page last shown (e.g. the party, after opening a sheet from it)
+    document.querySelector('.sb-tab[data-view="dm"]')?.setAttribute('href', page === 'party' ? '#/dm/party' : '#/dm');
     render();
     if (!isDm()) dmLogin().then((ok) => { if (ok) render(); else navigate('#/map', { replace: true }); });
+  },
+  hide() {
+    stopParty();
+    root?.closest('.view')?.classList.remove('is-party', 'is-party-scroll');
   },
 };
