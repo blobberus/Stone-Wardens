@@ -210,15 +210,15 @@ function when(at) {
  * The noticeable hidden / visible switch of an item, for its page or editor; null outside DM mode or for items that
  * can't be hidden. path: the item's path (or a function returning it). Hiding seals it at once; making it visible
  * releases it (players get a notification), after a confirmation. The switch redraws itself after a change (views
- * that re-render anyway simply drop it).
+ * that re-render anyway simply drop it). opts.small: false = full button size, for a row of full-size buttons.
  */
 export function visibilityToggle(path, opts = {}) {
-  const { label = 'this', onChange, before } = opts;
+  const { label = 'this', onChange, before, small = true } = opts;
   const p = typeof path === 'function' ? path() : path;
   if (!isDm() || !p || !isHideablePath(p)) return null;
   const hidden = isHidden(p);
   const self = h('button', {
-    class: ['btn', 'btn-sm', 'dm-vis', hidden ? 'is-hidden' : 'is-visible'], type: 'button', 'aria-pressed': String(hidden), disabled: dmBusy(p), // redrawn mid-change: wait
+    class: ['btn', small && 'btn-sm', 'dm-vis', hidden ? 'is-hidden' : 'is-visible'], type: 'button', 'aria-pressed': String(hidden), disabled: dmBusy(p), // redrawn mid-change: wait
     title: hidden ? `Only you can see ${label}. Click to release it to the players.` : `Players can see ${label}. Click to hide it.`,
     onclick: async (e) => {
       const btn = e.currentTarget;

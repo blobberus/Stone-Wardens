@@ -438,7 +438,7 @@ function entryPage(kind, id) {
       prefix ? btn('Copy link', 'link', () => copyLink(e)) : null,
       e.origin === 'custom' ? btn(e.overrides ? 'Restore default' : 'Delete', e.overrides ? 'undo' : 'trash', () => del(e), 'btn btn-danger') : null,
       prefix ? h('code', { class: 'cp-linktext', title: 'Link to this entry from any note' }, M.linkText(e)) : null,
-      e.origin === 'custom' && e.path ? visibilityToggle(e.path, { label: 'this entry' }) : null);
+      e.origin === 'custom' && e.path ? visibilityToggle(e.path, { label: 'this entry', small: false }) : null);
   }
 
   function sidePanels(e) {

@@ -44,6 +44,7 @@ a.dm-note-link:hover { background: var(--surface-2); }
 /* The hidden / visible switch on an item, and in create forms */
 .dm-vis { gap: 6px; font-weight: 700; }
 .dm-vis .icon { width: 16px; height: 16px; }
+.dm-vis:not(.btn-sm) .icon { width: 18px; height: 18px; }
 .dm-vis.is-hidden { color: var(--ink); background: var(--surface); border: 2px dashed var(--gold); }
 .dm-vis.is-hidden .icon { color: var(--gold); }
 .dm-vis.is-visible { color: var(--ink-muted); border-style: solid; }

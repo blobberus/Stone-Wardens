@@ -70,16 +70,23 @@
   width: min(100cqw - 2 * var(--space-4), 440px);
   margin-top: var(--space-4);
 }
+/* Two rows, 3 + 2 (the empty .home-break item ends the first), so no button is ever left alone on a row */
 .home-links {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-2);
 }
+.home-break { flex-basis: 100%; height: 0; margin-top: calc(var(--space-2) * -1); }
 .home-start .btn { box-shadow: var(--shadow); }
 .home-start .btn:not(.btn-primary),
 .home-start .btn:not(.btn-primary):hover { border-color: var(--border-float); }
 .home-enter { height: 44px; padding-inline: 20px; font-size: 1.0625rem; }
+/* Touch screens (tablets: phones already get 40px controls) */
+@media (pointer: coarse) {
+  .home-links .btn { height: 40px; padding-inline: 14px; font-size: 1rem; }
+  .home-enter { height: 48px; }
+}
 /* the ring sits on a surface-colored halo so it shows over sky, grass and both themes */
 .home-start .btn:focus-visible { outline-offset: 2px; box-shadow: 0 0 0 6px var(--surface), var(--shadow); }
 

@@ -6,7 +6,7 @@ import { icon } from '../../core/ui.js';
 import { allViews, href } from '../../core/router.js';
 
 const SEEN_KEY = 'sw:home:seen'; // localStorage, per device: set once the landing page has been shown here
-const LINKS = ['quests', 'characters', 'journal', 'wardens-library', 'compendium']; // under "Open the map", sidebar order
+const LINKS = ['quests', 'characters', 'journal', 'wardens-library', 'compendium']; // under "Open the map", sidebar order, 3 + 2
 const POSTER = 'assets/img/stone-wardens-poster'; // -960/-1600/-2560.webp, made from References/StoneWardensPoster1.png
 const WIDTHS = [960, 1600, 2560];
 
@@ -38,7 +38,7 @@ function build(el) {
       }),
       h('nav', { class: 'home-start', 'aria-label': 'Begin' },
         views.has('map') ? h('a', { class: 'btn btn-primary home-enter', href: href('map') }, icon(views.get('map').icon || 'map'), h('span', null, 'Open the map')) : null,
-        h('ul', { class: 'home-links', role: 'list' }, LINKS.map(link)))),
+        h('ul', { class: 'home-links', role: 'list' }, LINKS.slice(0, 3).map(link), h('li', { class: 'home-break', 'aria-hidden': 'true' }), LINKS.slice(3).map(link)))),
   ));
 }
 
