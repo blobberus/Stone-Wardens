@@ -118,7 +118,7 @@
   },
   "resourcesUsed": {},
   "conditions": [],
-  "exhaustion": 0,
+  "exhaustion": 2,
   "heroicInspiration": false,
   "xp": 0,
   "abilities": [],
@@ -183,5 +183,5 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-23T02:18:59.684Z",
-  "updated": "2026-10-23T02:20:10.230Z"
+  "updated": "2026-10-23T06:06:11.231Z"
 }
