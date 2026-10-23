@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "path": "content/quests/hidden-quest-test-nsda.json",
+      "title": "Hidden Quest Test",
+      "label": "Quest",
+      "href": "#/quests/hidden-quest-test-nsda",
+      "at": "2026-10-23T01:51:42.749Z",
+      "by": "Blobberus"
+    }
+  ]
+}

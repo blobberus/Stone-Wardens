@@ -171,7 +171,7 @@ async function reloadHidden() {
       console.warn(`[dm] could not open ${env}`, e);
     }
   }
-  for (const [p, it] of S.items) if (!seen.has(it.env) && !it.pending && !store.isDirty(it.env)) { S.items.delete(p); changed.push(p); }
+  for (const [p, it] of S.items) if (!seen.has(it.env) && !it.pending && !store.isDirty(it.env)) { it.dead = true; S.items.delete(p); changed.push(p); }
   return changed;
 }
 
@@ -190,12 +190,18 @@ function newItem(path) {
   return { path, env: `${HIDDEN_DIR}/${randomId()}.json`, hiddenAt: new Date().toISOString(), by: byWho(), ver: 0, pending: false };
 }
 
+// it.dead: released or deleted. A seal still encrypting at that moment must not write the envelope back, or the item
+// would be hidden again (and listed both as hidden and as released).
 async function seal(it) {
   const meta = { v: 1, path: it.path, size: it.size || 0, mime: it.mime || mimeOf(it.path), sha: it.sha || null, hiddenAt: it.hiddenAt, by: it.by };
   if (it.bin) meta.bin = it.bin; else meta.text = it.text ?? '';
-  const env = await sealJson(S.key, meta);
-  store.put(it.env, env);
-  it.envText = JSON.stringify(env);
+  it.sealing = (async () => {
+    const env = await sealJson(S.key, meta);
+    if (it.dead) return;
+    store.put(it.env, env);
+    it.envText = JSON.stringify(env);
+  })();
+  try { await it.sealing; } finally { it.sealing = null; }
 }
 
 function schedule(it) {
@@ -205,6 +211,7 @@ function schedule(it) {
 }
 async function flush(it) {
   clearTimeout(it.timer);
+  if (it.sealing) await it.sealing; // one already encrypting: let it land first
   if (!it.pending || !S.key) return;
   it.pending = false;
   await seal(it);
@@ -267,6 +274,7 @@ const layer = {
     const it = S.items.get(p);
     if (!it) return;
     clearTimeout(it.timer);
+    it.dead = true;
     S.items.delete(p);
     S.recent = [...S.recent.filter((r) => Date.now() - r.at < 5000), { at: Date.now(), text: it.text, sha: it.sha, size: it.size }];
     store.remove(it.env);
@@ -359,6 +367,7 @@ export async function releaseItem(path, { announce = true, attachment = false } 
   const info = describe(path, it.data);
   const bytes = it.bin ? await plainBytes(it) : null;
   if (it.bin && !bytes) throw new Error('missing');
+  it.dead = true; // a late seal must not bring the envelope back
   S.items.delete(path); // from here on the store writes the plain file
   if (it.bin) await store.putBinary(path, new Blob([bytes], { type: it.mime || mimeOf(path) }), { hidden: false });
   else store.put(path, extOf(path) === 'json' && it.data != null ? it.data : it.text ?? '', { hidden: false });

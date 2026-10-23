@@ -1,0 +1,24 @@
+{
+  "id": "hidden-quest-test-nsda",
+  "title": "Hidden Quest Test",
+  "type": "main",
+  "status": "completed",
+  "parent": null,
+  "characters": [
+    "npc"
+  ],
+  "objectives": [
+    {
+      "id": "o1",
+      "text": "Some cool thing",
+      "done": true
+    }
+  ],
+  "description": "[[NPC 1]] ",
+  "rewards": "Reward Test",
+  "image": null,
+  "created": "2026-10-23T01:50:15.949Z",
+  "updated": "2026-10-23T01:52:20.019Z",
+  "createdBy": "Blobberus",
+  "order": null
+}

@@ -1,0 +1,16 @@
+{
+  "id": "test-for-minor-quest-7ljn",
+  "title": "Test for Minor Quest",
+  "type": "minor",
+  "status": "completed",
+  "parent": null,
+  "characters": [],
+  "objectives": [],
+  "description": "",
+  "rewards": "",
+  "image": null,
+  "created": "2026-10-23T01:56:44.250Z",
+  "updated": "2026-10-23T01:56:49.278Z",
+  "createdBy": "Blobberus",
+  "order": null
+}
