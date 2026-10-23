@@ -128,7 +128,9 @@
     "success": 2,
     "fail": 0
   },
-  "resourcesUsed": {},
+  "resourcesUsed": {
+    "arcane-recovery": 0
+  },
   "conditions": [],
   "exhaustion": 0,
   "heroicInspiration": true,
@@ -195,5 +197,5 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-23T02:18:59.684Z",
-  "updated": "2026-10-23T19:12:39.230Z"
+  "updated": "2026-10-23T19:46:08.128Z"
 }
