@@ -70,22 +70,28 @@ function card({ char, sheet }) {
   let due = 0;
   try { due = levelsDue(char); } catch { due = 0; }
   const dirty = store.isDirty(pathOf(char.id));
+  // Compact card (six fit on a laptop screen): who | HP on one line | AC · Init · Speed · Passive | the six abilities
+  // with modifier and score, as on the sheet
   return h('a', { class: 'card ch-card', href: href(VIEW, char.id), 'aria-label': `${char.name || 'Unnamed'}, ${line}` },
     h('div', { class: 'ch-card-top' },
       portrait(char, { size: 'sm' }),
       h('div', { class: 'ch-card-id' },
-        h('h3', { class: 'card-title ch-card-name' }, char.name || 'Unnamed'),
-        h('p', { class: 'card-sub' }, [char.player ? `Played by ${char.player}` : 'No player', totalLevel(char) ? `Level ${sheet.totalLevel}` : null].filter(Boolean).join(' · ')),
-        h('p', { class: 'ch-card-line' }, line))),
-    h('div', { class: 'ch-card-hp' },
-      h('div', { class: 'row row-between ui text-sm' },
-        h('span', { class: 'ch-card-hp-label' }, icon('heart'), 'HP'),
-        h('span', { class: 'num' }, h('strong', null, String(cur)), ` / ${max}`, temp ? h('span', { class: 'ch-temp' }, ` +${temp} temp`) : null)),
-      hpBar(cur, max, temp)),
+        h('h3', { class: 'card-title ch-card-name', title: char.name || null }, char.name || 'Unnamed'),
+        h('p', { class: 'ch-card-line' }, line),
+        h('p', { class: 'ch-card-sub' }, [char.player ? `Played by ${char.player}` : 'No player', totalLevel(char) ? `Level ${sheet.totalLevel}` : null].filter(Boolean).join(' · ')))),
+    h('div', { class: 'ch-card-hp ui' },
+      h('span', { class: 'ch-card-hp-label' }, icon('heart'), 'HP'),
+      hpBar(cur, max, temp),
+      h('span', { class: 'num' }, h('strong', null, String(cur)), ` / ${max}`, temp ? h('span', { class: 'ch-temp' }, ` +${temp}`) : null)),
     h('dl', { class: 'ch-card-stats' },
       stat('AC', sheet.ac.value), stat('Init', fmt(sheet.initiative)), stat('Speed', `${sheet.speed.walk ?? 30}`), stat('Passive', sheet.passive.perception)),
-    h('div', { class: 'ch-card-abil', 'aria-label': 'Ability modifiers' }, ABILITIES.map((a) => h('span', { class: 'ch-card-ab', title: `${a.full} ${sheet.abilities[a.id].score}` },
-      h('span', { class: 'ch-card-ab-name' }, a.name), h('span', { class: 'num' }, fmt(sheet.abilities[a.id].mod))))),
+    h('dl', { class: 'ch-card-abil', 'aria-label': 'Ability scores' }, ABILITIES.map((a) => {
+      const x = sheet.abilities[a.id];
+      return h('div', { class: 'ch-card-ab', title: `${a.full}: score ${x.score}, modifier ${fmt(x.mod)}` },
+        h('dt', { class: 'ch-card-ab-name' }, a.name),
+        h('dd', { class: 'ch-card-ab-mod num' }, fmt(x.mod)),
+        h('dd', { class: 'ch-card-ab-score num' }, String(x.score)));
+    })),
     pending || due || dirty || char.conditions.length ? h('div', { class: 'ch-card-foot row' },
       due ? h('span', { class: 'badge badge-ok', title: 'Enough XP for a new level' }, due > 1 ? `Level up · ${due} due` : 'Level up due') : null,
       pending ? h('span', { class: 'badge badge-warn' }, `${pending} choice${pending === 1 ? '' : 's'} pending`) : null,

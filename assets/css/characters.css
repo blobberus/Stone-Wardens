@@ -83,28 +83,51 @@
 /* ---------- roster ---------------------------------------------------------- */
 .ch-roster-tools { margin-bottom: var(--space-4); }
 .ch-sort .select { width: auto; }
-.ch-grid { --grid-min: 290px; }
-.ch-card { display: flex; flex-direction: column; gap: var(--space-3); }
+/* Compact cards: six fit on a laptop screen (3 × 2 with the sidebar open, 4 + 2 with it collapsed) */
+.ch-grid { --grid-min: 280px; --grid-gap: var(--space-3); }
+.ch-card { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); }
 a.ch-card:hover { background: var(--surface); }
-.ch-card-top { display: flex; gap: var(--space-3); align-items: flex-start; min-width: 0; }
+.ch-card-top { display: flex; gap: var(--space-3); align-items: center; min-width: 0; }
+.ch-card-top > .ch-portrait { width: 46px; height: 46px; }
+.ch-card-top .ch-crest { font-size: var(--text-md); }
 .ch-card-id { min-width: 0; }
-.ch-card-name { overflow-wrap: anywhere; }
-.ch-card-line { margin: 2px 0 0; font: 400 var(--text-sm) / 1.35 var(--font-body); color: var(--ink); }
-.ch-card-hp { display: flex; flex-direction: column; gap: 6px; }
+.ch-card-name {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
+  font-size: var(--text-md); line-height: 1.2;
+}
+.ch-card-line { margin: 1px 0 0; font: 400 var(--text-sm) / 1.3 var(--font-body); color: var(--ink); }
+.ch-card-sub { margin: 0; font: 400 var(--text-xs) / 1.3 var(--font-ui); color: var(--ink-muted); }
+/* HP on one line: label | bar | 57 / 57 */
+.ch-card-hp { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); font-size: var(--text-sm); }
 .ch-card-hp-label { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-muted); }
-.ch-card-hp-label .icon { width: 16px; height: 16px; color: var(--danger); }
+.ch-card-hp-label .icon { width: 15px; height: 15px; color: var(--danger); }
+.ch-card-hp .ch-hpbar { height: 7px; }
 .ch-temp { color: var(--info); }
-.ch-card-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(56px, 1fr)); gap: 6px; margin: 0; }
+.ch-card-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 0; }
 .ch-card-stat {
-  display: flex; flex-direction: column; align-items: center; padding: 4px 2px;
+  display: flex; flex-direction: column; align-items: center; padding: 2px;
   background: var(--surface-2); border-radius: var(--radius-sm);
 }
-.ch-card-stat dt { font: 500 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink-muted); }
-.ch-card-stat dd { margin: 0; font: 700 var(--text-md) / 1.25 var(--font-body); }
-.ch-card-abil { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; border-top: 1px solid var(--rule); padding-top: var(--space-2); }
-.ch-card-ab { display: flex; flex-direction: column; align-items: center; font: 500 var(--text-sm) / 1.25 var(--font-ui); }
-.ch-card-ab-name { font: 500 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink-muted); }
+.ch-card-stat dt { font: 500 var(--text-xs) / 1.15 var(--font-ui); color: var(--ink-muted); }
+.ch-card-stat dd { margin: 0; font: 700 var(--text-sm) / 1.25 var(--font-body); }
+/* A wide card has room for "AC 11" on one line */
+.ch-card { container: ch-card / inline-size; }
+@container ch-card (min-width: 300px) {
+  .ch-card-stat { flex-direction: row; justify-content: center; align-items: baseline; gap: 5px; padding: 3px 4px; }
+}
+/* Abilities as on the sheet: name, modifier (large), score (small pill) */
+.ch-card-abil { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; margin: 0; border-top: 1px solid var(--rule); padding-top: var(--space-2); }
+.ch-card-ab { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
+.ch-card-ab dd { margin: 0; }
+.ch-card-ab-name { font: 600 var(--text-xs) / 1.15 var(--font-ui); letter-spacing: 0.03em; color: var(--ink-muted); }
+.ch-card-ab-mod { font: 700 var(--text-md) / 1.15 var(--font-body); color: var(--ink); }
+.ch-card-ab-score {
+  min-width: 2.1em; padding: 0 5px; text-align: center;
+  font: 500 var(--text-xs) / 1.35 var(--font-ui); color: var(--ink-muted);
+  border: 1px solid var(--border); border-radius: var(--radius-pill);
+}
 .ch-card-foot { --row-gap: 6px; }
+.ch-card-foot .badge { height: 20px; }
 .ch-empty { margin-top: var(--space-4); }
 
 /* ---------- sheet: header and nav ------------------------------------------- */
@@ -762,7 +785,6 @@ div.ch-optcard { cursor: default; }
   .ch-abil-save { min-height: 36px; }
 }
 @media (max-width: 479px) {
-  .ch-card-abil { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ch-kind-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
