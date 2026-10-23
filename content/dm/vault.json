@@ -1,0 +1,15 @@
+{
+  "v": 1,
+  "kdf": {
+    "name": "PBKDF2",
+    "hash": "SHA-256",
+    "iterations": 600000,
+    "salt": "CaAvvOMHG16CdNCgizJgjg=="
+  },
+  "cipher": {
+    "name": "AES-GCM",
+    "iv": "UYq/tVJt9gX3XjUy"
+  },
+  "data": "0Eq+gYsa+yClgEr7ONyYb6gpn8v77P9orsRi+JCEPrUg+VlZ7xCTUtXo9QsDksKD",
+  "created": "2026-10-23T01:46:44.864Z"
+}
