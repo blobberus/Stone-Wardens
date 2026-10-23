@@ -1264,3 +1264,23 @@ button.ch-pc-head:focus-visible { outline: 2px solid var(--focus); outline-offse
 .ch-pc-items .ch-pc-row.is-equipped .ch-pc-name { font-weight: 700; }
 .ch-pc-item-kind, .ch-pc-item-stats { margin: 0; }
 .ch-pc-item-acts { --row-gap: 4px; }
+/* Features & traits: search | count, (Smart) tag chips and the tag's numbers, then the rows in a box of their own
+   height, so the companion stays on one screen */
+.ch-pc-feat-tools { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.ch-pc-feat-search { flex: 1 1 auto; }
+.ch-pc-feat-q { width: 100%; }
+.ch-pc-feat-count { flex: none; min-width: 3em; text-align: right; }
+.ch-pc-tags { margin-bottom: var(--space-2); }
+.ch-pc-tags .ch-smart-tag { height: 26px; font-size: var(--text-xs); }
+.ch-pc-aspects { margin-bottom: var(--space-2); padding: 6px var(--space-2); font-size: var(--text-xs); }
+.ch-pc-featbox { max-height: min(26rem, 52vh); overflow-y: auto; overscroll-behavior: contain; margin-right: -6px; padding-right: 6px; }
+.ch-pc-group {
+  display: flex; align-items: baseline; gap: 6px; padding: var(--space-2) 0 2px;
+  font: 700 var(--text-xs) / 1.3 var(--font-ui); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-muted);
+}
+.ch-pc-group:first-child { padding-top: 0; }
+.ch-pc-group + .ch-pc-row, .ch-pc-row + .ch-pc-group { border-top: 0; }
+.ch-pc-row[hidden], .ch-pc-group[hidden] { display: none; }
+.ch-pc-picks { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.ch-pc-featrow .ch-fav-mark { flex: none; }
+.ch-pc-feat-none { margin: var(--space-2) 0 0; }

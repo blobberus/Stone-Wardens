@@ -346,9 +346,15 @@ Two small buttons under the portrait (sheet.js `picButtons`), each with a descri
   The header stays (HP with its controls open, setting `chPcHpOpen`; death saves; AC…); below it companion.js shows
   Hit dice & conditions and Currency | Spell slots (each level opens to its spells with prepared ticks) and Feature uses
   (each opens to its rules text) | Inventory (equip and quantity in the row; each item opens to its stats, attunement,
-  notes, Details / Edit / Remove). The nav bar shows "Paper Companion" with chips for those cards. Rows stay open
-  while the sheet repaints (`S.pcOpen`). A link to a section the companion lacks (skills, features…) shows the full
-  sheet for that visit.
+  notes, Details / Edit / Remove), and **Features & traits** (every feature, trait and feat: a "Search by name" field
+  that filters the rows as you type (name, choice picks, source; Escape clears), the full sheet's **All** (grouped by
+  where they come from) | **Smart** view (tag chips with counts, the character's numbers for the chosen tag, the
+  features with it; the choice is shared with the full sheet, `sw:characters:features`), each row opening to its rules
+  text, modifiers, tags and an Open button). Features & traits goes under the shortest column (estimated from the rows),
+  and its list takes the height left on screen there (200 px to 26rem; `fitFeatures`), so the companion stays on one
+  screen. The nav bar shows "Paper Companion" with chips for those cards. Rows stay open while the sheet repaints
+  (`S.pcOpen`), as do the search and the list's scroll (`S.pcFeatQ`, `S.pcFeatScroll`). A link to a section the
+  companion lacks (skills, attacks…) shows the full sheet for that visit.
 
 The header's Vision cell reads "Normal (2 mi)" for normal sight (`NORMAL_SIGHT` in print-model.js: outdoors on a clear
 day, until something blocks the view; the cell's tooltip says more).

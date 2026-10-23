@@ -43,6 +43,7 @@ import { hoverTip } from './widgets.js';
 const S = {
   root: null, id: null, char: null, sheet: null, stale: false, notesEditing: false, openFeatures: new Set(),
   fullOnce: false, pcOpen: new Set(), // Paper Companion: full sheet shown for a section link; its open rows
+  pcFeatQ: '', pcFeatScroll: 0, // Paper Companion: the features search and where its list was scrolled
 };
 
 /** Paper Companion view on (device setting chCompanion; a link to a section it lacks shows the full sheet once). */
@@ -208,6 +209,18 @@ function companionApi() {
     shortTime: shortCastingTime, shortRange,
     isOpen: (key) => S.pcOpen.has(key),
     setOpen: (key, on) => { if (on) S.pcOpen.add(key); else S.pcOpen.delete(key); },
+    // Features & traits: the full sheet's All | Smart view (shared, per device), tags, groups and choices
+    featView, setFeatView, featureTagging, featureGroup, tagAspects, describeModifiers, favMark,
+    featurePicks: (f) => {
+      if (!f.choiceKey) return '';
+      const choices = Array.isArray(S.sheet.choices) && S.sheet.choices.length ? S.sheet.choices : (() => { try { return allChoices(S.char); } catch { return []; } })();
+      const choice = choices.find((x) => x.key === f.choiceKey);
+      return choice ? valueNames(choice, currentValue(choice, S.char), { char: S.char, sheet: S.sheet }) : '';
+    },
+    featQuery: () => S.pcFeatQ,
+    setFeatQuery: (q) => { S.pcFeatQ = q; },
+    featScroll: () => S.pcFeatScroll,
+    setFeatScroll: (y) => { S.pcFeatScroll = y; },
   };
 }
 
@@ -221,7 +234,7 @@ function picButtons(c) {
       onclick: () => setCompanion(!on),
     }, icon('companion'), h('span', { class: 'ch-pic-lbl' }, on ? 'Full sheet' : 'Companion')),
     on ? 'Back to the full character sheet.'
-      : 'Paper Companion: only what changes in play (hit points, spell slots, feature uses, conditions, inventory and coins) on one screen, to keep beside a printed Major points sheet.'),
+      : 'Paper Companion: only what changes in play (hit points, spell slots, feature uses, conditions, inventory and coins) on one screen, with your features and traits to look up, beside a printed Major points sheet.'),
   ];
 }
 
@@ -272,7 +285,7 @@ function nav(s) {
   const casts = s.spellcasting.length || c.spells.length || s.slots.some(Boolean) || s.pact;
   const items = comp
     ? [['hp', 'Hit points'], ['trackers', 'Conditions'], casts ? ['spells', 'Slots'] : null, s.resources.some((r) => Number(r.max)) ? ['resources', 'Feature uses'] : null,
-      ['currency', 'Currency'], ['inventory', 'Inventory']].filter(Boolean)
+      ['currency', 'Currency'], s.features.length ? ['features', 'Features'] : null, ['inventory', 'Inventory']].filter(Boolean)
     : [['abilities', 'Abilities'], ['skills', 'Skills'], ['passive', 'Senses'], ['attacks', 'Attacks'],
       (s.spellcasting.length || c.spells.length) ? ['spells', 'Spells'] : null, ['bonus-actions', 'Bonus'], ['inventory', 'Inventory'],
       ['features', 'Features'], ['details', 'Details'], ['notes', 'Notes']].filter(Boolean);

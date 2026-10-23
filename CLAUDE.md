@@ -219,7 +219,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   stands, inventory included), each PDF or Grayscale, downloaded at once (jsPDF in the browser; content `print-model.js`,
   pure; layout `print-pdf.js`; `node tools/test_print.mjs`). Companion -> the Paper Companion view (`companion.js`,
   device setting `chCompanion`, off by default): only what changes in play on one screen (HP, conditions & hit dice,
-  coins, slots with their spells, feature uses, inventory; rows open for details). Vision "Normal (2 mi)" in the header.
+  coins, slots with their spells, feature uses, inventory; rows open for details), plus Features & traits to look up
+  (search by name, All | Smart tags as on the sheet; placed under the shortest column, list fitted to the screen). Vision "Normal (2 mi)" in the header.
 - Sheet order: header row (portrait with Print / Companion under it, name, XP meter, action buttons | HP, folded, with the "Hide / Show trackers"
   button under it | Death saves | AC · Initiative · Speed · Prof, one line when wide, 2 × 2 when tighter, the
   combat boxes on their own line under the identity when narrow; slim Vision / Darkvision cells under the stat boxes
