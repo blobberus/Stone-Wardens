@@ -15,6 +15,8 @@ const DEFAULTS = {
   chProfsOpen: false, // character sheet: Proficiencies & languages unfolded
   chHpOpen: false, // character sheet: HP inputs (Current / Temp / Damage, Damage / Heal) shown
   chTrackersShown: true, // character sheet: hit dice & conditions panel shown (replaces chTrackersOpen, which defaulted to hidden)
+  chCompanion: false, // character sheet: Paper Companion view (only what changes in play; button under the portrait)
+  chPcHpOpen: true, // character sheet, Paper Companion: HP controls shown
   wlInfoCollapsed: false, // warden's library reader: document info folded to one slim bar
 };
 

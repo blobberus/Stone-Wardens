@@ -8,7 +8,8 @@ bottom **Inbox** and **Settings** (DM login lives in Settings → DM mode). The 
 
 ## Hard rules
 - **No build step.** Plain HTML/CSS + native ES modules. No npm deps at runtime; libs are vendored in `vendor/`
-  (leaflet 1.9.4, marked 18, dompurify 3, js-yaml 5 [`load`/`dump`], mammoth 1.13 browser build = global `mammoth`).
+  (leaflet 1.9.4, marked 18, dompurify 3, js-yaml 5 [`load`/`dump`], mammoth 1.13 browser build = global `mammoth`,
+  jspdf 4.2.1 UMD = global `jspdf`, loaded on first print by characters/print.js).
 - All paths relative (site is served from `/Stone-Wardens/`). Never use absolute `/` URLs.
 - Windows box: Git Bash cannot write inside `Documents` (Controlled Folder Access). Use the Write/Edit tools or
   PowerShell for writes in the repo; scratch work goes to the session scratchpad.
@@ -202,10 +203,17 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   properties + `data-ground` / `data-sk-*` on the characters `.view` while a sheet shows (index.js `clearSkin`
   on every other route). `data-ground="light|dark"` switches the whole token set (tokens.css) for that subtree;
   ink is computed per color (>= 4.5:1). Only colors, edges, corners and fonts change, never the layout.
-- Sheet order: header row (portrait, name, XP meter, action buttons | HP, folded, with the "Hide / Show trackers"
+- Print and Paper Companion (docs/character-model.md "Printouts & Paper Companion"): two small buttons under the portrait,
+  each describing itself on hover. Print -> popover: Major points (stats that rarely change) or Detailed sheet (as it
+  stands, inventory included), each PDF or Grayscale, downloaded at once (jsPDF in the browser; content `print-model.js`,
+  pure; layout `print-pdf.js`; `node tools/test_print.mjs`). Companion -> the Paper Companion view (`companion.js`,
+  device setting `chCompanion`, off by default): only what changes in play on one screen (HP, conditions & hit dice,
+  coins, slots with their spells, feature uses, inventory; rows open for details). Vision "Normal (2 mi)" in the header.
+- Sheet order: header row (portrait with Print / Companion under it, name, XP meter, action buttons | HP, folded, with the "Hide / Show trackers"
   button under it | Death saves | AC · Initiative · Speed · Prof, one line when wide, 2 × 2 when tighter, the
-  combat boxes on their own line under the identity when narrow; slim Vision / Darkvision cells under Speed and Prof
-  in room the header already has, inside those two boxes on phones, so the header never grows for them) ->
+  combat boxes on their own line under the identity when narrow; slim Vision / Darkvision cells under the stat boxes
+  (under Speed and Prof in the 2 × 2 grid, each under two boxes in one row of four) in room the header already has,
+  inside the Speed and Prof boxes on phones, so the header never grows for them) ->
   abilities row | one-line "Hit dice & conditions" panel (hit dice, inspiration star, exhaustion, conditions;
   shown by default, setting `chTrackersShown`; beside the abilities, below them when narrow; while hidden, active
   conditions show as chips in the HP widget) -> narrow column skills, senses, proficiencies (foldable) | wide column actions window (tabs
@@ -235,7 +243,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).
 - Rules engine: `node tools/test_engine.mjs` and `node tools/test_spells.mjs` (spell numbers, XP, spell filters; both must stay
-  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. Map design and fog: `node tools/test_mapdesign.mjs`. DM crypto: `node tools/test_dm.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
+  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. Map design and fog: `node tools/test_mapdesign.mjs`. Character printouts: `node tools/test_print.mjs`. DM crypto: `node tools/test_dm.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
   the sheet doesn't show (11 known, intentional gaps).
 - Syntax: portable `node --check`. Markdown renderer can be exercised in Node by stubbing `DOMPurify.sanitize`.
 

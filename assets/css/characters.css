@@ -166,6 +166,28 @@ a.ch-card:hover { background: var(--surface); }
 @container ch-head ((min-width: 1001px) and (max-width: 1440px)) or (max-width: 640px) {
   .ch-head-actions .ch-act-lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 }
+/* Portrait with Print and the Paper Companion switch under it (sheet.js picButtons): portrait-wide buttons in the
+   identity column's height, so the header never grows for them (words; icons on phones, where the portrait is
+   smaller); each describes itself on hover / focus (.ch-tip). */
+.ch-head-pic { display: flex; flex-direction: column; align-items: stretch; gap: 4px; flex: none; width: 64px; }
+.ch-pic-btn { width: 100%; height: 22px; padding: 0 2px; justify-content: center; font-size: var(--text-xs); letter-spacing: -0.01em; white-space: nowrap; }
+.ch-pic-btn .icon { display: none; width: 15px; height: 15px; flex: none; }
+@media (max-width: 760px) { /* with the 52px portrait (below) */
+  .ch-pic-btn .icon { display: inline-block; }
+  .ch-pic-lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+}
+.ch-pic-btn.is-active { border-color: var(--ink-muted); background: var(--surface-2); }
+.ch-tip-wrap { position: relative; display: flex; }
+.ch-tip-wrap > .btn { flex: 1 1 auto; min-width: 0; }
+.ch-tip {
+  position: absolute; left: calc(100% + 8px); top: 50%; z-index: 30; transform: translateY(-50%);
+  width: max-content; max-width: 260px; padding: 6px 9px;
+  font: 400 var(--text-xs) / 1.4 var(--font-ui); color: var(--ink); text-align: left; white-space: normal;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); box-shadow: var(--shadow);
+  opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 120ms var(--ease), visibility 0s linear 120ms;
+}
+.ch-tip-wrap:hover > .ch-tip, .ch-tip-wrap:has(> :focus-visible) > .ch-tip { opacity: 1; visibility: visible; transition: opacity 120ms var(--ease) 300ms, visibility 0s linear 300ms; }
+.ch-tip-wrap.is-menu-open > .ch-tip { display: none; }
 .ch-name { margin: 0; font: 600 var(--text-xl) / 1.15 var(--font-display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
 .ch-line { margin: 0; font: 400 var(--text-sm) / 1.35 var(--font-body); }
 .ch-meta { margin: 0; font-size: var(--text-xs); color: var(--ink-muted); }
@@ -195,6 +217,10 @@ a.ch-card:hover { background: var(--surface); }
 .ch-nav.is-stuck .ch-nav-who { flex-shrink: 0; opacity: 1; visibility: visible; transition: opacity var(--dur) var(--ease), visibility 0s; }
 .ch-nav-who:hover .ch-nav-name { text-decoration: underline; text-underline-offset: 0.2em; }
 .ch-nav-player { font: 400 var(--text-sm) / 1.3 var(--font-ui); color: var(--ink-muted); }
+/* Paper Companion: its name before the chips */
+.ch-nav-mode { flex: none; display: inline-flex; align-items: center; gap: 5px; font: 700 var(--text-sm) / 1 var(--font-ui); color: var(--ink); white-space: nowrap; }
+.ch-nav-mode .icon { width: 16px; height: 16px; color: var(--ink-muted); }
+
 .ch-stale, .ch-pending { margin: 0 0 var(--space-4); }
 .ch-stale .callout-content, .ch-pending .callout-content { --row-gap: var(--space-3); }
 .ch-warnings { margin: 0 0 var(--space-4); }
@@ -232,14 +258,23 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
   .ch-vis-label { display: none; }
   .ch-vis-in .icon { display: inline-block; }
 }
-/* One row of four (wide, and narrow tablets): under columns 3 and 4. The 2 × 2 grid puts them under Speed / Proficiency itself. */
+@container (max-width: 134px) { /* "Normal (2 mi)", "Blindsight 10 ft": the label fits from about 135px */
+  .ch-vis-in.is-long .ch-vis-label { display: none; }
+  .ch-vis-in.is-long .icon { display: inline-block; }
+}
+/* One row of four (wide, and narrow tablets): each cell under two boxes, so "Normal (2 mi)" fits. The 2 × 2 grid puts
+   them under Speed / Proficiency itself. */
 @container ch-head (min-width: 1280px) or (max-width: 1000px) {
-  .ch-stats > .ch-vis-sight { grid-column: 3; }
-  .ch-stats > .ch-vis-dark { grid-column: 4; }
+  .ch-stats > .ch-vis-sight { grid-column: 1 / 3; }
+  .ch-stats > .ch-vis-dark { grid-column: 3 / 5; }
 }
 /* Phones: the stats are the header's last row, so the cells sit inside the bottom of the Speed and Proficiency boxes */
 @container ch-head (max-width: 640px) {
   .ch-stats > .ch-vis { grid-row: 1; align-self: end; height: 18px; margin: 0 1px 3px; background: none; border: 0; }
+  .ch-stats > .ch-vis-sight { grid-column: 3; }
+  .ch-stats > .ch-vis-dark { grid-column: 4; }
+  .ch-stats > .ch-vis .ch-vis-in.is-long { gap: 0; padding: 0 2px; font-size: 0.6875rem; } /* "Normal (2 mi)" in the Speed box */
+  .ch-stats > .ch-vis .ch-vis-in.is-long .icon { display: none; }
   .ch-stats > .ch-stat:is([data-stat="speed"], [data-stat="prof"]) { grid-row: 1; justify-content: flex-start; padding-top: 7px; }
   .ch-stats > .ch-stat[data-stat="speed"] { grid-column: 3; } /* placed explicitly: the cells sharing their spots would push them down */
   .ch-stats > .ch-stat[data-stat="prof"] { grid-column: 4; }
@@ -794,7 +829,8 @@ div.ch-optcard { cursor: default; }
 }
 @media (max-width: 760px) {
   .ch-portrait-lg { width: 76px; height: 76px; }
-  .ch-head-id > .ch-portrait { width: 52px; height: 52px; }
+  .ch-head-pic { width: 52px; }
+  .ch-head-pic > .ch-portrait { width: 52px; height: 52px; }
   .ch-builder { grid-template-columns: minmax(0, 1fr); }
   .ch-steps { position: static; }
   .ch-steps ol { flex-direction: row; overflow-x: auto; scrollbar-width: none; gap: 4px; }
@@ -1123,9 +1159,9 @@ button.ch-spell-chip:focus-visible { outline: 2px solid var(--focus); outline-of
 }
 .ch-skin[data-sk-panel]:not([data-sk-border-color]) { --border: color-mix(in srgb, var(--surface), var(--ink) 22%); }
 /* A page color that needs the other ink: the few texts drawn straight on the page follow it */
-.ch-skin[data-sk-pageink] :is(.ch-name, .ch-line, .ch-meta, .ch-nav-back, .ch-nav-who, .ch-warnings > summary,
+.ch-skin[data-sk-pageink] :is(.ch-name, .ch-line, .ch-meta, .ch-nav-back, .ch-nav-who, .ch-nav-mode, .ch-warnings > summary,
   .ch-head-actions > .btn-ghost, .ch-head-actions > .btn-icon) { --ink: var(--ch-page-ink); --ink-muted: var(--ch-page-muted); --ink-faint: var(--ch-page-muted); }
-.ch-skin[data-sk-pageink] :is(.ch-name, .ch-line, .ch-nav-who) { color: var(--ink); }
+.ch-skin[data-sk-pageink] :is(.ch-name, .ch-line, .ch-nav-who, .ch-nav-mode) { color: var(--ink); }
 /* Edges of the main boxes only (panels, stat boxes, HP, death saves, ability boxes, XP meter), not table rows */
 .ch-skin[data-sk-border] :is(.panel, .ch-stat, .ch-hp, .ch-dsbox, .ch-abil, .ch-xp-meter) {
   border-style: var(--ch-bstyle, solid); border-width: var(--ch-bwidth, 1px);
@@ -1159,3 +1195,72 @@ button.ch-spell-chip:focus-visible { outline: 2px solid var(--focus); outline-of
 .ch-skin-preview .ch-sec-head { min-height: 32px; padding: 4px var(--space-2); gap: 6px; }
 .ch-skin-preview .ch-abils { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .ch-skp-text { margin: 0; font: 400 var(--text-sm) / 1.45 var(--font-body); }
+
+/* ---------- Print popover (print.js; in #overlays, site colors) ---------------- */
+.ch-print-pop {
+  position: fixed; z-index: var(--z-popover); width: min(360px, calc(100vw - 16px)); padding: var(--space-2) var(--space-3) var(--space-1);
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow-lg);
+  font-family: var(--font-ui); animation: sw-fade 120ms var(--ease);
+}
+.ch-print-head { display: flex; align-items: center; gap: 6px; margin: 0 0 var(--space-1); font: 700 var(--text-xs) / 1.2 var(--font-ui); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-muted); }
+.ch-print-head .icon { width: 15px; height: 15px; }
+.ch-print-opt { display: flex; flex-direction: column; gap: 6px; padding: var(--space-2) 0; border-top: 1px solid var(--rule); }
+.ch-print-opt-text { display: flex; flex-direction: column; gap: 2px; }
+.ch-print-opt-text strong { font: 700 var(--text-sm) / 1.25 var(--font-ui); color: var(--ink); }
+.ch-print-opt-text span { font: 400 var(--text-xs) / 1.4 var(--font-ui); color: var(--ink-muted); }
+.ch-print-opt-btns { display: flex; gap: 6px; }
+.ch-print-opt-btns .icon { width: 14px; height: 14px; }
+
+/* ---------- sheet: Paper Companion (companion.js) -------------------------------- */
+/* Under the header: conditions & hit dice, coins | spell slots, feature uses | inventory (one screen when wide). */
+.ch-pc { container: ch-pc / inline-size; margin-top: var(--space-3); }
+.ch-pc-grid { display: grid; gap: var(--space-3); grid-template-columns: minmax(0, 1fr); align-items: start; }
+.ch-pc-col { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+@container ch-pc (min-width: 720px) {
+  .ch-pc-grid:not([data-cols="1"]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ch-pc-grid[data-cols="3"] > .ch-pc-col-last { grid-column: 1 / -1; }
+}
+@container ch-pc (min-width: 1100px) {
+  .ch-pc-grid[data-cols="3"] { grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr) minmax(0, 1.25fr); }
+  .ch-pc-grid[data-cols="3"] > .ch-pc-col-last { grid-column: auto; }
+}
+.ch-pc .ch-trk-line { flex-wrap: wrap; }
+.ch-pc .ch-trk-conds .ch-trk-ctl { max-width: none; }
+.ch-pc-rows { margin: 0; padding: 0; list-style: none; }
+.ch-pc-row + .ch-pc-row { border-top: 1px solid var(--rule); }
+.ch-pc-line { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 2px 0; }
+.ch-pc-head {
+  flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: 6px; margin-left: -4px; padding: 3px 4px;
+  font: inherit; color: var(--ink); text-align: left; background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer;
+}
+.ch-pc-head.is-static { margin-left: 0; padding-left: 0; cursor: default; }
+button.ch-pc-head:hover { background: var(--surface-2); }
+button.ch-pc-head:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+.ch-pc-head > .icon { width: 14px; height: 14px; flex: none; color: var(--ink-muted); transition: transform var(--dur) var(--ease); }
+.ch-pc-row.is-open > .ch-pc-line > .ch-pc-head > .icon { transform: rotate(90deg); }
+.ch-pc-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 600 var(--text-sm) / 1.3 var(--font-ui); }
+.ch-pc-sub, .ch-pc-note { flex: none; font: 400 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink-muted); white-space: nowrap; }
+.ch-pc-slots { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.ch-pc-slots .ch-pips { gap: 3px; }
+.ch-pc-slots .ch-pip { width: 16px; height: 16px; }
+.ch-pc-count { min-width: 2.4em; text-align: right; font: 600 var(--text-xs) / 1 var(--font-ui); color: var(--ink-muted); }
+.ch-pc-more { padding: 2px 0 var(--space-2) 22px; }
+.ch-pc-more[hidden] { display: none; }
+.ch-pc-more > * + * { margin-top: 6px; }
+.ch-pc-spells { display: flex; flex-direction: column; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.ch-pc-spell { display: flex; align-items: flex-start; gap: 6px; }
+.ch-pc-spell > .checkbox, .ch-pc-spell > .ch-spell-lock, .ch-pc-spell > .ch-spell-dot { flex: none; margin-top: 1px; }
+.ch-pc-spell-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 6px; min-width: 0; font-size: var(--text-sm); }
+.ch-pc-spell-meta { flex-basis: 100%; font: 400 var(--text-xs) / 1.3 var(--font-ui); color: var(--ink-muted); }
+.ch-pc-spell.is-unprepared .ch-pc-spell-name { color: var(--ink-muted); }
+.ch-pc-spell .badge { height: 18px; padding: 0 5px; font-size: var(--text-xs); }
+.ch-pc-feat + .ch-pc-feat { margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px dashed var(--rule); }
+.ch-pc-feat-name { font-weight: 700; }
+.ch-pc-feat > .badge { margin-left: 6px; }
+.ch-pc-feat > .ch-md { margin-top: 4px; }
+.ch-pc-lead { flex: none; width: 18px; }
+.ch-pc-qty { width: 4.4em; }
+.ch-pc-weight { flex: none; min-width: 3.4em; text-align: right; font: 400 var(--text-xs) / 1 var(--font-ui); color: var(--ink-muted); }
+.ch-pc-items .ch-pc-row.is-equipped .ch-pc-name { font-weight: 700; }
+.ch-pc-item-kind, .ch-pc-item-stats { margin: 0; }
+.ch-pc-item-acts { --row-gap: 4px; }

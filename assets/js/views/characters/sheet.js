@@ -34,8 +34,25 @@ import { getSetting, setSetting } from '../../core/settings.js';
 // Favorites (stars on items, weapons, skills, features, spells; the Favorites tab)
 import { featureFavKey, spellFavKey, isFavorite, toggleFavorite, favoritesFirst, dropSpellFavorite } from './engine-favs.js';
 import { abilityName } from './data.js';
+// Print (PDF downloads), the Paper Companion view, the header's vision words and hover descriptions
+import { printButton } from './print.js';
+import { companionBody } from './companion.js';
+import { visionOf, NORMAL_SIGHT, NORMAL_SIGHT_NOTE } from './print-model.js';
+import { hoverTip } from './widgets.js';
 
-const S = { root: null, id: null, char: null, sheet: null, stale: false, notesEditing: false, openFeatures: new Set() };
+const S = {
+  root: null, id: null, char: null, sheet: null, stale: false, notesEditing: false, openFeatures: new Set(),
+  fullOnce: false, pcOpen: new Set(), // Paper Companion: full sheet shown for a section link; its open rows
+};
+
+/** Paper Companion view on (device setting chCompanion; a link to a section it lacks shows the full sheet once). */
+const companionOn = () => !S.fullOnce && !!getSetting('chCompanion');
+function setCompanion(on) {
+  S.fullOnce = false;
+  setSetting('chCompanion', on);
+  render();
+  (S.root?.closest('.view') || window).scrollTo({ top: 0 });
+}
 
 export const currentSheetId = () => S.id;
 
@@ -50,6 +67,8 @@ export function showSheet(root, id, section, { reload = false } = {}) {
     S.stale = false;
     S.notesEditing = false;
     S.openFeatures = new Set();
+    S.fullOnce = false;
+    S.pcOpen = new Set();
   }
   if (!S.char) {
     mount(root, h('div', { class: 'empty-state ch-missing' }, icon('warning'), h('h3', null, 'Character not found'),
@@ -106,6 +125,8 @@ function focusSection(sec) {
     const feat = S.sheet.features.find((f) => normalizeAnchor(f.name) === a || f.id === a);
     if (feat) el = S.root.querySelector(`[data-stat="${CSS.escape(feat.id)}"]`);
   }
+  // The Paper Companion lacks it (skills, features…): show the full sheet for this visit, then follow the link
+  if (!el && companionOn()) { S.fullOnce = true; render(); requestAnimationFrame(() => focusSection(sec)); return; }
   if (!el) return;
   // A link into a folded region (HP controls, trackers, proficiencies) opens it for this session, then is followed.
   const fold = el.closest('[data-fold]');
@@ -144,6 +165,8 @@ function render() {
   const s = S.sheet;
   // The character's own colors, edges and fonts (skin.js) on the view; index.js clears them when it leaves the sheet.
   if (S.root.dataset.mode === 'sheet') applySkin(S.root.closest('.view') || S.root, c.style);
+  const comp = companionOn();
+  S.root.classList.toggle('is-companion', comp);
   rerender(S.root, () => mount(S.root,
     header(c, s),
     nav(s),
@@ -157,18 +180,49 @@ function render() {
       h('div', { class: 'callout-content row' },
         h('span', null, s.pending.slice(0, 4).map((p) => p.label || prettify(p.featureId)).join(', '), s.pending.length > 4 ? '…' : ''),
         h('a', { class: 'btn btn-sm', href: editHref('choices') }, 'Make choices'))) : null,
-    s.warnings.length ? h('details', { class: 'ch-warnings' }, h('summary', { class: 'muted ui text-sm' }, icon('info'), ` ${s.warnings.length} rules note${s.warnings.length === 1 ? '' : 's'}`),
+    s.warnings.length && !comp ? h('details', { class: 'ch-warnings' }, h('summary', { class: 'muted ui text-sm' }, icon('info'), ` ${s.warnings.length} rules note${s.warnings.length === 1 ? '' : 's'}`),
       h('ul', { class: 'ui text-sm' }, s.warnings.map((w) => h('li', null, String(w))))) : null,
-    // Compact D&D Beyond proportions: ability row, combat strip (HP on the right), then a narrow column
-    // (skills, senses, collapsible proficiencies) | the wide column: actions window (Attacks · Spells · Bonus actions),
-    // resources, inventory, currency and the compact features & traits (filling the space beside the skills);
-    // then details, notes. Ability scores with the hit dice & conditions panel (shown by default) to their right.
-    h('div', { class: 'ch-abil-row' }, h('div', { class: 'ch-abil-row-grid' }, abilities(c, s), trackers(c, s))),
-    h('div', { class: 'ch-body' }, h('div', { class: 'ch-body-grid' },
-      h('div', { class: 'ch-col ch-col-l' }, skills(c, s), passive(s), proficiencies(c, s)),
-      h('div', { class: 'ch-col ch-col-r' }, actionTabs(c, s), resources(c, s), inventory(c, s), currency(c), features(c, s)))),
-    details(c, s),
-    notes(c)));
+    // Paper Companion: only what changes in play (companion.js)
+    comp ? companionBody(c, s, companionApi()) : [
+      // Compact D&D Beyond proportions: ability row, combat strip (HP on the right), then a narrow column
+      // (skills, senses, collapsible proficiencies) | the wide column: actions window (Attacks · Spells · Bonus actions),
+      // resources, inventory, currency and the compact features & traits (filling the space beside the skills);
+      // then details, notes. Ability scores with the hit dice & conditions panel (shown by default) to their right.
+      h('div', { class: 'ch-abil-row' }, h('div', { class: 'ch-abil-row-grid' }, abilities(c, s), trackers(c, s))),
+      h('div', { class: 'ch-body' }, h('div', { class: 'ch-body-grid' },
+        h('div', { class: 'ch-col ch-col-l' }, skills(c, s), passive(s), proficiencies(c, s)),
+        h('div', { class: 'ch-col ch-col-r' }, actionTabs(c, s), resources(c, s), inventory(c, s), currency(c), features(c, s)))),
+      details(c, s),
+      notes(c)]));
+}
+
+/** What the Paper Companion borrows from the sheet: its sections, controls and dialogs. */
+function companionApi() {
+  return {
+    mutate, trackers, currency, spellRows, togglePrepared, spellInfo, resourcePips, featureModal, entryInfo, editItem, addItems, removeItem,
+    itemWeight, round, favoritesFirst,
+    favs: (kind) => favSet(S.char, kind),
+    slotText: (lvl) => slotText(lvl, S.char, S.sheet),
+    className: (id) => entryName('class', id) || prettify(id),
+    kindLabel: (e, it) => [e ? entryKindLabel(e) : prettify(it.kind), e?.origin === 'custom' ? 'custom' : ''].filter(Boolean).join(' · '),
+    shortTime: shortCastingTime, shortRange,
+    isOpen: (key) => S.pcOpen.has(key),
+    setOpen: (key, on) => { if (on) S.pcOpen.add(key); else S.pcOpen.delete(key); },
+  };
+}
+
+/** Print, then the Paper Companion switch: small buttons under the portrait, each describing itself on hover. */
+function picButtons(c) {
+  const on = companionOn();
+  return [
+    printButton(() => S.char),
+    hoverTip(h('button', {
+      class: ['btn', 'btn-sm', 'ch-pic-btn', on && 'is-active'], type: 'button', 'aria-pressed': String(on), 'data-fk': 'companion',
+      onclick: () => setCompanion(!on),
+    }, icon('companion'), h('span', { class: 'ch-pic-lbl' }, on ? 'Full sheet' : 'Companion')),
+    on ? 'Back to the full character sheet.'
+      : 'Paper Companion: only what changes in play (hit points, spell slots, feature uses, conditions, inventory and coins) on one screen, to keep beside a printed Major points sheet.'),
+  ];
 }
 
 function header(c, s) {
@@ -184,7 +238,7 @@ function header(c, s) {
   // The hit dice & conditions panel sits beside the ability scores (trackers()).
   return h('header', { class: 'ch-head' }, h('div', { class: 'ch-head-grid' },
     h('div', { class: 'ch-head-id' },
-      portrait(c, { size: 'md' }),
+      h('div', { class: 'ch-head-pic' }, portrait(c, { size: 'md' }), picButtons(c)),
       h('div', { class: 'ch-head-text' },
         h('h1', { class: 'ch-name' }, c.name || 'Unnamed'),
         h('p', { class: 'ch-line' }, [lvl ? `Level ${lvl}` : 'Level 0', [species, sub ? `(${sub})` : ''].filter(Boolean).join(' '), s.classLine, bg].filter(Boolean).join(' · ')),
@@ -203,7 +257,7 @@ function header(c, s) {
             class: 'btn-icon btn-sm', type: 'button', title: 'Copy a [[char:…]] link', 'aria-label': 'Copy link',
             onclick: async () => { const t = `[[char:${c.name || c.id}]]`; try { await navigator.clipboard.writeText(t); toast(`Copied ${t}`); } catch { toast(t); } },
           }, icon('link'))))),
-    h('div', { class: 'ch-hp-col' }, hpWidget(c, s), trackersToggle()),
+    h('div', { class: 'ch-hp-col' }, hpWidget(c, s), companionOn() ? null : trackersToggle()),
     deathSaves(c, s),
     statGrid(s)));
 }
@@ -214,11 +268,17 @@ const NAV = { io: null, stuck: false, id: null };
 function nav(s) {
   const c = S.char;
   if (NAV.id !== S.id) { NAV.id = S.id; NAV.stuck = false; }
-  const items = [['abilities', 'Abilities'], ['skills', 'Skills'], ['passive', 'Senses'], ['attacks', 'Attacks'],
-    (s.spellcasting.length || c.spells.length) ? ['spells', 'Spells'] : null, ['bonus-actions', 'Bonus'], ['inventory', 'Inventory'],
-    ['features', 'Features'], ['details', 'Details'], ['notes', 'Notes']].filter(Boolean);
-  const el = h('nav', { class: ['ch-nav', NAV.stuck && 'is-stuck'], 'aria-label': 'Sheet sections' },
+  const comp = companionOn();
+  const casts = s.spellcasting.length || c.spells.length || s.slots.some(Boolean) || s.pact;
+  const items = comp
+    ? [['hp', 'Hit points'], ['trackers', 'Conditions'], casts ? ['spells', 'Slots'] : null, s.resources.some((r) => Number(r.max)) ? ['resources', 'Feature uses'] : null,
+      ['currency', 'Currency'], ['inventory', 'Inventory']].filter(Boolean)
+    : [['abilities', 'Abilities'], ['skills', 'Skills'], ['passive', 'Senses'], ['attacks', 'Attacks'],
+      (s.spellcasting.length || c.spells.length) ? ['spells', 'Spells'] : null, ['bonus-actions', 'Bonus'], ['inventory', 'Inventory'],
+      ['features', 'Features'], ['details', 'Details'], ['notes', 'Notes']].filter(Boolean);
+  const el = h('nav', { class: ['ch-nav', comp && 'is-companion', NAV.stuck && 'is-stuck'], 'aria-label': comp ? 'Paper Companion sections' : 'Sheet sections' },
     h('a', { class: 'btn-icon btn-sm ch-nav-back', href: href(VIEW), title: 'All characters', 'aria-label': 'All characters' }, icon('chevron-left')),
+    comp ? h('span', { class: 'ch-nav-mode', title: 'Only what changes in play. Everything else is on the full sheet and the printed Major points.' }, icon('companion'), 'Paper Companion') : null,
     h('div', { class: 'ch-nav-chips' }, items.map(([id, label]) => h('button', { class: 'chip', type: 'button', onclick: () => goSection(id) }, label))),
     h('button', {
       class: 'ch-nav-who', type: 'button', title: 'Back to the top',
@@ -244,7 +304,7 @@ function watchNav(el) {
 // ---------- header widgets: HP, stats 2 × 2, trackers ----------
 
 // Folding regions remember open/closed per device (settings); a deep link opens a folded region for this session only.
-const FOLD_KEYS = { hp: 'chHpOpen', trackers: 'chTrackersShown', profs: 'chProfsOpen' };
+const FOLD_KEYS = { hp: 'chHpOpen', pcHp: 'chPcHpOpen', trackers: 'chTrackersShown', profs: 'chProfsOpen' };
 const FORCED = new Set();
 const isOpen = (key) => FORCED.has(key) || !!getSetting(key);
 function toggleFold(key) {
@@ -254,32 +314,24 @@ function toggleFold(key) {
   render();
 }
 
-/** Vision for the header: other senses (blindsight, truesight…) or "Normal", and the best darkvision range or null. */
-function visionOf(s) {
-  const list = s.sensesList || [];
-  const ranges = list.map((x) => /darkvision\D*(\d+)/i.exec(x)).filter(Boolean).map((m) => Number(m[1]));
-  const dark = Math.max(Number(s.darkvision) || 0, ...ranges, 0) || null;
-  const other = list.filter((x) => !/darkvision/i.test(x)).map((x) => x.replace(/\.$/, ''));
-  return { dark, vision: other.length ? other.join(', ') : 'Normal' };
-}
-
 /**
  * AC · Initiative · Speed · Proficiency at the right end of the first row (one line when wide, else 2 × 2), with
  * Vision under Speed and Darkvision under Proficiency: slim cells in room the header already has (characters.css),
- * so the header never grows for them.
+ * so the header never grows for them. Normal vision shows how far normal sight reaches: "Normal (2 mi)".
  */
 function statGrid(s) {
   const speedSub = Object.entries(s.speed).filter(([k, v]) => k !== 'walk' && v).map(([k, v]) => `${prettify(k)} ${v}`).join(' · ');
   const v = visionOf(s);
   // the label gives way to its icon when the cell is narrow (characters.css: each cell is its own container)
   const visCell = (cls, ic, label, value, title) => h('div', { class: ['ch-vis', cls], title, 'aria-label': `${label}: ${value}`, role: 'note' },
-    h('span', { class: 'ch-vis-in', 'aria-hidden': 'true' }, icon(ic), h('span', { class: 'ch-vis-label' }, label), h('span', { class: 'ch-vis-value' }, value)));
+    h('span', { class: ['ch-vis-in', value.length > 9 && 'is-long'], 'aria-hidden': 'true' }, icon(ic), h('span', { class: 'ch-vis-label' }, label), h('span', { class: 'ch-vis-value' }, value)));
   return h('div', { class: 'ch-stats', 'data-sec': 'combat' },
     statBox({ label: 'Armor Class', value: adjustedValue(s, 'ac', String(s.ac.value)), sub: s.armorWorn?.name || (s.shield ? 'Shield' : 'Unarmored'), stat: 'ac', title: s.adjust?.ac ? null : s.ac.formula, onClick: () => acInfo(s) }),
     statBox({ label: 'Initiative', value: adjustedValue(s, 'initiative', fmt(s.initiative)), stat: 'initiative', title: s.adjust?.initiative ? null : 'Roll initiative', onClick: () => rollToast('Initiative', s.initiative) }),
     statBox({ label: 'Speed', value: adjustedValue(s, 'speed', `${s.speed.walk ?? 0} ft`), sub: speedSub || null, stat: 'speed', title: speedSub && !s.adjust?.speed ? `Walk ${s.speed.walk ?? 0} ft · ${speedSub}` : null }),
     statBox({ label: 'Proficiency', value: adjustedValue(s, 'profBonus', fmt(s.profBonus)), stat: 'prof' }),
-    visCell('ch-vis-sight', 'eye', 'Vision', v.vision, v.vision === 'Normal' ? 'Vision: normal sight, no special senses' : `Vision: ${v.vision}`),
+    v.vision === 'Normal' ? visCell('ch-vis-sight', 'eye', 'Vision', `Normal (${NORMAL_SIGHT})`, `Vision: ${NORMAL_SIGHT_NOTE}`)
+      : visCell('ch-vis-sight', 'eye', 'Vision', v.vision, `Vision: ${v.vision}`),
     visCell('ch-vis-dark', 'moon', 'Darkvision', v.dark ? `${v.dark} ft` : 'None',
       v.dark ? `Darkvision ${v.dark} ft: dim light within range counts as bright light, darkness as dim light (shades of gray)` : 'Darkvision: none'));
 }
@@ -299,8 +351,9 @@ function trackersToggle() {
  * Amount → Damage / Heal. While the trackers panel is hidden, chips for anything active show here instead.
  */
 function hpWidget(c, s) {
-  const open = isOpen(FOLD_KEYS.hp);
-  const trk = isOpen(FOLD_KEYS.trackers);
+  const hpKey = companionOn() ? FOLD_KEYS.pcHp : FOLD_KEYS.hp; // the Paper Companion has its own (open by default)
+  const open = isOpen(hpKey);
+  const trk = isOpen(FOLD_KEYS.trackers) || companionOn();
   const max = s.hpMax;
   const cur = c.hp.current == null ? max : Number(c.hp.current);
   const temp = Number(c.hp.temp) || 0;
@@ -316,11 +369,11 @@ function hpWidget(c, s) {
     ex ? h('button', { class: 'chip ch-cond', type: 'button', title: `−${ex * 2} to D20 Tests, −${ex * 5} ft Speed (click to show the trackers)`, onclick: () => toggleFold(FOLD_KEYS.trackers) }, `Exhaustion ${ex}`) : null,
     c.heroicInspiration ? h('button', { class: 'chip ch-insp-chip', type: 'button', title: 'Heroic Inspiration (click to spend)', onclick: () => mutate((x) => { x.heroicInspiration = false; }) }, icon('star'), 'Inspired') : null,
   ].filter(Boolean);
-  return h('div', { class: ['ch-hp', open && 'is-open', down && 'is-down'], 'data-sec': 'hp', 'data-fold': FOLD_KEYS.hp },
+  return h('div', { class: ['ch-hp', open && 'is-open', down && 'is-down'], 'data-sec': 'hp', 'data-fold': hpKey },
     h('div', { class: 'ch-hp-top' },
       h('button', {
         class: 'ch-fold', type: 'button', 'aria-expanded': String(open), 'aria-controls': 'ch-hp-edit', 'data-fk': 'hp-fold',
-        title: open ? 'Hide the HP controls' : 'Change hit points', onclick: () => toggleFold(FOLD_KEYS.hp),
+        title: open ? 'Hide the HP controls' : 'Change hit points', onclick: () => toggleFold(hpKey),
       }, icon(open ? 'chevron-down' : 'chevron-right'), h('span', { class: 'ch-stat-label' }, icon('heart'), 'Hit points')),
       h('span', { class: 'ch-hp-now num', title: s.adjust?.hpMax ? null : 'Current + temporary' }, String(cur + temp), h('span', { class: 'ch-hp-max' }, ' / ', adjustedValue(s, 'hpMax', String(max))))),
     hpBar(cur, max, temp),
@@ -356,7 +409,7 @@ function deathSaves(c, s) {
  * (below them when the row is narrow). Shown by default; the button under the HP widget hides it.
  */
 function trackers(c, s) {
-  const open = isOpen(FOLD_KEYS.trackers);
+  const open = isOpen(FOLD_KEYS.trackers) || companionOn(); // always shown in the Paper Companion
   const ex = Number(c.exhaustion) || 0;
   const conds = conditionList().filter((x) => x.id !== 'exhaustion');
   const exText = ex ? `Exhaustion ${ex}: −${ex * 2} to D20 Tests, −${ex * 5} ft Speed${ex >= 6 ? ' (death)' : ''}` : 'No Exhaustion';
@@ -1576,8 +1629,13 @@ function inventory(c, s) {
         h('td', { class: 'num cell-muted' }, itemWeight(it) ? `${round(itemWeight(it))} lb` : '—'),
         h('td', { class: 'cell-actions' },
           h('button', { class: 'btn-icon btn-sm', type: 'button', 'aria-label': `Edit ${it.name}`, title: 'Edit', onclick: () => editItem(it) }, icon('edit')),
-          h('button', { class: 'btn-icon btn-sm', type: 'button', 'aria-label': `Remove ${it.name}`, title: 'Remove', onclick: async () => { if (await confirmDialog(`Remove ${it.name} from the inventory?`, { okLabel: 'Remove', danger: true })) mutate((y) => { y.inventory = y.inventory.filter((x) => x.uid !== it.uid); toggleFavorite(y, 'items', it.uid, false); }); } }, icon('trash'))));
+          h('button', { class: 'btn-icon btn-sm', type: 'button', 'aria-label': `Remove ${it.name}`, title: 'Remove', onclick: () => removeItem(it) }, icon('trash'))));
     })))) : h('div', { class: 'empty-state ch-inv-empty' }, icon('backpack'), h('p', null, 'The pack is empty. Add weapons, armor, gear or magic items from the library, or create your own.')));
+}
+
+/** Remove an inventory item (and its star) after asking. */
+async function removeItem(it) {
+  if (await confirmDialog(`Remove ${it.name} from the inventory?`, { okLabel: 'Remove', danger: true })) mutate((y) => { y.inventory = y.inventory.filter((x) => x.uid !== it.uid); toggleFavorite(y, 'items', it.uid, false); });
 }
 
 const round = (n) => Math.round(n * 100) / 100;

@@ -319,3 +319,37 @@ Smart view: tag chips with counts (the seven asked-for tags always, others when 
 character's related numbers (Defense → AC/HP/save profs/resistances; Magic → DC/attack/slots/magic items; Leveling → XP
 and `levelUpPlan` of the latest class + open choices; Advantages → every source; …), then the tagged features. The
 view and tag are remembered per device in localStorage `sw:characters:features`.
+
+## Printouts & Paper Companion — `print-model.js` (pure), `print-pdf.js`, `print.js`, `companion.js`
+Two small buttons under the portrait (sheet.js `picButtons`), each with a description on hover / keyboard focus
+(widgets.js `hoverTip`, `.ch-tip`):
+- **Print** opens a popover (print.js) with the two printouts, each as **PDF** or **Grayscale**; the file downloads at
+  once (`<Name> - Major points.pdf`, `<Name> - Character sheet (grayscale).pdf`). Everything runs in the browser: jsPDF
+  (`vendor/jspdf/jspdf.umd.min.js`, global `jspdf`) loads on first use; standard PDF fonts (Times headings, Helvetica
+  text; `pdfText` keeps text to WinAnsi); US Letter.
+  - **Major points**: name, player, portrait, level / species / class / background, AC, initiative, speed,
+    proficiency, HP maximum, hit dice, passive Perception, darkvision, the six abilities with saves, skills with
+    proficiency marks, passive scores, proficiencies & senses, attacks, spellcasting numbers with slot maxima and spell
+    names by level, features by name (level, uses per rest). Derived without conditions and Exhaustion (a sheet kept for
+    weeks). No inventory, coins, current HP, used slots or rules text.
+  - **Detailed sheet**: the same as things stand now (current HP and temp, hit dice left, death saves, conditions,
+    exhaustion, inspiration, XP), slots left, a spell table (prepared, level, time, range, hit / DC, effect), feature
+    uses left, the inventory (equipped, attuned, type, quantity, weight, key stats and short notes), coins, short
+    details. One line per entry, never a description.
+  - Printer-friendly: black on white, pale-gray table heads and rules; the character's highlight color only tints
+    headings and their rules (darkened for paper). Grayscale turns every color, and the portrait, gray.
+  - `printModel(char, sheet, lib, {kind, date, link})` builds the content (lib = names from bridge.js / data.js);
+    `renderSheet(jsPDF, model, {portrait, accent, gray})` lays it out (features start beside the skills when there is
+    room; tables and lists continue on new pages with their heads); `node tools/test_print.mjs`.
+- **Companion** switches the sheet to the **Paper Companion** view (device setting `chCompanion`, off by default;
+  "Full sheet" switches back): only what changes in play, on one screen, to keep beside a printed Major points sheet.
+  The header stays (HP with its controls open, setting `chPcHpOpen`; death saves; AC…); below it companion.js shows
+  Hit dice & conditions and Currency | Spell slots (each level opens to its spells with prepared ticks) and Feature uses
+  (each opens to its rules text) | Inventory (equip and quantity in the row; each item opens to its stats, attunement,
+  notes, Details / Edit / Remove). The nav bar shows "Paper Companion" with chips for those cards. Rows stay open
+  while the sheet repaints (`S.pcOpen`). A link to a section the companion lacks (skills, features…) shows the full
+  sheet for that visit.
+
+The header's Vision cell reads "Normal (2 mi)" for normal sight (`NORMAL_SIGHT` in print-model.js: outdoors on a clear
+day, until something blocks the view; the cell's tooltip says more).
+

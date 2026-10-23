@@ -270,6 +270,17 @@ export function portraitField(char, onChange) {
       file));
 }
 
+let tipN = 0;
+/**
+ * A control with a description that shows on hover (after a short pause) and on keyboard focus, beside it
+ * (characters.css .ch-tip); also its accessible description. Returns the wrapper to place.
+ */
+export function hoverTip(control, text) {
+  const id = `ch-tip-${++tipN}`;
+  control.setAttribute('aria-describedby', id);
+  return h('span', { class: 'ch-tip-wrap' }, control, h('span', { class: 'ch-tip', role: 'tooltip', id }, text));
+}
+
 /** Modal showing a compendium entry. */
 export function entryModal(entry, { title, actions = [] } = {}) {
   if (!entry) return null;
