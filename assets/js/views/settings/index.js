@@ -35,11 +35,12 @@ function render() {
       line('Save automatically every', withUnit(numberInput(getSetting('autoSaveMinutes'), (v) => { setSetting('autoSaveMinutes', Math.max(0, v ?? 0)); render(); }, { min: 0, step: 5 }), 'minutes'),
         'Unsaved changes are committed at most this long after you make them. 0 saves only when you press Save.'),
       line('Save uploads and big changes right away', toggle(getSetting('saveMajorNow'), (v) => setSetting('saveMajorNow', v)),
-        'Uploaded files and portraits, new or deleted places, maps, characters and library entries, and finished map edits are committed a moment later. Small edits, like typing a description, still follow the timer above.',
+        'Uploaded files and portraits, new or deleted places, maps, characters and library entries, and finished map edits are committed a moment later. Small edits, like typing a description, follow the other timers here.',
         { check: true }),
       line('Also save shortly after each edit', toggle(getSetting('autoCommit'), (v) => { setSetting('autoCommit', v); store.scheduleAutoCommit(); render(); }), null, { check: true }),
       getSetting('autoCommit')
-        ? line('Wait after the last edit', withUnit(numberInput(getSetting('autoCommitDelay'), (v) => setSetting('autoCommitDelay', Math.max(15, v || 60)), { min: 15, step: 5 }), 'seconds'))
+        ? line('Wait after the last edit', withUnit(numberInput(getSetting('autoCommitDelay'), (v) => { setSetting('autoCommitDelay', Math.max(2, v || 2)); store.scheduleAutoCommit(); }, { min: 2, step: 1 }), 'seconds'),
+          'While you keep editing, it saves at most every 15 seconds: every player saves through one GitHub account, which allows only so many saves an hour.')
         : null,
       !getSetting('autoCommit') && !auto
         ? line('Remind me to save after', withUnit(numberInput(getSetting('saveReminder'), (v) => setSetting('saveReminder', Math.max(0, v ?? 0)), { min: 0, step: 5 }), 'minutes'), '0 turns reminders off.')

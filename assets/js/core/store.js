@@ -19,6 +19,8 @@ const TEXT_EXT = new Set(['json', 'md', 'markdown', 'txt', 'csv', 'yml', 'yaml']
 export const isTextPath = (p) => TEXT_EXT.has(extOf(p));
 const PRELOAD = 'content/';
 const MAX_CACHE_BYTES = 25 * 1024 * 1024;
+const AUTO_GAP_MS = 15000; // auto-commits from one device at least this far apart (GitHub write limits)
+const AUTO_PAUSE_MS = 120000; // no auto-commits for this long after GitHub answers "rate limit"
 
 const MIME = {
   pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
@@ -54,6 +56,8 @@ class Store {
     this.urls = new Map();
     this.conflictResolver = null; // async (paths) => 'overwrite' | 'theirs' | 'cancel'
     this.autoTimer = null;
+    this.lastAutoCommit = 0; // when the last auto-commit started (spacing, see scheduleAutoCommit)
+    this.autoPausedUntil = 0; // GitHub said "rate limit": no auto-commits until then
     // DM mode (core/dm.js) while unlocked: hidden items shown at their own paths, written sealed. null otherwise.
     this.layer = null;
   }
@@ -334,11 +338,26 @@ class Store {
   }
   dirtyPaths() { return Object.keys(this.drafts); }
 
+  /**
+   * Auto-commit `autoCommitDelay` seconds (default 2) after the last edit. Every player commits with the owner's one
+   * token, and GitHub allows that token only about 500 writes an hour (3 per commit), so while someone keeps editing
+   * a device commits at most every AUTO_GAP_MS (the edits in between join the next commit), and a rate-limit error
+   * pauses auto-commits for AUTO_PAUSE_MS. Drafts are on the device already, so nothing is lost meanwhile.
+   */
   scheduleAutoCommit() {
     clearTimeout(this.autoTimer);
     if (!getSetting('autoCommit') || !this.isDirty()) return;
-    const ms = Math.max(15, Number(getSetting('autoCommitDelay')) || 60) * 1000;
-    this.autoTimer = setTimeout(() => this.save().catch((e) => this.emit({ type: 'error', error: e })), ms);
+    const delay = Math.max(2, Number(getSetting('autoCommitDelay')) || 2) * 1000;
+    const now = Date.now();
+    const ms = Math.max(delay, this.lastAutoCommit + AUTO_GAP_MS - now, this.autoPausedUntil - now);
+    this.autoTimer = setTimeout(() => {
+      if (this.saving) return; // the running save reschedules when it ends
+      this.lastAutoCommit = Date.now();
+      this.save().catch((e) => {
+        if ((e.status === 403 || e.status === 429) && /rate limit/i.test(e.message || '')) this.autoPausedUntil = Date.now() + AUTO_PAUSE_MS;
+        this.emit({ type: 'error', error: e });
+      });
+    }, ms);
   }
 
   // ---------- saving ----------
@@ -351,6 +370,8 @@ class Store {
     this.saving = true;
     this.emit({ type: 'saving' });
     this.savePromise = this.doSave(message).finally(() => { this.saving = false; this.emit({ type: 'idle' }); });
+    // Edits made while it was saving: commit them on the usual timer (not after a failed or canceled save)
+    this.savePromise.then((r) => { if (!r?.cancelled) this.scheduleAutoCommit(); }, () => {});
     return this.savePromise;
   }
 
