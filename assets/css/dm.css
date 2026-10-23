@@ -1,5 +1,5 @@
 /* =============================================================================
-   DM mode (core/dm-ui.js, views/dm): the DM button above Save, the Inbox item, the "Hidden from players" switch,
+   DM mode (core/dm-ui.js, views/dm): the "New: hidden" switch above Save, the Inbox item, the "Hidden from players" switch,
    hidden-item marks, the Inbox and the DM Screen. Hidden = dashed gold (the DM's secret color), never a tinted
    square behind an icon (docs/design.md).
    ============================================================================= */
@@ -11,15 +11,13 @@ body.is-dm .views { box-shadow: inset 0 3px 0 var(--gold); }
 
 /* Sidebar block above the save status */
 .sb-dm { display: flex; flex-direction: column; gap: 6px; }
-.sb-dm-btn, .sb-dm-new { width: 100%; justify-content: flex-start; gap: 8px; }
-.sb-dm-btn .icon, .sb-dm-new .icon { width: 17px; height: 17px; }
-.sb-dm-btn.is-on { color: var(--ink); border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
-.sb-dm-btn.is-on .icon { color: var(--gold); }
+.sb-dm-new { width: 100%; justify-content: flex-start; gap: 8px; }
+.sb-dm-new .icon { width: 17px; height: 17px; }
 .sb-dm-new { height: 28px; font-size: var(--text-xs); border-style: dashed; }
 .sb-dm-new.is-hidden { border-color: var(--gold); color: var(--ink); }
 .sb-dm-new.is-hidden .icon { color: var(--gold); }
 @media (min-width: 760px) {
-  .sidebar.is-collapsed .sb-dm-btn, .sidebar.is-collapsed .sb-dm-new { justify-content: center; width: 40px; padding: 0; }
+  .sidebar.is-collapsed .sb-dm-new { justify-content: center; width: 40px; padding: 0; }
   .sidebar.is-collapsed .sb-dm .sb-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 }
 

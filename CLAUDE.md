@@ -3,8 +3,8 @@
 Password-gated D&D 5e (**2024 rules / SRD 5.2**) campaign site on GitHub Pages for repo
 `blobberus/Stone-Wardens`. The original brief is `The Stone Wardens - A Fallen Firmament Campaign(1).md`.
 Sidebar, in order (main.js `VIEW_IDS`): **Map**, **Quests**, **Characters**, **Journal**, **Warden's Library** (renders
-PDFs/DOCX from `wardens-library/`), **Compendium** (SRD + custom library), **Inbox**, **DM Screen** (DM mode only),
-**Settings** at the bottom. The sidebar title opens the landing page.
+PDFs/DOCX from `wardens-library/`), **Compendium** (SRD + custom library), **DM Screen** (DM mode only); at the
+bottom **Inbox** and **Settings** (DM login lives in Settings → DM mode). The sidebar title opens the landing page.
 
 ## Hard rules
 - **No build step.** Plain HTML/CSS + native ES modules. No npm deps at runtime; libs are vendored in `vendor/`
@@ -126,7 +126,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   right toolbar Add location, Filter, Labels, ⋯.
 
 ## DM mode (docs/dm-mode.md)
-- "DM login" button above Save -> DM password (set up once from that button; `content/dm/vault.json` wraps a random
+- Settings → DM mode ("Log in as the DM") -> DM password (set up once from there; `content/dm/vault.json` wraps a random
   data key, PBKDF2 600k). Hidden items are AES-GCM envelopes in `content/dm/hidden/` (random names); while unlocked
   `store.layer` (core/dm.js) shows them at their own paths and seals writes to them. Create hidden with
   `store.put(path, data, {hidden:true})` / `putBinary(…, {hidden})` / `saveCustom(kind, obj, {hidden})`; UI helpers in

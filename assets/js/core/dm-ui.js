@@ -1,5 +1,6 @@
 // DM mode controls shared by the shell and the tabs (docs/dm-mode.md):
-//   wireDmShell()        the "DM" button above Save (log in / DM Screen), the "New: hidden" switch, the Inbox item
+//   wireDmShell()        the "New: hidden" switch above Save (DM mode only), the Inbox item above Settings
+//   dmLogin()            the DM password dialog (log in, or set up the first time); Settings → DM mode opens it
 //   visibilityToggle()   the noticeable "Hidden from players" / "Visible to players" switch on an item (DM mode only)
 //   hiddenChoice()       the same switch inside a "create" form, before the item exists
 //   hiddenMark()         a small lock beside a hidden item in a list (DM mode only)
@@ -7,7 +8,6 @@
 import { h, $, mount } from './dom.js';
 import { icon, toast, openModal, confirmDialog } from './ui.js';
 import { store } from './store.js';
-import { navigate } from './router.js';
 import { saveNow, saveSoon } from './saving.js';
 import {
   isDm, isHidden, onDm, dmConfigured, setupDm, unlockDm, dmNewHidden, setDmNewHidden, hideItem, releaseItem, describe,
@@ -103,7 +103,8 @@ function setupDialog() {
   });
 }
 
-// ---------- shell: DM button above Save, inbox in the navigation ----------
+// ---------- shell: the "New: hidden" switch above Save, inbox above Settings ----------
+// Logging in as the DM is in Settings → DM mode; once on, the DM Screen tab shows in the menu.
 
 export function wireDmShell() {
   const sb = $('#sidebar');
@@ -115,12 +116,8 @@ export function wireDmShell() {
     const on = isDm();
     document.body.classList.toggle('is-dm', on);
     if (dmTab) dmTab.hidden = !on; // the DM Screen tab exists only for the DM (dm.css hides it too)
+    block.hidden = !on;
     mount(block,
-      h('button', {
-        class: ['btn', 'btn-sm', 'sb-dm-btn', on && 'is-on'], type: 'button',
-        title: on ? 'DM mode is on: open the DM Screen' : 'Log in as the DM', 'aria-label': on ? 'DM Screen' : 'DM login',
-        onclick: async () => { if (isDm() || await dmLogin()) navigate('#/dm'); },
-      }, icon(on ? 'dm' : 'lock'), h('span', { class: 'sb-label' }, on ? 'DM mode' : 'DM login')),
       on ? h('button', {
         class: ['btn', 'btn-sm', 'sb-dm-new', dmNewHidden() && 'is-hidden'], type: 'button', 'aria-pressed': String(dmNewHidden()),
         title: dmNewHidden() ? 'What you create now starts hidden from players (click to change)' : 'What you create now is visible to players at once (click to change)',
@@ -156,12 +153,12 @@ function markRead(id) {
 function markAllRead() { setInboxState({ seen: new Date().toISOString(), read: [] }); }
 
 function wireInbox(sb) {
-  const tabs = $('.sb-tabs:not(.sb-tabs-bottom)', sb);
+  const tabs = $('.sb-tabs-bottom', sb);
   const badge = h('span', { class: 'sb-badge', hidden: true });
   const btn = h('button', { class: 'sb-tab sb-inbox', type: 'button', title: 'Inbox: what the DM has released', onclick: () => openInbox(refresh) },
     icon('inbox'), h('span', { class: 'sb-label' }, 'Inbox'), badge);
-  // after Compendium, before the DM Screen tab (main.js VIEW_IDS)
-  tabs.insertBefore(h('li', { class: 'sb-inbox-li' }, btn), $('.sb-tab[data-view="dm"]', tabs)?.closest('li') || null);
+  // at the bottom of the menu, right above Settings
+  tabs.insertBefore(h('li', { class: 'sb-inbox-li' }, btn), $('.sb-tab[data-view="settings"]', tabs)?.closest('li') || null);
   const refresh = () => {
     const n = notifications().filter((x) => x.unread).length;
     badge.hidden = !n;

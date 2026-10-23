@@ -1,10 +1,12 @@
-// Settings: per-device preferences, saving behavior, session.
+// Settings: per-device preferences, saving behavior, DM mode (log in as the DM), session.
 import { h, mount } from '../../core/dom.js';
 import { input, select, numberInput, icon, toast, confirmDialog } from '../../core/ui.js';
 import { getSetting, setSetting, applyTheme } from '../../core/settings.js';
 import { store } from '../../core/store.js';
 import { clearAuth } from '../../core/vault.js';
-import { lockDm } from '../../core/dm.js';
+import { lockDm, isDm, dmConfigured, dmNewHidden, setDmNewHidden, onDm } from '../../core/dm.js';
+import { dmLogin } from '../../core/dm-ui.js';
+import { navigate } from '../../core/router.js';
 
 let root;
 
@@ -19,6 +21,26 @@ const line = (label, control, hint, { check = false } = {}) => h('label', { clas
   h('span', { class: 'set-row-ctl' }, control));
 
 const withUnit = (control, unit) => h('span', { class: 'set-num' }, control, h('span', { class: 'set-unit' }, unit));
+
+// DM mode (core/dm.js, docs/dm-mode.md): log in with the DM password (or choose it the first time); once on, the
+// DM Screen tab shows in the menu and the "New: hidden" switch above Save.
+function dmSection() {
+  const on = isDm();
+  const text = on ? 'DM mode is on in this browser: hidden items show with a gold lock, and the DM Screen is in the menu.'
+    : dmConfigured() ? 'For the DM: log in with the DM password to create, hide and release quests, notes, documents, places and library entries.'
+      : 'No DM password yet. The DM chooses one here, once; hidden items are encrypted with it.';
+  return section('dm', 'DM mode',
+    h('div', { class: 'set-split' },
+      h('p', null, text),
+      on
+        ? h('div', { class: 'set-actions' },
+          h('a', { class: 'btn btn-primary', href: '#/dm' }, icon('dm'), 'Open the DM Screen'),
+          h('button', { class: 'btn', type: 'button', onclick: async () => { await lockDm(); toast('DM mode is off on this device.'); } }, icon('lock'), 'Lock DM mode'))
+        : h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => { if (await dmLogin()) navigate('#/dm'); } },
+          icon('lock'), dmConfigured() ? 'Log in as the DM' : 'Set up DM mode')),
+    on ? line('New items start hidden', toggle(dmNewHidden(), (v) => setDmNewHidden(v)),
+      'The default of the “Hidden from players” switch in every create form (also the switch above Save).', { check: true }) : null);
+}
 const toggle = (checked, onchange) => h('input', { type: 'checkbox', class: 'checkbox', checked: !!checked, onchange: (e) => onchange(e.target.checked) });
 
 function render() {
@@ -56,6 +78,7 @@ function render() {
           },
         }, icon('undo'), 'Discard unsaved changes')),
       dirty.length ? h('details', { class: 'set-dirty' }, h('summary', null, `${dirty.length} unsaved file(s)`), h('ul', null, dirty.map((p) => h('li', null, h('code', null, p))))) : null),
+    dmSection(),
     section('lock', 'Session',
       h('div', { class: 'set-split' },
         h('p', null, store.mode === 'sandbox' ? 'Sandbox mode: nothing leaves this browser.' : `Connected to ${store.scope} on GitHub.`,
@@ -80,6 +103,12 @@ export default {
   id: 'settings',
   title: 'Settings',
   icon: 'settings',
-  mount(el) { root = h('div', { class: 'set-page' }); el.append(root); store.on((e) => { if (!root.isConnected || root.closest('[hidden]')) return; if (['saved', 'pulled', 'put', 'remove'].includes(e.type)) render(); }); },
+  mount(el) {
+    root = h('div', { class: 'set-page' });
+    el.append(root);
+    const visible = () => root.isConnected && !root.closest('[hidden]');
+    store.on((e) => { if (visible() && ['saved', 'pulled', 'put', 'remove'].includes(e.type)) render(); });
+    onDm(() => { if (visible()) render(); }); // logged in or out, "New: hidden" changed
+  },
   show() { render(); },
 };

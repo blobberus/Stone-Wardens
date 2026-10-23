@@ -1,6 +1,6 @@
 # DM mode
 
-The DM logs in with a separate **DM password** (the **DM login** button above Save). While DM mode is on, the DM can
+The DM logs in with a separate **DM password** (Settings → **DM mode** → "Log in as the DM"). While DM mode is on, the DM can
 create and edit things **hidden from the players**, see them in place (with a gold lock), and **release** them when the
 story gets there. Players get a notification in their **Inbox** for each release.
 

@@ -12,7 +12,7 @@ import { setSaveHandler } from './core/saving.js';
 import { restoreDm } from './core/dm.js';
 import { wireDmShell } from './core/dm-ui.js';
 
-// Sidebar order. core/dm-ui.js puts the Inbox between Compendium and the DM Screen (shown only in DM mode).
+// Sidebar order (DM Screen shown only in DM mode). core/dm-ui.js puts the Inbox at the bottom, right above Settings.
 const VIEW_IDS = ['map', 'quests', 'characters', 'journal', 'wardens-library', 'compendium', 'dm', 'settings'];
 const isLocalhost = ['localhost', '127.0.0.1', ''].includes(location.hostname);
 
