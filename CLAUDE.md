@@ -205,6 +205,10 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   Healing, each damage type present, Concentration, Ritual, Bonus action, Reaction); one choice per group, all combined. Pure helpers in engine-spells.js
   (`spellFxKeys`, `spellPasses`, `spellFilterOptions`, `shortCastingTime`, `shortRange`); the sheet only toggles
   `hidden` on rows (state per character for the session), so typing never repaints the sheet.
+- Add spells picker (sheet.js `addSpells`): a limits box on top (`spellLimitsBox`, picker option `head`) shows the
+  caster line's Cantrips / Prepared / Spellbook counts including the ticked spells; going over is allowed (red count +
+  note, no notice dialog for a shown limit); a spellbook caster's spells past the prepared limit go in unprepared
+  unless "Prepare past the limit" is ticked. Off-list / too-high spells still get the "Not a usual pick" notice.
 - Favorites: doc field `favorites {items: [inventory uid], skills: [skill id], features: ['<sourceType>:<id>'],
   spells: ['<source group>:<spell id>']}` (spell key per sheet row, `spellFavKey`: `class:wizard:fire-bolt`,
   `feat:magic-initiate:fire-bolt`; pure helpers in `engine-favs.js`, normalized in data.js `normalize`; removing a

@@ -260,7 +260,7 @@ a.cp-kind-card:hover .cp-kind-icon { color: var(--ink); }
 .cp-picker-modal.modal-wide { width: min(1120px, 100%); }
 .cp-picker-modal .modal-body { display: flex; flex-direction: column; padding-top: var(--space-3); }
 .cp-picker { display: flex; flex-direction: column; gap: var(--space-3); height: min(68dvh, 660px); min-height: 0; }
-.cp-pick-tabs { flex: none; }
+.cp-pick-tabs, .cp-pick-head { flex: none; }
 .cp-pick-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); flex: none; }
 .cp-pick-search { flex: 1 1 240px; min-width: 0; }
 .cp-pick-filters { display: flex; flex-wrap: wrap; gap: var(--space-2); }

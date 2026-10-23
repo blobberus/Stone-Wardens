@@ -868,6 +868,10 @@ function slotText(lvl, c, s) {
     !slots && !pactHere ? 'no slots' : ''].filter(Boolean).join(' · ');
 }
 
+/** Prepared leveled spells / cantrips a caster has now: the counts of the Spells tab's caster line. */
+const casterPrepared = (c, sc) => sc.preparedCount ?? c.spells.filter((x) => x.class === sc.class && x.prepared && !x.always && (Number(findEntry('spell', x.id)?.level) || 0) > 0).length;
+const casterCantrips = (c, sc) => sc.cantripCount ?? c.spells.filter((x) => x.class === sc.class && (Number(findEntry('spell', x.id)?.level) || 0) === 0 && !x.always).length;
+
 function spells(c, s) {
   const rows = spellRows(c, s);
   // the Favorites chip goes with the last starred spell, and so does its filter
@@ -881,8 +885,8 @@ function spells(c, s) {
   }
   const byLevel = new Map();
   rows.forEach((r) => { if (!byLevel.has(r.level)) byLevel.set(r.level, []); byLevel.get(r.level).push(r); });
-  const preparedCount = (sc) => sc.preparedCount ?? c.spells.filter((x) => x.class === sc.class && x.prepared && !x.always && (Number(findEntry('spell', x.id)?.level) || 0) > 0).length;
-  const cantripCount = (sc) => sc.cantripCount ?? c.spells.filter((x) => x.class === sc.class && (Number(findEntry('spell', x.id)?.level) || 0) === 0 && !x.always).length;
+  const preparedCount = (sc) => casterPrepared(c, sc);
+  const cantripCount = (sc) => casterCantrips(c, sc);
   const innate = Array.isArray(s.innate) ? s.innate : [];
   const several = new Set(rows.map((r) => r.from)).size > 1;
   const el = section('spells', 'Spellcasting', {
@@ -1091,6 +1095,9 @@ async function addSpells(s) {
   // already known for this class: stored picks + always-prepared / granted spells (re-adding would hide "always")
   const have = new Set([...S.char.spells, ...(Array.isArray(s.spells) ? s.spells : [])].filter((x) => (x.class || null) === (sc?.class || null)).map((x) => x.id));
   const issuesOf = (e) => (sc ? spellIssues(e, sc, { className }) : []);
+  // the counts of the Spells tab's caster line, for the limits box and the prepared flags of the new spells
+  const scN = sc && { ...sc, cantripCount: casterCantrips(S.char, sc), preparedCount: casterPrepared(S.char, sc) };
+  const limits = { prepareAnyway: false };
   const res = await openPicker('spell', {
     title: sc ? `${className} spells (up to level ${max})` : 'Add spells',
     multi: true,
@@ -1105,13 +1112,17 @@ async function addSpells(s) {
       if (is.length) out.push({ label: is.some((i) => i.code === 'not-on-list') ? 'off-list' : 'too high', title: is.map((i) => i.text).join(' ') });
       return out;
     },
+    head: scN ? (chosen, { redraw }) => spellLimitsBox(scN, className, chosen, limits, redraw) : null,
   });
   let picked = [].concat(res || []).filter(Boolean);
   if (!picked.length) return;
-  // Compatibility notice (never blocks): list, slot level, cantrip / prepared limits, no spellcasting class
-  let plan = addSpellIssues(picked, sc, { className });
+  // Compatibility notice (never blocks): list, slot level, no spellcasting class; and a cantrip / prepared limit
+  // only when the limits box didn't show it (a class without cantrips): going over a shown limit asks nothing more
+  let plan = addSpellIssues(picked, scN, { className });
+  if (limits.prepareAnyway) plan = plan.map((x) => ({ ...x, prepared: true }));
   if (!sc) plan = plan.map((x) => ({ ...x, issues: [{ code: 'no-caster', text: s.innate?.length ? 'Not tied to a spellcasting class: it uses no class’s attack bonus or save DC.' : `${S.char.name || 'This character'} has no spellcasting class, so the sheet can’t show an attack bonus or save DC.` }] }));
-  const bad = plan.filter((x) => x.issues.length);
+  const shownLimit = (i) => (i.code === 'cantrip-limit' && Number(sc?.cantrips) > 0) || (i.code === 'prepared-limit' && Number(sc?.prepared) > 0);
+  const bad = plan.map((x) => ({ ...x, issues: x.issues.filter((i) => !shownLimit(i)) })).filter((x) => x.issues.length);
   if (bad.length) {
     const fits = plan.length - bad.length;
     const choice = await choiceDlg(h('div', { class: 'stack stack-sm ch-offlist-notice' },
@@ -1121,7 +1132,7 @@ async function addSpells(s) {
     [{ label: 'Cancel', value: null, kind: 'ghost' }, fits ? { label: `Add only the ${fits} that fit`, value: 'fits' } : null, { label: bad.length === plan.length ? 'Add anyway' : 'Add all anyway', value: 'all', kind: 'primary' }].filter(Boolean),
     { title: 'Not a usual pick for this build' });
     if (!choice) return;
-    if (choice === 'fits') plan = plan.filter((x) => !x.issues.length);
+    if (choice === 'fits') { const no = new Set(bad.map((x) => x.record)); plan = plan.filter((x) => !no.has(x.record)); }
   }
   picked = plan.map((x) => x.record);
   mutate((y) => {
@@ -1133,6 +1144,41 @@ async function addSpells(s) {
   const off = plan.filter((x) => x.issues.some((i) => ['not-on-list', 'too-high', 'no-caster'].includes(i.code))).length;
   const unprepared = plan.filter((x) => !x.prepared).length;
   toast(`Added ${picked.length} spell${picked.length === 1 ? '' : 's'}${off ? ` (${off} off-list)` : ''}${unprepared ? `; ${unprepared} went into the spellbook unprepared (no room to prepare)` : ''}.`);
+}
+
+/**
+ * Box at the top of the Add spells picker: the caster's limits as on the Spells tab's caster line (cantrips, prepared,
+ * spellbook), counting the spells ticked below. Going over is allowed: the count turns red and the note says by how
+ * much. A spellbook caster's spells past the prepared limit go in unprepared unless "Prepare past the limit" is ticked.
+ * sc carries the sheet's cantripCount / preparedCount; opts.prepareAnyway is read by addSpells.
+ */
+function spellLimitsBox(sc, className, picked, opts, redraw) {
+  if (!sc.cantrips && !sc.prepared && !sc.spellbook) return null;
+  const always = new Set(sc.alwaysPrepared || []);
+  const plan = addSpellIssues(picked.filter((e) => !always.has(e.id)), sc);
+  const leveled = plan.filter((x) => Number(x.record.level) > 0);
+  const intoBook = leveled.filter((x) => !x.prepared).length;
+  const cantrips = sc.cantripCount + plan.length - leveled.length;
+  const prepared = sc.preparedCount + leveled.length - (opts.prepareAnyway ? 0 : intoBook);
+  const n = (k, word) => `${k} ${word}${k === 1 ? '' : 's'}`;
+  const overC = sc.cantrips ? Math.max(0, cantrips - sc.cantrips) : 0;
+  const overP = sc.prepared ? Math.max(0, prepared - sc.prepared) : 0;
+  const over = [overC ? n(overC, 'cantrip') : '', overP ? n(overP, 'prepared spell') : ''].filter(Boolean);
+  const count = (label, k, max, title, atLeast = false) => h('span', { class: ['ch-pick-limit', !atLeast && k > max && 'is-over'], title },
+    `${label} `, h('span', { class: 'num' }, `${k}/${max}${atLeast ? '+' : ''}`));
+  return h('div', { class: 'ch-pick-limits', role: 'status', 'aria-live': 'polite' },
+    h('div', { class: 'ch-pick-limits-row' },
+      h('strong', null, `${className}${sc.classLevel ? ` ${sc.classLevel}` : ''}`),
+      sc.cantrips ? count('Cantrips', cantrips, sc.cantrips, 'Cantrips with the ticked ones / the most this class level knows') : null,
+      sc.prepared ? count('Prepared', prepared, sc.prepared, 'Prepared spells with the ticked ones / the most this class level prepares') : null,
+      sc.spellbook ? count('Spellbook', sc.spellbook.count + leveled.length, sc.spellbook.size, 'Spells in the spellbook with the ticked ones / how many it holds at least by this level', true) : null),
+    h('p', { class: 'ch-pick-limits-note muted' }, !over.length ? 'Spells you tick below count toward these limits. You can go over them if you wish.'
+      : picked.length ? `${over.join(' and ')} over the limit. You can still add ${overC + overP === 1 ? 'it' : 'them'}; the Spells tab shows the count in red.`
+        : `${over.join(' and ')} over the limit already. You can still add more if you wish.`),
+    intoBook ? h('label', { class: 'checkbox ch-pick-limits-prep' },
+      h('input', { type: 'checkbox', checked: !!opts.prepareAnyway, 'data-fk': 'limits-prep', onchange: (e) => { opts.prepareAnyway = e.target.checked; redraw(); } }),
+      h('span', null, 'Prepare past the limit', opts.prepareAnyway ? null
+        : h('span', { class: 'muted' }, ` (otherwise ${intoBook === 1 ? '1 ticked spell goes' : `${intoBook} ticked spells go`} into the spellbook unprepared)`))) : null);
 }
 
 // ---------- features & resources ----------

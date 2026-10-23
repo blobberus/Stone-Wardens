@@ -26,9 +26,11 @@ const narrow = () => matchMedia('(max-width: 759px)').matches;
  *                  (default: every entry) instead of opts.filter
  *   opts.mark      (entry) => null | string | {label, title, tone?} | [...]: small badges on a row (e.g. "off-list",
  *                  "Proficient"); tone 'ok' | 'warn' (default) | 'info' | 'muted'
+ *   opts.head      (chosen entries[], {redraw}) => Node | null: a box above the list (e.g. spell limits), redrawn
+ *                  whenever the selection changes; its own controls call redraw()
  * Resolves the chosen entry (merged compendium entry, with kind/origin), an array when multi, or null.
  */
-export async function openPicker(kinds, { title, filter, multi = false, selected = [], query = '', kind: startKind, allowCreate = true, confirmLabel, widen = null, mark = null } = {}) {
+export async function openPicker(kinds, { title, filter, multi = false, selected = [], query = '', kind: startKind, allowCreate = true, confirmLabel, widen = null, mark = null, head = null } = {}) {
   const kindList = [].concat(kinds || []).filter(isKind);
   if (!kindList.length) throw new Error('openPicker: no valid kinds');
   const pred = typeof filter === 'function' ? filter : null;
@@ -60,7 +62,9 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
     const widenBox = widen ? h('label', { class: 'checkbox cp-pick-widen', title: widen.hint || null },
       h('input', { type: 'checkbox', checked: widened, onchange: (e) => { widened = e.target.checked; refilter(); cursor = 0; drawTabs(); run(); } }),
       h('span', null, widen.label || 'Show all')) : null;
+    const headBox = typeof head === 'function' ? h('div', { class: 'cp-pick-head' }) : null;
     const body = h('div', { class: 'cp-picker' },
+      headBox,
       tabs,
       h('div', { class: 'cp-pick-bar' }, h('label', { class: 'search cp-pick-search' }, icon('search'), q), filtersBox, widenBox, count),
       h('div', { class: 'cp-pick-main' }, listEl, preview));
@@ -85,7 +89,7 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
           const id = typeof s === 'string' ? s : s?.id;
           for (const k of kindList) { const e = lists.get(k).find((x) => x.id === id && (typeof s === 'string' || !s.kind || s.kind === k)); if (e) { chosen.set(keyOf(e), e); break; } }
         }
-        drawTabs(); drawFilters(); run();
+        drawTabs(); drawFilters(); drawHead(); run();
       })
       .catch((e) => { console.error(e); listEl.replaceChildren(h('li', { class: 'picker-empty' }, `Could not load the compendium: ${e.message}`)); });
 
@@ -199,6 +203,7 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
         const c = li.querySelector('.picker-check');
         if (c) c.textContent = chosen.has(k) ? '✓' : '';
       }
+      drawHead();
       updateOk();
     }
     let lastPreview = null;
@@ -208,6 +213,16 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
       lastPreview = e;
       preview.replaceChildren(e ? renderEntry(e, { compact: true }) : h('p', { class: 'muted cp-pick-noprev' }, 'Select an entry to preview it.'));
       preview.scrollTop = 0;
+    }
+    function drawHead() {
+      if (!headBox) return;
+      // a control inside the box that redraws it keeps the focus (matched by data-fk)
+      const fk = headBox.contains(document.activeElement) ? document.activeElement.dataset.fk : null;
+      let n = null;
+      try { n = head([...chosen.values()], { redraw: drawHead }); } catch (e) { console.error(e); }
+      headBox.replaceChildren(...[].concat(n || []));
+      headBox.hidden = !headBox.firstChild;
+      if (fk) headBox.querySelector(`[data-fk="${CSS.escape(fk)}"]`)?.focus();
     }
     function updateOk() {
       if (!okBtn) return;
@@ -253,6 +268,7 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
         else if (cur) pick(cur);
       }
     });
+    drawHead();
     updateOk();
   });
 }
