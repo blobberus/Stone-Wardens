@@ -1,6 +1,7 @@
 // Quests tab: a video-game style quest log in two panes.
 //   Quest log (left): Main quests, then Minor quests (grouped under the main quest they lead to), then Side quests,
-//   each with its symbol; Active / Finished / All and a search.
+//   each with its symbol; Active / Finished / All and a search. A quest completed, failed or reopened slides out of
+//   the list it left a moment later (leaveSoon).
 //   Open quest (right): type and status, image (only here), relevant characters, objectives, description, rewards and,
 //   for a main quest, its minor quests; edited in place (Edit -> #/quests/<id>/edit).
 // Model and ordering: model.js (pure, tools/test_quests.mjs); docs/quests-model.md. [[quest:Title]] links here.
@@ -19,16 +20,19 @@ import { visibilityToggle, hiddenChoice, hiddenMark } from '../../core/dm-ui.js'
 import { characterChip, characterSuggestions, attachSuggest, wikiSuggest, newEntries } from './people.js';
 import {
   QUEST_DIR, MEDIA_DIR, TYPES, STATUSES, VIEWS, typeOf, statusOf, normalizeQuest, newQuest, progress, questLog, stepsOf,
-  viewCounts, findQuest, cleanTags,
+  viewCounts, findQuest, cleanTags, questPasses,
 } from './model.js';
 
 const VIEW = 'quests';
 const UI_KEY = 'sw:quests:ui'; // per device: {view, folded: [branch]}
 const IMAGE_RE = /\.(png|jpe?g|webp|gif|avif|svg)$/i;
+const LEAVE_AFTER_MS = 1200; // a quest whose status changed shows its new state this long in its old list,
+const LEAVE_ANIM_MS = 450; //  then slides out (quests.css .is-leaving)
 
 const S = {
   root: null, logEl: null, listEl: null, paneEl: null, countsEl: null, searchEl: null,
   id: null, editing: false, draft: null, q: '', ui: loadUi(), queued: false,
+  leaving: null, gone: null, leaveTimer: 0, bump: null, // leaveSoon
 };
 
 function loadUi() {
@@ -128,10 +132,11 @@ function renderLog() {
   const counts = viewCounts(all);
   clear(S.countsEl);
   S.countsEl.append(...VIEWS.map((v) => h('button', {
-    class: ['chip', 'qs-view-chip'], type: 'button', 'aria-pressed': String(S.ui.view === v.id),
+    class: ['chip', 'qs-view-chip', S.bump === v.id && 'is-bump'], type: 'button', 'aria-pressed': String(S.ui.view === v.id),
     onclick: () => { setUi({ view: v.id }); renderLog(); },
   }, v.label, h('span', { class: 'qs-n num' }, String(counts[v.id])))));
-  const log = questLog(all, { view: S.ui.view, q: S.q, keep: S.id });
+  S.bump = null;
+  const log = questLog(all, { view: S.ui.view, q: S.q, keep: S.gone === S.id ? null : S.id });
   const shown = log.reduce((n, b) => n + b.quests.length, 0);
   if (!all.length) {
     mount(S.listEl, h('div', { class: 'qs-log-empty' },
@@ -150,7 +155,7 @@ function branch(b, all) {
   const bodyId = `qs-branch-${b.type}`;
   const item = (q) => {
     const p = progress(q);
-    return h('li', null, h('a', {
+    return h('li', { class: S.leaving === q.id ? 'is-leaving' : null }, h('a', {
       class: ['qs-item', q.id === S.id && 'is-current', q.status !== 'active' && `is-${q.status}`], href: href(VIEW, q.id),
       'aria-current': q.id === S.id ? 'page' : null, 'data-quest': q.id,
     },
@@ -174,6 +179,29 @@ function branch(b, all) {
     }, icon(folded ? 'chevron-right' : 'chevron-down'), typeIcon(b.type), h('span', null, t.plural), h('span', { class: 'qs-n num' }, String(b.quests.length)))),
     h('div', { class: 'qs-branch-body', id: bodyId, hidden: folded },
       b.quests.length ? body : h('p', { class: 'qs-branch-empty' }, emptyLine(b.type, all))));
+}
+
+/**
+ * After a status change: the open quest stays in the list for a moment with its new state (a check, or a cross), then
+ * slides out of the list it no longer belongs to (Active -> Finished, or back on Reopen) and that list's chip lights up.
+ * Until then the open quest is kept listed whatever the filter (questLog keep).
+ */
+function leaveSoon(id) {
+  clearTimeout(S.leaveTimer);
+  S.leaving = null;
+  S.gone = null;
+  S.leaveTimer = setTimeout(() => {
+    const q = questById(id);
+    if (!q || S.id !== id || questPasses(q, { view: S.ui.view })) return; // reopened meanwhile, or the All list
+    S.leaving = id;
+    renderLog();
+    S.leaveTimer = setTimeout(() => {
+      S.leaving = null;
+      S.gone = id;
+      S.bump = q.status === 'active' ? 'active' : 'done';
+      renderLog();
+    }, LEAVE_ANIM_MS);
+  }, LEAVE_AFTER_MS);
 }
 
 function emptyLine(type, all) {
@@ -218,8 +246,9 @@ function questView(q) {
   const p = progress(q);
   const setStatus = (status) => {
     putQuest({ ...q, status });
+    leaveSoon(q.id);
     saveSoon(`quests: ${status === 'active' ? 'reopen' : status === 'completed' ? 'complete' : 'fail'} “${q.title}”`);
-    toast(status === 'completed' ? `Quest complete: ${q.title}` : status === 'failed' ? `Quest failed: ${q.title}` : `Reopened: ${q.title}`, { type: status === 'failed' ? 'info' : 'success' });
+    toast(status === 'completed' ? `Quest complete: ${q.title}. It moves to Finished.` : status === 'failed' ? `Quest failed: ${q.title}. It moves to Finished.` : `Reopened: ${q.title}. It is back under Active.`, { type: status === 'failed' ? 'info' : 'success' });
   };
   return h('article', { class: ['qs-quest', `qs-quest-${q.type}`, `is-${q.status}`] },
     h('div', { class: 'qs-quest-bar' },
@@ -316,7 +345,7 @@ function renderEditor(q) {
     [{ value: '', label: mains.length ? '— not tied to a main quest —' : '— no main quest yet —' }, ...mains.map((m) => ({ value: m.id, label: m.title }))],
     d.parent || '', (v) => { d.parent = v || null; putDraftSoon.flush(); }), 'The minor quest is listed under that main quest and shown in its steps.') : null;
   const title = input({ value: d.title === 'Untitled quest' ? '' : d.title, placeholder: 'Quest title', 'aria-label': 'Title', oninput: (e) => { d.title = e.target.value; change(); } });
-  const status = select(STATUSES.map((s) => ({ value: s.id, label: s.label })), d.status, (v) => { d.status = v; putDraftSoon.flush(); saveSoon(`quests: ${v} “${d.title}”`); });
+  const status = select(STATUSES.map((s) => ({ value: s.id, label: s.label })), d.status, (v) => { d.status = v; putDraftSoon.flush(); leaveSoon(d.id); saveSoon(`quests: ${v} “${d.title}”`); });
   const desc = markdownEditor({ value: d.description, rows: 7, onInput: (v) => { d.description = v; change(); }, placeholder: 'What the party knows: who asked, what is at stake. [[ links to notes, places, characters…' });
   const rewards = markdownEditor({ value: d.rewards, rows: 3, onInput: (v) => { d.rewards = v; change(); }, placeholder: d.type === 'side' ? 'Gold, items, favours… (side quests are done for their rewards)' : 'Rewards, if any' });
   mount(S.paneEl, h('form', { class: 'qs-quest qs-editor', onsubmit: (e) => { e.preventDefault(); finishEditing(); } },
@@ -552,6 +581,7 @@ export default {
     const [id = null, sub = null] = route?.parts || [];
     if (!id && route?.query?.new) { navigate(href(VIEW), { replace: true }); queueMicrotask(() => newQuestDialog()); return; } // DM Screen "New quest"
     if (S.editing && S.draft && (S.draft.id !== id || sub !== 'edit')) putDraftSoon.flush();
+    if (id !== S.id) { clearTimeout(S.leaveTimer); S.leaving = null; S.gone = null; } // the old open quest is no longer kept
     S.id = id;
     S.editing = !!id && sub === 'edit';
     if (!S.editing) S.draft = null;

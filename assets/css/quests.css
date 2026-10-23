@@ -24,6 +24,9 @@
 .qs-views { display: flex; flex-wrap: wrap; gap: 4px; }
 .qs-view-chip { height: 26px; padding: 0 10px; font-size: var(--text-sm); }
 .qs-view-chip[aria-pressed="true"] .qs-n { color: inherit; opacity: 0.8; }
+/* the list a quest just moved to (index.js leaveSoon) */
+.qs-view-chip.is-bump { animation: qs-bump 900ms var(--ease); }
+@keyframes qs-bump { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 25%, 60% { box-shadow: 0 0 0 3px var(--ok); } }
 .qs-search .input { min-height: 32px; }
 .qs-branches { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--space-2) 0 var(--space-3); }
 .qs-branch + .qs-branch { margin-top: var(--space-2); }
@@ -38,6 +41,14 @@
 .qs-branch-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .qs-branch-btn .qs-n { margin-left: auto; }
 .qs-items { margin: 0; padding: 0; list-style: none; }
+/* a quest leaving the list after its status changed: fades aside, then the gap closes (index.js LEAVE_ANIM_MS) */
+.qs-items > li.is-leaving { display: grid; overflow: hidden; pointer-events: none; animation: qs-leave 420ms var(--ease) forwards; }
+.qs-items > li.is-leaving > .qs-item { min-height: 0; }
+@keyframes qs-leave {
+  0% { grid-template-rows: 1fr; opacity: 1; transform: none; }
+  55% { grid-template-rows: 1fr; opacity: 0; transform: translateX(16px); }
+  100% { grid-template-rows: 0fr; opacity: 0; transform: translateX(16px); }
+}
 .qs-item {
   display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 4px var(--space-3) 4px 22px;
   font: 500 var(--text-sm) / 1.3 var(--font-ui); color: var(--ink); text-decoration: none;

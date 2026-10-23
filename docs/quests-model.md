@@ -36,7 +36,9 @@ https). Unknown fields are kept.
   main quest they lead to ("leads to …"; unlinked ones last), **Side quests** (reward chest, verdigris).
 - Inside a branch: active before finished, then `order`, then oldest first (story order).
 - Active / Finished (completed or failed) / All, and a search over title, characters, objectives, description and
-  rewards. The open quest always stays listed. Branches fold; the filter and folds are remembered per device
+  rewards. The open quest stays listed even when the filter would hide it, until its status changes: a quest marked
+  complete or failed shows its check / cross for about a second, then slides out of Active, and the Finished chip
+  lights up (Reopen does the same the other way). Branches fold; the filter and folds are remembered per device
   (`sw:quests:ui`).
 
 ## The open quest
