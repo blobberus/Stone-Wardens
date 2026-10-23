@@ -145,6 +145,17 @@
       "kind": "weapon",
       "ref": "dagger",
       "name": "Dagger"
+    },
+    {
+      "uid": "61zjss",
+      "kind": "gear",
+      "ref": "barrel",
+      "name": "Barrel",
+      "qty": 1,
+      "equipped": false,
+      "attuned": false,
+      "notes": "",
+      "custom": null
     }
   ],
   "currency": {
@@ -164,17 +175,20 @@
     "fail": 0
   },
   "resourcesUsed": {},
-  "conditions": [
-    "charmed"
-  ],
+  "conditions": [],
   "exhaustion": 0,
   "heroicInspiration": true,
   "xp": 0,
   "abilities": [],
   "favorites": {
-    "items": [],
+    "items": [
+      "61zjss"
+    ],
     "skills": [],
-    "features": []
+    "features": [
+      "species:trance",
+      "class:rogue-cunning-action"
+    ]
   },
   "overrides": {
     "ac": null,
@@ -192,9 +206,9 @@
     }
   },
   "style": {
-    "accent": "#465266",
-    "page": "#d6d3cc",
-    "panel": "#eeece7",
+    "accent": "#91282b",
+    "page": "#4f4a40",
+    "panel": "#cbc6b6",
     "border": "#9a958a",
     "borderStyle": "ridge",
     "borderWidth": 2,
@@ -231,5 +245,5 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-22T04:25:57.154Z",
-  "updated": "2026-10-22T22:11:55.735Z"
+  "updated": "2026-10-23T00:30:49.621Z"
 }
