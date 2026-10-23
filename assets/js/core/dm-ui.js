@@ -110,9 +110,11 @@ export function wireDmShell() {
   const foot = $('.sb-footer', sb);
   const block = h('div', { class: 'sb-dm' });
   foot.prepend(block);
+  const dmTab = $('.sb-tab[data-view="dm"]', sb)?.closest('li');
   const draw = () => {
     const on = isDm();
     document.body.classList.toggle('is-dm', on);
+    if (dmTab) dmTab.hidden = !on; // the DM Screen tab exists only for the DM (dm.css hides it too)
     mount(block,
       h('button', {
         class: ['btn', 'btn-sm', 'sb-dm-btn', on && 'is-on'], type: 'button',
@@ -158,7 +160,8 @@ function wireInbox(sb) {
   const badge = h('span', { class: 'sb-badge', hidden: true });
   const btn = h('button', { class: 'sb-tab sb-inbox', type: 'button', title: 'Inbox: what the DM has released', onclick: () => openInbox(refresh) },
     icon('inbox'), h('span', { class: 'sb-label' }, 'Inbox'), badge);
-  tabs.append(h('li', { class: 'sb-inbox-li' }, btn));
+  // after Compendium, before the DM Screen tab (main.js VIEW_IDS)
+  tabs.insertBefore(h('li', { class: 'sb-inbox-li' }, btn), $('.sb-tab[data-view="dm"]', tabs)?.closest('li') || null);
   const refresh = () => {
     const n = notifications().filter((x) => x.unread).length;
     badge.hidden = !n;
