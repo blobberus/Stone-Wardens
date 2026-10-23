@@ -152,7 +152,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 ## Quests tab
 - Quest log (left: Main, then Minor grouped under the main quest they lead to, then Side; symbols crown / diamond /
   chest; Active / Finished / All; search; a quest completed / failed / reopened slides out of the list it left after
-  ~1.2 s, `leaveSoon` in index.js) | open quest (right: image only here, characters, objectives, description,
+  ~1.2 s, `leaveSoon` in index.js; a quest opened from a link, e.g. the Inbox, switches the log to its list, Finished
+  or Active, `showInLog`) | open quest (right: image only here, characters, objectives, description,
   rewards, a main quest's minor quests; edited in place). Pure model `views/quests/model.js`
   (`node tools/test_quests.mjs`); docs/quests-model.md. Links (`people.js`): relevant characters are link bodies
   (`char:` sheet, `note:` NPC note = tagged #npc or in an npc/people folder, any other prefix) or plain names, shown as

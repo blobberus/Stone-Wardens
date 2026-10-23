@@ -1,7 +1,7 @@
 // Quests tab: a video-game style quest log in two panes.
 //   Quest log (left): Main quests, then Minor quests (grouped under the main quest they lead to), then Side quests,
 //   each with its symbol; Active / Finished / All and a search. A quest completed, failed or reopened slides out of
-//   the list it left a moment later (leaveSoon).
+//   the list it left a moment later (leaveSoon). A quest opened from a link (Inbox, a note) shows in its list (showInLog).
 //   Open quest (right): type and status, image (only here), relevant characters, objectives, description, rewards and,
 //   for a main quest, its minor quests; edited in place (Edit -> #/quests/<id>/edit).
 // Model and ordering: model.js (pure, tools/test_quests.mjs); docs/quests-model.md. [[quest:Title]] links here.
@@ -33,6 +33,7 @@ const S = {
   root: null, logEl: null, listEl: null, paneEl: null, countsEl: null, searchEl: null,
   id: null, editing: false, draft: null, q: '', ui: loadUi(), queued: false,
   leaving: null, gone: null, leaveTimer: 0, bump: null, // leaveSoon
+  shown: false, // the tab is on screen (a quest opened while it wasn't came from a link elsewhere)
 };
 
 function loadUi() {
@@ -202,6 +203,32 @@ function leaveSoon(id) {
       renderLog();
     }, LEAVE_ANIM_MS);
   }, LEAVE_AFTER_MS);
+}
+
+/**
+ * A quest opened from a link (the Inbox, a note, a step of a main quest) is shown in the list it belongs to: the log
+ * switches to Finished for a completed or failed quest, to Active for an active one (All shows both), and unfolds its
+ * branch. The chip of the list switched to lights up.
+ */
+function showInLog(q) {
+  if (!q) return;
+  if (!questPasses(q, { view: S.ui.view })) {
+    const view = q.status === 'active' ? 'active' : 'done';
+    setUi({ view });
+    S.bump = view;
+  }
+  if (S.ui.folded.includes(q.type)) setUi({ folded: S.ui.folded.filter((t) => t !== q.type) });
+}
+
+/** Scroll the quest log so the open quest's line is in sight. */
+function revealCurrent() {
+  const a = S.listEl?.querySelector('.qs-item.is-current');
+  if (!a) return;
+  const box = S.listEl.getBoundingClientRect();
+  if (!box.height) return; // the log is hidden (phone layout with a quest open)
+  const r = a.getBoundingClientRect();
+  if (r.top < box.top || r.bottom > box.bottom) S.listEl.scrollTop += r.top - box.top - (box.height - r.height) / 2;
+  a.scrollIntoView({ block: 'nearest' }); // the log reaches below the window until the page scrolls a little
 }
 
 function emptyLine(type, all) {
@@ -581,16 +608,21 @@ export default {
     const [id = null, sub = null] = route?.parts || [];
     if (!id && route?.query?.new) { navigate(href(VIEW), { replace: true }); queueMicrotask(() => newQuestDialog()); return; } // DM Screen "New quest"
     if (S.editing && S.draft && (S.draft.id !== id || sub !== 'edit')) putDraftSoon.flush();
+    const opened = !!id && (id !== S.id || !S.shown); // another quest, or one opened from another tab (the Inbox…)
     if (id !== S.id) { clearTimeout(S.leaveTimer); S.leaving = null; S.gone = null; } // the old open quest is no longer kept
     S.id = id;
     S.editing = !!id && sub === 'edit';
     if (!S.editing) S.draft = null;
-    render();
+    S.shown = true;
     const q = id ? questById(id) : null;
+    if (opened) showInLog(q);
+    render();
     if (q) document.title = `${q.title} · Quests · The Stone Wardens`;
     S.root?.closest('.view')?.scrollTo?.({ top: 0 });
+    if (opened) revealCurrent();
   },
   hide() {
+    S.shown = false;
     putDraftSoon.flush();
   },
 };

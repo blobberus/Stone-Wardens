@@ -38,7 +38,10 @@ https). Unknown fields are kept.
 - Active / Finished (completed or failed) / All, and a search over title, characters, objectives, description and
   rewards. The open quest stays listed even when the filter would hide it, until its status changes: a quest marked
   complete or failed shows its check / cross for about a second, then slides out of Active, and the Finished chip
-  lights up (Reopen does the same the other way). Branches fold; the filter and folds are remembered per device
+  lights up (Reopen does the same the other way). A quest opened from a link (the Inbox, a note, a main quest's steps)
+  shows in the list it belongs to: the log switches to Finished for a completed or failed quest, to Active for an
+  active one (All is left alone), unfolds its branch, lights up that chip and scrolls the quest into sight
+  (`showInLog`; clicks inside the log never switch it). Branches fold; the filter and folds are remembered per device
   (`sw:quests:ui`).
 
 ## The open quest
