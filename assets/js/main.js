@@ -309,6 +309,11 @@ function wireSaving() {
     const every = Number(getSetting('saveReminder')) * 60000;
     if (Date.now() >= Math.max(dirtySince, lastNudge) + every) nudge(false);
   }, 30000);
-  if (dirtySince) setTimeout(() => nudge(true, true), 1500);
+  // Changes left from the last visit (the tab closed before they were committed): auto-save commits them now;
+  // with it off, the "Restored … Save now" nudge.
+  if (dirtySince) {
+    if (getSetting('autoCommit')) store.scheduleAutoCommit();
+    else setTimeout(() => nudge(true, true), 1500);
+  }
   update();
 }
