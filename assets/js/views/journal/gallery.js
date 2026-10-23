@@ -256,8 +256,11 @@ export async function prepareImage(file) {
   return out;
 }
 
-/** Stage files as reference images of a note (slug = the note's file name). -> [{src, caption:''}] added. */
-export async function uploadImages(files, slug = 'note') {
+/**
+ * Stage files as reference images of a note (slug = the note's file name). -> [{src, caption:''}] added.
+ * opts.hidden (DM mode): true for a hidden note's photos, false for a visible note's.
+ */
+export async function uploadImages(files, slug = 'note', { hidden = null } = {}) {
   const added = [];
   const failed = [];
   for (const f of files) {
@@ -265,7 +268,7 @@ export async function uploadImages(files, slug = 'note') {
       const { blob, ext } = await prepareImage(f);
       const name = slugify(stripExt(f.name)).slice(0, 40) || 'image';
       const path = `${MEDIA_DIR}/${slugify(slug).slice(0, 40) || 'note'}-${name}-${shortId()}.${ext}`;
-      await store.putBinary(path, blob);
+      await store.putBinary(path, blob, { hidden });
       added.push({ src: path, caption: '' });
     } catch (e) {
       failed.push(e.message || String(e));
@@ -281,9 +284,9 @@ export async function uploadImages(files, slug = 'note') {
 }
 
 /** Ask for photos (from a click) and stage them. */
-export async function chooseAndUpload(slug) {
+export async function chooseAndUpload(slug, opts) {
   const files = await pickFiles();
-  return files.length ? uploadImages(files, slug) : [];
+  return files.length ? uploadImages(files, slug, opts) : [];
 }
 
 /** Pick images already in the repository (uploaded through GitHub, the Warden's Library, a map...). */
@@ -311,15 +314,16 @@ export function dropIfUnused(src, notes) {
 /**
  * Reference images while editing a note: thumbnails in order (move earlier / later, caption, remove), "Upload photos"
  * (also by dropping files on the panel) and "From site files".
- * @param {{list:Array<{src, caption}>, slug:string, onChange:(list, removed?:string[])=>void}} o
+ * @param {{list:Array<{src, caption}>, slug:string, hidden?:()=>boolean, onChange:(list, removed?:string[])=>void}} o
  */
-export function imagesPanel({ list, slug, onChange }) {
+export function imagesPanel({ list, slug, onChange, hidden = () => null }) {
   let items = list.map((x) => ({ ...x }));
   const grid = h('ol', { class: 'jr-imgs-grid' });
   const status = h('p', { class: 'jr-hint jr-imgs-hint' });
   const change = (removed = []) => { draw(); onChange(items.map((x) => ({ ...x })), removed); };
   const upload = async (files) => {
-    const added = files ? await uploadImages(files, slug) : await chooseAndUpload(slug);
+    const opts = { hidden: hidden() }; // DM mode: the photos of a hidden note are hidden too
+    const added = files ? await uploadImages(files, slug, opts) : await chooseAndUpload(slug, opts);
     if (added.length) { items = [...items, ...added]; change(); }
   };
   const fromRepo = async () => {

@@ -430,8 +430,8 @@ export function findLocation(target, { loose = false, map = null } = {}) {
 
 export const locPath = (id) => `${LOC_DIR}/${id}.json`;
 
-/** Create or update a location. Returns the normalized saved location. */
-export function saveLocation(loc) {
+/** Create or update a location. Returns the normalized saved location. opts.hidden: DM mode, a new place hidden. */
+export function saveLocation(loc, { hidden = null } = {}) {
   const now = new Date().toISOString();
   const { path, id: _id, name, type, rank, map, lostMap: _lost, submap, x, y, description, tags, createdBy, created, updated: _u, ...extra } = loc;
   let id = loc.id;
@@ -457,7 +457,7 @@ export function saveLocation(loc) {
     ...extra,
   };
   const p = path || locPath(id);
-  store.put(p, doc);
+  store.put(p, doc, { hidden });
   return locationById(baseName(p).replace(/\.json$/i, '')) || normLoc(doc, p);
 }
 

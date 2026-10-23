@@ -4,6 +4,7 @@ import { h, clear } from '../../core/dom.js';
 import { openModal, select, toast, choiceDialog, icon } from '../../core/ui.js';
 import { store } from '../../core/store.js';
 import { saveSoon, majorSaveOn } from '../../core/saving.js';
+import { hiddenChoice } from '../../core/dm-ui.js';
 import {
   ROOT, ACCEPT, LARGE_BYTES, MAX_BYTES, listFolders, safeFileName, safeFolder, freePath, fmtSize, typeOf, shelfLabel,
 } from './files.js';
@@ -59,8 +60,10 @@ export function openUploadDialog({ files = [], shelf = '', onDone } = {}) {
     { 'aria-label': 'Shelf' },
   );
   const where = h('span', { class: 'field-hint' });
+  const vis = { hidden: null }; // DM mode: add them hidden from the players?
 
   const body = h('div', { class: 'stack wl-upload' },
+    hiddenChoice(vis),
     zone,
     list,
     h('div', { class: 'field' },
@@ -196,7 +199,7 @@ export function openUploadDialog({ files = [], shelf = '', onDone } = {}) {
     try {
       for (const p of plan) {
         submitBtn.textContent = plan.length > 1 ? `Adding ${done.length + 1} of ${plan.length}…` : 'Adding…';
-        await store.putBinary(p.path, p.file);
+        await store.putBinary(p.path, p.file, { hidden: vis.hidden });
         done.push(p.path);
       }
     } catch (e) {
@@ -209,7 +212,8 @@ export function openUploadDialog({ files = [], shelf = '', onDone } = {}) {
     }
     const n = done.length;
     const later = majorSaveOn() ? '' : ` Press Save to ${store.mode === 'sandbox' ? 'keep' : 'commit'} ${n === 1 ? 'it' : 'them'}.`;
-    toast(`Added ${n} document${n === 1 ? '' : 's'}.${later}`, { type: 'success', timeout: later ? 6000 : 3500 });
+    const secret = vis.hidden ? ' Only you can see them until you release them from the DM Screen.' : '';
+    toast(`Added ${n} document${n === 1 ? '' : 's'}.${secret}${later}`, { type: 'success', timeout: later || secret ? 6000 : 3500 });
     saveSoon(uploadReason(done));
     onDone?.(done);
     return true;

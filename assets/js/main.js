@@ -9,8 +9,10 @@ import { h, $, clear } from './core/dom.js';
 import { icon, toast, choiceDialog } from './core/ui.js';
 import { preloadAll } from './core/compendium.js';
 import { setSaveHandler } from './core/saving.js';
+import { restoreDm } from './core/dm.js';
+import { wireDmShell } from './core/dm-ui.js';
 
-const VIEW_IDS = ['map', 'characters', 'journal', 'quests', 'compendium', 'wardens-library', 'settings'];
+const VIEW_IDS = ['map', 'characters', 'journal', 'quests', 'compendium', 'wardens-library', 'dm', 'settings'];
 const isLocalhost = ['localhost', '127.0.0.1', ''].includes(location.hostname);
 
 applyTheme();
@@ -105,6 +107,8 @@ async function enter(backend, scope) {
   await loadViews();
   buildSidebar();
   wireSaving();
+  wireDmShell();
+  await restoreDm(); // DM mode stays on in this tab (or on this device) until locked
   start(viewsEl, { defaultView: 'map' });
   if (store.mode === 'sandbox') toast('Sandbox mode: changes stay in this browser only.', { timeout: 6000 });
 }

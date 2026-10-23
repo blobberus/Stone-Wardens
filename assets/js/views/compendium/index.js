@@ -12,6 +12,18 @@ import { findEntry } from './linktypes.js'; // registers the [[weapon:…]] etc.
 import * as M from './meta.js';
 import { renderEntry } from './render.js';
 import { openEntryEditor } from './editor.js';
+import { registerHideable, isHidden, onDmMode } from '../../core/dm.js';
+import { visibilityToggle, hiddenMark } from '../../core/dm-ui.js';
+
+// DM mode: custom entries can be hidden from the players until released (core/dm.js)
+registerHideable({
+  prefix: 'content/library/', label: 'Compendium entry', icon: 'compendium', order: 20, accept: (p) => p.endsWith('.json'),
+  describe: (path, data) => {
+    const [, , kind, file = ''] = path.split('/');
+    const id = file.replace(/\.json$/, '');
+    return { title: data?.name || id, href: href('compendium', kind, id) };
+  },
+});
 
 const ROWS_PAGE = 150;
 const tableState = new Map(); // kind -> {q, f:{}, sort, dir}
@@ -47,6 +59,7 @@ const miniBadges = (e) => [
   e.origin === 'custom' && e.path && store.isDirty(e.path) ? h('span', { class: 'badge badge-warn cp-mini', title: 'Not yet saved to the repository' }, 'Unsaved') : null,
   e.origin === 'stub' ? h('span', { class: 'badge cp-mini', title: 'Summary only' }, e.source || 'Stub') : null,
   e.legacy ? h('span', { class: 'badge cp-mini', title: 'Legacy (2014)' }, '2014') : null,
+  e.origin === 'custom' && e.path ? hiddenMark(e.path) : null, // DM mode: hidden from the players
 ];
 
 function crumbs(kind, e) {
@@ -111,7 +124,7 @@ function homePage(route) {
           h('a', { class: 'cp-recent-item', href: M.entryHref(e) },
             h('span', { class: 'cp-recent-icon', 'aria-hidden': 'true' }, e.kind === 'location-type' ? M.locationSwatch(e, 28) : icon(M.kindIcon(e.kind), 18)),
             h('span', { class: 'cp-recent-main' },
-              h('span', { class: 'cp-recent-name' }, e.name, ...miniBadges(e).slice(1, 2)),
+              h('span', { class: 'cp-recent-name' }, e.name, ...miniBadges(e).slice(1, 2), e.path ? hiddenMark(e.path) : null),
               h('span', { class: 'cp-recent-meta' }, `${M.kindOne(e.kind)} · added by ${e.createdBy || 'a Warden'}${e.updated ? ` · ${fmtDate(e.updated)}` : ''}`))))))
         : h('div', { class: 'empty-state' },
           icon('sparkle'),
@@ -424,7 +437,8 @@ function entryPage(kind, id) {
       e.origin === 'builtin' ? btn('Edit type', 'edit', () => edit(e), 'btn btn-primary') : null,
       prefix ? btn('Copy link', 'link', () => copyLink(e)) : null,
       e.origin === 'custom' ? btn(e.overrides ? 'Restore default' : 'Delete', e.overrides ? 'undo' : 'trash', () => del(e), 'btn btn-danger') : null,
-      prefix ? h('code', { class: 'cp-linktext', title: 'Link to this entry from any note' }, M.linkText(e)) : null);
+      prefix ? h('code', { class: 'cp-linktext', title: 'Link to this entry from any note' }, M.linkText(e)) : null,
+      e.origin === 'custom' && e.path ? visibilityToggle(e.path, { label: 'this entry' }) : null);
   }
 
   function sidePanels(e) {
@@ -458,7 +472,7 @@ function entryPage(kind, id) {
       e.origin === 'custom' ? ['Added by', e.createdBy || '—'] : null,
       e.origin === 'custom' && e.updated ? ['Updated', fmtDate(e.updated)] : null,
       e.origin === 'custom' && e.path ? ['File', h('code', null, e.path.replace(/^content\//, ''))] : null,
-      e.origin === 'custom' && e.path ? ['Status', store.isDirty(e.path) ? h('span', { class: 'badge badge-warn' }, 'Unsaved — press Save to publish') : 'In the repository'] : null,
+      e.origin === 'custom' && e.path ? ['Status', isHidden(e.path) ? 'Hidden from the players (encrypted)' : store.isDirty(e.path) ? h('span', { class: 'badge badge-warn' }, 'Unsaved — press Save to publish') : 'In the repository'] : null,
       ['Id', h('code', null, e.id)],
     ].filter(Boolean);
     panels.push(h('section', { class: 'panel cp-side-panel' },
@@ -504,6 +518,7 @@ function unknownPage(part) {
 
 function show(route) {
   const [part, idPart] = route.parts;
+  if (!part && route.query?.new) { navigate(href('compendium'), { replace: true }); queueMicrotask(() => newAny()); return; } // DM Screen "New compendium entry"
   const kind = part ? (M.isKind(part) ? part : M.kindForPrefix(part)) : null;
   const key = !part ? 'home' : !kind ? `unknown:${part}` : idPart ? `entry:${kind}:${idPart}` : `kind:${kind}`;
   if (page && page.key === key) {
@@ -536,6 +551,7 @@ export default {
       const paths = ev.path ? [ev.path] : ev.paths || [];
       if (ev.type === 'load' || ev.type === 'saved' || paths.some((p) => /^content\/(library|characters|journal|locations)\//.test(p))) refreshSoon();
     });
+    onDmMode(refreshSoon); // DM mode on / off: switches and lock marks
   },
   show,
   hide() {},

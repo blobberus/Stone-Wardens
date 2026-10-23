@@ -9,6 +9,7 @@ import { typeBadge, rankBadge } from './pins.js';
 import { typePicker } from './typeform.js';
 import { RANKS, rankName } from './ranks.js';
 import { mapOptions } from './submaps.js';
+import { hiddenChoice, visibilityToggle } from '../../core/dm-ui.js';
 
 export async function copyText(text) {
   try {
@@ -91,6 +92,7 @@ export function createDrawer(ctx) {
           h('span', null, plural(data.locationsOn(sub.id).length, 'place'))),
         icon('chevron-right')) : null,
       h('div', { class: 'map-drawer-badges' }, typeBadge(type), rankBadge(rank, rankName(rank), !loc.rank)),
+      visibilityToggle(data.locPath(loc.id), { label: 'this place' }), // DM mode only
       loc.lostMap ? h('p', { class: 'map-lost' }, icon('warning'), `This place belonged to a map that no longer exists (${loc.lostMap}), so it is shown here.`) : null,
       desc,
       loc.tags.length ? h('ul', { class: 'map-tags', 'aria-label': 'Tags' }, loc.tags.map((t) => h('li', null,
@@ -159,6 +161,7 @@ export function createDrawer(ctx) {
     st.form = f;
     st.initial = JSON.stringify(f);
     const onMap = loc.map || ctx.mapId();
+    const vis = { hidden: null }; // DM mode: a new place hidden from the players?
 
     const err = h('span', { class: 'map-field-error', role: 'alert', hidden: true }, 'Give the place a name.');
     const dupe = h('span', { class: 'field-hint map-dupe', hidden: true });
@@ -212,7 +215,7 @@ export function createDrawer(ctx) {
       if (!name) { err.hidden = false; nameIn.focus(); return false; }
       const tags = [...new Set(f.tags.split(',').map((s) => s.trim().replace(/^#/, '')).filter(Boolean))];
       const base = isNew ? { map: onMap } : (data.locationById(st.id) || loc);
-      const saved = data.saveLocation({ ...base, name, type: f.type, rank: f.rank, submap: f.submap || null, description: f.description, tags, x: f.x, y: f.y });
+      const saved = data.saveLocation({ ...base, name, type: f.type, rank: f.rank, submap: f.submap || null, description: f.description, tags, x: f.x, y: f.y }, { hidden: isNew ? vis.hidden : null });
       st.form = null;
       ctx.setLastType(f.type);
       ctx.saved(saved, isNew);
@@ -231,6 +234,7 @@ export function createDrawer(ctx) {
         h('span', { class: 'map-spacer' }),
         closeBtn()),
       h('div', { class: 'map-drawer-body stack' },
+        isNew ? hiddenChoice(vis) : null,
         h('div', { class: 'field' }, h('label', { class: 'field-label', for: 'map-f-name' }, 'Name'), nameIn, err, dupe),
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Type'), picker),
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Rank'), ranks, ranks.hint),

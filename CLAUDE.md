@@ -35,6 +35,7 @@ content/              ALL user data, written by the site through the GitHub API
   maps/<mapId>.json + maps/<mapId>/<image>   sub-maps {id,name,parent,image,width,height}; docs/map-model.md
                                 (sample: starfall-vale-p94a "Starfall Vale" + 2 places, safe to delete)
   quests/<id>.json  media/quests/<file>   quest log (docs/quests-model.md)
+  dm/vault.json  dm/hidden/<rid>.json|.bin  dm/released.json  inbox/<stamp>.json   DM mode (docs/dm-mode.md)
   journal/<folder…>/<note>.md   nested folders; optional _chapter.json in any folder = folder metadata
                                 {title, description, order} (also keeps empty folders in git); root notes journal/*.md
                                 frontmatter `images:` = reference photos (slideshow; docs/journal-model.md)
@@ -108,13 +109,28 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   imports the ids in `VIEW_IDS` (a failed import shows an error tab instead of breaking the app). Views register
   their link types at import time and re-render from `store.on` events.
 - Routes: `#/map[/loc/<id>]`, `#/map/m/<mapId>[/loc/<id>]` (sub-maps), `#/characters[/<id>[/<section>]]`, `#/journal[/_|/<folder…>[/<note>]][?h=|q=|tag=|folder]`,
-  `#/journal/new?title=`, `#/quests[/<id>[/edit]]`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`.
+  `#/journal/new?title=`, `#/quests[/<id>[/edit]]`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`,
+  `#/dm` (DM Screen). `#/quests?new=1`, `#/compendium?new=1`, `#/wardens-library?upload=1` open the create forms.
 
 ## Map tab
 - Model, routes, ranks and links: `docs/map-model.md`. Controls float over the map: search (top left) with the
   **Maps** button on its right (`collection.js`: every map nested by parent, with thumbnail, parent, place count and
   a copy-able `[[map:Name]]` link), the current map's name under them (`createCrumbs`: parents as links on sub-maps);
   right toolbar Add location, Filter, Labels, ⋯.
+
+## DM mode (docs/dm-mode.md)
+- "DM login" button above Save -> DM password (set up once from that button; `content/dm/vault.json` wraps a random
+  data key, PBKDF2 600k). Hidden items are AES-GCM envelopes in `content/dm/hidden/` (random names); while unlocked
+  `store.layer` (core/dm.js) shows them at their own paths and seals writes to them. Create hidden with
+  `store.put(path, data, {hidden:true})` / `putBinary(…, {hidden})` / `saveCustom(kind, obj, {hidden})`; UI helpers in
+  core/dm-ui.js (`hiddenChoice`, `visibilityToggle`, `hiddenMark`); tabs `registerHideable({prefix, label, icon,
+  accept, describe})` (accept also bounds the safety net) and redraw on `onDmMode(fn)`. Every create form (quest,
+  compendium entry, journal note, library upload, map place) has the switch; each item page has `visibilityToggle`;
+  lists show `hiddenMark`. Writes that copy an item (note rename/move, folder move, photos of a note or quest) pass
+  `{hidden: isHidden(source)}` so visibility follows the item. DM Screen tab (views/dm, menu only in DM mode): hidden
+  list + Release, released log + Hide again, hide an existing item, New-items-hidden default. Release posts
+  `content/inbox/<stamp>.json`; Inbox in the navigation. In DM mode commit messages carry no names. Crypto tests:
+  `node tools/test_dm.mjs`.
 
 ## Quests tab
 - Quest log (left: Main, then Minor grouped under the main quest they lead to, then Side; symbols crown / diamond /
@@ -179,7 +195,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).
 - Rules engine: `node tools/test_engine.mjs` and `node tools/test_spells.mjs` (spell numbers, XP, spell filters; both must stay
-  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
+  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. DM crypto: `node tools/test_dm.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
   the sheet doesn't show (11 known, intentional gaps).
 - Syntax: portable `node --check`. Markdown renderer can be exercised in Node by stubbing `DOMPurify.sanitize`.
 

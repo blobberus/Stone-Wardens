@@ -25,6 +25,17 @@ import { newNoteDialog, pickFolder, confirmDeleteFolder, propertiesDialog, descr
 import { openMenu, closeMenu } from './menu.js';
 import { iconBtn } from './parts.js';
 import { plural } from './text.js';
+import { registerHideable, onDmMode } from '../../core/dm.js';
+import { parseFrontmatter } from '../../core/markdown.js';
+
+// DM mode: notes can be hidden from the players until released (core/dm.js)
+registerHideable({
+  prefix: `${J.ROOT}/`, label: 'Journal note', icon: 'journal', order: 30, accept: (p) => /\.md$/i.test(p),
+  describe: (path, data) => ({
+    title: typeof data === 'string' ? parseFrontmatter(data).data?.title : null,
+    href: /\.md$/i.test(path) ? J.hrefForPath(path) : null,
+  }),
+});
 
 let root = null;
 let left = null;
@@ -158,6 +169,7 @@ function mount(el) {
   setTab(S.prefs.left);
 
   store.on(onStore);
+  onDmMode(() => refreshAll()); // DM mode on / off: the note's switch and the lock marks in the tree
   onRoute((r) => { lastHash = `#/${r.hash}`; });
   document.addEventListener('keydown', onKey);
   const flush = () => noteView?.writeNow();
@@ -434,7 +446,7 @@ function openNewFromRoute(r) {
   const back = lastHash && !/^#\/journal\/new(?:[/?]|$)/.test(lastHash) ? lastHash : '#/journal';
   newNoteDialog({ title: r.query.title || '', folder: targetFolder().path }).then((res) => {
     if (!res) { navigate(back, { replace: true }); return; }
-    const path = J.createNote({ title: res.title, folder: res.folder });
+    const path = J.createNote({ title: res.title, folder: res.folder, hidden: res.hidden });
     S.reveal(J.folderAt(res.folder)?.path || '');
     pending = { path, edit: true };
     navigate(J.hrefForPath(path), { replace: true });

@@ -54,6 +54,42 @@ class Store {
     this.urls = new Map();
     this.conflictResolver = null; // async (paths) => 'overwrite' | 'theirs' | 'cancel'
     this.autoTimer = null;
+    // DM mode (core/dm.js) while unlocked: hidden items shown at their own paths, written sealed. null otherwise.
+    this.layer = null;
+  }
+
+  /** Does the DM layer handle this path? (Never its own files under content/dm/ or the inbox.) */
+  layered(path) { return !!this.layer && !path.startsWith('content/dm/') && !path.startsWith('content/inbox/'); }
+
+  /** A path the repo or this device already has (a doc, a file, a staged upload or deletion). */
+  exists(path) { return this.has(path) || this.remote.has(path) || !!this.drafts[path]; }
+
+  /** Some visible doc has exactly this text (a new path with it is a copy or move of a public doc). */
+  isPublicCopy(text) {
+    for (const [p, d] of this.docs) if (!d.deleted && d.text === text && !this.layer?.has(p)) return true;
+    return false;
+  }
+
+  /**
+   * DM mode: should a write to `path` go to the hidden layer? Yes when asked (hidden: true), when the path is hidden,
+   * for a new copy of a hidden item, and (safety net) for anything new in a hideable area while "New: hidden" is on,
+   * unless it is a copy of a visible doc or the caller says hidden: false.
+   */
+  toLayer(path, hidden, text) {
+    if (!this.layered(path) || hidden === false) return false;
+    if (hidden || this.layer.has(path)) return true;
+    if (this.exists(path)) return false;
+    if (this.layer.isCopy(text)) return true;
+    return this.layer.autoHide(path) && !this.isPublicCopy(text);
+  }
+
+  /** toLayer for a binary (a copy = the same bytes as a hidden file). */
+  async binaryToLayer(path, hidden, blob) {
+    if (!this.layered(path) || hidden === false) return false;
+    if (hidden || this.layer.has(path)) return true;
+    if (this.exists(path)) return false;
+    if (await this.layer.isCopyBytes(blob)) return true;
+    return this.layer.autoHide(path);
   }
 
   get mode() { return this.backend?.mode || 'none'; }
@@ -139,9 +175,15 @@ class Store {
 
   // ---------- reading ----------
 
-  has(path) { const d = this.docs.get(path); return !!d && !d.deleted; }
+  has(path) {
+    if (this.layer?.has(path)) return true;
+    const d = this.docs.get(path);
+    return !!d && !d.deleted;
+  }
 
   get(path) {
+    const l = this.layer?.doc(path);
+    if (l) return clone(l.data);
     const d = this.docs.get(path);
     return d && !d.deleted ? clone(d.data) : null;
   }
@@ -151,14 +193,15 @@ class Store {
     const pre = dir.endsWith('/') ? dir : `${dir}/`;
     const out = [];
     for (const [p, d] of this.docs) {
-      if (d.deleted || d.data == null || !p.startsWith(pre)) continue;
+      if (d.deleted || d.data == null || !p.startsWith(pre) || this.layer?.has(p)) continue;
       if (!recursive && p.slice(pre.length).includes('/')) continue;
       out.push({ path: p, data: clone(d.data) });
     }
+    if (this.layer) out.push(...this.layer.docsIn(pre, recursive));
     return out;
   }
 
-  /** Every file (any type) under prefix, including staged uploads. */
+  /** Every file (any type) under prefix, including staged uploads (and hidden ones in DM mode, with hidden: true). */
   files(prefix = '') {
     const out = new Map();
     for (const f of this.remote.values()) if (f.path.startsWith(prefix)) out.set(f.path, { ...f, staged: false });
@@ -167,10 +210,12 @@ class Store {
       if (d.text === null && !d.bin) out.delete(p);
       else out.set(p, { path: p, size: d.size ?? d.text?.length ?? 0, sha: null, staged: true });
     }
+    if (this.layer) for (const f of this.layer.filesIn(prefix)) out.set(f.path, f);
     return [...out.values()];
   }
 
   async fileBlob(path) {
+    if (this.layer?.has(path)) return this.layer.blob(path);
     const d = this.drafts[path];
     let bytes;
     if (d?.bin) bytes = await binDrafts.get(`${this.scope}:${path}`);
@@ -185,7 +230,7 @@ class Store {
 
   async fileUrl(path) {
     const d = this.drafts[path];
-    const key = d ? `draft:${path}:${d.ts}` : this.remote.get(path)?.sha;
+    const key = this.layer?.has(path) ? `dm:${path}:${this.layer.version(path)}` : d ? `draft:${path}:${d.ts}` : this.remote.get(path)?.sha;
     if (!key) return null;
     if (!this.urls.has(key)) {
       const blob = await this.fileBlob(path);
@@ -196,6 +241,7 @@ class Store {
   }
 
   async text(path) {
+    if (this.layer?.has(path)) return this.layer.text(path) ?? (await this.layer.blob(path))?.text() ?? null;
     const d = this.docs.get(path);
     if (d && !d.deleted && d.text != null) return d.text;
     const b = await this.fileBlob(path);
@@ -204,8 +250,17 @@ class Store {
 
   // ---------- writing ----------
 
-  put(path, data) {
+  /**
+   * Write a document (object -> pretty JSON, string -> text). DM mode (see toLayer): opts.hidden = true makes a new
+   * one hidden, hidden: false forces it plain; a hidden one stays hidden (sealed by the layer).
+   */
+  put(path, data, { hidden = null } = {}) {
     const text = typeof data === 'string' ? data : `${JSON.stringify(data, null, 2)}\n`;
+    if (this.toLayer(path, hidden, text)) {
+      this.layer.put(path, text, typeof data === 'string' ? data : clone(data));
+      this.emit({ type: 'put', path });
+      return;
+    }
     let doc = this.docs.get(path);
     if (!doc) { doc = { baseText: null, baseSha: this.remote.get(path)?.sha ?? null }; this.docs.set(path, doc); }
     Object.assign(doc, { text, data: typeof data === 'string' ? data : clone(data), deleted: false });
@@ -215,6 +270,11 @@ class Store {
   }
 
   remove(path) {
+    if (this.layered(path) && this.layer.has(path)) {
+      this.layer.remove(path);
+      this.emit({ type: 'remove', path });
+      return;
+    }
     const r = this.remote.get(path);
     if (!r) {
       this.docs.delete(path);
@@ -229,7 +289,12 @@ class Store {
     this.changed(path, 'remove');
   }
 
-  async putBinary(path, blob) {
+  async putBinary(path, blob, { hidden = null } = {}) {
+    if (await this.binaryToLayer(path, hidden, blob)) {
+      await this.layer.putBinary(path, blob);
+      this.emit({ type: 'put', path });
+      return;
+    }
     const bytes = new Uint8Array(await blob.arrayBuffer());
     await binDrafts.set(`${this.scope}:${path}`, bytes);
     this.drafts[path] = { bin: true, size: bytes.length, baseSha: this.drafts[path]?.baseSha ?? this.remote.get(path)?.sha ?? null, ts: Date.now() };
@@ -263,7 +328,10 @@ class Store {
     catch (e) { console.warn('[store] could not persist drafts', e); }
   }
 
-  isDirty(path) { return path ? !!this.drafts[path] : Object.keys(this.drafts).length > 0; }
+  isDirty(path) {
+    if (path && this.layer?.has(path)) return this.layer.isDirty(path);
+    return path ? !!this.drafts[path] : Object.keys(this.drafts).length > 0 || !!this.layer?.pending();
+  }
   dirtyPaths() { return Object.keys(this.drafts); }
 
   scheduleAutoCommit() {
@@ -277,6 +345,7 @@ class Store {
 
   save(message) {
     if (this.saving) return this.savePromise;
+    if (this.layer?.pending()) return this.layer.flush().then(() => this.save(message)); // DM edits not sealed yet
     if (!this.isDirty()) return Promise.resolve({ saved: 0 });
     clearTimeout(this.autoTimer);
     this.saving = true;
@@ -312,7 +381,7 @@ class Store {
       else changes.push({ path: p, text: d.text });
     }
     const result = changes.length
-      ? await this.backend.commit(changes, message || defaultMessage(changes))
+      ? await this.backend.commit(changes, message || defaultMessage(changes, !!this.layer))
       : await this.backend.tree();
     const shaOf = new Map(result.files.map((f) => [f.path, f.sha]));
     for (const [p, d] of Object.entries(snapshot)) {
@@ -335,8 +404,9 @@ class Store {
   }
 }
 
-function defaultMessage(changes) {
+function defaultMessage(changes, dm = false) {
   const who = getSetting('playerName') || 'A Warden';
+  if (dm) return `${who}: update (${changes.length} file${changes.length === 1 ? '' : 's'})`; // names could hint at hidden items
   const names = changes.map((c) => c.path.replace(/^content\//, '').replace(/\.(json|md)$/, ''));
   const shown = names.slice(0, 4).join(', ') + (names.length > 4 ? ` +${names.length - 4} more` : '');
   return `${who}: update ${shown}`;

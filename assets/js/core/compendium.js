@@ -78,8 +78,11 @@ export function findByName(kind, name) {
   return cached(kind).find((e) => e.name?.toLowerCase() === n || e.id === n) || null;
 }
 
-/** Create or update a custom entry (committed right away, see saving.js saveSoon). Returns the saved object. */
-export function saveCustom(kind, obj) {
+/**
+ * Create or update a custom entry (committed right away, see saving.js saveSoon). Returns the saved object.
+ * opts.hidden (DM mode): create it hidden from the players (core/dm.js); an entry already hidden stays hidden.
+ */
+export function saveCustom(kind, obj, { hidden = null } = {}) {
   // Editing a custom entry keeps its id; copying an SRD/stub entry (or a new one) gets a fresh id.
   const id = obj.origin === 'custom' && obj.id ? obj.id : uid(obj.name);
   const { path: _p, origin: _o, kind: _k, ...rest } = obj;
@@ -90,7 +93,7 @@ export function saveCustom(kind, obj) {
   };
   const path = `${customDir(kind)}/${id}.json`;
   const isNew = !store.has(path);
-  store.put(path, data);
+  store.put(path, data, { hidden: isNew ? hidden : null });
   refreshKind(kind);
   saveSoon(`library: ${isNew ? 'new' : 'update'} ${kind} “${data.name || id}”`);
   return { ...data, kind, origin: 'custom' };

@@ -14,6 +14,8 @@ import { getSetting } from '../../core/settings.js';
 import { saveSoon, majorSaveOn } from '../../core/saving.js';
 import { uid, slugify, debounce, fmtDate, stripExt, extOf, baseName } from '../../core/util.js';
 import { prepareImage, openViewer } from '../journal/gallery.js';
+import { registerHideable, isHidden, onDmMode } from '../../core/dm.js';
+import { visibilityToggle, hiddenChoice, hiddenMark } from '../../core/dm-ui.js';
 import {
   QUEST_DIR, MEDIA_DIR, TYPES, STATUSES, VIEWS, typeOf, statusOf, normalizeQuest, newQuest, progress, questLog, stepsOf,
   viewCounts, findQuest, cleanTags,
@@ -48,9 +50,10 @@ const questById = (id) => { const d = id ? store.get(pathOf(id)) : null; return 
 const typeIcon = (type, extra = '') => h('span', { class: ['qs-sym', `qs-sym-${type}`, extra], 'aria-hidden': 'true' }, icon(typeOf(type).icon));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-function putQuest(q) {
+/** Write a quest (opts.hidden: create it hidden from the players, DM mode; a hidden quest stays hidden). */
+function putQuest(q, { hidden = null } = {}) {
   const doc = { ...q, title: String(q.title || '').trim() || 'Untitled quest', characters: cleanTags(q.characters), updated: new Date().toISOString() };
-  store.put(pathOf(q.id), doc);
+  store.put(pathOf(q.id), doc, { hidden });
 }
 // Typing in the editor: one draft write a moment after the last key (the commit itself follows the auto-save timer)
 const putDraftSoon = debounce(() => { if (S.draft) putQuest(S.draft); }, 400);
@@ -61,6 +64,12 @@ function dropImageIfUnused(src, exceptId) {
   if (allQuests().some((x) => x.id !== exceptId && x.image === src)) return;
   store.remove(src);
 }
+
+// DM mode: quests can be hidden from the players until released (core/dm.js)
+registerHideable({
+  prefix: `${QUEST_DIR}/`, label: 'Quest', icon: 'quests', order: 10, accept: (p) => p.endsWith('.json'),
+  describe: (path, data) => ({ title: normalizeQuest(data, idOf(path)).title, href: href(VIEW, idOf(path)) }),
+});
 
 // ---------- link type: [[quest:Title]] ----------
 
@@ -146,6 +155,7 @@ function branch(b, all) {
     },
     typeIcon(q.type),
     h('span', { class: 'qs-item-title' }, q.title),
+    hiddenMark(pathOf(q.id)),
     q.status !== 'active' ? h('span', { class: ['qs-item-state', `is-${q.status}`], title: statusOf(q.status).label }, icon(q.status === 'completed' ? 'check' : 'close'))
       : p.total ? h('span', { class: 'qs-item-prog num', title: `${p.done} of ${p.total} objectives done` }, `${p.done}/${p.total}`) : null));
   };
@@ -221,6 +231,7 @@ function questView(q) {
           h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: () => setStatus('failed'), title: 'Mark the quest as failed' }, icon('close'), 'Failed')]
         : h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: () => setStatus('active') }, icon('undo'), 'Reopen'),
       h('a', { class: 'btn btn-sm', href: href(VIEW, q.id, 'edit') }, icon('edit'), 'Edit')),
+    visibilityToggle(pathOf(q.id), { label: 'this quest' }),
     h('h2', { class: 'qs-quest-title' }, q.title),
     parent ? h('p', { class: 'qs-quest-parent' }, 'A step towards ', typeIcon('main'), h('a', { href: href(VIEW, parent.id) }, parent.title)) : null,
     q.image ? questImage(q) : null,
@@ -323,6 +334,7 @@ function renderEditor(q) {
       h('span', { class: 'spacer' }),
       h('button', { class: 'btn btn-sm btn-ghost btn-danger', type: 'button', onclick: () => deleteQuest(d) }, icon('trash'), 'Delete'),
       h('button', { class: 'btn btn-sm btn-primary', type: 'submit' }, icon('check'), 'Done')),
+    visibilityToggle(pathOf(d.id), { label: 'this quest', before: () => putDraftSoon.flush(), onChange: () => renderPane() }),
     field('Type', typeRow),
     parentRow,
     h('div', { class: 'qs-ed-row' }, field('Title', title), field('Status', status)),
@@ -431,7 +443,7 @@ async function uploadImage(d, redraw) {
   try {
     const { blob, ext } = await prepareImage(file);
     const path = `${MEDIA_DIR}/${slugify(d.id).slice(0, 40)}-${slugify(stripExt(file.name)).slice(0, 30) || 'image'}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
-    await store.putBinary(path, blob);
+    await store.putBinary(path, blob, { hidden: isHidden(pathOf(d.id)) }); // a hidden quest's image is hidden too
     setImage(d, path, redraw, `quests: image for “${d.title}”`);
   } catch (e) {
     toast(`Could not add the image: ${e.message || e}`, { type: 'error', timeout: 7000 });
@@ -465,6 +477,7 @@ function newQuestDialog(preset = {}) {
   let parent = preset.parent || '';
   const mains = allQuests().filter((x) => x.type === 'main');
   const title = input({ placeholder: 'Quest title', 'aria-label': 'Quest title' });
+  const vis = { hidden: preset.parent && isHidden(pathOf(preset.parent)) ? true : null }; // DM mode: hidden from players?
   const parentBox = h('div');
   const cards = h('div', { class: 'qs-type-cards', role: 'radiogroup', 'aria-label': 'Quest type' });
   const draw = () => {
@@ -480,7 +493,7 @@ function newQuestDialog(preset = {}) {
   const create = () => {
     const name = title.value.trim();
     const id = uid(name || `${type}-quest`);
-    putQuest(newQuest({ id, title: name, type, parent: type === 'minor' ? parent || null : null, by: getSetting('playerName') || '' }));
+    putQuest(newQuest({ id, title: name, type, parent: type === 'minor' ? parent || null : null, by: getSetting('playerName') || '' }), { hidden: vis.hidden ?? null });
     saveSoon(`quests: new ${type} quest “${name || 'Untitled quest'}”`);
     S.q = '';
     if (S.searchEl) S.searchEl.value = '';
@@ -490,7 +503,7 @@ function newQuestDialog(preset = {}) {
   title.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); m.close(); create(); } });
   const m = openModal({
     title: 'New quest',
-    body: h('div', { class: 'stack' }, field('Type', cards), field('Title', title), parentBox),
+    body: h('div', { class: 'stack' }, hiddenChoice(vis), field('Type', cards), field('Title', title), parentBox),
     actions: [{ label: 'Cancel', kind: 'ghost' }, { label: 'Create quest', kind: 'primary', onClick: create }],
   });
   requestAnimationFrame(() => title.focus());
@@ -535,9 +548,11 @@ export default {
   mount(el) {
     build(el);
     store.on(onStoreEvent);
+    onDmMode(() => onStoreEvent({ type: 'load' })); // DM mode on / off: switches and lock marks
   },
   show(route) {
     const [id = null, sub = null] = route?.parts || [];
+    if (!id && route?.query?.new) { navigate(href(VIEW), { replace: true }); queueMicrotask(() => newQuestDialog()); return; } // DM Screen "New quest"
     if (S.editing && S.draft && (S.draft.id !== id || sub !== 'edit')) putDraftSoon.flush();
     S.id = id;
     S.editing = !!id && sub === 'edit';

@@ -24,6 +24,13 @@ import { RANK_IDS, rankOpacity, rankWhere, normBands } from './ranks.js';
 import { openNewMapDialog, deleteMapFlow } from './submaps.js';
 import { createEditor } from './edit.js';
 import { createCollection } from './collection.js';
+import { registerHideable, isHidden, onDmMode } from '../../core/dm.js';
+
+// DM mode: places can be hidden from the players until released (core/dm.js)
+registerHideable({
+  prefix: `${data.LOC_DIR}/`, label: 'Map place', icon: 'pin', order: 50, accept: (p) => p.endsWith('.json'),
+  describe: (path, d) => ({ title: d?.name, href: d?.id ? data.locHref({ ...d, map: d.map || data.MAIN_MAP }) : null }),
+});
 
 const PREFS_KEY = 'sw:map:prefs';
 const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -257,6 +264,7 @@ function mountView(el) {
   document.addEventListener('keydown', onKeyCapture, true);
   document.addEventListener('keydown', onKey);
   store.on(onStore);
+  onDmMode(() => { for (const e of S.markers.values()) applyState(e); drawer.refresh({ force: true }); }); // DM mode on / off
   init();
 }
 
@@ -630,7 +638,9 @@ function applyState(e) {
   el.classList.toggle('is-moving', S.moveId === e.id);
   el.classList.toggle('is-picked', editor.isSelected(e.id));
   el.classList.toggle('is-culled', !!e.culled);
-  el.setAttribute('aria-label', `${e.loc.name}, ${e.type.name}, rank ${e.rank}${e.sub ? ', has its own map' : ''}`);
+  const secret = isHidden(data.locPath(e.id)); // DM mode: hidden from the players
+  el.classList.toggle('is-dm-hidden', secret);
+  el.setAttribute('aria-label', `${e.loc.name}, ${e.type.name}, rank ${e.rank}${e.sub ? ', has its own map' : ''}${secret ? ', hidden from players' : ''}`);
   el.removeAttribute('title');
   const name = paneName(isPinned(e) ? 'pin' : e.rank);
   e.marker.options.pane = name;

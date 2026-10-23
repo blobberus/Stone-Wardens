@@ -1,0 +1,94 @@
+/* =============================================================================
+   DM mode (core/dm-ui.js, views/dm): the DM button above Save, the Inbox item, the "Hidden from players" switch,
+   hidden-item marks, the Inbox and the DM Screen. Hidden = dashed gold (the DM's secret colour), never a tinted
+   square behind an icon (docs/design.md).
+   ============================================================================= */
+
+/* The DM Screen tab shows in the menu only in DM mode */
+body:not(.is-dm) .sb-tabs li:has(> .sb-tab[data-view="dm"]) { display: none; }
+/* DM mode is on: a thin gold line along the top of the page */
+body.is-dm .views { box-shadow: inset 0 3px 0 var(--gold); }
+
+/* Sidebar block above the save status */
+.sb-dm { display: flex; flex-direction: column; gap: 6px; }
+.sb-dm-btn, .sb-dm-new { width: 100%; justify-content: flex-start; gap: 8px; }
+.sb-dm-btn .icon, .sb-dm-new .icon { width: 17px; height: 17px; }
+.sb-dm-btn.is-on { color: var(--ink); border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.sb-dm-btn.is-on .icon { color: var(--gold); }
+.sb-dm-new { height: 28px; font-size: var(--text-xs); border-style: dashed; }
+.sb-dm-new.is-hidden { border-color: var(--gold); color: var(--ink); }
+.sb-dm-new.is-hidden .icon { color: var(--gold); }
+@media (min-width: 760px) {
+  .sidebar.is-collapsed .sb-dm-btn, .sidebar.is-collapsed .sb-dm-new { justify-content: center; width: 40px; padding: 0; }
+  .sidebar.is-collapsed .sb-dm .sb-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+}
+
+/* Inbox in the navigation */
+.sb-inbox { width: 100%; font: inherit; text-align: left; cursor: pointer; background: none; }
+.sb-badge {
+  margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; display: inline-grid; place-items: center;
+  font: 700 var(--text-xs) / 1 var(--font-ui); color: var(--accent-ink); background: var(--accent); border-radius: var(--radius-pill);
+}
+@media (min-width: 760px) {
+  .sidebar.is-collapsed .sb-inbox { position: relative; }
+  .sidebar.is-collapsed .sb-badge { position: absolute; top: 2px; right: 0; min-width: 16px; height: 16px; padding: 0 4px; font-size: 0.6875rem; }
+}
+.dm-inbox-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.dm-note + .dm-note { border-top: 1px solid var(--rule); }
+.dm-note-link { display: flex; align-items: flex-start; gap: 10px; padding: 10px 4px; color: var(--ink); text-decoration: none; border-radius: var(--radius-sm); }
+a.dm-note-link:hover { background: var(--surface-2); }
+.dm-note-dot { flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: transparent; }
+.dm-note.is-unread .dm-note-dot { background: var(--accent); }
+.dm-note-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 4px; font: 400 var(--text-sm) / 1.4 var(--font-ui); }
+.dm-note.is-unread .dm-note-text strong { color: var(--ink); }
+.dm-note-when { flex-basis: 100%; font-size: var(--text-xs); }
+
+/* The hidden / visible switch on an item, and in create forms */
+.dm-vis { gap: 6px; font-weight: 700; }
+.dm-vis .icon { width: 16px; height: 16px; }
+.dm-vis.is-hidden { color: var(--ink); background: var(--surface); border: 2px dashed var(--gold); }
+.dm-vis.is-hidden .icon { color: var(--gold); }
+.dm-vis.is-visible { color: var(--ink-muted); border-style: solid; }
+.dm-choice { display: inline-flex; align-items: center; gap: var(--space-2); }
+.dm-mark { display: inline-flex; flex: none; vertical-align: -2px; margin-left: 6px; color: var(--gold); }
+.dm-mark .icon { width: 15px; height: 15px; }
+/* Where the switch sits in each tab */
+.jr-sheet-head > .dm-vis { align-self: flex-start; }
+.map-drawer-body > .dm-vis { margin-bottom: var(--space-3); }
+.cp-actions > .dm-vis { margin-left: auto; }
+.wl-reader.is-folded .wl-reader-actions > .dm-vis { padding: 0 8px; font-size: var(--text-xs); }
+/* A hidden place on the map (DM mode): dashed gold outline, like the pin being placed */
+.map-marker.is-dm-hidden .map-pin-body { stroke: var(--gold); stroke-width: 2.4; stroke-dasharray: 3 2; }
+.map-marker.is-dm-hidden .map-pin-label { font-style: italic; }
+
+/* Log in / set up */
+.dm-login .checkbox { margin-top: -4px; }
+.dm-error { margin: 0; font: 500 var(--text-sm) / 1.4 var(--font-ui); color: var(--danger); }
+.dm-notes { margin: 0; padding-left: 1.2em; color: var(--ink-muted); }
+.modal.is-busy .modal-foot .btn { opacity: 0.6; pointer-events: none; }
+
+/* DM Screen */
+.dm-screen { display: flex; flex-direction: column; gap: var(--space-4); max-width: 1100px; }
+.dm-screen > .view-head { margin-bottom: 0; }
+.dm-locked { margin-top: var(--space-4); }
+.dm-panel > .panel-head { display: flex; align-items: center; gap: var(--space-2); }
+.dm-panel > .panel-head h2 { margin: 0; font: 700 var(--text-md) / 1.3 var(--font-body); }
+.dm-panel > .panel-head > .icon { width: 18px; height: 18px; color: var(--gold); }
+.dm-new-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.dm-create-btns { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.dm-group + .dm-group { margin-top: var(--space-3); }
+.dm-group-title { display: flex; align-items: baseline; gap: 6px; margin: 0 0 2px; padding-bottom: 2px; font: 700 var(--text-xs) / 1.3 var(--font-ui); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-muted); border-bottom: 1px solid var(--border); }
+.dm-n { font-weight: 400; }
+.dm-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.dm-row { display: flex; align-items: center; gap: var(--space-3); padding: 7px 2px; }
+.dm-row + .dm-row { border-top: 1px solid var(--rule); }
+.dm-row > .icon { flex: none; width: 18px; height: 18px; color: var(--ink-muted); }
+.dm-row-main { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+.dm-row-title { font: 600 var(--text-md) / 1.3 var(--font-body); color: var(--ink); overflow-wrap: anywhere; }
+a.dm-row-title { color: var(--link); }
+.dm-row-meta { font: 400 var(--text-xs) / 1.35 var(--font-ui); }
+.dm-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+@media (max-width: 600px) {
+  .dm-row { flex-wrap: wrap; }
+  .dm-row > .btn { margin-left: 30px; }
+}

@@ -10,6 +10,7 @@ import { parseFrontmatter, stringifyFrontmatter, extractLinks, extractTags } fro
 import { registerLinkType, parseLink, resolveLink, matchNames } from '../../core/links.js';
 import { href } from '../../core/router.js';
 import { getSetting } from '../../core/settings.js';
+import { isHidden } from '../../core/dm.js';
 import { plainText, plainLines, sectionOf, escapeRe, snippet, fold } from './text.js';
 
 export const ROOT = 'content/journal';
@@ -25,7 +26,7 @@ const FM_ORDER = ['title', 'aliases', 'order', 'author', 'created', 'updated', '
 let selfDepth = 0;
 export const isSelfWrite = () => selfDepth > 0;
 function quietly(fn) { selfDepth += 1; try { return fn(); } finally { selfDepth -= 1; } }
-export const put = (path, data) => quietly(() => store.put(path, data));
+export const put = (path, data, opts) => quietly(() => store.put(path, data, opts)); // opts.hidden: DM mode (core/dm.js)
 export const remove = (path) => quietly(() => store.remove(path));
 
 // ---------- index ----------
@@ -332,14 +333,15 @@ function keepFolder(f, leaving = 1) {
 
 // ---------- note operations ----------
 
-export function createNote({ title, folder = '', body = '' }) {
+/** hidden (DM mode): create it hidden from the players (null = the DM's default). */
+export function createNote({ title, folder = '', body = '', hidden = null }) {
   const ix = index();
   const f = (typeof folder === 'string' ? folderAt(folder, ix) : folder) || ix.root;
   const slug = uniqueSlug(slugify(title), takenIn(f));
   const stamp = now();
   const fm = { title, author: getSetting('playerName') || undefined, created: stamp, updated: stamp };
   const path = notePath(f.path, slug);
-  put(path, composeNote(fm, body));
+  put(path, composeNote(fm, body), { hidden });
   return path;
 }
 
@@ -368,7 +370,7 @@ export function moveNote(note, toFolder) {
   if (!dest || dest.path.toLowerCase() === note.folder.toLowerCase()) return note.path;
   keepFolder(folderOf(note, ix));
   const path = notePath(dest.path, uniqueSlug(note.slug, takenIn(dest)));
-  put(path, note.text);
+  put(path, note.text, { hidden: isHidden(note.path) }); // a hidden note stays hidden, a visible one visible
   remove(note.path);
   return path;
 }
@@ -383,7 +385,7 @@ export function renameNote(note, title, body = note.body) {
   }
   const f = folderOf(note);
   const path = notePath(f.path, uniqueSlug(want, takenIn(f, { exceptNote: note.path })));
-  put(path, composeNote(fm, body));
+  put(path, composeNote(fm, body), { hidden: isHidden(note.path) }); // the renamed file keeps its visibility
   remove(note.path);
   return path;
 }
@@ -429,7 +431,7 @@ function relocate(f, newPath, patch = {}) {
     docs.add(path);
     const dest = to + path.slice(from.length);
     if (path === f.metaPath) continue;
-    put(dest, data);
+    put(dest, data, { hidden: isHidden(path) });
     remove(path);
     if (/\.md$/i.test(path)) moved.set(path, dest);
   }
@@ -439,7 +441,8 @@ function relocate(f, newPath, patch = {}) {
   for (const file of store.files(from)) {
     if (docs.has(file.path) || file.path === f.metaPath) continue;
     const dest = to + file.path.slice(from.length);
-    store.fileBlob(file.path).then((blob) => (blob ? store.putBinary(dest, blob).then(() => store.remove(file.path)) : null))
+    const hidden = isHidden(file.path);
+    store.fileBlob(file.path).then((blob) => (blob ? store.putBinary(dest, blob, { hidden }).then(() => store.remove(file.path)) : null))
       .catch((e) => console.warn('[journal] could not move', file.path, e));
   }
   return moved;

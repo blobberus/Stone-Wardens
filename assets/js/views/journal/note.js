@@ -10,6 +10,8 @@ import * as J from './data.js';
 import { toggleTaskAt, plural, fold, headingsOf } from './text.js';
 import { tagList, metaLine, btn, emptyState } from './parts.js';
 import { noteImages, imagesValue, slideshow, imagesPanel, dropIfUnused, chooseAndUpload, pickExisting } from './gallery.js';
+import { isHidden } from '../../core/dm.js';
+import { visibilityToggle } from '../../core/dm-ui.js';
 
 const SAVE_MS = 400;
 const HL = 'jr-find';
@@ -123,6 +125,7 @@ export class NoteView {
     const head = h('header', { class: 'jr-sheet-head' },
       this.titleEl,
       metaLine(note),
+      visibilityToggle(this.path, { label: 'this note', before: () => this.writeNow() }), // DM mode only
       note.tags.length ? tagList(note.tags, { className: 'jr-sheet-tags' }) : null);
     this.bodyEl = h('div', { class: 'jr-sheet-body' });
     if (this.editing) this.buildEditor(this.bodyEl);
@@ -203,7 +206,7 @@ export class NoteView {
       onInput: (v) => { this.body = v; this.queueSave(); this.liveSoon(); },
     });
     this.editor.classList.add('jr-editor');
-    el.append(imagesPanel({ list: noteImages(this.fm), slug: this.current.slug || 'note', onChange: (list, removed) => this.setImages(list, removed) }),
+    el.append(imagesPanel({ list: noteImages(this.fm), slug: this.current.slug || 'note', hidden: () => isHidden(this.path), onChange: (list, removed) => this.setImages(list, removed) }),
       this.editor,
       h('p', { class: 'jr-hint jr-edit-hint' }, 'Kept on this device as you type. Press Save (Ctrl+S) to share it with the party. Ctrl+E goes back to reading.'),
       h('details', { class: 'jr-syntax' }, h('summary', null, 'Formatting help'), syntaxHelp()));
@@ -227,7 +230,7 @@ export class NoteView {
 
   /** From the note menu (any mode): upload photos, or pick images already in the repository. */
   async addImages(from = 'upload') {
-    const added = from === 'repo' ? await pickExisting(noteImages(this.fm).map((x) => x.src)) : await chooseAndUpload(this.current.slug || 'note');
+    const added = from === 'repo' ? await pickExisting(noteImages(this.fm).map((x) => x.src)) : await chooseAndUpload(this.current.slug || 'note', { hidden: isHidden(this.path) });
     if (!added.length || this.destroyed) return;
     const list = [...noteImages(this.fm), ...added];
     if (!this.editing) this.galIndex = list.length - added.length;

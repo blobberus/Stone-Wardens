@@ -78,7 +78,8 @@ async function flush() {
 
 function commitMessage(batch) {
   const who = getSetting('playerName') || 'A Warden';
-  const what = batch.slice(0, 3).join('; ') + (batch.length > 3 ? `; +${batch.length - 3} more` : '');
+  // Commit messages are public: in DM mode a reason may name a hidden item ("new quest “The Traitor”"), so none.
+  const what = store.layer ? 'update' : batch.slice(0, 3).join('; ') + (batch.length > 3 ? `; +${batch.length - 3} more` : '');
   const n = store.dirtyPaths().length;
   return `${who}: ${what || 'update'}${n > 1 ? ` (${n} files)` : ''}`;
 }

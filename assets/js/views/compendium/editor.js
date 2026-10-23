@@ -7,6 +7,7 @@ import { saveCustom, entries, cached, preloadAll } from '../../core/compendium.j
 import { uid, slugify, clone, nameKey } from '../../core/util.js';
 import { store } from '../../core/store.js';
 import { majorSaveOn } from '../../core/saving.js';
+import { hiddenChoice } from '../../core/dm-ui.js';
 import * as M from './meta.js';
 import { RANKS } from '../map/ranks.js';
 
@@ -778,8 +779,9 @@ export async function openEntryEditor(kind, entry = null) {
     const intro = isCopy && !overrideBuiltin
       ? h('p', { class: 'cp-note muted' }, `This saves your own copy of “${entry.name}” to the shared library. The original ${M.ORIGINS[origin] || ''} entry stays as it is.`)
       : null;
+    const vis = { hidden: null }; // DM mode: a new entry (or copy) hidden from the players? Edits keep theirs.
     const body = h('div', { class: ['cp-form', `cp-form-${kind}`] },
-      errBox, intro,
+      errBox, intro, isEdit ? null : hiddenChoice(vis),
       f.fld('Name', nameIn, { req: true, id: nameIn.id }), nameHint,
       FORMS[kind].build(f, d));
 
@@ -806,10 +808,11 @@ export async function openEntryEditor(kind, entry = null) {
         if (freshId) payload.id = uid(payload.name);
         FORMS[kind].normalize(payload);
         if (!payload.created && !isEdit) payload.created = new Date().toISOString();
-        const saved = saveCustom(kind, { ...payload, origin: 'custom' });
+        const saved = saveCustom(kind, { ...payload, origin: 'custom' }, { hidden: vis.hidden });
         await entries(kind).catch(() => null);
         result = { ...saved, path: `content/library/${kind}/${saved.id}.json` };
-        toast(`${isEdit ? 'Saved to' : 'Added to'} the shared library${majorSaveOn() ? '' : ' — Save to publish'}`, { type: 'success' });
+        if (!isEdit && vis.hidden) toast('Added to the library, hidden from the players. Release it from the DM Screen or its page.', { type: 'success' });
+        else toast(`${isEdit ? 'Saved to' : 'Added to'} the shared library${majorSaveOn() ? '' : ' — Save to publish'}`, { type: 'success' });
         return true;
       } catch (e) {
         console.error(e);

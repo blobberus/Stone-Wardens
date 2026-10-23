@@ -15,6 +15,14 @@ import {
 } from './files.js';
 import { renderDocument, canInlinePdf, opensInBrowser, errorText, pdfPage, scrollToAnchor } from './reader.js';
 import { openUploadDialog } from './upload.js';
+import { registerHideable, isHidden, onDmMode } from '../../core/dm.js';
+import { visibilityToggle, hiddenMark } from '../../core/dm-ui.js';
+
+// DM mode: documents can be hidden from the players until released (core/dm.js)
+registerHideable({
+  prefix: ROOT, label: 'Library document', icon: 'library', order: 40, accept: (p) => !/(^|\/)(README\.md|\.gitkeep)$/i.test(p),
+  describe: (path) => ({ title: displayName(baseName(path)), href: docHref(path) }),
+});
 
 const TITLE = "Warden's Library"; // view/tab title (contract)
 const DISPLAY = 'Warden’s Library'; // typographic form for headings
@@ -138,7 +146,7 @@ export async function renameDoc(doc) {
   try {
     const blob = await store.fileBlob(doc.path);
     if (!blob) throw Object.assign(new Error('missing'), { code: 'missing' });
-    await store.putBinary(path, blob);
+    await store.putBinary(path, blob, { hidden: isHidden(doc.path) }); // DM mode: a rename keeps it hidden or visible
   } catch (e) {
     console.error('[wardens-library] rename failed', e);
     return refuse(`Could not rename ${doc.file}: ${errorText(e)}`);
@@ -351,7 +359,8 @@ function card(doc) {
         h('span', null, doc.type.label),
         h('span', { class: 'wl-dot', 'aria-hidden': 'true' }, '·'),
         h('span', null, fmtSize(doc.size)),
-        doc.staged ? stagedBadge() : null)),
+        doc.staged ? stagedBadge() : null,
+        hiddenMark(doc.path))),
     h('div', { class: 'wl-card-tools' },
       h('button', {
         class: 'btn-icon btn-sm wl-card-tool wl-rename', type: 'button', title: `Rename ${doc.name}`, 'aria-label': `Rename ${doc.name}`,
@@ -406,7 +415,8 @@ function renderTable(docs) {
           h('a', { class: 'wl-row-link', href: docHref(d.path), title: d.file },
             h('span', { class: 'wl-row-icon' }, icon(d.type.icon)),
             h('span', { class: 'wl-row-name' }, d.name)),
-          d.staged ? stagedBadge() : null),
+          d.staged ? stagedBadge() : null,
+          hiddenMark(d.path)),
         h('td', null, d.ext === 'doc' ? 'Word (.doc)' : d.type.label),
         h('td', { class: 'num' }, fmtSize(d.size)),
         h('td', { class: 'cell-muted wl-shelf-cell' }, d.shelf ? shelfLabel(d.shelf) : '—'),
@@ -492,6 +502,7 @@ function renderReaderHead(doc) {
       h('div', { class: 'wl-reader-actions' },
         total > 1 && index >= 0 ? h('div', { class: 'wl-steps', role: 'group', 'aria-label': 'Shelf navigation' },
           nav(prev, 'prev'), h('span', { class: 'wl-step-pos' }, `${index + 1} / ${total}`), nav(next, 'next')) : null,
+        visibilityToggle(doc.path, { label: 'this document' }), // DM mode only
         download,
         open,
         h('button', {
@@ -744,9 +755,11 @@ export default {
     buildShelf();
     wireDrop();
     store.on(onStoreEvent);
+    onDmMode(() => onStoreEvent({ type: 'load' })); // DM mode on / off: switches and lock marks
   },
   show(route) {
     const parts = route?.parts || [];
+    if (!parts.length && route?.query?.upload) { navigate(href(VIEW), { replace: true }); queueMicrotask(() => openUpload({ shelf: '' })); return; } // DM Screen "Add documents"
     if (!parts.length) showShelf(route?.query || {});
     else showReader(ROOT + parts.join('/'), route?.query || {});
   },

@@ -9,6 +9,7 @@ import * as S from './state.js';
 import { iconBtn } from './parts.js';
 import { openMenu } from './menu.js';
 import { plural } from './text.js';
+import { hiddenMark } from '../../core/dm-ui.js';
 
 const esc = (s) => (window.CSS?.escape ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&'));
 
@@ -95,7 +96,7 @@ export class FileTree {
     const row = h('a', {
       class: 'jr-row is-note', role: 'treeitem', href: n.href, tabindex: '-1', draggable: 'true', 'data-path': n.path,
       'aria-level': String(depth + 1), style: `--depth:${depth}`,
-    }, h('span', { class: 'jr-row-label' }, n.title));
+    }, h('span', { class: 'jr-row-label' }, n.title), hiddenMark(n.path));
     return h('div', { class: 'jr-item is-note', role: 'none' }, h('div', { class: 'jr-line' }, row, this.moreBtn()));
   }
 
