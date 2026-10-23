@@ -192,7 +192,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   ink is computed per color (>= 4.5:1). Only colors, edges, corners and fonts change, never the layout.
 - Sheet order: header row (portrait, name, XP meter, action buttons | HP, folded, with the "Hide / Show trackers"
   button under it | Death saves | AC · Initiative · Speed · Prof, one line when wide, 2 × 2 when tighter, the
-  combat boxes on their own line under the identity when narrow) ->
+  combat boxes on their own line under the identity when narrow; slim Vision / Darkvision cells under Speed and Prof
+  in room the header already has, inside those two boxes on phones, so the header never grows for them) ->
   abilities row | one-line "Hit dice & conditions" panel (hit dice, inspiration star, exhaustion, conditions;
   shown by default, setting `chTrackersShown`; beside the abilities, below them when narrow; while hidden, active
   conditions show as chips in the HP widget) -> narrow column skills, senses, proficiencies (foldable) | wide column actions window (tabs

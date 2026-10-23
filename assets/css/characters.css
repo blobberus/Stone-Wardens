@@ -218,6 +218,33 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 .ch-page :is(.ch-stat-value, .ch-hp-now, .ch-abil-mod, .ch-abil-score, .ch-abil-save-val, .ch-skl-bonus) { font-variant-numeric: lining-nums tabular-nums; }
 .ch-stat-sub { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 var(--text-xs) / 1.15 var(--font-ui); color: var(--ink-muted); }
 .ch-stat-small .ch-stat-value { font-size: var(--text-lg); }
+/* Vision under Speed, Darkvision under Proficiency (sheet.js statGrid): slim 20px cells placed only where the header
+   already has room (2 × 2: 2 × 64 + 20 + gaps = the identity column's 162px), so it never gets taller. Each cell is
+   its own container and narrow ones show the icon instead of the word. */
+.ch-vis {
+  container-type: inline-size; min-width: 0; height: 20px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink-muted);
+}
+.ch-vis-in { display: flex; align-items: center; justify-content: center; gap: 4px; height: 100%; padding: 0 5px; overflow: hidden; white-space: nowrap; font: 400 var(--text-xs) / 1 var(--font-ui); }
+.ch-vis-in .icon { display: none; flex: none; width: 13px; height: 13px; }
+.ch-vis-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: var(--ink); }
+@container (max-width: 104px) {
+  .ch-vis-label { display: none; }
+  .ch-vis-in .icon { display: inline-block; }
+}
+/* One row of four (wide, and narrow tablets): under columns 3 and 4. The 2 × 2 grid puts them under Speed / Proficiency itself. */
+@container ch-head (min-width: 1280px) or (max-width: 1000px) {
+  .ch-stats > .ch-vis-sight { grid-column: 3; }
+  .ch-stats > .ch-vis-dark { grid-column: 4; }
+}
+/* Phones: the stats are the header's last row, so the cells sit inside the bottom of the Speed and Proficiency boxes */
+@container ch-head (max-width: 640px) {
+  .ch-stats > .ch-vis { grid-row: 1; align-self: end; height: 18px; margin: 0 1px 3px; background: none; border: 0; }
+  .ch-stats > .ch-stat:is([data-stat="speed"], [data-stat="prof"]) { grid-row: 1; justify-content: flex-start; padding-top: 7px; }
+  .ch-stats > .ch-stat[data-stat="speed"] { grid-column: 3; } /* placed explicitly: the cells sharing their spots would push them down */
+  .ch-stats > .ch-stat[data-stat="prof"] { grid-column: 4; }
+  .ch-stats > .ch-stat[data-stat="speed"] .ch-stat-sub { display: none; } /* other speeds: in the box's tooltip */
+}
 
 .ch-hp {
   display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 6px var(--space-3) var(--space-2);

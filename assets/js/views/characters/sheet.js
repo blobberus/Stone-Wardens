@@ -254,14 +254,34 @@ function toggleFold(key) {
   render();
 }
 
-/** AC · Initiative · Speed · Proficiency at the right end of the first row (one line when wide, else 2 × 2). */
+/** Vision for the header: other senses (blindsight, truesight…) or "Normal", and the best darkvision range or null. */
+function visionOf(s) {
+  const list = s.sensesList || [];
+  const ranges = list.map((x) => /darkvision\D*(\d+)/i.exec(x)).filter(Boolean).map((m) => Number(m[1]));
+  const dark = Math.max(Number(s.darkvision) || 0, ...ranges, 0) || null;
+  const other = list.filter((x) => !/darkvision/i.test(x)).map((x) => x.replace(/\.$/, ''));
+  return { dark, vision: other.length ? other.join(', ') : 'Normal' };
+}
+
+/**
+ * AC · Initiative · Speed · Proficiency at the right end of the first row (one line when wide, else 2 × 2), with
+ * Vision under Speed and Darkvision under Proficiency: slim cells in room the header already has (characters.css),
+ * so the header never grows for them.
+ */
 function statGrid(s) {
   const speedSub = Object.entries(s.speed).filter(([k, v]) => k !== 'walk' && v).map(([k, v]) => `${prettify(k)} ${v}`).join(' · ');
+  const v = visionOf(s);
+  // the label gives way to its icon when the cell is narrow (characters.css: each cell is its own container)
+  const visCell = (cls, ic, label, value, title) => h('div', { class: ['ch-vis', cls], title, 'aria-label': `${label}: ${value}`, role: 'note' },
+    h('span', { class: 'ch-vis-in', 'aria-hidden': 'true' }, icon(ic), h('span', { class: 'ch-vis-label' }, label), h('span', { class: 'ch-vis-value' }, value)));
   return h('div', { class: 'ch-stats', 'data-sec': 'combat' },
     statBox({ label: 'Armor Class', value: adjustedValue(s, 'ac', String(s.ac.value)), sub: s.armorWorn?.name || (s.shield ? 'Shield' : 'Unarmored'), stat: 'ac', title: s.adjust?.ac ? null : s.ac.formula, onClick: () => acInfo(s) }),
     statBox({ label: 'Initiative', value: adjustedValue(s, 'initiative', fmt(s.initiative)), stat: 'initiative', title: s.adjust?.initiative ? null : 'Roll initiative', onClick: () => rollToast('Initiative', s.initiative) }),
-    statBox({ label: 'Speed', value: adjustedValue(s, 'speed', `${s.speed.walk ?? 0} ft`), sub: speedSub || null, stat: 'speed' }),
-    statBox({ label: 'Proficiency', value: adjustedValue(s, 'profBonus', fmt(s.profBonus)), stat: 'prof' }));
+    statBox({ label: 'Speed', value: adjustedValue(s, 'speed', `${s.speed.walk ?? 0} ft`), sub: speedSub || null, stat: 'speed', title: speedSub && !s.adjust?.speed ? `Walk ${s.speed.walk ?? 0} ft · ${speedSub}` : null }),
+    statBox({ label: 'Proficiency', value: adjustedValue(s, 'profBonus', fmt(s.profBonus)), stat: 'prof' }),
+    visCell('ch-vis-sight', 'eye', 'Vision', v.vision, v.vision === 'Normal' ? 'Vision: normal sight, no special senses' : `Vision: ${v.vision}`),
+    visCell('ch-vis-dark', 'moon', 'Darkvision', v.dark ? `${v.dark} ft` : 'None',
+      v.dark ? `Darkvision ${v.dark} ft: dim light within range counts as bright light, darkness as dim light (shades of gray)` : 'Darkvision: none'));
 }
 
 /** The Hide / Show trackers button under the HP widget (toggles the hit dice & conditions panel). */
