@@ -114,6 +114,7 @@ async function enter(backend, scope) {
 }
 
 async function loadViews() {
+  const home = loadHome();
   await Promise.all(VIEW_IDS.map(async (id, i) => {
     try {
       const mod = await import(`./views/${id}/index.js`);
@@ -126,6 +127,17 @@ async function loadViews() {
       });
     }
   }));
+  await home;
+}
+
+// Landing page (views/home, #/home): no sidebar tab, the sidebar title opens it. On this device's first visit a URL
+// without a route is sent there before the router starts (routeFirstVisit); deep links still go where they point.
+async function loadHome() {
+  try {
+    const mod = await import('./views/home/index.js');
+    registerView(mod.default);
+    mod.routeFirstVisit();
+  } catch (e) { console.error('[main] landing page failed to load', e); }
 }
 
 function buildSidebar() {
@@ -134,12 +146,15 @@ function buildSidebar() {
   const bottom = $('.sb-tabs-bottom', sb);
   clear(top); clear(bottom);
   for (const v of allViews()) {
+    if (v.menu === false) continue; // e.g. the landing page, opened from the sidebar title
     const a = h('a', { class: 'sb-tab', href: `#/${v.id}`, 'data-view': v.id, title: v.title }, icon(v.icon || 'file'), h('span', { class: 'sb-label' }, v.title));
     (v.id === 'settings' ? bottom : top).append(h('li', null, a));
   }
   const collapsed = getSetting('sidebarCollapsed');
   sb.classList.toggle('is-collapsed', !!collapsed);
   const toggle = $('.sb-toggle', sb);
+  const brand = $('.sb-title', sb); // links to the landing page (#/home)
+  brand.onclick = () => sb.classList.remove('is-open'); // closes the phone sheet, also when already there
   const narrow = () => matchMedia('(max-width: 760px)').matches;
   const setCollapsed = (c) => {
     sb.classList.toggle('is-collapsed', c);
@@ -175,6 +190,7 @@ function buildSidebar() {
 
   onRoute((r) => {
     sb.querySelectorAll('.sb-tab').forEach((a) => a.classList.toggle('is-active', a.dataset.view === r.view));
+    if (r.view === 'home') brand.setAttribute('aria-current', 'page'); else brand.removeAttribute('aria-current');
     sb.classList.remove('is-open');
     maybeHint(r);
   });

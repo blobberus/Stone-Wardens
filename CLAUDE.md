@@ -24,10 +24,12 @@ index.html            app shell (gate + sidebar + view containers); loads assets
 setup.html            owner tool: encrypts a GitHub token with the site password -> vault.json
 vault.json            {v,kdf,cipher,data,repo} AES-GCM ciphertext of {token}; password never stored
 assets/css/           tokens.css (design tokens) base.css (components) shell.css + one css per view
-assets/img/           icons.svg (sprite, <symbol id="i-NAME">), placeholder-map.svg
+assets/img/           icons.svg (sprite, <symbol id="i-NAME">), placeholder-map.svg, stone-wardens-poster-{960,1600,2560}.webp
+                      + -backdrop.webp (landing page; made from References/StoneWardensPoster1.png, keep that original)
 assets/js/main.js     boot: gate -> store.load -> register views -> router.start
 assets/js/core/       shared infrastructure (see contracts below) — views must not reimplement these
-assets/js/views/<v>/  one folder per tab: map, characters, journal, quests, compendium, wardens-library, settings
+assets/js/views/<v>/  one folder per tab: map, characters, journal, quests, compendium, wardens-library, settings;
+                      home = landing page (no tab)
 srd/                  generated SRD 5.2 JSON (tools/build_srd.py) + srd/stubs/*.json; read-only at runtime
 content/              ALL user data, written by the site through the GitHub API
   characters/<id>.json  characters/recently-deleted/<id>.json (trash, `trashed:{at,by}`)
@@ -83,7 +85,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   `on(fn) -> unsubscribe` (events `{type:'put'|'remove'|'load'|'saved'|'pulled', path?}`),
   `isDirty(path?)`, `dirtyPaths()`, `save(message?)`, `pull()`, `mode` ('github'|'sandbox').
 - `router.js`: hash routes `#/<view>/<...parts>?query`. `registerView({id, title, icon, order, mount(el),
-  show(route), hide?()})` — mount once (lazy), views stay mounted (map is never re-created).
+  show(route), hide?(), menu?})` — mount once (lazy), views stay mounted (map is never re-created); `menu: false` =
+  a route without a sidebar tab (main.js `buildSidebar` skips it).
   `navigate(href)`, `href(view, ...parts)`, `current()` -> `{view, parts, query}`.
 - `links.js`: `registerLinkType(prefix, {label, resolve(target, anchor) -> {href,title,exists}|null,
   suggest(q) -> [{label, value}]})`. `resolveLink(raw)`; un-prefixed `[[X]]` -> journal note, else first exact
@@ -157,6 +160,15 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   refused with a toast. Copies the blob to the new path (`putBinary`), `store.remove`s the old one (an unsaved upload
   is simply dropped), and an open document follows with `navigate(…, {replace:true})`; then `saveSoon` commits it.
   Known gap: `[[doc:Old name]]` links are not rewritten (same as map renames).
+
+## Landing page (`#/home`)
+- `views/home` + `home.css`: the campaign poster, "Open the map" and links to the other tabs. No tab (`menu: false`,
+  loaded by main.js `loadHome`); the sidebar title (`a.sb-title`) opens it. First visit: `routeFirstVisit()` (before
+  `start`) sends a URL without a route to `#/home` while localStorage `sw:home:seen` is unset; showing the page sets
+  it; deep links are left alone. The poster's lettering is painted in, so home.css never distorts it or crops into it
+  (container-query sizing: at most 5% off top/bottom, 3% off each side); leftover bands show the backdrop image (the
+  poster's edges extended and blurred) at the poster's scale. Links sit under the painted subtitle on large views, on
+  the grass below the poster on small ones.
 
 ## Characters tab
 - Engine (pure, Node-testable): `engine.js` facade + `engine-{rules,choices,derive,adjust,items,known,spells,actions,prof,tags,xp,util}.js`

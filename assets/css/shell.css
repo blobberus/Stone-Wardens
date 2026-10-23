@@ -77,6 +77,9 @@ body:has(> .app:not([hidden])) { overflow: hidden; }
   letter-spacing: 0.04em;
   color: var(--ink);
 }
+/* the title links to the landing page (#/home) */
+a.sb-title { padding-block: 8px; border-radius: var(--radius-sm); text-decoration: none; }
+a.sb-title:hover { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
 .sb-tabs {
   display: flex;
   flex-direction: column;

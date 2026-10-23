@@ -1,0 +1,112 @@
+/* =============================================================================
+   Landing page (#/home, views/home/index.js): the campaign poster
+   (assets/img/stone-wardens-poster-{960,1600,2560}.webp, made from References/StoneWardensPoster1.png, 4000 x 2700).
+   Its lettering is painted in, so the poster is never distorted and never cropped into it. Measured on the poster:
+   title 6-57% across / 11-20% down, subtitle 25-28% down, motto 90-92% down, statue 45-55% across / 27-66% down.
+   - Large views: the poster grows to fill the view as far as the lettering allows: up to 5% of its height may fall
+     off the top and off the bottom, up to 3% of its width off each side. The start links sit in the clear sky
+     under the painted subtitle.
+   - Small views (phones, narrow tablets, short windows): the whole poster, with the start links on the grass below.
+   - Whatever the poster leaves free (bands above/below on tall views, beside it on ultrawide ones) shows
+     stone-wardens-poster-backdrop.webp: the poster's own edges carried outwards and blurred, 8 x 8 poster sizes with
+     the poster in the middle, laid behind the poster at the same scale so the sky and grass continue. The poster's
+     edges are feathered into it.
+   ============================================================================= */
+
+.view[data-view="home"] { padding: 0; overflow: hidden; --stick-top: 0px; }
+
+.home {
+  container: home / size;
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-sunk); /* only beyond the backdrop (8 poster sizes), which no real window reaches */
+}
+
+/* Small views: as wide as the view, leaving --home-room under it for the links; the pair is centred. */
+.home-poster {
+  --ratio: 1.48148; /* 4000 / 2700 */
+  --home-room: 176px;
+  --w: min(100cqw, (100cqh - var(--home-room)) * var(--ratio));
+  position: absolute;
+  left: 50%;
+  top: max(0px, (100cqh - var(--home-room) - var(--w) / var(--ratio)) / 2);
+  translate: -50% 0;
+  width: var(--w);
+  aspect-ratio: 4000 / 2700;
+  isolation: isolate;
+}
+.home-poster::before {
+  content: "";
+  position: absolute;
+  inset: -350%; /* 8 x 8 poster sizes, poster in the middle */
+  z-index: -1;
+  background: url("../img/stone-wardens-poster-backdrop.webp") center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+.home-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-mask: var(--home-feather);
+  mask: var(--home-feather);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+  /* the bottom fade starts under the painted motto (which ends at 92.4%) */
+  --home-feather: linear-gradient(to right, transparent, black 2.5%, black 97.5%, transparent),
+                  linear-gradient(to bottom, transparent, black 4%, black 93%, transparent);
+}
+
+/* The way in: "Open the map" + the other tabs. Floating over imagery like the map controls: shadow, no border. */
+.home-start {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  width: min(100cqw - 2 * var(--space-4), 440px);
+  margin-top: var(--space-4);
+}
+.home-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.home-start .btn { box-shadow: var(--shadow); }
+.home-start .btn:not(.btn-primary),
+.home-start .btn:not(.btn-primary):hover { border-color: var(--border-float); }
+.home-enter { height: 44px; padding-inline: 20px; font-size: 1.0625rem; }
+/* the ring sits on a surface-coloured halo so it shows over sky, grass and both themes */
+.home-start .btn:focus-visible { outline-offset: 2px; box-shadow: 0 0 0 6px var(--surface), var(--shadow); }
+
+/* Large views: fill the view within the crop limits above, centred; links under the painted subtitle. */
+@container home (min-width: 960px) and (min-height: 650px) {
+  .home-poster {
+    --w: max(min(100cqw, 100cqh * 1.64609), min(100cqw * 1.06383, 100cqh * 1.48148)); /* r / 0.9, 1 / 0.94 */
+    top: 50%;
+    translate: -50% -50%;
+  }
+  .home-start {
+    top: 33%;
+    left: 5.7%; /* the title's left edge */
+    translate: none;
+    align-items: flex-start;
+    width: 37%; /* stops short of the statue */
+    margin-top: 0;
+  }
+  .home-links { justify-content: flex-start; }
+}
+/* Feather only the edges that meet a band (cover crops elsewhere): beside on ultrawide, above/below on tall. */
+@container home (min-width: 960px) and (min-height: 650px) and (aspect-ratio > 1.646) {
+  .home-art { --home-feather: linear-gradient(to right, transparent, black 2.5%, black 97.5%, transparent); }
+}
+@container home (min-width: 960px) and (min-height: 650px) and (aspect-ratio < 1.393) {
+  .home-art { --home-feather: linear-gradient(to bottom, transparent, black 3%, black 97%, transparent); }
+}
+@container home (min-width: 960px) and (min-height: 650px) and (1.393 <= aspect-ratio <= 1.646) {
+  .home-art { --home-feather: none; }
+}
