@@ -175,9 +175,7 @@
     "fail": 0
   },
   "resourcesUsed": {},
-  "conditions": [
-    "blinded"
-  ],
+  "conditions": [],
   "exhaustion": 0,
   "heroicInspiration": true,
   "xp": 0,
@@ -248,5 +246,5 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-22T04:25:57.154Z",
-  "updated": "2026-10-23T19:00:12.629Z"
+  "updated": "2026-10-23T19:08:48.535Z"
 }
