@@ -1,6 +1,14 @@
 {
   "items": [
     {
+      "path": "wardens-library/Campaign-Information/Campaign-Pitch-version-1.pdf",
+      "title": "Campaign Pitch version 1",
+      "label": "Library document",
+      "href": "#/wardens-library/Campaign-Information/Campaign-Pitch-version-1.pdf",
+      "at": "2026-10-23T18:59:19.525Z",
+      "by": "Blobberus"
+    },
+    {
       "path": "content/quests/minor-quest-test-xy41.json",
       "title": "Minor quest test",
       "label": "Quest",

@@ -147,15 +147,15 @@
       "name": "Dagger"
     },
     {
-      "uid": "61zjss",
-      "kind": "gear",
-      "ref": "barrel",
-      "name": "Barrel",
       "qty": 1,
       "equipped": false,
       "attuned": false,
       "notes": "",
-      "custom": null
+      "custom": null,
+      "uid": "61zjss",
+      "kind": "gear",
+      "ref": "barrel",
+      "name": "Barrel"
     }
   ],
   "currency": {
@@ -175,7 +175,9 @@
     "fail": 0
   },
   "resourcesUsed": {},
-  "conditions": [],
+  "conditions": [
+    "blinded"
+  ],
   "exhaustion": 0,
   "heroicInspiration": true,
   "xp": 0,
@@ -188,7 +190,8 @@
     "features": [
       "species:trance",
       "class:rogue-cunning-action"
-    ]
+    ],
+    "spells": []
   },
   "overrides": {
     "ac": null,
@@ -245,5 +248,5 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-22T04:25:57.154Z",
-  "updated": "2026-10-23T00:30:49.621Z"
+  "updated": "2026-10-23T19:00:12.629Z"
 }
