@@ -13,6 +13,7 @@
 <symbol id="i-journal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 17.5C8 10 13 5.5 20 4c-1.5 7-6 12-13.5 13.5z"/><path d="M4 20l8.5-8.5M14 20h6"/></g></symbol>
 <symbol id="i-compendium" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 19V5.5A1.5 1.5 0 0 1 7 4h11.5v13.5H7a1.5 1.5 0 0 0 0 3h11.5"/><path d="M10 4v6.5l1.75-1.25 1.75 1.25V4"/></g></symbol>
 <symbol id="i-library" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5H8V20H4.5zM9.5 7H13v13H9.5z"/><path d="M14.4 7.6l3.3-.9 3.6 13.3-3.3.9z"/><path d="M4.5 8H8M9.5 10.5H13"/></g></symbol>
+<symbol id="i-quests" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20.5V3.5"/><path d="M6 4.5h12l-3 4 3 4H6"/><path d="M4 20.5h4"/></g></symbol>
 <symbol id="i-settings" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/></g></symbol>
 
 <!-- ===================== Actions ===================== -->
@@ -79,6 +80,10 @@
 <symbol id="i-tag" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12.1V4.5a1 1 0 0 1 1-1h7.6l8.4 8.4a1.5 1.5 0 0 1 0 2.1l-6.5 6.5a1.5 1.5 0 0 1-2.1 0z"/><circle cx="8" cy="8" r="1.5"/></g></symbol>
 <symbol id="i-layers" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8.5 4.5L12 13 3.5 8.5z"/><path d="M3.5 12.5L12 17l8.5-4.5M3.5 16.5L12 21l8.5-4.5"/></g></symbol>
 <symbol id="i-compass" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></g></symbol>
+<!-- Quest types (Quests tab): main = crown, minor = waypoint diamond, side = reward chest -->
+<symbol id="i-quest-main" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 17.5L3.5 7.5l5 4L12 5l3.5 6.5 5-4-1 10z"/><path d="M4.5 20.5h15"/></g></symbol>
+<symbol id="i-quest-minor" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l7 8.5-7 8.5L5 12z"/><path d="M12 9.5l2 2.5-2 2.5-2-2.5z"/></g></symbol>
+<symbol id="i-quest-side" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16v7.5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 11V9.5A4.5 4.5 0 0 1 8.5 5h7A4.5 4.5 0 0 1 20 9.5V11"/><path d="M10.5 11v3h3v-3"/></g></symbol>
 
 <!-- ===================== Emblem ===================== -->
 <!-- A star fallen onto the wardens' trilithon, inside the ring of the firmament. -->

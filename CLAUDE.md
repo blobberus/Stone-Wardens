@@ -2,7 +2,7 @@
 
 Password-gated D&D 5e (**2024 rules / SRD 5.2**) campaign site on GitHub Pages for repo
 `blobberus/Stone-Wardens`. The original brief is `The Stone Wardens - A Fallen Firmament Campaign(1).md`.
-Tabs: **Map**, **Characters**, **Journal**, **Compendium** (SRD + custom library), **Warden's Library**
+Tabs: **Map**, **Characters**, **Journal**, **Quests**, **Compendium** (SRD + custom library), **Warden's Library**
 (renders PDFs/DOCX from `wardens-library/`), **Settings**.
 
 ## Hard rules
@@ -27,13 +27,14 @@ assets/css/           tokens.css (design tokens) base.css (components) shell.css
 assets/img/           icons.svg (sprite, <symbol id="i-NAME">), placeholder-map.svg
 assets/js/main.js     boot: gate -> store.load -> register views -> router.start
 assets/js/core/       shared infrastructure (see contracts below) — views must not reimplement these
-assets/js/views/<v>/  one folder per tab: map, characters, journal, compendium, wardens-library, settings
+assets/js/views/<v>/  one folder per tab: map, characters, journal, quests, compendium, wardens-library, settings
 srd/                  generated SRD 5.2 JSON (tools/build_srd.py) + srd/stubs/*.json; read-only at runtime
 content/              ALL user data, written by the site through the GitHub API
   characters/<id>.json  characters/recently-deleted/<id>.json (trash, `trashed:{at,by}`)
   locations/<id>.json (optional `map` sub-map id, `submap` it opens, `rank` 1-4)  map/config.json (+ map image)
   maps/<mapId>.json + maps/<mapId>/<image>   sub-maps {id,name,parent,image,width,height}; docs/map-model.md
                                 (sample: starfall-vale-p94a "Starfall Vale" + 2 places, safe to delete)
+  quests/<id>.json  media/quests/<file>   quest log (docs/quests-model.md)
   journal/<folder…>/<note>.md   nested folders; optional _chapter.json in any folder = folder metadata
                                 {title, description, order} (also keeps empty folders in git); root notes journal/*.md
                                 frontmatter `images:` = reference photos (slideshow; docs/journal-model.md)
@@ -87,7 +88,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   suggest(q) -> [{label, value}]})`. `resolveLink(raw)`; un-prefixed `[[X]]` -> journal note, else first exact
   name match across types, else unresolved (click offers to create note).
   Prefixes: `map:` locations and sub-maps (place id > map id > place name > map name; `[[map:Map#Place]]`), `char:` characters (`[[char:Name#hp]]` anchors a sheet section/stat),
-  `note:` journal, `folder:` journal folder (legacy `chapter:`), `doc:` warden's library, compendium kinds: `weapon: armor: gear: item: spell: feat:
+  `note:` journal, `folder:` journal folder (legacy `chapter:`), `doc:` warden's library, `quest:` quests, compendium kinds: `weapon: armor: gear: item: spell: feat:
   ability: species: class: subclass: background:`.
 - `markdown.js`: Obsidian-flavoured: `[[wikilinks|alias]]`, `[[x#heading]]`, `![[embed]]` (notes/images),
   `> [!type]± title` callouts, `==highlight==`, `%%comment%%`, `#tags`, task lists, tables, GFM autolinks,
@@ -107,13 +108,19 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   imports the ids in `VIEW_IDS` (a failed import shows an error tab instead of breaking the app). Views register
   their link types at import time and re-render from `store.on` events.
 - Routes: `#/map[/loc/<id>]`, `#/map/m/<mapId>[/loc/<id>]` (sub-maps), `#/characters[/<id>[/<section>]]`, `#/journal[/_|/<folder…>[/<note>]][?h=|q=|tag=|folder]`,
-  `#/journal/new?title=`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`.
+  `#/journal/new?title=`, `#/quests[/<id>[/edit]]`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`.
 
 ## Map tab
 - Model, routes, ranks and links: `docs/map-model.md`. Controls float over the map: search (top left) with the
   **Maps** button on its right (`collection.js`: every map nested by parent, with thumbnail, parent, place count and
   a copy-able `[[map:Name]]` link), the current map's name under them (`createCrumbs`: parents as links on sub-maps);
   right toolbar Add location, Filter, Labels, ⋯.
+
+## Quests tab
+- Quest log (left: Main, then Minor grouped under the main quest they lead to, then Side; symbols crown / diamond /
+  chest; Active / Finished / All; search) | open quest (right: image only here, characters, objectives, description,
+  rewards, a main quest's minor quests; edited in place). Pure model `views/quests/model.js`
+  (`node tools/test_quests.mjs`); docs/quests-model.md.
 
 ## Journal tab
 - Obsidian-style vault (docs/journal-model.md): left pane Files (tree, drag-move, context menu) | Search (`tag:`
@@ -172,7 +179,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).
 - Rules engine: `node tools/test_engine.mjs` and `node tools/test_spells.mjs` (spell numbers, XP, spell filters; both must stay
-  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). `node tools/audit_spells.mjs` lists spells whose text implies numbers
+  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
   the sheet doesn't show (11 known, intentional gaps).
 - Syntax: portable `node --check`. Markdown renderer can be exercised in Node by stubbing `DOMPurify.sanitize`.
 

@@ -10,7 +10,7 @@ import { icon, toast, choiceDialog } from './core/ui.js';
 import { preloadAll } from './core/compendium.js';
 import { setSaveHandler } from './core/saving.js';
 
-const VIEW_IDS = ['map', 'characters', 'journal', 'compendium', 'wardens-library', 'settings'];
+const VIEW_IDS = ['map', 'characters', 'journal', 'quests', 'compendium', 'wardens-library', 'settings'];
 const isLocalhost = ['localhost', '127.0.0.1', ''].includes(location.hostname);
 
 applyTheme();
