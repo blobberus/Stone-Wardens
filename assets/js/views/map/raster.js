@@ -121,10 +121,14 @@ export function loadImageSource(url, { width, height, svg = false }) {
   return hit.promise;
 }
 
-/** An L.GridLayer that draws the source as canvas tiles. */
-export function createImageLayer(source) {
+/** An L.GridLayer that draws the source as canvas tiles; crop {x, y, w, h} (image px) draws only that part. */
+export function createImageLayer(source, { crop = null } = {}) {
   const L = window.L;
   const { width: W, height: H, levels, vector } = source;
+  const cx0 = crop ? Math.max(0, crop.x) : 0;
+  const cy0 = crop ? Math.max(0, crop.y) : 0;
+  const cx1 = crop ? Math.min(W, crop.x + crop.w) : W;
+  const cy1 = crop ? Math.min(H, crop.y + crop.h) : H;
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const top = levels[0];
   // Past the full-resolution level, tiles of that level are simply scaled (SVGs keep drawing vectors).
@@ -145,10 +149,10 @@ export function createImageLayer(source) {
     const useVector = vector && k > top.sx * 1.02;
     const mx = useVector ? 0 : 1 / lv.sx; // 1 source px of overlap hides seams between tiles
     const my = useVector ? 0 : 1 / lv.sy;
-    const ix0 = Math.max(0, x0 - mx);
-    const iy0 = Math.max(0, y0 - my);
-    const ix1 = Math.min(W, x0 + span + mx);
-    const iy1 = Math.min(H, y0 + span + my);
+    const ix0 = Math.max(cx0, x0 - mx);
+    const iy0 = Math.max(cy0, y0 - my);
+    const ix1 = Math.min(cx1, x0 + span + mx);
+    const iy1 = Math.min(cy1, y0 + span + my);
     if (ix1 <= ix0 || iy1 <= iy0) return;
     g.imageSmoothingEnabled = true;
     g.imageSmoothingQuality = 'medium';
@@ -213,6 +217,6 @@ export function createImageLayer(source) {
     updateWhenZooming: true, // tiles are cheap, so long zooms switch to sharper levels on the way
     keepBuffer: 2,
     className: 'map-tiles',
-    bounds: L.latLngBounds([[-H, 0], [0, W]]),
+    bounds: L.latLngBounds([[-cy1, cx0], [-cy0, cx1]]),
   });
 }

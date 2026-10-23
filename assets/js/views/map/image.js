@@ -79,7 +79,7 @@ export async function stageImage(mapId, { file, ext, size }) {
   const cfg = data.readMapConfig(mapId);
   const path = `${data.mapImageDir(mapId)}/${slugify(stripExt(file.name)) || 'map'}.${ext}`;
   try {
-    await store.putBinary(path, file);
+    await store.putBinary(path, file, { hidden: data.mapHidden(mapId) ? true : null }); // a hidden map's image stays hidden
   } catch (e) {
     console.error(e);
     toast(`Could not stage the image: ${e.message}`, { type: 'error' });
@@ -96,24 +96,37 @@ function sizeDiffers(a, b) {
     && (Math.round(a.width) !== Math.round(b.width) || Math.round(a.height) !== Math.round(b.height));
 }
 
+/** Pins, pictures, fog, crop and scale follow the new size. */
 function rescalePins(mapId, from, to) {
-  const sx = to.width / from.width;
-  const sy = to.height / from.height;
-  for (const loc of data.locationsOn(mapId)) data.saveLocation({ ...loc, x: loc.x * sx, y: loc.y * sy });
+  data.rescaleMapContent(mapId, to.width / from.width, to.height / from.height);
 }
 
-/** Ask what to do with existing pins when the map size changes. Resolves 'rescale' | 'keep' | null (cancel). */
-async function askRescale(mapId, from, to, verb) {
+/** What on this map is placed in image pixels: pins, and pictures, fog, a crop or a scale ("" when nothing). */
+function placedThings(mapId) {
+  const d = data.readMapConfig(mapId).design || {};
+  const parts = [];
   const n = data.locationsOn(mapId).length;
-  if (!n || !sizeDiffers(from, to)) return 'keep';
+  if (n) parts.push(plural(n, 'existing pin'));
+  const p = data.picturesOn(mapId).length;
+  if (p) parts.push(plural(p, 'picture'));
+  if (data.fogOf(mapId).ops.length) parts.push('the fog');
+  if (d.crop) parts.push('the crop');
+  if (Number(d.scale?.perPx) > 0) parts.push('the scale');
+  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0] || '';
+}
+
+/** Ask what to do with what is placed on the map when its size changes. Resolves 'rescale' | 'keep' | null (cancel). */
+async function askRescale(mapId, from, to, verb) {
+  const what = placedThings(mapId);
+  if (!what || !sizeDiffers(from, to)) return 'keep';
   return choiceDialog(
     h('div', { class: 'stack' },
       h('p', null, `The new image is ${fmtSize(to)}; the current map is ${fmtSize(from)}.`),
-      h('p', null, `Pins are stored in image pixels. Rescale the ${plural(n, 'existing pin')} so each keeps its relative place, or keep their pixel coordinates? (Edit map → Offset / scale can fine-tune them later.)`)),
+      h('p', null, `Pins, pictures and fog are stored in image pixels. Rescale ${what} so everything keeps its relative place, or keep the pixel coordinates? (Edit map → Offset / scale can fine-tune pins later.)`)),
     [
       { label: 'Cancel', value: null, kind: 'ghost' },
       { label: `${verb}, keep coordinates`, value: 'keep', kind: 'ghost' },
-      { label: `${verb} and rescale pins`, value: 'rescale', kind: 'primary' },
+      { label: `${verb} and rescale`, value: 'rescale', kind: 'primary' },
     ],
     { title: 'The map size is changing' },
   );
@@ -137,7 +150,7 @@ export async function resetImage(info) {
   const cfg = data.readMapConfig(info.id);
   if (data.isPlaceholderImage(cfg.image)) { toast('This map already uses the placeholder.'); return false; }
   const ph = await data.placeholderSize();
-  const asked = data.locationsOn(info.id).length > 0 && sizeDiffers(info, ph);
+  const asked = !!placedThings(info.id) && sizeDiffers(info, ph);
   const choice = asked
     ? await askRescale(info.id, info, ph, 'Reset')
     : ((await confirmDialog(

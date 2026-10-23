@@ -9,6 +9,7 @@ import { nameKey } from '../../core/util.js';
 import * as data from './data.js';
 import { popover } from './controls.js';
 import { copyText } from './drawer.js';
+import { hiddenMark } from '../../core/dm-ui.js';
 
 const FILTER_FROM = 7; // the filter field appears once there are this many maps
 const THUMB_W = 240; // px; drawn at 72 css px, so sharp up to 3x screens
@@ -77,7 +78,7 @@ export function createCollection(ctx) {
 
   function entry(m, cur, nested) {
     const here = m.id === cur;
-    const n = data.locationsOn(m.id).length;
+    const n = ctx.placeCount ? ctx.placeCount(m.id) : data.locationsOn(m.id).length;
     const link = data.mapLinkText(m);
     const img = h('img', { class: 'map-coll-thumb', alt: '', width: 72, height: 54, decoding: 'async' });
     img.dataset.image = m.image || '';
@@ -89,7 +90,7 @@ export function createCollection(ctx) {
       },
       img,
       h('span', { class: 'map-coll-text' },
-        h('span', { class: 'map-coll-name' }, h('strong', null, m.name), here ? h('span', { class: 'badge badge-accent' }, 'Shown') : null),
+        h('span', { class: 'map-coll-name' }, h('strong', null, m.name), m.isMain ? null : hiddenMark(data.mapPath(m.id)), here ? h('span', { class: 'badge badge-accent' }, 'Shown') : null),
         h('span', { class: 'map-coll-meta' }, `${m.isMain ? 'Main map' : `in ${data.mapById(m.parent)?.name || 'the main map'}`} · ${plural(n, 'place')}`),
         h('code', { class: 'map-coll-link' }, link))),
       h('button', {

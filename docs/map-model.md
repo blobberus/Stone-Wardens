@@ -4,16 +4,20 @@ Code: `assets/js/views/map/` — `index.js` (view, routes, markers, hierarchy pa
 registry, `map:` link type), `raster.js` (image tiles), `zoom.js` (smooth zoom), `ranks.js`, `edit.js` (edit mode),
 `submaps.js` (create/delete dialogs), `drawer.js`, `controls.js` (search, filter, ⋯ menu, breadcrumb, popover helper),
 `collection.js` (the "Maps" button and the map collection), `image.js`, `pins.js`, `typeform.js`. Styles: `assets/css/map.css`.
+Design (background, crop, compass, scale and ruler, border), pictures on maps, fog of war and duplicating maps:
+`docs/map-design.md` (`design.js`, `decor.js`, `pictures.js`, `fog.js`, `fogdraw.js`, `fogview.js`, `designpanel.js`, `layers.js`).
 
 ## Documents
 
 | What | Path | Notes |
 |---|---|---|
-| Main map | `content/map/config.json` | `{image, width, height, name, rankBands?}` — unchanged from before sub-maps |
+| Main map | `content/map/config.json` | `{image, width, height, name, rankBands?, design?}` — unchanged from before sub-maps |
 | Main map image | `content/map/<file>.<ext>` | |
-| Sub-map | `content/maps/<mapId>.json` | `{id, name, parent, image, width, height, createdBy, created, updated, rankBands?}` |
+| Sub-map | `content/maps/<mapId>.json` | `{id, name, parent, image, width, height, createdBy, created, updated, rankBands?, design?, copiedFrom?}` |
 | Sub-map image | `content/maps/<mapId>/<file>.<ext>` | |
 | Place | `content/locations/<id>.json` | every place on every map |
+| Picture | `content/map-pictures/<id>.json` | an image laid on a map (`docs/map-design.md`); the file in `content/media/map-pictures/` |
+| Fog | `content/fog/<mapId>.json` | the map's fog of war (`docs/map-design.md`) |
 
 - The main map's id is the reserved word `main`; sub-map ids are `uid(name)` (`duskhold-k3x9`), filename = id.
 - `parent`: the map it sits inside (`main` or another sub-map id). Unknown, self or cyclic parents are treated as

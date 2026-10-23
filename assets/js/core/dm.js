@@ -26,7 +26,7 @@ const PREFS = 'sw:dm:prefs';
 const INBOX_KEEP_DAYS = 30;
 const RELEASED_KEEP = 300;
 
-const S = { key: null, raw: null, items: new Map(), listeners: new Set(), recent: [], loading: null };
+const S = { key: null, raw: null, items: new Map(), listeners: new Set(), recent: [], loading: null, busy: new Set() };
 const kinds = []; // {prefix, label, icon, describe(path, data) -> {title, href}}
 
 // ---------- what can be hidden ----------
@@ -34,6 +34,8 @@ const kinds = []; // {prefix, label, icon, describe(path, data) -> {title, href}
 /**
  * Tabs describe their hideable items (DM Screen lists, released log, notifications):
  * registerHideable({prefix: 'content/quests/', label: 'Quest', icon: 'quests', describe(path, data) -> {title, href}})
+ * Optional: companions(path) -> [paths] hidden along with the item (a map's places, image and sub-maps) and released
+ * with it; releaseBlock(path, data) -> a reason it can't be released on its own (a place on a hidden map), or null.
  */
 export function registerHideable(def) {
   const i = kinds.findIndex((k) => k.prefix === def.prefix);
@@ -65,6 +67,8 @@ export function describe(path, data = undefined) {
 export const dmConfigured = () => store.has(DM_VAULT);
 export const isDm = () => !!S.key;
 export const isHidden = (path) => !!path && S.items.has(path);
+/** Is this item being hidden or released right now? (Its switch stays disabled meanwhile.) */
+export const dmBusy = (path) => S.busy.has(path);
 export const onDm = (fn) => { S.listeners.add(fn); return () => S.listeners.delete(fn); };
 const notify = () => { for (const fn of S.listeners) { try { fn(); } catch (e) { console.error(e); } } };
 const modeListeners = new Set();
@@ -194,6 +198,7 @@ function newItem(path) {
 // would be hidden again (and listed both as hidden and as released).
 async function seal(it) {
   const meta = { v: 1, path: it.path, size: it.size || 0, mime: it.mime || mimeOf(it.path), sha: it.sha || null, hiddenAt: it.hiddenAt, by: it.by };
+  if (it.with?.length) meta.with = it.with; // hidden together with it (companions), released with it
   if (it.bin) meta.bin = it.bin; else meta.text = it.text ?? '';
   it.sealing = (async () => {
     const env = await sealJson(S.key, meta);
@@ -320,22 +325,47 @@ function setReleased(list) {
 
 /**
  * Hide an existing (public) item: seal it, then delete the plain file (earlier versions stay in the git history).
- * Uploaded images it names (content/media/…) go with it, unless another visible document names them too.
+ * Uploaded images it names (content/media/…) go with it, unless another visible document names them too, and so do
+ * its companions (registerHideable), which are released with it.
  */
-export async function hideItem(path, { withAttachments = true } = {}) {
+export async function hideItem(path, opts = {}) {
   if (!S.key) throw new Error('locked');
   if (S.items.has(path)) return;
+  if (S.busy.has(path)) throw new Error('busy');
+  S.busy.add(path);
+  try { await hideNow(path, opts); } finally { S.busy.delete(path); }
+}
+
+async function hideNow(path, { withAttachments = true } = {}) {
+  const companions = [];
+  const kind = kindOf(path);
+  if (kind?.companions) {
+    let list = [];
+    try { list = (await kind.companions(path)) || []; } catch (e) { console.warn('[dm] companions failed', e); }
+    let failed = null;
+    for (const p of list) {
+      if (!p || p === path || S.items.has(p)) continue; // already hidden on its own: it stays hidden after a release
+      try { await hideItem(p); companions.push(p); } catch (e) { if (e.message !== 'missing') { failed = e; break; } }
+    }
+    if (failed) { // all or nothing: what was hidden for it goes back, and the DM is told (nothing left half public)
+      for (const p of companions.reverse()) await releaseItem(p, { announce: false, attachment: true }).catch(() => {});
+      throw new Error(`part of it could not be hidden (${failed.message || failed}). Nothing was hidden; try again.`);
+    }
+  }
   if (withAttachments && isTextPath(path)) {
     const text = (await store.text(path)) || '';
-    const others = store.list('content', { recursive: true })
+    const named = store.files('content/media/').filter((f) => !f.hidden && text.includes(f.path));
+    // only then the (costly) look at every other visible document: a map's places, hidden with it, name no images
+    const others = named.length ? store.list('content', { recursive: true })
       .filter((d) => d.path !== path && !S.items.has(d.path) && !d.path.startsWith(`${DM_DIR}/`) && !d.path.startsWith(`${INBOX_DIR}/`))
-      .map((d) => JSON.stringify(d.data));
-    for (const f of store.files('content/media/')) {
-      if (f.hidden || !text.includes(f.path) || others.some((t) => t.includes(f.path))) continue;
+      .map((d) => JSON.stringify(d.data)) : [];
+    for (const f of named) {
+      if (others.some((t) => t.includes(f.path))) continue;
       await hideItem(f.path, { withAttachments: false });
     }
   }
   const it = newItem(path);
+  if (companions.length) it.with = companions;
   if (isTextPath(path)) {
     const text = await store.text(path);
     if (text == null) throw new Error('missing');
@@ -360,9 +390,18 @@ export async function hideItem(path, { withAttachments = true } = {}) {
  * Release a hidden item: the plain file goes back to its path (with any hidden files whose path it names, e.g. its
  * image), the envelope goes, it joins the released log and everyone gets a notification.
  */
-export async function releaseItem(path, { announce = true, attachment = false } = {}) {
+export async function releaseItem(path, opts = {}) {
+  if (!S.items.has(path) || !S.key) return null;
+  if (S.busy.has(path)) throw new Error('busy');
+  S.busy.add(path);
+  try { return await releaseNow(path, opts); } finally { S.busy.delete(path); }
+}
+
+async function releaseNow(path, { announce = true, attachment = false } = {}) {
   const it = S.items.get(path);
-  if (!it || !S.key) return null;
+  if (!it) return null;
+  const why = attachment ? null : kindOf(path)?.releaseBlock?.(path, it.data);
+  if (why) throw new Error(why);
   await flush(it);
   const info = describe(path, it.data);
   const bytes = it.bin ? await plainBytes(it) : null;
@@ -375,6 +414,17 @@ export async function releaseItem(path, { announce = true, attachment = false } 
   if (it.bin) store.remove(it.bin);
   // attachments: hidden files this one names (a quest's image, a note's photos)
   if (it.text) for (const other of [...S.items.keys()]) if (it.text.includes(other)) await releaseItem(other, { announce: false, attachment: true });
+  for (const other of it.with || []) if (S.items.has(other)) await releaseItem(other, { announce: false, attachment: true }); // its companions
+  // and companions added (hidden) after it was hidden, e.g. places made on a hidden map; older ones were hidden on their own
+  const kind = kindOf(path);
+  if (kind?.companions) {
+    let later = [];
+    try { later = (await kind.companions(path)) || []; } catch (e) { console.warn('[dm] companions failed', e); }
+    for (const other of later) {
+      const o = S.items.get(other);
+      if (o && String(o.hiddenAt || '') >= String(it.hiddenAt || '')) await releaseItem(other, { announce: false, attachment: true });
+    }
+  }
   if (attachment) { notify(); return info; }
   const now = new Date().toISOString();
   setReleased([{ path, title: info.title, label: info.label, href: info.href, at: now, by: byWho() }, ...releasedItems().filter((x) => x.path !== path)]);

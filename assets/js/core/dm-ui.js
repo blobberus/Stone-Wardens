@@ -11,7 +11,7 @@ import { store } from './store.js';
 import { saveNow, saveSoon } from './saving.js';
 import {
   isDm, isHidden, onDm, dmConfigured, setupDm, unlockDm, dmNewHidden, setDmNewHidden, hideItem, releaseItem, describe,
-  isHideablePath, INBOX_DIR,
+  isHideablePath, INBOX_DIR, dmBusy,
 } from './dm.js';
 
 const INBOX_KEY = 'sw:inbox'; // {seen: ISO time everything before is read, read: [id]}
@@ -218,11 +218,12 @@ export function visibilityToggle(path, opts = {}) {
   if (!isDm() || !p || !isHideablePath(p)) return null;
   const hidden = isHidden(p);
   const self = h('button', {
-    class: ['btn', 'btn-sm', 'dm-vis', hidden ? 'is-hidden' : 'is-visible'], type: 'button', 'aria-pressed': String(hidden),
+    class: ['btn', 'btn-sm', 'dm-vis', hidden ? 'is-hidden' : 'is-visible'], type: 'button', 'aria-pressed': String(hidden), disabled: dmBusy(p), // redrawn mid-change: wait
     title: hidden ? `Only you can see ${label}. Click to release it to the players.` : `Players can see ${label}. Click to hide it.`,
     onclick: async (e) => {
       const btn = e.currentTarget;
       btn.disabled = true;
+      let done = false;
       try {
         await before?.(); // e.g. an editor writes its pending draft first
         if (hidden) {
@@ -237,10 +238,14 @@ export function visibilityToggle(path, opts = {}) {
           toast('Hidden from the players. Earlier versions stay in the site’s history on GitHub.', { timeout: 6000 });
         }
         if (self.isConnected) self.replaceWith(visibilityToggle(path, opts) || '');
+        done = true;
         onChange?.(!hidden);
       } catch (err) {
         toast(`Could not change it: ${err.message || err}`, { type: 'error' });
-      } finally { btn.disabled = false; }
+      } finally {
+        btn.disabled = false;
+        if (!done && !self.isConnected) onChange?.(hidden); // the view redrew this switch meanwhile (disabled): draw it again
+      }
     },
   }, icon(hidden ? 'eye-off' : 'eye'), hidden ? 'Hidden from players' : 'Visible to players');
   return self;

@@ -320,6 +320,8 @@ export function createMenu(ctx) {
       h('div', { class: 'map-pop-scroll map-menu-scroll' },
         item(editing ? 'check' : 'edit', editing ? 'Finish editing' : 'Edit map', ctx.toggleEdit, { hint: editing ? 'Back to the normal map' : 'Move, rename and re-rank every place', cls: 'map-menu-strong' }),
         item('filter', 'Filter places…', ctx.openFilter, { hint: 'By rank or location type' }),
+        ctx.canDesign?.() ? item('compass', 'Design map…', ctx.designMap, { hint: 'Background, crop, compass, scale, border, pictures, fog' }) : null,
+        ctx.hasDecor?.() ? item(ctx.decorOff() ? 'eye' : 'eye-off', ctx.decorOff() ? 'Show compass, scale and border' : 'Hide compass, scale and border', ctx.toggleDecor, { hint: 'On this device only' }) : null,
         h('hr', { class: 'map-menu-sep' }),
         h('p', { class: 'map-menu-label' }, info.isMain ? 'Sub-maps' : `Sub-maps of ${info.name}`),
         subs.map((m) => item('layers', m.name, () => ctx.openMap(m.id), { hint: `${m.count} place${m.count === 1 ? '' : 's'}` })),
@@ -329,6 +331,7 @@ export function createMenu(ctx) {
         item('upload', 'Replace map image…', ctx.replaceImage, { hint: 'PNG, JPG, WebP or SVG — e.g. a Wonderdraft export' }),
         item('undo', 'Reset to placeholder', ctx.resetImage, { disabled: info.isPlaceholder }),
         item('edit', 'Rename map…', ctx.rename),
+        item('copy', 'Duplicate this map…', ctx.copyMap, { hint: 'A new map with the same image, design, places, pictures and fog' }),
         item('link', 'Copy link to this map', ctx.copyLink),
         item('compass', 'Show the whole map', ctx.fit),
         info.isMain ? null : [h('hr', { class: 'map-menu-sep' }), item('trash', 'Delete this map…', ctx.deleteMap, { cls: 'map-menu-danger' })]));
@@ -339,15 +342,19 @@ export function createMenu(ctx) {
 // ---------- current map name (breadcrumb) ----------
 
 /**
- * ctx: {chain() -> [map], href(id)}. The name of the map shown, under the search; on a sub-map its parents come
- * first as links ("The Uncharted Realm › Starfall Vale"). The map collection (collection.js) lists every map.
+ * ctx: {chain() -> [map], href(id), mark(map) -> node|null, extra() -> node|null}. The name of the map shown, under
+ * the search; on a sub-map its parents come first as links ("The Uncharted Realm › Starfall Vale"). The map
+ * collection (collection.js) lists every map. mark: a lock beside a hidden map's name, extra: the DM's hide /
+ * release switch for the map shown (DM mode).
  */
 export function createCrumbs(ctx) {
   const list = h('ol', { class: 'map-crumbs-list' });
+  const slot = h('div', { class: 'map-crumbs-extra' });
   const el = h('nav', { class: 'map-crumbs', 'aria-label': 'Current map', hidden: true }, list);
+  const wrap = h('div', { class: 'map-crumbs-wrap' }, el, slot);
 
   return {
-    el,
+    el: wrap,
     update() {
       const chain = ctx.chain();
       el.hidden = !chain.length;
@@ -356,9 +363,12 @@ export function createCrumbs(ctx) {
       chain.forEach((m, i) => {
         const last = i === chain.length - 1;
         list.append(h('li', null, last
-          ? h('span', { class: 'map-crumb is-current', 'aria-current': 'page' }, m.name)
-          : h('a', { class: 'map-crumb', href: ctx.href(m.id), title: `Back to ${m.name}` }, m.name)));
+          ? h('span', { class: 'map-crumb is-current', 'aria-current': 'page' }, m.name, ctx.mark?.(m))
+          : h('a', { class: 'map-crumb', href: ctx.href(m.id), title: `Back to ${m.name}` }, m.name, ctx.mark?.(m))));
       });
+      const extra = ctx.extra?.() || null;
+      slot.hidden = !extra;
+      if (extra) slot.replaceChildren(extra); else clear(slot);
     },
   };
 }

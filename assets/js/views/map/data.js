@@ -1,8 +1,10 @@
 // Map data layer: maps (the main map + nested sub-maps), location documents, location types (built-in +
 // custom), backlinks from the journal, and the [[map:…]] link type (registered at import).
 // Layout: content/map/config.json = the main map; content/maps/<mapId>.json = a sub-map, its image in
-// content/maps/<mapId>/; content/locations/<id>.json = a place ("map" field = its sub-map, absent = main).
-// See docs/map-model.md.
+// content/maps/<mapId>/; content/locations/<id>.json = a place ("map" field = its sub-map, absent = main);
+// content/map-pictures/<id>.json = a picture laid on a map; content/fog/<mapId>.json = a map's fog of war.
+// DM mode: a hidden sub-map takes its places, image, pictures, fog and sub-maps with it (companions), and whatever is
+// added to a hidden map starts hidden. See docs/map-model.md and docs/map-design.md.
 import { store } from '../../core/store.js';
 import { registerLinkType, matchNames } from '../../core/links.js';
 import { entries } from '../../core/compendium.js';
@@ -10,7 +12,10 @@ import { extractLinks, parseFrontmatter } from '../../core/markdown.js';
 import { href } from '../../core/router.js';
 import { uid, nameKey, slugify, byName, baseName } from '../../core/util.js';
 import { getSetting } from '../../core/settings.js';
+import { registerHideable, isHidden, hideItem, isDm, dmConfigured } from '../../core/dm.js';
 import { validRank, normBands } from './ranks.js';
+import { normDesign } from './design.js';
+import { FOG_DIR, fogPath, normFog, scaleOps, fogCovers } from './fog.js';
 
 export const LOC_DIR = 'content/locations';
 export const MAP_DIR = 'content/map';
@@ -20,6 +25,9 @@ export const MAIN_MAP = 'main';
 export const TYPE_KIND = 'location-type';
 export const TYPE_DIR = `content/library/${TYPE_KIND}`;
 export const JOURNAL_DIR = 'content/journal';
+export const PIC_DIR = 'content/map-pictures';
+export const PIC_MEDIA = 'content/media/map-pictures';
+export { FOG_DIR, fogPath };
 export const PLACEHOLDER_IMAGE = 'assets/img/placeholder-map.svg';
 export const DEFAULT_SIZE = { width: 4000, height: 3000 };
 export const DEFAULT_MAP_NAME = 'The Uncharted Realm';
@@ -286,16 +294,23 @@ export function writeMapConfig(id, patch) {
 /** Back-compat: patch the main map's config. */
 export const writeConfig = (patch) => writeMapConfig(MAIN_MAP, patch);
 
-/** Create a sub-map (blank placeholder image). Returns its id. */
-export function createMap({ name, parent = MAIN_MAP }) {
+/** Can this device change maps' design, pictures and fog? The DM in DM mode; anyone while no DM is set up. */
+export const canDesign = () => isDm() || !dmConfigured();
+/** Is this sub-map hidden from the players (DM mode)? The main map never is. */
+export const mapHidden = (id) => !!id && id !== MAIN_MAP && isHidden(mapPath(id));
+
+/** Create a sub-map (blank placeholder image). Returns its id. hidden (DM mode): a sub-map of a hidden map always is. */
+export function createMap({ name, parent = MAIN_MAP, hidden = null }) {
   const n = String(name || '').trim() || 'New map';
-  let id = uid(n);
-  while (id === MAIN_MAP || store.has(mapPath(id))) id = uid(n);
+  const par = mapById(parent) ? parent : MAIN_MAP;
+  const base = mapHidden(par) || hidden === true ? 'map' : n; // a hidden map's id must not spell its name: visible places may name it (submap)
+  let id = uid(base);
+  while (id === MAIN_MAP || store.has(mapPath(id))) id = uid(base);
   const now = new Date().toISOString();
   store.put(mapPath(id), {
-    id, name: n, parent: mapById(parent) ? parent : MAIN_MAP, image: '', width: 0, height: 0,
+    id, name: n, parent: par, image: '', width: 0, height: 0,
     createdBy: getSetting('playerName') || '', created: now, updated: now,
-  });
+  }, { hidden: mapHidden(par) ? true : hidden });
   return id;
 }
 
@@ -346,12 +361,15 @@ export async function effectiveConfig(id = MAIN_MAP) {
     name: m.name,
     isPlaceholder: placeholder,
     bands: normBands(c.rankBands),
+    design: normDesign(c.design, { width, height }),
   };
 }
 
 // ---------- locations ----------
 
 let locIndex = null;
+// Places sharing a name: links by name keep opening the older one (e.g. after a map was duplicated).
+const older = (a, b) => String(a.created || '') < String(b.created || '');
 
 function normLoc(d, path) {
   const fileId = baseName(path).replace(/\.json$/i, '');
@@ -390,9 +408,9 @@ function index() {
       byId.set(l.id, l);
       if (l.id !== String(l.id).toLowerCase()) byId.set(String(l.id).toLowerCase(), l);
       const k = nameKey(l.name);
-      if (!byKey.has(k)) byKey.set(k, l);
+      if (!byKey.has(k) || older(l, byKey.get(k))) byKey.set(k, l);
       const s = slugify(l.name);
-      if (!bySlug.has(s)) bySlug.set(s, l);
+      if (!bySlug.has(s) || older(l, bySlug.get(s))) bySlug.set(s, l);
       if (!byMap.has(l.map)) byMap.set(l.map, []);
       byMap.get(l.map).push(l);
     }
@@ -457,7 +475,11 @@ export function saveLocation(loc, { hidden = null } = {}) {
     ...extra,
   };
   const p = path || locPath(id);
-  store.put(p, doc, { hidden });
+  // A place on a hidden map is hidden too: players would otherwise see it on the main map (normLoc's lost pins).
+  const onHidden = mapHidden(doc.map);
+  const isNew = !store.has(p);
+  store.put(p, doc, { hidden: onHidden && isNew ? true : hidden });
+  if (onHidden && !isNew && !isHidden(p)) hideItem(p).catch((e) => console.warn('[map] could not hide a place moved to a hidden map', e));
   return locationById(baseName(p).replace(/\.json$/i, '')) || normLoc(doc, p);
 }
 
@@ -513,9 +535,219 @@ export async function deleteMap(id, { pins = 'move' } = {}) {
   }
   for (const c of childMaps(id)) writeMapConfig(c.id, { parent });
   for (const l of linksTo(id)) saveLocation({ ...l, submap: null });
+  for (const pic of picturesOn(id)) deletePicture(pic);
+  if (store.has(fogPath(id))) store.remove(fogPath(id));
   for (const f of store.files(`${mapImageDir(id)}/`)) store.remove(f.path);
   store.remove(mapPath(id));
 }
+
+// ---------- pictures laid on a map ----------
+
+let picIndex = null;
+const fin = (v, d = 0) => (v !== null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : d);
+export const picPath = (id) => `${PIC_DIR}/${id}.json`;
+
+function normPic(d, path) {
+  return {
+    ...d,
+    id: baseName(path).replace(/\.json$/i, ''),
+    path,
+    map: typeof d.map === 'string' && d.map ? d.map : MAIN_MAP,
+    name: String(d.name ?? '').trim() || 'Picture',
+    src: typeof d.src === 'string' && /^(content\/|https:\/\/)/.test(d.src) && !d.src.includes('..') ? d.src : '',
+    x: fin(d.x),
+    y: fin(d.y),
+    w: Math.max(1, fin(d.w, 100)),
+    h: Math.max(1, fin(d.h, 100)),
+    rotation: ((fin(d.rotation) % 360) + 360) % 360,
+    opacity: Math.min(1, Math.max(0.05, fin(d.opacity, 1))),
+    order: fin(d.order),
+  };
+}
+
+/** Every picture, by map. */
+function pics() {
+  if (!picIndex) {
+    picIndex = new Map();
+    for (const { path, data } of store.list(PIC_DIR)) {
+      if (!path.endsWith('.json') || !isObj(data)) continue;
+      const p = normPic(data, path);
+      if (!picIndex.has(p.map)) picIndex.set(p.map, []);
+      picIndex.get(p.map).push(p);
+    }
+    for (const l of picIndex.values()) l.sort((a, b) => a.order - b.order || String(a.created || '').localeCompare(String(b.created || '')));
+  }
+  return picIndex;
+}
+/** Pictures on a map, bottom first. Shared objects: treat as read-only. */
+export const picturesOn = (mapId) => pics().get(mapId) || [];
+export const pictureById = (id) => { for (const l of pics().values()) { const p = l.find((x) => x.id === id); if (p) return p; } return null; };
+
+/** Create or update a picture; returns its id. A new picture on a hidden map is hidden. */
+export function savePicture(pic, { hidden = null } = {}) {
+  const now = new Date().toISOString();
+  let id = pic.id;
+  if (!id) {
+    id = uid(pic.name || 'picture');
+    while (store.has(picPath(id))) id = uid(pic.name || 'picture');
+  }
+  const { path: _p, id: _i, ...rest } = pic;
+  const doc = {
+    ...rest,
+    id,
+    map: pic.map || MAIN_MAP,
+    name: String(pic.name || '').trim() || 'Picture',
+    x: round(pic.x), y: round(pic.y), w: round(pic.w), h: round(pic.h),
+    rotation: Math.round((fin(pic.rotation) % 360) * 10) / 10,
+    opacity: Math.round(fin(pic.opacity, 1) * 100) / 100,
+    createdBy: pic.createdBy ?? (getSetting('playerName') || ''),
+    created: pic.created || now,
+    updated: now,
+  };
+  const p = picPath(id);
+  store.put(p, doc, { hidden: !store.has(p) && mapHidden(doc.map) ? true : hidden });
+  return id;
+}
+
+/** Delete a picture (its uploaded image too, once no other picture uses it). */
+export function deletePicture(pic) {
+  store.remove(pic.path || picPath(pic.id));
+  if (pic.src?.startsWith(`${PIC_MEDIA}/`) && ![...pics().values()].flat().some((x) => x.id !== pic.id && x.src === pic.src)) store.remove(pic.src);
+}
+
+// ---------- fog of war ----------
+
+const fogCache = new Map(); // mapId -> normalized fog (dropped when the document changes)
+/** The fog of a map (normalized; ops: [] when it has none). Shared object: treat as read-only. */
+export function fogOf(mapId) {
+  if (!fogCache.has(mapId)) fogCache.set(mapId, normFog(store.get(fogPath(mapId)), mapId));
+  return fogCache.get(mapId);
+}
+/** Write a map's fog (a new fog document of a hidden map is hidden). */
+export function saveFog(mapId, fog) {
+  const p = fogPath(mapId);
+  const { map: _m, updated: _u, ...rest } = fog;
+  store.put(p, { map: mapId, ...rest, updated: new Date().toISOString() }, { hidden: !store.has(p) && mapHidden(mapId) ? true : null });
+}
+
+// ---------- duplicate, rescale ----------
+
+/**
+ * Duplicate a map: its image (copied into the new map's folder), design, and optionally its places (new ids, same
+ * names, types, ranks, descriptions, tags and positions), pictures and fog. hidden (DM mode): the copy and
+ * everything in it start hidden; a copy inside a hidden map always is. Returns the new map's id.
+ */
+export async function copyMap(srcId, { name = '', parent = MAIN_MAP, places = true, pictures = true, fog = true, hidden = false } = {}) {
+  const src = mapById(srcId);
+  if (!src) throw new Error('That map no longer exists.');
+  const cfg = readMapConfig(src.id);
+  const n = String(name || '').trim() || `${src.name} (copy)`;
+  const par = mapById(parent) ? parent : MAIN_MAP;
+  const hide = mapHidden(par) || !!hidden;
+  let id = uid(hide ? 'map' : n); // see createMap
+  while (id === MAIN_MAP || store.has(mapPath(id))) id = uid(hide ? 'map' : n);
+  // On a hidden source map everything is hidden with the map, so the copy decides; otherwise each item keeps its own.
+  const hiddenItem = (path) => hide || (!mapHidden(src.id) && isHidden(path));
+  const copyFile = async (path) => {
+    if (!path || !path.startsWith('content/')) return path || '';
+    const blob = await store.fileBlob(path);
+    if (!blob) return '';
+    const dest = `${MAPS_DIR}/${id}/${baseName(path)}`;
+    await store.putBinary(dest, blob, { hidden: hide });
+    return dest;
+  };
+  const design = isObj(cfg.design) ? structuredClone(cfg.design) : null;
+  if (design?.background?.image) design.background.image = await copyFile(design.background.image);
+  const image = isPlaceholderImage(cfg.image) ? '' : await copyFile(cfg.image);
+  const { id: _i, name: _n, parent: _p, image: _img, width, height, design: _d, createdBy: _c, created: _cr, updated: _u, ...rest } = cfg;
+  const now = new Date().toISOString();
+  store.put(mapPath(id), {
+    id, name: n, parent: par, image, width: width || 0, height: height || 0, ...rest, ...(design ? { design } : {}),
+    copiedFrom: src.id, createdBy: getSetting('playerName') || '', created: now, updated: now,
+  }, { hidden: hide });
+  mapIndex = null;
+  if (places) {
+    for (const l of locationsOn(src.id)) {
+      const { id: _li, path: _lp, lostMap: _lm, created: _lc, createdBy: _lb, updated: _lu, ...keep } = l;
+      saveLocation({ ...keep, map: id }, { hidden: hiddenItem(l.path) });
+    }
+  }
+  if (pictures) {
+    for (const pic of picturesOn(src.id)) {
+      const { id: _pi, path: _pp, created: _pc, createdBy: _pb, updated: _pu, ...keep } = pic;
+      const hidePic = hiddenItem(pic.path);
+      if (!hidePic && isHidden(pic.src)) { // a visible copy needs its own visible image file
+        const blob = await store.fileBlob(pic.src);
+        if (blob) {
+          keep.src = `${PIC_MEDIA}/${baseName(pic.src).replace(/(\.[a-z0-9]+)$/i, `-${uid('').slice(-4)}$1`)}`;
+          await store.putBinary(keep.src, blob, { hidden: false });
+        }
+      }
+      savePicture({ ...keep, map: id }, { hidden: hidePic });
+    }
+  }
+  if (fog && store.has(fogPath(src.id))) saveFog(id, fogOf(src.id));
+  return id;
+}
+
+/** After a new image of another size: pins, pictures, fog, crop and scale follow (sx, sy = new / old size). */
+export function rescaleMapContent(mapId, sx, sy) {
+  if (!(sx > 0 && sy > 0) || (sx === 1 && sy === 1)) return;
+  for (const loc of locationsOn(mapId)) saveLocation({ ...loc, x: loc.x * sx, y: loc.y * sy });
+  for (const pic of picturesOn(mapId)) savePicture({ ...pic, x: pic.x * sx, y: pic.y * sy, w: pic.w * sx, h: pic.h * sy });
+  if (store.has(fogPath(mapId))) { const f = fogOf(mapId); saveFog(mapId, { ...f, ops: scaleOps(f.ops, sx, sy) }); }
+  const cfg = readMapConfig(mapId);
+  if (isObj(cfg.design)) {
+    const d = structuredClone(cfg.design);
+    if (isObj(d.crop)) d.crop = { x: fin(d.crop.x) * sx, y: fin(d.crop.y) * sy, w: fin(d.crop.w) * sx, h: fin(d.crop.h) * sy };
+    if (isObj(d.scale) && fin(d.scale.perPx) > 0) d.scale.perPx = fin(d.scale.perPx) / Math.sqrt(sx * sy);
+    writeMapConfig(mapId, { design: d });
+  }
+}
+
+// ---------- DM mode: hiding a map hides what is on it ----------
+
+const mapIdOfPath = (path) => path.slice(MAPS_DIR.length + 1).split('/')[0].replace(/\.json$/i, '');
+const isMapDoc = (path) => /^content\/maps\/[^/]+\.json$/.test(path);
+const fileExists = (path) => store.has(path) || store.files(path).some((f) => f.path === path);
+
+/** What hides (and is released) with a map: its image and background image, fog, pictures, places and sub-maps. */
+function mapCompanions(id) {
+  const cfg = readMapConfig(id);
+  const out = [];
+  for (const img of [cfg.image, cfg.design?.background?.image]) if (typeof img === 'string' && img.startsWith('content/') && fileExists(img)) out.push(img);
+  if (store.has(fogPath(id))) out.push(fogPath(id));
+  for (const p of picturesOn(id)) out.push(p.path);
+  for (const l of locationsOn(id)) out.push(l.path);
+  for (const c of childMaps(id)) out.push(mapPath(c.id));
+  return out;
+}
+const hiddenMapReason = (id, what) => (mapHidden(id) ? `${what} is on the hidden map “${mapById(id)?.name || id}”. Release that map to show it.` : null);
+
+registerHideable({
+  prefix: `${MAPS_DIR}/`, label: 'Map', icon: 'map', order: 45, accept: isMapDoc,
+  describe: (path, d) => {
+    const id = mapIdOfPath(path);
+    return isMapDoc(path) ? { title: d?.name || mapById(id)?.name || 'Map', href: mapHref(id) } : { title: `Image of ${mapById(id)?.name || 'a map'}`, href: mapHref(id) };
+  },
+  companions: (path) => (isMapDoc(path) ? mapCompanions(mapIdOfPath(path)) : []),
+  releaseBlock: (path, d) => {
+    const id = mapIdOfPath(path);
+    if (!isMapDoc(path)) return hiddenMapReason(id, 'This image');
+    const parent = String(d?.parent || MAIN_MAP);
+    return mapHidden(parent) ? `It is inside the hidden map “${mapById(parent)?.name || parent}”. Release that map first.` : null;
+  },
+});
+registerHideable({
+  prefix: `${PIC_DIR}/`, label: 'Map picture', icon: 'image', order: 52, accept: (p) => p.endsWith('.json'),
+  describe: (path, d) => ({ title: d?.name || 'Picture', href: mapHref(d?.map || MAIN_MAP) }),
+  releaseBlock: (path, d) => hiddenMapReason(d?.map, 'This picture'),
+});
+registerHideable({
+  prefix: `${FOG_DIR}/`, label: 'Map fog', icon: 'map', order: 95, pickable: false, accept: () => false,
+  describe: (path, d) => ({ title: `Fog of ${mapById(d?.map)?.name || 'a map'}`, href: mapHref(d?.map || MAIN_MAP) }),
+  releaseBlock: (path, d) => hiddenMapReason(d?.map, 'This fog'),
+});
 
 // ---------- backlinks ----------
 
@@ -586,6 +818,9 @@ store.on((ev) => {
   const all = ev.type === 'load';
   const mapsChanged = all || paths.some((p) => p === CONFIG_PATH || p.startsWith(`${MAPS_DIR}/`));
   if (mapsChanged) mapIndex = null;
+  if (all || paths.some((p) => p.startsWith(`${PIC_DIR}/`))) picIndex = null;
+  if (all) fogCache.clear();
+  else for (const p of paths) if (p.startsWith(`${FOG_DIR}/`)) fogCache.delete(baseName(p).replace(/\.json$/i, ''));
   if (mapsChanged || paths.some((p) => p.startsWith(`${LOC_DIR}/`))) locIndex = null;
   if (all || paths.some((p) => p.startsWith(`${TYPE_DIR}/`))) refreshTypes();
 });
@@ -629,7 +864,8 @@ registerLinkType('map', {
   },
   suggest(q) {
     const ms = matchNames(maps(), q, (m) => m.name, 4).map((m) => ({ label: `${m.name} (map)`, value: /[[\]|#^]/.test(m.name) || nameClash(m.name, m.id) ? `${m.id}|${m.name.replace(/[[\]|]/g, '')}` : m.name }));
-    const ls = matchNames(locations(), q, (l) => l.name, 10).map((l) => ({ label: l.map === MAIN_MAP ? l.name : `${l.name} · ${mapById(l.map)?.name || ''}`, value: /[[\]|#^]/.test(l.name) || nameClash(l.name, l.id) ? `${l.id}|${l.name.replace(/[[\]|]/g, '')}` : l.name }));
+    const known = isDm() ? locations() : locations().filter((l) => !fogCovers(fogOf(l.map), l.x, l.y)); // places under the fog stay unknown
+    const ls = matchNames(known, q, (l) => l.name, 10).map((l) => ({ label: l.map === MAIN_MAP ? l.name : `${l.name} · ${mapById(l.map)?.name || ''}`, value: /[[\]|#^]/.test(l.name) || nameClash(l.name, l.id) ? `${l.id}|${l.name.replace(/[[\]|]/g, '')}` : l.name }));
     return [...ms, ...ls];
   },
   embed(target, anchor) {

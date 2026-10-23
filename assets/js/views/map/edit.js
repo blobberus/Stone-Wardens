@@ -3,6 +3,7 @@
 // offset/scale tool (pins are stored in image pixels, so a differently sized export needs this), the
 // per-map zoom bands of the hierarchy, and undo. Every change is a store draft; close() reports whether there were
 // any, so the view commits them once when editing ends (saving.js saveSoon), or they wait for Save.
+// The DM (or anyone while no DM is set up) also gets the Design, Pictures and Fog tabs (designpanel.js).
 import { h, mount, clear } from '../../core/dom.js';
 import { icon, toast, confirmDialog, openModal, markdownEditor } from '../../core/ui.js';
 import { store } from '../../core/store.js';
@@ -32,10 +33,12 @@ function reconcile(parent, nodes) {
 /**
  * ctx: {root, leaflet(), mapId(), info(), locations(), typeOf, types(), marker(id) -> {marker, loc},
  *       toLatLng(x, y), toXY(latlng), clampXY(p), applyStates(), focusLoc(loc, zoom), openDetails(id), exit(),
- *       replaceImage(), newSubmap({name, parent}) -> Promise<id|null>, setBandPreview(bands|null), zoomU(), rankShift()}
+ *       replaceImage(), newSubmap({name, parent}) -> Promise<id|null>, setBandPreview(bands|null), zoomU(), rankShift(),
+ *       design (designpanel.js, optional), canDesign() -> the design tabs are offered,
+ *       allLocations() -> every place, also those the fog hides from this viewer (moved by Offset / scale)}
  */
 export function createEditor(ctx) {
-  const st = { open: false, sel: new Set(), openRow: null, q: '', drag: null, nudge: null, undo: [], rows: new Map(), changed: false };
+  const st = { open: false, sel: new Set(), openRow: null, q: '', drag: null, nudge: null, undo: [], rows: new Map(), changed: false, tab: 'places' };
 
   const mapName = h('span', { class: 'map-edit-map' });
   const searchIn = h('input', {
@@ -57,10 +60,7 @@ export function createEditor(ctx) {
       + (majorSaveOn() ? 'Your changes are saved for the party when you press Done.' : 'Changes stay drafts until you press Save.');
   };
 
-  const el = h('aside', { class: 'map-edit', 'aria-label': 'Edit map', hidden: true },
-    h('header', { class: 'map-edit-head' },
-      h('div', { class: 'map-edit-titles' }, h('h2', { class: 'map-edit-title' }, 'Edit map'), mapName),
-      h('button', { class: 'btn btn-primary btn-sm', type: 'button', onclick: () => ctx.exit(), title: 'Back to the normal map (Esc)' }, icon('check'), h('span', null, 'Done'))),
+  const placesPane = h('div', { class: 'map-edit-pane', role: 'tabpanel', 'data-tab': 'places' },
     h('div', { class: 'map-edit-tools' },
       searchIn,
       h('div', { class: 'map-edit-selrow' }, h('label', { class: 'checkbox map-edit-all' }, allBox, h('span', null, 'Select all')), h('span', { class: 'map-spacer' }), countEl),
@@ -73,6 +73,44 @@ export function createEditor(ctx) {
         h('button', { type: 'button', class: 'btn btn-sm', onclick: () => openTransform(), title: 'Shift or scale pins by numbers, e.g. after replacing the image with a different size' }, icon('sort'), h('span', null, 'Offset / scale…')),
         h('button', { type: 'button', class: 'btn btn-sm', onclick: () => ctx.replaceImage(), title: 'Upload a new image for this map' }, icon('upload'), h('span', null, 'Replace image…'))),
       hintEl));
+  const designTabs = ctx.design?.tabs || [];
+  for (const t of designTabs) {
+    t.el.classList.add('map-edit-pane');
+    t.el.setAttribute('role', 'tabpanel');
+    t.el.hidden = true;
+  }
+  const tabsEl = h('div', { class: 'map-edit-tabs', role: 'tablist', 'aria-label': 'What to edit', hidden: true });
+  const el = h('aside', { class: 'map-edit', 'aria-label': 'Edit map', hidden: true },
+    h('header', { class: 'map-edit-head' },
+      h('div', { class: 'map-edit-titles' }, h('h2', { class: 'map-edit-title' }, 'Edit map'), mapName),
+      h('button', { class: 'btn btn-primary btn-sm', type: 'button', onclick: () => ctx.exit(), title: 'Back to the normal map (Esc)' }, icon('check'), h('span', null, 'Done'))),
+    tabsEl,
+    placesPane,
+    designTabs.map((t) => t.el));
+
+  // ---------- tabs: Places | Design | Pictures | Fog ----------
+
+  const designOn = () => !!ctx.design && !!ctx.canDesign?.();
+  function drawTabs() {
+    tabsEl.hidden = !designOn();
+    if (tabsEl.hidden) { clear(tabsEl); return; }
+    mount(tabsEl, [{ id: 'places', label: 'Places', icon: 'pin' }, ...designTabs].map((t) => h('button', {
+      type: 'button', role: 'tab', class: ['map-edit-tab', st.tab === t.id && 'is-on'], 'aria-selected': String(st.tab === t.id),
+      onclick: () => setTab(t.id),
+    }, icon(t.icon), h('span', null, t.label))));
+  }
+  function setTab(id) {
+    if (id !== 'places' && !(designOn() && designTabs.some((t) => t.id === id))) id = 'places';
+    const was = st.tab;
+    st.tab = id;
+    placesPane.hidden = id !== 'places';
+    for (const t of designTabs) t.el.hidden = t.id !== id;
+    drawTabs();
+    if (id === 'places') {
+      ctx.design?.hide();
+      if (was !== 'places') { renderList(); drawSel(); }
+    } else ctx.design.show(id);
+  }
 
   // ---------- undo ----------
 
@@ -341,7 +379,8 @@ export function createEditor(ctx) {
 
   function openTransform() {
     const info = ctx.info();
-    const all = ctx.locations();
+    const all = ctx.allLocations ? ctx.allLocations() : ctx.locations(); // places under the fog move too
+    const shown = ctx.locations().length;
     const selIds = live([...st.sel]);
     const orig = new Map(all.map((l) => [l.id, { x: l.x, y: l.y }]));
     const f = { scope: selIds.length ? 'sel' : 'all', dx: 0, dy: 0, sx: 100, sy: 100, lock: true, origin: 'zero', oldW: Math.round(info.width), oldH: Math.round(info.height) };
@@ -405,7 +444,7 @@ export function createEditor(ctx) {
     };
     const body = h('div', { class: 'stack map-tr' },
       h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Apply to'),
-        h('div', { class: 'map-tr-radios' }, radio('all', `All ${plural(all.length, 'place')} on this map`), radio('sel', selIds.length ? `The ${plural(selIds.length, 'selected place')}` : 'Selected places (none selected)'))),
+        h('div', { class: 'map-tr-radios' }, radio('all', `All ${plural(shown, 'place')} on this map`), radio('sel', selIds.length ? `The ${plural(selIds.length, 'selected place')}` : 'Selected places (none selected)'))),
       h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Move by (image pixels)'),
         h('div', { class: 'map-tr-pair' },
           h('label', null, h('span', null, 'Right'), numIn(0, (e) => { f.dx = num(e.target.value); preview(); }, { 'aria-label': 'Move right by' })),
@@ -501,7 +540,8 @@ export function createEditor(ctx) {
     isSelected: (id) => st.open && st.sel.has(id),
     /** Positions of these pins are being changed here; the view must not reset them from the store. */
     isDragging: (id) => !!(st.drag?.ids.includes(id) || st.nudge?.ids.includes(id)),
-    open() {
+    /** Open edit mode on a tab ('places', or 'design' | 'pictures' | 'fog' for the DM). */
+    open(tab = 'places') {
       st.open = true;
       st.changed = false;
       el.hidden = false;
@@ -509,11 +549,23 @@ export function createEditor(ctx) {
       drawHint();
       renderList();
       drawUndo();
+      st.tab = 'places';
+      setTab(tab);
     },
+    get tab() { return st.open ? st.tab : null; },
+    setTab: (id) => { if (st.open) setTab(id); },
+    /** Something was changed in a design tab: commit when editing ends. */
+    markChanged() { st.changed = true; },
+    /** DM mode turned on or off while editing: the design tabs come or go. */
+    dmChanged() { if (st.open) setTab(designOn() ? st.tab : 'places'); },
     /** Leave edit mode (pending nudges and bands are written first). Returns true when anything was changed. */
     close() {
       commitNudge.flush();
       if (staged) writeBands.flush();
+      ctx.design?.hide();
+      for (const t of designTabs) t.el.hidden = true;
+      placesPane.hidden = false;
+      st.tab = 'places';
       const changed = st.changed;
       st.changed = false;
       st.open = false;
@@ -535,6 +587,7 @@ export function createEditor(ctx) {
     },
     mapChanged() {
       if (!st.open) return;
+      ctx.design?.mapChanged();
       commitNudge.flush();
       if (staged) writeBands.flush();
       st.sel = new Set();
@@ -565,6 +618,7 @@ export function createEditor(ctx) {
       const t = e.target;
       if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return false;
       if (!(ctx.root.contains(t) || t === document.body)) return false;
+      if (st.tab !== 'places') return !!ctx.design?.onKey(e);
       const step = e.shiftKey ? 10 : 1;
       const arrows = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
       if (arrows[e.key] && st.sel.size && !e.ctrlKey && !e.metaKey && !e.altKey) { nudge(...arrows[e.key]); return true; }

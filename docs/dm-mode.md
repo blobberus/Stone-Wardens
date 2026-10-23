@@ -26,7 +26,7 @@ password unlocks. Players' browsers only ever see ciphertext; so does anyone rea
 | Path | What |
 |---|---|
 | `content/dm/vault.json` | the wrapped data key (created the first time someone sets up DM mode) |
-| `content/dm/hidden/<random>.json` | one sealed envelope per hidden item: `{path, text or bin, size, mime, sha, hiddenAt, by}` |
+| `content/dm/hidden/<random>.json` | one sealed envelope per hidden item: `{path, text or bin, size, mime, sha, hiddenAt, by, with?}` (`with`: the companions hidden along with it) |
 | `content/dm/hidden/<random>.bin` | a hidden binary (library document, image): 12-byte IV + ciphertext |
 | `content/dm/released.json` | the released log `{items: [{path, title, label, href, at, by}]}` (plain: those items are public) |
 | `content/inbox/<stamp>.json` | one notification per release `{id, at, title, label, href, path, by}`; pruned after 30 days |
@@ -51,8 +51,14 @@ Envelope file names are random, so they say nothing about the item; its real pat
   Released) or "Hide an existing item…" seals a public item; its uploaded images go with it unless another visible
   document names them.
 - **Tabs** register what they can hide: `registerHideable({prefix, label, icon, order, accept(path), describe(path,
-  data) -> {title, href}})` (quests, compendium library items, journal notes, Warden's Library documents, map places;
-  `content/media/` images ride along with their item). `accept` also limits the safety net: journal folder metadata
+  data) -> {title, href}, companions?(path), releaseBlock?(path, data)})` (quests, compendium library items, journal
+  notes, Warden's Library documents, map places, sub-maps, map pictures; `content/media/` images ride along with their
+  item). `companions(path)` lists items hidden together with it (a sub-map: its image and background image, fog,
+  pictures, places and sub-maps); they are recorded in the envelope (`with`) and released with it, while anything that
+  was already hidden on its own stays hidden. Companions added hidden later (a place made on a hidden map, its fog) are released with it too
+  (hidden after it). Hiding is all or nothing: if one companion fails, the others go back and the DM sees the error;
+  an item being hidden or released can't be switched again until that finishes (`dmBusy`). `releaseBlock` returns why an item can't be released alone (a place on
+  a hidden map would show up on the main map), and Release says so. `accept` also limits the safety net: journal folder metadata
   (`_chapter.json`) and library READMEs are never hidden. Tabs redraw their switches and marks on `onDmMode(fn)`
   (DM mode turned on or off).
 - **Saving** seals pending edits first (`store.save` waits for `layer.flush()`), and `store.isDirty()` counts them, so
@@ -66,13 +72,15 @@ Envelope file names are random, so they say nothing about the item; its real pat
 | Compendium | new entry / custom copy editor | entry page actions (Status: "Hidden from the players") | lists, search, recent |
 | Journal | New note dialog (quick "+" notes follow the default) | under the note's title | file tree |
 | Warden's Library | Add documents dialog | reader actions | shelf cards and table |
-| Map | New location panel | place panel, under the badges | pin with a dashed gold edge |
+| Map | New location panel, Add a sub-map, Duplicate this map (map pictures follow "New: hidden") | place panel, under the badges; a sub-map under its name plate (with everything on it); a picture in Edit map → Pictures | pin with a dashed gold edge; lock beside a map's name (plate, Maps list); dashed gold outline on a picture |
 
 The DM Screen's Create buttons open those forms (`#/quests?new=1`, `#/compendium?new=1`, `#/journal/new`,
 `#/wardens-library?upload=1`).
 
 Visibility follows the item: a hidden quest's or note's uploaded photos are hidden too (a visible one's are visible),
 and renaming or moving a note, a folder of notes or a library document keeps each file hidden or visible as it was.
+Whatever is added to a hidden map (a place, a picture, its fog, a new image, a sub-map) starts hidden, and a place
+moved onto a hidden map is hidden; a copy of a hidden map starts hidden unless the DM switches it to visible.
 
 ## DM Screen, Inbox, staying logged in
 

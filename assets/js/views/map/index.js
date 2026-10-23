@@ -5,6 +5,9 @@
 // Performance: the image is drawn as pre-rendered canvas tiles (raster.js), zoom is continuous and eased
 // (zoom.js), pins keep a stable z-index (pins.js), and the 4 hierarchy ranks live in their own panes
 // whose opacity follows the zoom, so a zoom frame costs a transform per pin plus 4 opacity writes.
+// Design (design.js, decor.js): background, crop, compass, scale bar / ruler and border per map; pictures laid on a
+// map (pictures.js); fog of war (fog.js, fogview.js) that hides the places under it from the players. The DM edits
+// them in the Design / Pictures / Fog tabs of Edit map (designpanel.js). docs/map-design.md.
 import { h, mount, clear } from '../../core/dom.js';
 import { icon, toast } from '../../core/ui.js';
 import { store } from '../../core/store.js';
@@ -24,12 +27,21 @@ import { RANK_IDS, rankOpacity, rankWhere, normBands } from './ranks.js';
 import { openNewMapDialog, deleteMapFlow } from './submaps.js';
 import { createEditor } from './edit.js';
 import { createCollection } from './collection.js';
-import { registerHideable, isHidden, onDmMode } from '../../core/dm.js';
+import { registerHideable, isHidden, onDmMode, isDm } from '../../core/dm.js';
+import { visibilityToggle, hiddenMark } from '../../core/dm-ui.js';
+import { normDesign, normCrop, borderPad, hasDecorations } from './design.js';
+import { fogCovers, fogActive } from './fog.js';
+import { createDecor, DECOR_PANE, BORDER_PANE } from './decor.js';
+import { createFogView, FOG_PANE, TOOL_PANE } from './fogview.js';
+import { createPictures, PIC_PANE } from './pictures.js';
+import { createDesignPanel } from './designpanel.js';
+import { openCopyMapDialog } from './submaps.js';
 
-// DM mode: places can be hidden from the players until released (core/dm.js)
+// DM mode: places can be hidden from the players until released (core/dm.js); a place on a hidden map goes with it
 registerHideable({
   prefix: `${data.LOC_DIR}/`, label: 'Map place', icon: 'pin', order: 50, accept: (p) => p.endsWith('.json'),
   describe: (path, d) => ({ title: d?.name, href: d?.id ? data.locHref({ ...d, map: d.map || data.MAIN_MAP }) : null }),
+  releaseBlock: (path, d) => (data.mapHidden(d?.map) ? `This place is on the hidden map “${data.mapById(d.map)?.name || d.map}”. Release that map to show it.` : null),
 });
 
 const PREFS_KEY = 'sw:map:prefs';
@@ -64,10 +76,12 @@ const S = {
   mode: 'idle', // 'idle' | 'placing' | 'moving'
   moveId: null, moveFrom: null, ghost: null,
   ready: false, visible: false, pendingRoute: null, staleMentions: false,
-  dirty: { locs: false, types: false, config: false, journal: false }, syncQueued: false,
+  dirty: { locs: false, types: false, config: false, journal: false, fog: false, pics: false }, syncQueued: false,
   ctxClosedAt: 0, resizeRaf: 0, emptyKey: '', loadTimer: 0,
+  design: null, designDraft: null, view: null, imageUrl: '', cropping: false, designTab: null, pick: null,
 };
-let drawer, search, legend, menu, crumbs, collection, editor, zoomer, banner, emptyCard, addBtn, labelsBtn, ctxMenu = null;
+let drawer, search, legend, menu, crumbs, collection, editor, zoomer, banner, emptyCard, addBtn, labelsBtn, measureBtn, ctxMenu = null;
+let decor, fogV, pictures, designPanel;
 
 const toLatLng = (x, y) => L.latLng(-y, x);
 const toXY = (ll) => ({ x: ll.lng, y: -ll.lat });
@@ -80,6 +94,13 @@ const labelsOn = () => prefs.labels !== false;
 const editing = () => !!editor?.isOpen;
 const paneName = (r) => (r === 'pin' ? 'mapPinned' : `mapRank${r}`);
 const info = () => S.info || { id: S.mapId, isMain: S.mapId === data.MAIN_MAP, name: data.mapById(S.mapId)?.name || data.DEFAULT_MAP_NAME, width: 0, height: 0, image: data.PLACEHOLDER_IMAGE, isPlaceholder: true, bands: normBands() };
+/** The design shown: the Design tab's unsaved draft while it is open, else the map's own. */
+const design = () => S.designDraft || S.design || normDesign(null);
+const decorOff = () => prefs.decor === false;
+/** The DM sees through the fog (so does whoever has the Fog tab open), unless previewing as the players. */
+const seeThrough = () => !fogV?.preview && (isDm() || S.designTab === 'fog');
+/** Is a place hidden by its map's fog from this viewer? */
+const fogHidesLoc = (l) => !!l && !seeThrough() && fogCovers(data.fogOf(l.map), l.x, l.y);
 
 // ---------- mount ----------
 
@@ -96,6 +117,54 @@ function mountView(el) {
   }
 
   S.canvas = h('div', { class: 'map-canvas', 'aria-label': 'Map. Arrow keys pan, plus and minus zoom.' });
+  decor = createDecor({
+    map: () => S.map,
+    root: S.root,
+    design,
+    rect: () => S.view || { x: 0, y: 0, w: S.size.w, h: S.size.h },
+    size: () => S.size,
+    hidden: decorOff,
+    editing: () => S.designTab === 'design',
+    compassMoved: (p) => designPanel.patch((d) => { d.compass.x = p.x; d.compass.y = p.y; }),
+  });
+  fogV = createFogView({
+    map: () => S.map,
+    root: S.root,
+    canvas: S.canvas,
+    mapId: () => S.mapId,
+    size: () => S.size,
+    seeThrough,
+    changed: refreshPins,
+    edited: () => editor.markChanged(),
+  });
+  pictures = createPictures({
+    map: () => S.map,
+    root: S.root,
+    mapId: () => S.mapId,
+    editing: () => S.designTab === 'pictures',
+    picked: () => designPanel.pictureSelected(),
+    edited: () => editor.markChanged(),
+    viewRect,
+  });
+  designPanel = createDesignPanel({
+    mapId: () => S.mapId,
+    info,
+    design: () => S.design || normDesign(null),
+    preview: (d) => { S.designDraft = d ? normDesign(d, { width: S.size.w, height: S.size.h }) : null; refreshDesign(); },
+    write: (d) => { // S.design at once, so closing the tab right after shows no flash of the old design
+      S.design = normDesign(d, { width: S.size.w, height: S.size.h });
+      data.writeMapConfig(S.mapId, { design: S.design });
+    },
+    startCrop,
+    stopCrop,
+    cropping: () => S.cropping,
+    fog: fogV,
+    pictures,
+    pickPoints,
+    shown: () => S.view || { x: 0, y: 0, w: S.size.w, h: S.size.h },
+    edited: () => editor.markChanged(),
+    setTab: (id) => { S.designTab = id; fogV.sync({ animate: false }); refreshPins(); decor.update(); },
+  });
   drawer = createDrawer({
     typeOf: data.typeOf,
     types: () => data.allTypes(),
@@ -113,7 +182,7 @@ function mountView(el) {
     newSubmap: ({ name, parent }) => openNewMapDialog({ parent, name }),
   });
   search = createSearch({
-    locations: () => data.locations(),
+    locations: () => data.locations().filter((l) => !fogHidesLoc(l)), // places under the fog stay unknown
     typeOf: data.typeOf,
     mapId: () => S.mapId,
     mapName: (id) => data.mapById(id)?.name || '',
@@ -146,12 +215,18 @@ function mountView(el) {
     info,
     editing,
     toggleEdit: () => toggleEdit(),
+    canDesign: data.canDesign,
+    designMap: () => toggleEdit(true, 'design'),
+    copyMap: () => copyCurrentMap(),
+    hasDecor: () => hasDecorations(S.design),
+    decorOff,
+    toggleDecor,
     openFilter: () => legend.pop.open(),
     rename: () => renameMap(info()),
     replaceImage: () => replaceImage(info()),
     resetImage: () => resetImage(info()),
     fit: () => fitMap(true),
-    subMaps: () => data.childMaps(S.mapId).map((m) => ({ id: m.id, name: m.name, count: data.locationsOn(m.id).length })),
+    subMaps: () => data.childMaps(S.mapId).map((m) => ({ id: m.id, name: m.name, count: data.locationsOn(m.id).filter((l) => !fogHidesLoc(l)).length })),
     openMap: (id) => navigate(data.mapHref(id)),
     addSubmap: () => addSubmap(),
     deleteMap: () => deleteCurrentMap(),
@@ -161,9 +236,13 @@ function mountView(el) {
   crumbs = createCrumbs({
     chain: () => data.mapChain(S.mapId),
     href: data.mapHref,
+    mark: (m) => (m.isMain ? null : hiddenMark(data.mapPath(m.id))),
+    // DM mode, on a sub-map: hide it (with its places, pictures, fog and sub-maps) or release it to the players
+    extra: () => (S.mapId === data.MAIN_MAP ? null : visibilityToggle(data.mapPath(S.mapId), { label: 'this map and everything on it', onChange: () => crumbs.update() })),
   });
   collection = createCollection({
     current: () => S.mapId,
+    placeCount: (id) => data.locationsOn(id).filter((l) => !fogHidesLoc(l)).length,
     addSubmap: () => addSubmap(),
   });
   editor = createEditor({
@@ -171,7 +250,10 @@ function mountView(el) {
     leaflet: () => S.map,
     mapId: () => S.mapId,
     info,
-    locations: () => data.locationsOn(S.mapId),
+    locations: () => data.locationsOn(S.mapId).filter((l) => !fogHidesLoc(l)),
+    allLocations: () => data.locationsOn(S.mapId),
+    design: designPanel,
+    canDesign: data.canDesign,
     typeOf: data.typeOf,
     types: () => data.allTypes(),
     marker: (id) => S.markers.get(id),
@@ -196,6 +278,10 @@ function mountView(el) {
     class: 'btn map-tool-btn', type: 'button', 'aria-pressed': String(labelsOn()), 'aria-label': 'Place name labels',
     title: 'Show place names on the map', onclick: toggleLabels,
   }, icon('tag'), h('span', { class: 'map-tool-label' }, 'Labels'));
+  measureBtn = h('button', {
+    class: 'btn map-tool-btn', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Ruler',
+    title: 'Measure distances: click points on the map', onclick: () => (S.mode === 'measuring' ? stopMeasure() : startMeasure()),
+  }, icon('ruler'), h('span', { class: 'map-tool-label' }, 'Ruler'));
   banner = h('div', { class: 'map-banner', role: 'status', hidden: true });
   emptyCard = h('div', { class: 'map-empty', hidden: true });
 
@@ -204,7 +290,7 @@ function mountView(el) {
     // Top left: the search with the Maps button beside it, and the current map's name (its parents first) under them.
     h('div', { class: 'map-tools map-tools-left' }, h('div', { class: 'map-search-row' }, search.el, collection.el), crumbs.el),
     h('div', { class: 'map-tools map-tools-right', role: 'toolbar', 'aria-label': 'Map tools' },
-      h('div', { class: 'map-tool' }, addBtn), legend.el, h('div', { class: 'map-tool' }, labelsBtn), menu.el),
+      h('div', { class: 'map-tool' }, addBtn), legend.el, h('div', { class: 'map-tool' }, labelsBtn), h('div', { class: 'map-tool', hidden: true }, measureBtn), menu.el),
     banner,
     emptyCard,
     h('div', { class: 'map-loading', role: 'status' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), 'Unrolling the map…'),
@@ -244,16 +330,26 @@ function mountView(el) {
   S.panes.pin = S.map.createPane(paneName('pin'));
   S.panes.pin.classList.add('map-pane', 'map-pane-pinned', 'has-labels');
   S.panes.pin.style.zIndex = '640';
+  // Design layers: pictures, fog, border, a compass drawn on the map (all under the pins), tools (above them)
+  for (const [name, z, cls] of [[PIC_PANE, 410, 'map-pane-pictures'], [FOG_PANE, 450, 'map-pane-fog'], [BORDER_PANE, 455, 'map-pane-border'], [DECOR_PANE, 460, 'map-pane-decor'], [TOOL_PANE, 650, 'map-pane-tools']]) {
+    const pane = S.map.createPane(name);
+    pane.style.zIndex = String(z);
+    pane.classList.add(cls);
+  }
   S.layer = L.layerGroup().addTo(S.map);
   zoomer = createZoomer(S.map);
 
   S.canvas.addEventListener('wheel', (e) => zoomer.onWheel(e), { passive: false });
   S.canvas.addEventListener('touchstart', (e) => { if (e.touches.length > 1) zoomer.cancel(); }, { passive: true });
-  S.map.on('dblclick', (e) => { if (S.mode === 'idle' && !editing()) zoomer.zoomBy(e.originalEvent.shiftKey ? -1 : 1, e.containerPoint, 90); });
+  S.map.on('dblclick', (e) => {
+    if (S.mode === 'measuring') { decor.finishMeasure(); return; }
+    if (S.mode === 'idle' && !editing()) zoomer.zoomBy(e.originalEvent.shiftKey ? -1 : 1, e.containerPoint, 90);
+  });
+  S.map.on('mousemove', (e) => { if (S.mode === 'measuring') decor.measureHover(toXY(e.latlng)); });
   S.map.on('dragstart', () => zoomer.cancel());
   S.map.on('click', onMapClick);
   S.map.on('contextmenu', onContextMenu);
-  S.map.on('zoom', updateRanks);
+  S.map.on('zoom', () => { updateRanks(); decor.onZoom(); });
   S.map.on('move viewreset', cull);
   S.map.on('zoomstart', () => S.root.classList.add('is-zooming'));
   S.map.on('zoomend', onZoomEnd);
@@ -264,7 +360,15 @@ function mountView(el) {
   document.addEventListener('keydown', onKeyCapture, true);
   document.addEventListener('keydown', onKey);
   store.on(onStore);
-  onDmMode(() => { for (const e of S.markers.values()) applyState(e); drawer.refresh({ force: true }); }); // DM mode on / off
+  onDmMode(() => { // DM mode on / off: lock marks, the fog seen through or not, the design tabs, the map's switch
+    editor.dmChanged();
+    fogV.sync({ animate: false });
+    syncMarkers();
+    pictures.sync();
+    drawer.refresh({ force: true });
+    crumbs.update();
+    menu.pop.refresh();
+  });
   init();
 }
 
@@ -312,7 +416,13 @@ async function loadMap(id) {
   S.markers.clear();
   S.root.classList.toggle('is-submap', !m.isMain);
   crumbs.update();
+  decor.reset();
+  pictures.clear();
+  fogV.clear();
+  S.designDraft = null;
+  S.cropping = false;
   await applyConfig({ initial: true });
+  pictures.sync();
   syncMarkers();
   search.refresh();
   editor.mapChanged();
@@ -325,6 +435,8 @@ async function switchMap(id) {
   if (!(await drawer.confirmLeave())) return false;
   if (S.mode === 'moving') finishMove(false);
   cancelPlacing();
+  stopMeasure();
+  cancelPicking();
   removeGhost();
   resetPreview();
   closeCtx();
@@ -357,7 +469,10 @@ async function applyConfig({ initial = false } = {}) {
   S.info = cfg;
   S.bands = cfg.bands;
   S.size = { w: cfg.width, h: cfg.height };
-  S.bounds = L.latLngBounds([[-cfg.height, 0], [0, cfg.width]]);
+  S.design = { ...cfg.design, crop: normCrop(cfg.design.crop, cfg.width, cfg.height) };
+  if (S.designDraft) S.designDraft = { ...S.designDraft, crop: normCrop(S.designDraft.crop, cfg.width, cfg.height) };
+  S.imageUrl = url;
+  applyGeometry();
   setImage(url, cfg);
   S.root.classList.toggle('is-placeholder', cfg.isPlaceholder);
   updateZoomLimits();
@@ -367,11 +482,40 @@ async function applyConfig({ initial = false } = {}) {
   menu.pop.refresh();
   crumbs.update();
   editor.refresh();
+  decor.update();
+  fogV.sync({ animate: !initial });
+  updateMeasureBtn();
 }
 
-/** Show the map image as pre-rendered tiles (falls back to a plain <img> overlay). */
+/** The part of the image shown (the design's crop, or all of it; all of it while the crop is being adjusted). */
+function shownRect() {
+  const c = !S.cropping && design().crop;
+  return c ? { ...c } : { x: 0, y: 0, w: S.size.w, h: S.size.h };
+}
+
+/** S.view = the shown part of the image; S.bounds = that plus the border: what "Show the whole map" fits. */
+function applyGeometry() {
+  const r = shownRect();
+  S.view = r;
+  const pad = decorOff() || S.cropping ? 0 : borderPad(design().border, r);
+  S.bounds = L.latLngBounds([[-(r.y + r.h + pad), r.x - pad], [-(r.y - pad), r.x + r.w + pad]]);
+  fogV?.clipTo(r);
+}
+
+/** The design draft changed (Design tab) or the device setting: crop, bounds, decorations. */
+function refreshDesign() {
+  if (!S.map || !S.info) return;
+  applyGeometry();
+  setImage(S.imageUrl, S.info);
+  updateZoomLimits();
+  decor.update();
+  updateMeasureBtn();
+}
+
+/** Show the map image as pre-rendered tiles (falls back to a plain <img> overlay), clipped to the crop. */
 function setImage(url, cfg) {
-  const key = `${url}\u0000${cfg.width}x${cfg.height}`;
+  const crop = S.cropping ? null : design().crop;
+  const key = `${url}\u0000${cfg.width}x${cfg.height}\u0000${crop ? [crop.x, crop.y, crop.w, crop.h].join(',') : ''}`;
   if (key === S.imageKey) return;
   S.imageKey = key;
   if (S.image) { S.image.remove(); S.image = null; }
@@ -381,7 +525,7 @@ function setImage(url, cfg) {
   const svg = cfg.isPlaceholder || /\.svg$/i.test(cfg.image);
   loadImageSource(url, { width: cfg.width, height: cfg.height, svg }).then((src) => {
     if (S.imageKey !== key || !S.map) return;
-    S.image = createImageLayer(src).addTo(S.map);
+    S.image = createImageLayer(src, { crop }).addTo(S.map);
     S.image.once('load', done);
     setTimeout(done, 3000);
   }).catch((e) => {
@@ -397,7 +541,9 @@ function updateZoomLimits() {
   if (!S.map || !S.bounds) return;
   const size = S.map.getSize();
   if (!size.x || !size.y) return;
-  const fit = Math.log2(Math.min(size.x / S.size.w, size.y / S.size.h));
+  const bw = S.bounds.getEast() - S.bounds.getWest();
+  const bh = S.bounds.getNorth() - S.bounds.getSouth();
+  const fit = Math.log2(Math.min(size.x / bw, size.y / bh));
   S.fitZoom = Math.floor(fit * 4) / 4;
   S.map.setMinZoom(S.fitZoom - 0.75);
   S.map.setMaxZoom(Math.max(S.fitZoom + 4.5, 2)); // well past 1:1 for detail
@@ -459,10 +605,29 @@ function zoomStep(dir) {
  */
 function updateShift() {
   let top = 4;
-  for (const e of S.markers.values()) {
+  let n = 0;
+  for (const e of known()) {
+    n++;
     if (e.rank < top && !S.hidden.has(e.type.id) && !S.hiddenRanks.has(e.rank)) top = e.rank;
   }
-  S.rankShift = S.markers.size ? top - 1 : 0;
+  S.rankShift = n ? top - 1 : 0;
+}
+
+/** Markers this viewer may know about (not under the fog for players): counts and hints use these. */
+function* known() {
+  for (const e of S.markers.values()) if (!fogHidesLoc(e.loc)) yield e;
+}
+
+/** The fog or who sees through it changed: every pin's visibility and marks. */
+function refreshPins() {
+  if (!S.map) return;
+  for (const e of S.markers.values()) { updateVisibility(e); applyState(e); }
+  updateShift();
+  updateRanks();
+  legend?.update();
+  search?.refresh();
+  editor?.refresh();
+  updateEmpty();
 }
 const bandOf = (r) => Math.max(1, Math.min(4, r - (S.rankShift || 0)));
 
@@ -534,6 +699,8 @@ function onStore(ev) {
   if (touches(data.TYPE_DIR)) { S.dirty.types = true; hit = true; }
   if (touches(data.MAP_DIR) || touches(data.MAPS_DIR)) { S.dirty.config = true; hit = true; }
   if (touches(data.JOURNAL_DIR)) { S.dirty.journal = true; hit = true; }
+  if (touches(data.FOG_DIR)) { S.dirty.fog = true; hit = true; }
+  if (touches(data.PIC_DIR)) { S.dirty.pics = true; hit = true; }
   if (hit && !S.syncQueued) { S.syncQueued = true; queueMicrotask(runSync); }
 }
 
@@ -541,17 +708,19 @@ async function runSync() {
   S.syncQueued = false;
   if (!S.ready) return; // init does a full sync
   const d = S.dirty;
-  S.dirty = { locs: false, types: false, config: false, journal: false };
+  S.dirty = { locs: false, types: false, config: false, journal: false, fog: false, pics: false };
   if (d.config && !data.mapById(S.mapId)) { // the map we are on was deleted
     navigate(data.mapHref(data.mapById(S.mapParent) ? S.mapParent : data.MAIN_MAP), { replace: true });
     return;
   }
   if (d.config) {
-    applyConfig().catch((e) => console.error('[map] config', e));
+    applyConfig().then(() => designPanel.refresh('design')).catch((e) => console.error('[map] config', e));
     crumbs.update();
   }
   if (d.types) await data.typesReady();
-  if (d.locs || d.types || d.config) syncMarkers();
+  if (d.fog) { fogV.sync(); designPanel.refresh('fog'); } // a reveal fades in
+  if (d.pics) { pictures.sync(); designPanel.refresh('pictures'); }
+  if (d.locs || d.types || d.config || d.fog) syncMarkers();
   if (drawer.mode === 'view') {
     const loc = data.locationById(drawer.id);
     if (!loc || loc.map !== S.mapId) {
@@ -638,6 +807,7 @@ function applyState(e) {
   el.classList.toggle('is-moving', S.moveId === e.id);
   el.classList.toggle('is-picked', editor.isSelected(e.id));
   el.classList.toggle('is-culled', !!e.culled);
+  el.classList.toggle('is-fogged', seeThrough() && fogV.covers(e.loc.x, e.loc.y)); // the DM's view of a place under fog
   const secret = isHidden(data.locPath(e.id)); // DM mode: hidden from the players
   el.classList.toggle('is-dm-hidden', secret);
   el.setAttribute('aria-label', `${e.loc.name}, ${e.type.name}, rank ${e.rank}${e.sub ? ', has its own map' : ''}${secret ? ', hidden from players' : ''}`);
@@ -649,7 +819,8 @@ function applyState(e) {
 }
 
 function updateVisibility(e) {
-  const show = editing() || isPinned(e) || (!S.hidden.has(e.type.id) && !S.hiddenRanks.has(e.rank));
+  // A place under the fog is hidden from players (unless it was opened from a link), even in edit mode.
+  const show = fogHidesLoc(e.loc) ? e.id === S.selectedId : editing() || isPinned(e) || (!S.hidden.has(e.type.id) && !S.hiddenRanks.has(e.rank));
   const has = S.layer.hasLayer(e.marker);
   if (show && !has) S.layer.addLayer(e.marker);
   else if (!show && has) S.layer.removeLayer(e.marker);
@@ -676,13 +847,13 @@ function setMatch(set) {
 
 function typeCounts() {
   const m = new Map();
-  for (const e of S.markers.values()) m.set(e.type.id, (m.get(e.type.id) || 0) + 1);
+  for (const e of known()) m.set(e.type.id, (m.get(e.type.id) || 0) + 1);
   return m;
 }
 
 function rankCounts() {
   const m = new Map();
-  for (const e of S.markers.values()) m.set(e.rank, (m.get(e.rank) || 0) + 1);
+  for (const e of known()) m.set(e.rank, (m.get(e.rank) || 0) + 1);
   return m;
 }
 
@@ -717,6 +888,29 @@ function setAllZoom(on) {
   afterFilter();
 }
 
+function toggleDecor() {
+  prefs.decor = decorOff() ? true : false;
+  savePrefs();
+  refreshDesign();
+  toast(decorOff() ? 'Compass, scale bar and border are hidden on this device. ⋯ shows them again.' : 'Compass, scale bar and border are shown again.');
+}
+
+function updateMeasureBtn() {
+  if (!measureBtn) return;
+  const s = design().scale;
+  const ok = s.perPx > 0 && s.ruler;
+  measureBtn.parentElement.hidden = !ok;
+  if (!ok) stopMeasure();
+}
+
+/** The visible part of the map (beside the panels), in image px. */
+function viewRect() {
+  const v = visibleRect();
+  const a = toXY(S.map.containerPointToLatLng([v.x0, v.y0]));
+  const b = toXY(S.map.containerPointToLatLng([v.x0 + v.w, v.y0 + v.h]));
+  return { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y };
+}
+
 function toggleLabels() {
   prefs.labels = !labelsOn();
   savePrefs();
@@ -727,7 +921,7 @@ function toggleLabels() {
 function updateEmpty() {
   if (!emptyCard) return;
   const idle = S.ready && S.mode === 'idle' && !drawer.isOpen && !editing();
-  const n = S.markers.size;
+  const n = [...known()].length;
   let key = '';
   let shown = 0;
   if (idle && n) {
@@ -743,19 +937,22 @@ function updateEmpty() {
     }
     if (visible) zoomHidden = 0;
   }
-  if (idle && n === 0) key = 'none';
+  const fogged = !seeThrough() && fogActive(fogV.fog); // players: the fog may hide places, so don't call it unmarked
+  if (idle && n === 0) key = fogged ? 'none:fog' : 'none';
   else if (idle && n > 0 && shown === 0) key = 'hidden';
   else if (zoomHidden) key = `zoom:${zoomHidden}`;
   if (key === S.emptyKey) return;
   S.emptyKey = key;
   emptyCard.hidden = !key;
   emptyCard.classList.toggle('is-hint', key.startsWith('zoom'));
-  if (key === 'none') {
+  if (key.startsWith('none')) {
     mount(emptyCard,
       h('span', { class: 'map-empty-mark', 'aria-hidden': 'true' }, icon('pin')),
-      h('div', { class: 'map-empty-text' },
-        h('p', { class: 'map-empty-title' }, S.mapId === data.MAIN_MAP ? 'The map is unmarked.' : 'This map is unmarked.'),
-        h('p', null, 'Add the first location. You can also right-click (or long-press) anywhere on the map.')),
+      fogged
+        ? h('div', { class: 'map-empty-text' }, h('p', { class: 'map-empty-title' }, 'Fog still hides much of this map.'), h('p', null, 'Places appear as the fog clears. You can still add one yourself.'))
+        : h('div', { class: 'map-empty-text' },
+          h('p', { class: 'map-empty-title' }, S.mapId === data.MAIN_MAP ? 'The map is unmarked.' : 'This map is unmarked.'),
+          h('p', null, 'Add the first location. You can also right-click (or long-press) anywhere on the map.')),
       h('button', { class: 'btn', type: 'button', onclick: startPlacing }, icon('plus'), h('span', null, 'Add location')));
   } else if (key === 'hidden') {
     mount(emptyCard,
@@ -799,6 +996,11 @@ async function addSubmap({ fromLoc = null, name = '' } = {}) {
   return id;
 }
 
+async function copyCurrentMap() {
+  const id = await openCopyMapDialog(S.mapId, { fogHides: fogHidesLoc });
+  if (id) navigate(data.mapHref(id));
+}
+
 async function deleteCurrentMap() {
   const parent = await deleteMapFlow(S.mapId);
   if (parent) navigate(data.mapHref(parent));
@@ -829,7 +1031,8 @@ function recenterForPanel(opening, size) {
   S.map.panBy([-dx * k, dy * k], { animate: !reduceMotion() });
 }
 
-async function toggleEdit(on = !editing()) {
+async function toggleEdit(on = !editing(), tab = 'places') {
+  if (on && editing()) { editor.setTab(tab); return; }
   if (on === editing()) return;
   const panel = { w: editor.el.offsetWidth, h: editor.el.offsetHeight }; // measured while still shown (closing)
   if (on) {
@@ -839,7 +1042,9 @@ async function toggleEdit(on = !editing()) {
     closePopovers();
     closeCtx();
     search.set('');
-    editor.open();
+    stopMeasure();
+    cancelPicking();
+    editor.open(tab);
   } else if (editor.close()) {
     saveSoon(`map: edit “${info().name}”`); // edit mode has its own undo, so its changes commit once, on Done
   }
@@ -857,6 +1062,82 @@ async function toggleEdit(on = !editing()) {
   legend.update();
   menu.pop.refresh();
   updateEmpty();
+}
+
+// ---------- crop, picking points (Design tab) ----------
+
+/** Show the whole image with crop handles; change(rect) while dragging, commit(rect) on each release. */
+function startCrop(rect, cbs) {
+  S.cropping = true;
+  refreshDesign();
+  decor.startCrop(rect, cbs);
+}
+function stopCrop() {
+  if (!S.cropping) return;
+  S.cropping = false;
+  decor.stopCrop();
+  refreshDesign();
+}
+
+/** Ask for n clicks on the map (e.g. to set the scale). Resolves [{x, y}…] or null when canceled. */
+function pickPoints(n, text) {
+  cancelPicking();
+  stopMeasure();
+  return new Promise((resolve) => {
+    S.pick = { n, pts: [], dots: [], resolve, text };
+    S.mode = 'picking';
+    S.root.classList.add('is-picking');
+    showBanner(text, [{ label: 'Cancel', onClick: () => cancelPicking() }], `0 of ${n} points · Esc cancels`);
+  });
+}
+function pickAt(xy) {
+  const p = S.pick;
+  if (!p) return;
+  p.pts.push(xy);
+  p.dots.push(L.circleMarker(toLatLng(xy.x, xy.y), { pane: TOOL_PANE, interactive: false, radius: 6, color: '#1f1a14', weight: 2, fillColor: '#ffffff', fillOpacity: 1 }).addTo(S.map));
+  if (p.pts.length >= p.n) finishPicking(p.pts);
+  else showBanner(p.text, [{ label: 'Cancel', onClick: () => cancelPicking() }], `${p.pts.length} of ${p.n} points · Esc cancels`);
+}
+function finishPicking(pts) {
+  const p = S.pick;
+  if (!p) return;
+  S.pick = null;
+  S.mode = 'idle';
+  S.root.classList.remove('is-picking');
+  hideBanner();
+  for (const d of p.dots) d.remove();
+  p.resolve(pts);
+}
+function cancelPicking() {
+  if (!S.pick) return false;
+  finishPicking(null);
+  return true;
+}
+
+// ---------- ruler ----------
+
+async function startMeasure() {
+  closePopovers();
+  closeCtx();
+  if (drawer.isOpen && !(await closeDrawer())) return false;
+  if (S.mode === 'moving') finishMove(false);
+  cancelPlacing();
+  cancelPicking();
+  S.mode = 'measuring';
+  decor.startMeasure();
+  measureBtn.setAttribute('aria-pressed', 'true');
+  showBanner('Click points on the map to measure the distance.', [{ label: 'Done', onClick: () => stopMeasure() }], 'Double-click or Enter ends a path · Esc stops');
+  updateEmpty();
+  return true;
+}
+function stopMeasure() {
+  if (S.mode !== 'measuring') return false;
+  S.mode = 'idle';
+  decor.stopMeasure();
+  measureBtn.setAttribute('aria-pressed', 'false');
+  hideBanner();
+  updateEmpty();
+  return true;
 }
 
 // ---------- selection, drawer, hash ----------
@@ -1148,6 +1429,8 @@ function onMarkerDragEnd(e) {
 
 function onMarkerClick(e, ev) {
   closeCtx();
+  if (S.mode === 'measuring') { decor.measureAt({ x: e.loc.x, y: e.loc.y }); return; }
+  if (S.mode === 'picking') { pickAt({ x: e.loc.x, y: e.loc.y }); return; }
   if (S.mode === 'placing') { placeAt(ev.latlng); return; }
   if (S.mode === 'moving') return;
   if (editing()) { editor.onMarkerClick(e.id, ev.originalEvent); return; }
@@ -1156,16 +1439,20 @@ function onMarkerClick(e, ev) {
 
 function onMapClick(ev) {
   if (closeCtx() || Date.now() - S.ctxClosedAt < 350) return;
+  if (S.mode === 'measuring') { decor.measureAt(toXY(ev.latlng)); return; }
+  if (S.mode === 'picking') { pickAt(toXY(ev.latlng)); return; }
   if (S.mode === 'placing') { placeAt(ev.latlng); return; }
   const p = clampXY(toXY(ev.latlng));
   if (S.mode === 'moving') { S.markers.get(S.moveId)?.marker.setLatLng(toLatLng(p.x, p.y)); return; }
   if (drawer.mode === 'new' && S.ghost) { S.ghost.setLatLng(toLatLng(p.x, p.y)); drawer.setPosition(p); return; }
   if (drawer.mode === 'view') { closeDrawer(); return; }
+  if (editing() && S.designTab === 'pictures') { pictures.select(null); return; }
   if (editing() && !(ev.originalEvent?.ctrlKey || ev.originalEvent?.metaKey || ev.originalEvent?.shiftKey)) editor.clearSelection();
 }
 
 function onContextMenu(ev) {
-  if (S.mode === 'moving') return;
+  if (S.mode === 'moving' || S.mode === 'picking') return;
+  if (S.mode === 'measuring') { decor.finishMeasure(); return; }
   if (S.mode === 'placing') { placeAt(ev.latlng); return; }
   openCtx(ev.containerPoint, ev.latlng);
 }
@@ -1180,6 +1467,7 @@ function openCtx(pt, ll) {
     item('plus', 'Add location here', () => beginNewAt(xy)),
     item('pin', 'Center the map here', () => S.map.panTo(ll, { animate: !reduceMotion() })),
     item('compass', 'Show the whole map', () => fitMap(true)),
+    design().scale.perPx > 0 && design().scale.ruler ? item('ruler', 'Measure from here', () => startMeasure().then((ok) => ok && decor.measureAt(toXY(ll)))) : null,
     editing() ? null : item('edit', 'Edit map', () => toggleEdit(true)));
   S.root.append(ctxMenu);
   const w = S.root.clientWidth;
@@ -1220,6 +1508,9 @@ function onKey(e) {
     if (e.defaultPrevented || document.querySelector('.modal-backdrop')) return;
     if (closeCtx()) { e.preventDefault(); S.canvas.focus({ preventScroll: true }); return; }
     if (closePopovers()) { e.preventDefault(); return; }
+    if (S.mode === 'picking') { e.preventDefault(); cancelPicking(); return; }
+    if (S.mode === 'measuring') { e.preventDefault(); stopMeasure(); return; }
+    if (S.cropping) { e.preventDefault(); stopCrop(); designPanel.refresh('design'); return; }
     if (S.mode === 'placing') { e.preventDefault(); cancelPlacing(); return; }
     if (S.mode === 'moving') { e.preventDefault(); finishMove(false); return; }
     if (drawer.isOpen) { e.preventDefault(); closeDrawer(); return; }
@@ -1234,6 +1525,7 @@ function onKey(e) {
   const onButton = t instanceof HTMLButtonElement || t instanceof HTMLAnchorElement;
   if (e.key === 'Enter' && !onButton && S.mode === 'placing') { e.preventDefault(); placeAtCenter(); return; }
   if (e.key === 'Enter' && !onButton && S.mode === 'moving') { e.preventDefault(); finishMove(true); return; }
+  if (e.key === 'Enter' && !onButton && S.mode === 'measuring') { e.preventDefault(); decor.finishMeasure(); return; }
   if (e.key === '/') { e.preventDefault(); search.focus(); return; }
   if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomStep(e.shiftKey && e.key === '=' ? 2 : 1); return; }
   if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomStep(e.key === '_' ? -2 : -1); }
@@ -1307,6 +1599,8 @@ function showView(route) {
 function hideView() {
   S.visible = false;
   cancelPlacing();
+  stopMeasure();
+  cancelPicking();
   closeCtx();
   closePopovers();
   zoomer?.cancel();
