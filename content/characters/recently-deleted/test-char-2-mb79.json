@@ -1,0 +1,179 @@
+{
+  "id": "test-char-2-mb79",
+  "name": "Test char 2",
+  "player": "Blobberus",
+  "portrait": "content/characters/portraits/test-char-2-hrl53i.png",
+  "species": {
+    "id": "half-elf",
+    "subspecies": null,
+    "size": null
+  },
+  "background": {
+    "id": "criminal",
+    "abilityBonuses": {
+      "dex": 2,
+      "con": 1
+    }
+  },
+  "classes": [
+    {
+      "id": "fighter",
+      "level": 1,
+      "subclass": null,
+      "hp": [
+        10
+      ]
+    }
+  ],
+  "abilityMethod": "standard",
+  "baseAbilities": {
+    "str": 15,
+    "dex": 14,
+    "con": 13,
+    "int": 8,
+    "wis": 12,
+    "cha": 10
+  },
+  "choices": {
+    "species:half-elf-skill-versatility": [
+      "acrobatics",
+      "intimidation"
+    ],
+    "background:abilities": {
+      "dex": 2,
+      "con": 1
+    },
+    "origin:languages": [
+      "common-sign-language",
+      "abyssal"
+    ],
+    "class-skills@fighter:1": [
+      "acrobatics",
+      "perception"
+    ],
+    "fighter-fighting-style@fighter:1": "great-weapon-fighting",
+    "fighter-weapon-mastery@fighter:1": [
+      "club",
+      "dagger",
+      "dart"
+    ]
+  },
+  "skills": [
+    "acrobatics",
+    "perception"
+  ],
+  "extraProficiencies": {
+    "skills": [],
+    "expertise": [],
+    "saves": [],
+    "armor": [],
+    "weapons": [],
+    "tools": [],
+    "languages": []
+  },
+  "feats": [],
+  "spells": [],
+  "slotsUsed": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "pactUsed": 0,
+  "inventory": [],
+  "currency": {
+    "cp": 0,
+    "sp": 0,
+    "ep": 0,
+    "gp": 0,
+    "pp": 0
+  },
+  "hp": {
+    "current": 12,
+    "temp": 0
+  },
+  "hitDiceUsed": {},
+  "deathSaves": {
+    "success": 0,
+    "fail": 0
+  },
+  "resourcesUsed": {
+    "second-wind": 1
+  },
+  "conditions": [],
+  "exhaustion": 0,
+  "heroicInspiration": false,
+  "xp": 0,
+  "abilities": [],
+  "favorites": {
+    "items": [],
+    "skills": [],
+    "features": [],
+    "spells": []
+  },
+  "overrides": {
+    "ac": null,
+    "speed": null,
+    "initiative": null,
+    "hpMax": null,
+    "profBonus": null,
+    "passivePerception": null,
+    "abilities": {},
+    "saves": {},
+    "skills": {},
+    "proficiency": {
+      "skills": {},
+      "saves": {}
+    }
+  },
+  "style": {
+    "accent": null,
+    "page": null,
+    "panel": null,
+    "border": null,
+    "borderStyle": null,
+    "borderWidth": null,
+    "corners": null,
+    "headingFont": null,
+    "textFont": null
+  },
+  "details": {
+    "alignment": "",
+    "pronouns": "",
+    "gender": "",
+    "sexuality": "",
+    "age": "",
+    "height": "",
+    "weight": "",
+    "eyes": "",
+    "hair": "",
+    "skin": "",
+    "location": "",
+    "groups": "",
+    "religion": "",
+    "appearance": "",
+    "personalityTraits": "",
+    "socialTraits": "",
+    "mentalTraits": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "likes": "",
+    "dislikes": "",
+    "resistances": "",
+    "backstory": "",
+    "notes": ""
+  },
+  "createdBy": "Blobberus",
+  "created": "2026-10-23T02:14:58.926Z",
+  "updated": "2026-10-23T02:18:02.163Z",
+  "trashed": {
+    "at": "2026-10-23T02:21:08.741Z",
+    "by": "Blobberus"
+  }
+}

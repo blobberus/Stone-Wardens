@@ -1,0 +1,187 @@
+{
+  "id": "magic-character-test-a6t0",
+  "name": "Magic character test",
+  "player": "Blobberus",
+  "portrait": null,
+  "species": {
+    "id": null,
+    "subspecies": null,
+    "size": null
+  },
+  "background": {
+    "id": null,
+    "abilityBonuses": {}
+  },
+  "classes": [
+    {
+      "id": "wizard",
+      "level": 1,
+      "subclass": null,
+      "hp": [
+        6
+      ]
+    }
+  ],
+  "abilityMethod": "standard",
+  "baseAbilities": {
+    "str": 8,
+    "dex": 13,
+    "con": 14,
+    "int": 15,
+    "wis": 12,
+    "cha": 10
+  },
+  "choices": {},
+  "skills": [],
+  "extraProficiencies": {
+    "skills": [],
+    "expertise": [],
+    "saves": [],
+    "armor": [],
+    "weapons": [],
+    "tools": [],
+    "languages": []
+  },
+  "feats": [],
+  "spells": [
+    {
+      "id": "acid-splash",
+      "class": "wizard",
+      "prepared": true,
+      "always": false
+    },
+    {
+      "id": "charm-person",
+      "class": "wizard",
+      "prepared": true,
+      "always": false
+    },
+    {
+      "id": "chromatic-orb",
+      "class": "wizard",
+      "prepared": true,
+      "always": false
+    },
+    {
+      "id": "burning-hands",
+      "class": "wizard",
+      "prepared": true,
+      "always": false
+    },
+    {
+      "id": "alarm",
+      "class": "wizard",
+      "prepared": false,
+      "always": false
+    },
+    {
+      "id": "color-spray",
+      "class": "wizard",
+      "prepared": false,
+      "always": false
+    },
+    {
+      "id": "chill-touch",
+      "class": "wizard",
+      "prepared": true,
+      "always": false
+    }
+  ],
+  "slotsUsed": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "pactUsed": 0,
+  "inventory": [],
+  "currency": {
+    "cp": 0,
+    "sp": 0,
+    "ep": 0,
+    "gp": 0,
+    "pp": 0
+  },
+  "hp": {
+    "current": 8,
+    "temp": 0
+  },
+  "hitDiceUsed": {},
+  "deathSaves": {
+    "success": 0,
+    "fail": 0
+  },
+  "resourcesUsed": {},
+  "conditions": [],
+  "exhaustion": 0,
+  "heroicInspiration": false,
+  "xp": 0,
+  "abilities": [],
+  "favorites": {
+    "items": [],
+    "skills": [],
+    "features": [],
+    "spells": []
+  },
+  "overrides": {
+    "ac": null,
+    "speed": null,
+    "initiative": null,
+    "hpMax": null,
+    "profBonus": null,
+    "passivePerception": null,
+    "abilities": {},
+    "saves": {},
+    "skills": {},
+    "proficiency": {
+      "skills": {},
+      "saves": {}
+    }
+  },
+  "style": {
+    "accent": null,
+    "page": null,
+    "panel": null,
+    "border": null,
+    "borderStyle": null,
+    "borderWidth": null,
+    "corners": null,
+    "headingFont": null,
+    "textFont": null
+  },
+  "details": {
+    "alignment": "",
+    "pronouns": "",
+    "gender": "",
+    "sexuality": "",
+    "age": "",
+    "height": "",
+    "weight": "",
+    "eyes": "",
+    "hair": "",
+    "skin": "",
+    "location": "",
+    "groups": "",
+    "religion": "",
+    "appearance": "",
+    "personalityTraits": "",
+    "socialTraits": "",
+    "mentalTraits": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "likes": "",
+    "dislikes": "",
+    "resistances": "",
+    "backstory": "",
+    "notes": ""
+  },
+  "createdBy": "Blobberus",
+  "created": "2026-10-23T02:18:59.684Z",
+  "updated": "2026-10-23T02:20:10.230Z"
+}
