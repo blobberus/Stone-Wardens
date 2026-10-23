@@ -1,13 +1,13 @@
-// Sheet style ("skin") per character: `char.style` page / panel / border colours, border style and width, corners,
+// Sheet style ("skin") per character: `char.style` page / panel / border colors, border style and width, corners,
 // heading and text fonts (plus the existing highlight `accent`, handled in widgets.js). Pure (Node-testable) apart
 // from applySkin / clearSkin, which only touch the element they are given.
-// Values are whitelisted: colours must be #rrggbb, everything else an id from the tables below, so a doc can never
+// Values are whitelisted: colors must be #rrggbb, everything else an id from the tables below, so a doc can never
 // put arbitrary CSS into the page. null always means "the theme's default".
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const hex = (v) => (typeof v === 'string' && HEX.test(v) ? v.toLowerCase() : null);
 
-/** Sheet highlight colour default (oxblood); `style.accent` null = this. Re-exported by data.js. */
+/** Sheet highlight color default (oxblood); `style.accent` null = this. Re-exported by data.js. */
 export const DEFAULT_ACCENT = '#7a1f1f';
 
 /** Fonts: the site's own (already loaded by index.html) and system stacks; no extra font downloads. */
@@ -66,7 +66,7 @@ export function normalizeStyle(style) {
   };
 }
 
-/** True when anything besides the highlight colour differs from the default look. */
+/** True when anything besides the highlight color differs from the default look. */
 export const isCustomSkin = (style) => {
   const s = normalizeStyle(style);
   return Object.keys(STYLE_DEFAULTS).some((k) => k !== 'accent' && s[k] != null);
@@ -88,7 +88,7 @@ export function presetOf(style) {
   return SKIN_PRESETS.find((p) => Object.keys(STYLE_DEFAULTS).every((k) => p.style[k] === s[k])) || null;
 }
 
-// ---------- colour helpers ----------
+// ---------- color helpers ----------
 
 function luminance(h) {
   const ch = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
@@ -106,13 +106,13 @@ function mix(a, b, t) { // t of a, (1 - t) of b, in sRGB
   return `#${[1, 3, 5].map((i) => Math.round(ch(a, i) * t + ch(b, i) * (1 - t)).toString(16).padStart(2, '0')).join('')}`;
 }
 
-/** 'light' | 'dark': which theme's ink reads better on this colour. */
+/** 'light' | 'dark': which theme's ink reads better on this color. */
 export function groundOf(color) {
   const c = hex(color) || '#f6f2e9';
   return ratio(c, INK.light) >= ratio(c, INK.dark) ? 'light' : 'dark';
 }
 
-/** Ink for text on a colour: the theme's ink, or black / white on mid tones; muted and faint only while still AA. */
+/** Ink for text on a color: the theme's ink, or black / white on mid tones; muted and faint only while still AA. */
 export function inkOn(color) {
   const c = hex(color) || '#f6f2e9';
   let ground = groundOf(c);
@@ -128,9 +128,9 @@ export function inkOn(color) {
 /**
  * The CSS for a style: `vars` (custom properties, all from whitelisted values) and `data` attributes.
  * - `data-ground` (light|dark) switches the whole token set (tokens.css) to the theme whose ink suits the box fill
- *   (or the page colour when no fill is set), so links and pigments keep their contrast in either theme; --ink,
- *   --ink-muted and --ink-faint are then worked out for that colour (always >= 4.5:1).
- * - When that ink doesn't read on the page colour, `data-sk-pageink` + --ch-page-ink fix the few texts drawn
+ *   (or the page color when no fill is set), so links and pigments keep their contrast in either theme; --ink,
+ *   --ink-muted and --ink-faint are then worked out for that color (always >= 4.5:1).
+ * - When that ink doesn't read on the page color, `data-sk-pageink` + --ch-page-ink fix the few texts drawn
  *   directly on the page (name, class line, back arrow…).
  */
 export function skinCss(style) {

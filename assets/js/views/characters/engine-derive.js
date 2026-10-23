@@ -299,7 +299,7 @@ const profLevel = (P, E, id) => (E.has(id) ? 'expertise' : P.has(id) ? 'proficie
 
 /**
  * Full computation: {sheet, ctx}. Every stat includes its debuffs; `sheet.adjust` explains them (engine-adjust.js).
- * opts.pure: ignore debuffs (Exhaustion, conditions, negative modifiers, armour penalties) — the base values.
+ * opts.pure: ignore debuffs (Exhaustion, conditions, negative modifiers, armor penalties) — the base values.
  * opts.lite: skip the Choice option lists.
  */
 export function compute(charIn, rulesIn, opts = {}) {

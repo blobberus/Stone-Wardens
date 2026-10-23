@@ -37,7 +37,7 @@ const BLURBS = {
   class: 'The twelve classes, level by level.',
   subclass: 'Subclasses for every class.',
   background: 'Backgrounds: ability scores, feat, skills, tool.',
-  'location-type': 'Map pin types: icon and colour.',
+  'location-type': 'Map pin types: icon and color.',
 };
 
 export const linkPrefix = (kind) => PREFIX[kind] || null;
@@ -402,7 +402,7 @@ const flagCell = (e) => h('span', { class: 'cp-flags' },
 const yes = (v) => (v ? 'Yes' : '—');
 const swatchCell = (e) => locationSwatch(e);
 
-/** Coloured pin swatch with the type's marker glyph. */
+/** Colored pin swatch with the type's marker glyph. */
 export function locationSwatch(e, size = 26) {
   const svg = h('svg', { class: 'icon', 'aria-hidden': 'true', width: 16, height: 16 });
   svg.append(h('use', { href: `assets/img/icons.svg#${MARKER_ICONS.includes(e.icon) ? e.icon : 'mk-custom'}` }));

@@ -61,7 +61,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   sheets), library document renames, new/deleted/moved places, sub-maps, Done in map edit mode, custom library entries (inside
   `compendium.saveCustom/removeCustom`), new/deleted/restored characters, journal note/folder delete and move. Calls
   within 1.5 s make one commit (message `<player>: <reasons>`), one batch at a time; it waits for a running save and
-  skips when that save failed or was cancelled at a conflict (drafts stay). `majorSaveOn()` / `saveHint()` pick toast
+  skips when that save failed or was canceled at a conflict (drafts stay). `majorSaveOn()` / `saveHint()` pick toast
   wording. Small edits (typing, place descriptions, map / note / folder renames) keep the timer.
 - Sandbox mode (`?sandbox`, or no vault on localhost): same API backed by IndexedDB only.
 - JSON docs are pretty-printed (2 spaces). Ids: `slug-xxxx` (`util.uid(name)`), filename = id.
@@ -91,7 +91,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   Prefixes: `map:` locations and sub-maps (place id > map id > place name > map name; `[[map:Map#Place]]`), `char:` characters (`[[char:Name#hp]]` anchors a sheet section/stat),
   `note:` journal, `folder:` journal folder (legacy `chapter:`), `doc:` warden's library, `quest:` quests, compendium kinds: `weapon: armor: gear: item: spell: feat:
   ability: species: class: subclass: background:`.
-- `markdown.js`: Obsidian-flavoured: `[[wikilinks|alias]]`, `[[x#heading]]`, `![[embed]]` (notes/images),
+- `markdown.js`: Obsidian-flavored: `[[wikilinks|alias]]`, `[[x#heading]]`, `![[embed]]` (notes/images),
   `> [!type]± title` callouts, `==highlight==`, `%%comment%%`, `#tags`, task lists, tables, GFM autolinks,
   YAML frontmatter. `renderMarkdown(src) -> safe HTML`, `renderInto(el, src)` (wires links/embeds/folds),
   `parseFrontmatter(text) -> {data, body}`, `stringifyFrontmatter(data, body)`, `extractLinks(src)`.
@@ -164,13 +164,13 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   Contract and doc shape: `docs/character-model.md`. `derive()` -> Sheet incl. `adjust[key] = {base, value, reasons}`
   (debuffs already applied to the shown numbers; UI renders them with widgets.js `adjustedValue(sheet, key, text)`).
 - Doc fields beyond the basics: `overrides.proficiency` (final say on skill/save prof), `style.accent` (highlight
-  colour, default `#7a1f1f`), `xpLog`, `levelOrder`, `abilities[].tags` (manual Smart tags). Deleting moves a sheet to `recently-deleted/` (trash.js).
-- Sheet style (`skin.js`, pure + Node-tested): `style.{page, panel, border}` colours, `borderStyle`, `borderWidth`,
+  color, default `#7a1f1f`), `xpLog`, `levelOrder`, `abilities[].tags` (manual Smart tags). Deleting moves a sheet to `recently-deleted/` (trash.js).
+- Sheet style (`skin.js`, pure + Node-tested): `style.{page, panel, border}` colors, `borderStyle`, `borderWidth`,
   `corners`, `headingFont`, `textFont` (whitelisted ids / #rrggbb, null = default; `normalizeStyle` on read),
   presets `SKIN_PRESETS`, edited in Edit all → Sheet style (live preview). `applySkin(el, style)` sets custom
   properties + `data-ground` / `data-sk-*` on the characters `.view` while a sheet shows (index.js `clearSkin`
   on every other route). `data-ground="light|dark"` switches the whole token set (tokens.css) for that subtree;
-  ink is computed per colour (>= 4.5:1). Only colours, edges, corners and fonts change, never the layout.
+  ink is computed per color (>= 4.5:1). Only colors, edges, corners and fonts change, never the layout.
 - Sheet order: header row (portrait, name, XP meter, action buttons | HP, folded, with the "Hide / Show trackers"
   button under it | Death saves | AC · Initiative · Speed · Prof, one line when wide, 2 × 2 when tighter, the
   combat boxes on their own line under the identity when narrow) ->

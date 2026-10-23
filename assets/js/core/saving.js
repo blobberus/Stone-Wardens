@@ -9,7 +9,7 @@ export const setSaveHandler = (fn) => { handler = fn; };
 
 /**
  * Commit all unsaved changes ({message} = commit message). Resolves true when saved (or nothing to save),
- * false when cancelled or failed.
+ * false when canceled or failed.
  */
 export const saveNow = (opts) => (handler ? handler(opts) : Promise.resolve(false));
 
@@ -59,7 +59,7 @@ async function flush() {
   let ok = false;
   try {
     // Another save (Save button, timer, auto-commit) may be running: let it finish, then commit what it missed.
-    // When that one (or the batch this one queued behind) failed or was cancelled at a conflict, the player has
+    // When that one (or the batch this one queued behind) failed or was canceled at a conflict, the player has
     // just seen the error / made the choice: don't repeat it. The drafts stay for the timer or the Save button.
     let prev = behind && !lastOk ? null : { saved: 0 };
     while (prev && !prev.cancelled && store.saving) prev = await store.savePromise.then((r) => r, () => null);

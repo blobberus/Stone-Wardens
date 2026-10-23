@@ -259,7 +259,7 @@ const BODY = {
       h('div', { class: 'cp-loc-preview' }, locationSwatch(e, 44), h('span', null, e.name)),
       stats(
         stat('Icon', prettify(String(e.icon || 'mk-custom').replace(/^mk-/, ''))),
-        stat('Colour', h('span', { class: 'cp-color' }, h('span', { class: 'cp-color-dot', style: { '--cp-pin': e.color || 'var(--pin-slate)' } }), String(e.color || '—'))),
+        stat('Color', h('span', { class: 'cp-color' }, h('span', { class: 'cp-color-dot', style: { '--cp-pin': e.color || 'var(--pin-slate)' } }), String(e.color || '—'))),
         stat('Default map rank', `${typeRankText(e)} (rank 1 shows fully zoomed out; lower ranks appear as you zoom in)`)),
       md(e.description, 'cp-desc'),
     ];

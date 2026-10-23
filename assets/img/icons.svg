@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg">
 <!-- The Stone Wardens icon sprite. Use: <svg class="icon"><use href="assets/img/icons.svg#i-NAME"/></svg>
      UI icons (i-*): 24x24 outline, stroke currentColor 1.75, round caps/joins.
-     Map marker glyphs (mk-*): filled silhouettes in currentColor, drawn to read at 16px inside a coloured pin.
+     Map marker glyphs (mk-*): filled silhouettes in currentColor, drawn to read at 16px inside a colored pin.
      i-emblem (48x48): the wardens' mark; its star takes the CSS custom property emblem-star
      (set it to the gold token on the element that holds the use).
      i-star: its fill takes the CSS custom property icon-fill (default none), so a filled star needs no second symbol. -->

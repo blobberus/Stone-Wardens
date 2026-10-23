@@ -40,7 +40,7 @@ export function errorText(e) {
 
 // ---------- shared pieces ----------
 
-/** A centred notice card used for fallbacks (can't preview, legacy .doc, mobile PDF). */
+/** A centered notice card used for fallbacks (can't preview, legacy .doc, mobile PDF). */
 function notice({ iconName = 'file', title, text, actions = [] }) {
   return h('div', { class: 'wl-state wl-notice' },
     h('span', { class: 'wl-state-icon' }, icon(iconName, 40)),

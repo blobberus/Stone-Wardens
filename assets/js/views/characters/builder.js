@@ -255,7 +255,7 @@ const STEP_RENDER = {
     if (!c.classes.length) return h('p', { class: 'muted' }, 'Choose a class first.');
     if (!eligible.length) return h('p', { class: 'muted' }, 'Subclasses are chosen at level 3. Raise the starting level in “Class & level”, or pick one later when you level up.');
     return [
-      h('p', { class: 'muted ui text-sm' }, 'SRD 5.2 subclasses carry full rules text. Others are labelled with their book and summarised in our own words.'),
+      h('p', { class: 'muted ui text-sm' }, 'SRD 5.2 subclasses carry full rules text. Others are labeled with their book and summarized in our own words.'),
       renderChoiceGroups(parts.subclass, builderCtx(), { empty: 'No subclass choice is open for these classes.' }),
     ];
   },

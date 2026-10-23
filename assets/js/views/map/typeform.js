@@ -80,10 +80,10 @@ export function openTypeForm({ type = null, usage = 0 } = {}) {
     }, glyph(ic))));
 
     const colorIn = h('input', {
-      type: 'color', class: 'map-tf-color-input', value: toHex(f.color), 'aria-label': 'Custom colour',
+      type: 'color', class: 'map-tf-color-input', value: toHex(f.color), 'aria-label': 'Custom color',
       oninput: (e) => { f.color = e.target.value; drawSwatches(); drawPreview(); },
     });
-    const swatches = h('div', { class: 'map-tf-swatches', role: 'radiogroup', 'aria-label': 'Colour' });
+    const swatches = h('div', { class: 'map-tf-swatches', role: 'radiogroup', 'aria-label': 'Color' });
     const drawSwatches = () => {
       const cur = toHex(f.color);
       const custom = !data.PIGMENTS.some((p) => p.hex === cur);
@@ -93,7 +93,7 @@ export function openTypeForm({ type = null, usage = 0 } = {}) {
           'aria-checked': String(cur === p.hex), 'aria-label': p.name, title: p.name,
           onclick: () => { f.color = p.hex; colorIn.value = p.hex; drawSwatches(); drawPreview(); },
         })),
-        h('label', { class: ['map-tf-custom', custom && 'is-active'], title: 'Pick any colour' }, colorIn, h('span', null, 'Custom')));
+        h('label', { class: ['map-tf-custom', custom && 'is-active'], title: 'Pick any color' }, colorIn, h('span', null, 'Custom')));
     };
 
     const rankSel = h('select', { class: 'select', id: 'map-tf-rank', onchange: (e) => { f.rank = Number(e.target.value); drawPreview(); } },
@@ -111,7 +111,7 @@ export function openTypeForm({ type = null, usage = 0 } = {}) {
         preview,
         h('label', { class: 'field map-tf-name' }, h('span', { class: 'field-label' }, 'Name'), nameIn, err)),
       h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Icon'), icons),
-      h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Colour'), swatches),
+      h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Color'), swatches),
       major,
       type?.builtin ? h('p', { class: 'muted map-tf-note' }, 'This changes the built-in type for everyone on the map.') : null);
 

@@ -113,7 +113,7 @@ async function removeDoc(doc) {
  * name goes through the same safe-file-name rule as uploads. The file is copied to the new path and the old path
  * removed, so a saved document and an unsaved upload alike end up as one staged file under the new name (the
  * old one is deleted from the repository on Save). An open document follows to its new address.
- * Resolves the new path, or null when cancelled or refused.
+ * Resolves the new path, or null when canceled or refused.
  */
 export async function renameDoc(doc) {
   const from = document.activeElement;
@@ -408,7 +408,7 @@ function renderTable(docs) {
       h('tbody', null, docs.map((d) => h('tr', {
         class: ['is-clickable', d.staged && 'is-staged'],
         'data-type': d.type.key,
-        // The whole row opens the document; its own links and buttons keep their behaviour.
+        // The whole row opens the document; its own links and buttons keep their behavior.
         onclick: (e) => { if (!e.target.closest('a, button')) navigate(docHref(d.path)); },
       },
         h('td', { class: 'cell-name wl-name-cell' },
@@ -428,7 +428,7 @@ function renderTable(docs) {
 
 // ---------- reader ----------
 
-function neighbours(doc) {
+function neighbors(doc) {
   const sibs = shelfSiblings(doc);
   const i = sibs.findIndex((d) => d.path === doc.path);
   if (i < 0) return { prev: null, next: null, index: -1, total: sibs.length };
@@ -474,7 +474,7 @@ function setFolded(folded) {
 }
 
 function renderReaderHead(doc) {
-  const { prev, next, index, total } = neighbours(doc);
+  const { prev, next, index, total } = neighbors(doc);
   const nav = (d, dir) => {
     const glyph = icon(dir === 'prev' ? 'chevron-left' : 'chevron-right');
     const word = dir === 'prev' ? 'Previous' : 'Next';
@@ -516,7 +516,7 @@ function renderReaderHead(doc) {
 
 function renderReaderFoot(doc) {
   if (doc.type.key === 'pdf') return null;
-  const { prev, next } = neighbours(doc);
+  const { prev, next } = neighbors(doc);
   if (!prev && !next) return null;
   const link = (d, dir) => (d
     ? h('a', { class: `wl-pager-link is-${dir}`, href: docHref(d.path) },

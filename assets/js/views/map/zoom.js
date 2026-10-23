@@ -73,7 +73,7 @@ export function createZoomer(map, { tau = 70 } = {}) {
 
   return {
     get active() { return !!raf; },
-    /** Zoom by dz levels around a container point (default: the centre). */
+    /** Zoom by dz levels around a container point (default: the center). */
     zoomBy(dz, point, ms) { run((t) => t + dz, point, ms); },
     zoomTo(zoom, point, ms) { run(() => zoom, point, ms); },
     /** Stop where we are (e.g. when the user starts dragging). */

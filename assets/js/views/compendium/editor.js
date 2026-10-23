@@ -684,18 +684,18 @@ const FORMS = {
         }, svg);
       }));
       drawIcons();
-      const colorIn = h('input', { type: 'color', class: 'cp-color-input', value: /^#[0-9a-f]{6}$/i.test(d.color || '') ? d.color : '#22507c', 'aria-label': 'Any colour', oninput: (e) => { f.set('color', e.target.value); drawSw(); f.update(); } });
-      const sw = h('div', { class: 'cp-swatches', role: 'radiogroup', 'aria-label': 'Colour' });
+      const colorIn = h('input', { type: 'color', class: 'cp-color-input', value: /^#[0-9a-f]{6}$/i.test(d.color || '') ? d.color : '#22507c', 'aria-label': 'Any color', oninput: (e) => { f.set('color', e.target.value); drawSw(); f.update(); } });
+      const sw = h('div', { class: 'cp-swatches', role: 'radiogroup', 'aria-label': 'Color' });
       const drawSw = () => sw.replaceChildren(...colors.map((c) => h('button', {
         type: 'button', role: 'radio', class: ['cp-swatch-opt', String(d.color).toLowerCase() === c.toLowerCase() && 'is-active'],
-        'aria-checked': String(String(d.color).toLowerCase() === c.toLowerCase()), style: { '--cp-pin': c }, title: c, 'aria-label': `Colour ${c}`,
+        'aria-checked': String(String(d.color).toLowerCase() === c.toLowerCase()), style: { '--cp-pin': c }, title: c, 'aria-label': `Color ${c}`,
         onclick: () => { f.set('color', c); colorIn.value = c; drawSw(); f.update(); },
-      })), h('label', { class: 'cp-swatch-custom' }, colorIn, h('span', null, 'Any colour')));
+      })), h('label', { class: 'cp-swatch-custom' }, colorIn, h('span', null, 'Any color')));
       drawSw();
       return [
         f.dyn(preview),
         f.fld('Icon', icons, { wide: true }),
-        f.fld('Colour', sw, { wide: true }),
+        f.fld('Color', sw, { wide: true }),
         f.fld('Default rank', f.sel('rank', RANKS.map((r) => ({ value: String(r.rank), label: `${r.rank} · ${r.name} — ${r.hint}` }))),
           { wide: true, hint: 'Places of this type use it unless they pick their own rank. Rank 1 shows fully zoomed out; lower ranks appear as you zoom in.' }),
         d._builtin ? h('p', { class: 'muted cp-note' }, 'This changes the built-in type for everyone on the map.') : null,

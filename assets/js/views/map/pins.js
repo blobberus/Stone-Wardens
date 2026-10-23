@@ -16,7 +16,7 @@ export const glyphsReady = fetch(SPRITE)
   .catch(() => {});
 const glyphHref = (name) => `${SPRITE}#${glyphPrefix}${name}`;
 
-/** <svg> for a marker glyph (mk-*), coloured by currentColor. */
+/** <svg> for a marker glyph (mk-*), colored by currentColor. */
 export function glyph(name, cls = '') {
   const svg = h('svg', { class: `icon map-glyph ${cls}`.trim(), 'aria-hidden': 'true', focusable: 'false' });
   svg.append(h('use', { href: glyphHref(name) }));
@@ -31,7 +31,7 @@ const SHAPE = '<svg class="map-pin-shape" viewBox="0 0 32 46" aria-hidden="true"
 // A small "this place has its own map" seal on the pin's shoulder.
 const SUB = `<span class="map-pin-sub" aria-hidden="true"><svg class="icon"><use href="${SPRITE}#i-layers"/></svg></span>`;
 
-// type.css is a sanitized colour or var(--pin-*); type.icon is restricted to the mk-* set (see data.js).
+// type.css is a sanitized color or var(--pin-*); type.icon is restricted to the mk-* set (see data.js).
 function pinInner(type, sub = false) {
   return `<span class="map-pin${type.light ? ' is-light' : ''}" style="--pin:${type.css || type.color}">${SHAPE}`
     + `<svg class="icon map-glyph map-pin-glyph" aria-hidden="true" focusable="false"><use href="${glyphHref(type.icon)}"/></svg>${sub ? SUB : ''}</span>`;
@@ -83,7 +83,7 @@ export function pinPreview(type) {
   return el;
 }
 
-/** Round coloured disc with the type glyph. */
+/** Round colored disc with the type glyph. */
 export function swatch(type) {
   return h('span', { class: ['map-swatch', type.light && 'is-light'], style: `--pin:${type.css || type.color}`, 'aria-hidden': 'true' }, glyph(type.icon));
 }

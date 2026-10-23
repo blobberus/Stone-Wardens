@@ -2,7 +2,7 @@
    Warden's Library — shelves of campaign documents and an in-browser reader.
    Prefix .wl-. Tokens only (tokens.css); shared pieces come from base.css and
    shell.css (.view-head, .toolbar, .search, .chip, .badge, .table, .empty-state,
-   .prose, .spinner). Document types are told apart by icon and label, not colour.
+   .prose, .spinner). Document types are told apart by icon and label, not color.
    ============================================================================= */
 
 /* ---------- Frame (lets the PDF reader fill the view's height) ------------ */
@@ -45,7 +45,7 @@
 .wl-layout .btn { border-radius: 0; }
 .wl-layout .btn:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
 .wl-layout .btn:last-child { margin-left: -1px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.wl-layout .btn[aria-pressed="true"] { position: relative; } /* its darker edge sits above the neighbour's */
+.wl-layout .btn[aria-pressed="true"] { position: relative; } /* its darker edge sits above the neighbor's */
 .wl-showing {
   margin: calc(var(--space-2) * -1) 0 var(--space-3);
   font: 400 var(--text-xs) / 1.4 var(--font-ui);

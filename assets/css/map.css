@@ -1,8 +1,8 @@
 /* =============================================================================
    Map view (.map-*): a full-bleed Leaflet map with floating controls over it,
    a details drawer on the right (bottom sheet on phones) and manuscript pins.
-   Tokens only. Pin colours arrive inline as --pin (a var(--pin-*) pigment, or a
-   custom type's own colour); the glyph is --pin-glyph.
+   Tokens only. Pin colors arrive inline as --pin (a var(--pin-*) pigment, or a
+   custom type's own color); the glyph is --pin-glyph.
    ============================================================================= */
 
 .map-root {

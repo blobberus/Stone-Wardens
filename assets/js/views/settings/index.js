@@ -1,4 +1,4 @@
-// Settings: per-device preferences, saving behaviour, session.
+// Settings: per-device preferences, saving behavior, session.
 import { h, mount } from '../../core/dom.js';
 import { input, select, numberInput, icon, toast, confirmDialog } from '../../core/ui.js';
 import { getSetting, setSetting, applyTheme } from '../../core/settings.js';

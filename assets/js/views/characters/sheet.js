@@ -27,11 +27,11 @@ import { TAGS, tagFeatures, customAbilityRecords, advantageSources, attacksPerAc
 import { levelUpPlan as luPlan } from './bridge.js';
 import { xpStatus } from './engine-xp.js';
 import { lastLeveledClass } from './engine-xp.js';
-// Debuffed values, highlight colour and proficiency marks (abilities / skills / combat / attacks / nav)
+// Debuffed values, highlight color and proficiency marks (abilities / skills / combat / attacks / nav)
 import { adjustedValue, accentAttrs, profMark } from './widgets.js';
 import { applySkin } from './skin.js';
 import { getSetting, setSetting } from '../../core/settings.js';
-// Favourites (stars on items, weapons, skills, features, spells; the Favourites tab)
+// Favorites (stars on items, weapons, skills, features, spells; the Favorites tab)
 import { featureFavKey, spellFavKey, isFavorite, toggleFavorite, favoritesFirst, dropSpellFavorite } from './engine-favs.js';
 import { abilityName } from './data.js';
 
@@ -142,7 +142,7 @@ function render() {
   if (!S.root || !S.char) return;
   const c = S.char;
   const s = S.sheet;
-  // The character's own colours, edges and fonts (skin.js) on the view; index.js clears them when it leaves the sheet.
+  // The character's own colors, edges and fonts (skin.js) on the view; index.js clears them when it leaves the sheet.
   if (S.root.dataset.mode === 'sheet') applySkin(S.root.closest('.view') || S.root, c.style);
   rerender(S.root, () => mount(S.root,
     header(c, s),
@@ -450,33 +450,33 @@ function passive(s) {
       s.senses ? [h('dt', null, 'Senses'), h('dd', null, Array.isArray(s.senses) ? s.senses.join(', ') : typeof s.senses === 'object' ? Object.entries(s.senses).map(([k, v]) => `${prettify(k)} ${v} ft.`).join(', ') : String(s.senses))] : null));
 }
 
-// ---------- favourites: a star in each entry's own menu, a star in its row, listed first, the Favourites tab ----------
+// ---------- favorites: a star in each entry's own menu, a star in its row, listed first, the Favorites tab ----------
 
 /** Ids starred for one kind ('items' | 'skills' | 'features') as a Set. */
 const favSet = (c, kind) => new Set(c.favorites?.[kind] || []);
 
-/** The small filled gold star shown before a favourite's name in its row. */
-const favMark = () => h('span', { class: 'ch-fav-mark', title: 'Favourite', 'aria-label': 'Favourite', role: 'img' }, icon('star'));
+/** The small filled gold star shown before a favorite's name in its row. */
+const favMark = () => h('span', { class: 'ch-fav-mark', title: 'Favorite', 'aria-label': 'Favorite', role: 'img' }, icon('star'));
 
-/** "Favourite" toggle for an entry's own menu (modal or expanded row): saves at once and repaints itself. */
+/** "Favorite" toggle for an entry's own menu (modal or expanded row): saves at once and repaints itself. */
 function favButton(kind, key, what) {
   const btn = h('button', { class: 'btn btn-sm ch-fav-btn', type: 'button', 'data-fk': `fav-${kind}-${key}` });
   const paint = () => {
     const on = isFavorite(S.char, kind, key);
     btn.classList.toggle('is-active', on);
     btn.setAttribute('aria-pressed', String(on));
-    btn.title = on ? `Remove ${what} from your favourites` : `Star ${what}: it is listed first and in the Favourites tab`;
-    mount(btn, icon('star'), on ? 'Favourite' : 'Add to favourites');
+    btn.title = on ? `Remove ${what} from your favorites` : `Star ${what}: it is listed first and in the Favorites tab`;
+    mount(btn, icon('star'), on ? 'Favorite' : 'Add to favorites');
   };
   btn.addEventListener('click', () => { mutate((x) => { toggleFavorite(x, kind, key); }); paint(); });
   paint();
   return btn;
 }
 
-/** Row for the top of an entry modal holding its Favourite toggle. */
+/** Row for the top of an entry modal holding its Favorite toggle. */
 const favRow = (kind, key, what) => h('div', { class: 'ch-fav-row' }, favButton(kind, key, what));
 
-/** A skill's own menu: what it covers, the numbers, roll, and the Favourite toggle. */
+/** A skill's own menu: what it covers, the numbers, roll, and the Favorite toggle. */
 function skillModal(sk) {
   const s = S.sheet;
   const x = s.skills[sk.id];
@@ -498,7 +498,7 @@ function skillModal(sk) {
 }
 
 // Compact skill list (D&D Beyond sizing): mark · ability · name · bonus box. "Proficient only" folds it (per device).
-// The name opens the skill's menu (Favourite toggle); favourites are listed first and stay when folded.
+// The name opens the skill's menu (Favorite toggle); favorites are listed first and stay when folded.
 function skills(c, s) {
   const info = s.proficiencyInfo?.skills || {};
   const level = (x) => (x.expertise ? 'expertise' : x.prof ? 'proficient' : x.half ? 'half' : 'none');
@@ -519,7 +519,7 @@ function skills(c, s) {
   h('ul', { class: 'ch-skl', role: 'list', 'aria-label': 'Skills' }, rows.map(({ sk, x }) => h('li', { class: ['ch-skl-row', x.prof && 'is-prof', favs.has(sk.id) && 'is-fav'], 'data-stat': sk.id },
     profMark(level(x), { title: profTitle(level(x), info[sk.id]) }),
     h('span', { class: 'ch-skl-ab ui' }, String(x.ability || sk.ability).toUpperCase()),
-    h('button', { class: 'ch-skl-name', type: 'button', title: `${sk.name}: details and Favourite`, 'data-fk': `skl-${sk.id}`, onclick: () => skillModal(sk) },
+    h('button', { class: 'ch-skl-name', type: 'button', title: `${sk.name}: details and Favorite`, 'data-fk': `skl-${sk.id}`, onclick: () => skillModal(sk) },
       favs.has(sk.id) ? favMark() : null, sk.name),
     h('button', { class: 'ch-skl-bonus', type: 'button', onclick: () => rollToast(sk.name, x.bonus) }, h('span', { class: 'sr-only' }, `Roll ${sk.name} `), adjustedValue(s, `skill:${sk.id}`, fmt(x.bonus)))))),
   h('p', { class: 'ch-plegend ui text-xs' },
@@ -554,7 +554,7 @@ function proficiencies(c, s) {
 const TABS = new Map(); // character id -> last open tab (this session)
 
 function actionTabs(c, s) {
-  const list = [['favorites', [h('span', { class: 'ch-tab-star', 'aria-hidden': 'true' }, icon('star')), h('span', { class: 'ch-tab-label' }, 'Favourites')], favoritesTab(c, s)],
+  const list = [['favorites', [h('span', { class: 'ch-tab-star', 'aria-hidden': 'true' }, icon('star')), h('span', { class: 'ch-tab-label' }, 'Favorites')], favoritesTab(c, s)],
     ['attacks', 'Attacks', attacks(c, s)], ['spells', 'Spells', spells(c, s)], ['bonus-actions', 'Bonus actions', bonusActions(c, s)]].filter(([, , el]) => el);
   let cur = TABS.get(S.id);
   if (!list.some(([id]) => id === cur)) cur = list[0][0];
@@ -598,7 +598,7 @@ function attackChips(a, label) {
 }
 
 /**
- * Favourites tab: starred weapons (equipped ones roll from here), spells (the Spells tab's rows, by level, so their
+ * Favorites tab: starred weapons (equipped ones roll from here), spells (the Spells tab's rows, by level, so their
  * to-hit and damage / healing chips roll here too), skills, other items and features, in the order they were starred.
  * Null (no tab) while nothing starred still exists on the sheet.
  */
@@ -624,7 +624,7 @@ function favoritesTab(c, s) {
   };
   const group = (title, sub, list) => h('div', { class: 'ch-ba-group ch-fav-group' },
     h('h4', { class: 'ch-mini-head ch-spell-lvl-head' }, title, sub ? h('span', { class: 'ch-spell-lvl-sub' }, sub) : null), list);
-  return section('favorites', 'Favourites', { iconName: 'star', className: 'ch-sec-favs', sub: 'Star an entry in its own menu to keep it here.' },
+  return section('favorites', 'Favorites', { iconName: 'star', className: 'ch-sec-favs', sub: 'Star an entry in its own menu to keep it here.' },
     weapons.length ? group('Weapons', 'equipped', h('ul', { class: 'ch-ba-list', role: 'list' }, weapons.map((it) => {
       const a = atkByUid.get(it.uid);
       return h('li', { class: 'ch-ba ch-ba-row', 'data-stat': `fav-${it.uid}` }, itemName(it), h('span', { class: 'ch-ba-chips' }, attackChips(a, a.name)));
@@ -1340,7 +1340,7 @@ function feature(f, choiceByKey, resByKey, tags = [], fav = false) {
       h('span', { class: 'spacer' }),
       res ? resourcePips(res, true) : null),
     body,
-    // The open row is the feature's own menu: its Favourite toggle (repaints the sheet) and, if any, its choice
+    // The open row is the feature's own menu: its Favorite toggle (repaints the sheet) and, if any, its choice
     h('div', { class: 'ch-feat-choice row' }, favButton('features', featureFavKey(f), f.name),
       choice ? h('button', { class: 'btn btn-sm', type: 'button', onclick: () => openChoice(choice) }, icon('edit'), picks ? 'Change choice' : 'Choose') : null));
   det.addEventListener('toggle', () => { if (det.open) { S.openFeatures.add(fid); fill(); } else S.openFeatures.delete(fid); });
@@ -1419,7 +1419,7 @@ function fitBlock(entry, opts) {
 }
 
 /**
- * Entry modal from the sheet: what this means for the character, then the stat block (+ Favourite for an owned item
+ * Entry modal from the sheet: what this means for the character, then the stat block (+ Favorite for an owned item
  * or, opts.spell = its row, a spell on the sheet).
  */
 function entryInfo(entry, opts = {}) {

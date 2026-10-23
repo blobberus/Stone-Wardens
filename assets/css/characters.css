@@ -376,7 +376,7 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 .ch-sec-sub { font: 400 var(--text-xs) / 1.3 var(--font-ui); }
 .ch-sec-body > * + * { margin-top: var(--space-3); }
 
-/* Highlight colour (per character, Edit all → Identity): --ch-hl on the section, ink picked for contrast in JS.
+/* Highlight color (per character, Edit all → Identity): --ch-hl on the section, ink picked for contrast in JS.
    Bands carry --ch-hl with --ch-hl-ink; lines and marks use --ch-hl-line, mixed toward the ink so they stay
    visible on dark basalt too. */
 [data-hl-ink="light"] { --ch-hl-ink: var(--pin-glyph); }
@@ -463,7 +463,7 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 .ch-skl-bonus:hover { border-color: var(--link); }
 .ch-skl-bonus:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
-/* Debuffed values (sheet.adjust): their own colour (never the highlight), a dotted underline, a hover/focus card */
+/* Debuffed values (sheet.adjust): their own color (never the highlight), a dotted underline, a hover/focus card */
 .ch-page, .ch-adj-card { --ch-debuff: var(--c-warning); }
 .ch-adj { position: relative; cursor: help; text-decoration: underline dotted var(--ch-debuff); text-decoration-thickness: 1.5px; text-underline-offset: 0.18em; }
 .ch-adj.is-debuff { color: var(--ch-debuff); }
@@ -721,7 +721,7 @@ div.ch-optcard { cursor: default; }
 .ch-save-state { color: var(--ink-muted); }
 .ch-page[data-mode="edit"] .ch-editor-nav { top: calc(var(--ch-stick, 0px) + var(--control-h) + var(--space-2) * 2 + 1px + var(--space-3)); }
 
-/* Highlight colour picker */
+/* Highlight color picker */
 .ch-accent-field { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-3) var(--space-5); padding-top: var(--space-3); border-top: 1px solid var(--rule); }
 .ch-accent-field > .stack { flex: 1 1 320px; min-width: 0; }
 .ch-accent-row { --row-gap: var(--space-2); align-items: center; }
@@ -788,9 +788,9 @@ div.ch-optcard { cursor: default; }
   .ch-kind-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ---------- favourites ---------- */
+/* ---------- favorites ---------- */
 /* Star toggle in an entry's own menu (gold outline, filled when starred; no tinted backdrop), the small star in a
-   favourite's row, the Favourites tab of the actions window. i-star takes --icon-fill. */
+   favorite's row, the Favorites tab of the actions window. i-star takes --icon-fill. */
 .ch-fav-row { display: flex; align-items: center; gap: var(--space-2); }
 .ch-fav-btn .icon { width: 18px; height: 18px; color: var(--gold); }
 .ch-fav-btn.is-active { border-color: var(--gold); --icon-fill: var(--gold); }
@@ -799,7 +799,7 @@ div.ch-optcard { cursor: default; }
 .ch-fav-mark .icon { width: 14px; height: 14px; }
 .ch-tab-star { display: inline-flex; margin-right: 5px; vertical-align: -0.2em; color: var(--gold); --icon-fill: var(--gold); }
 .ch-tab-star .icon { width: 15px; height: 15px; }
-/* Phones: four tabs don't fit, so Favourites keeps only its star (the word stays for screen readers) */
+/* Phones: four tabs don't fit, so Favorites keeps only its star (the word stays for screen readers) */
 @media (max-width: 479px) {
   .ch-tab[data-tab="favorites"] .ch-tab-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
   .ch-tab[data-tab="favorites"] .ch-tab-star { margin-right: 0; }
@@ -1075,7 +1075,7 @@ button.ch-spell-chip:focus-visible { outline: 2px solid var(--focus); outline-of
 /* ---------- sheet style (per character: char.style, characters/skin.js) ---------- */
 /* applySkin() puts custom properties + data attributes on the characters view while a sheet is open (and on the
    Edit all preview). data-ground swaps the token set (tokens.css); the rules below derive the rest from the
-   chosen colours, so the layout never changes, only colours, edges, corners and fonts. */
+   chosen colors, so the layout never changes, only colors, edges, corners and fonts. */
 .ch-skin { background: var(--bg); color: var(--ink); }
 .ch-skin[data-sk-page] { --bg-sunk: color-mix(in srgb, var(--bg), var(--ink) 9%); }
 .ch-skin[data-sk-panel] {
@@ -1084,7 +1084,7 @@ button.ch-spell-chip:focus-visible { outline: 2px solid var(--focus); outline-of
   --rule: color-mix(in srgb, var(--surface), var(--ink) 14%);
 }
 .ch-skin[data-sk-panel]:not([data-sk-border-color]) { --border: color-mix(in srgb, var(--surface), var(--ink) 22%); }
-/* A page colour that needs the other ink: the few texts drawn straight on the page follow it */
+/* A page color that needs the other ink: the few texts drawn straight on the page follow it */
 .ch-skin[data-sk-pageink] :is(.ch-name, .ch-line, .ch-meta, .ch-nav-back, .ch-nav-who, .ch-warnings > summary,
   .ch-head-actions > .btn-ghost, .ch-head-actions > .btn-icon) { --ink: var(--ch-page-ink); --ink-muted: var(--ch-page-muted); --ink-faint: var(--ch-page-muted); }
 .ch-skin[data-sk-pageink] :is(.ch-name, .ch-line, .ch-nav-who) { color: var(--ink); }

@@ -818,8 +818,8 @@ async function copyMapLink() {
 
 // ---------- edit mode ----------
 
-/** Keep the view centred in the part of the map beside / above the edit panel. */
-function recentreForPanel(opening, size) {
+/** Keep the view centered in the part of the map beside / above the edit panel. */
+function recenterForPanel(opening, size) {
   if (!S.map) return;
   if (S.map.getZoom() <= S.fitZoom + 0.3) { fitMap(true); return; }
   const sheet = isSheet();
@@ -845,8 +845,8 @@ async function toggleEdit(on = !editing()) {
   }
   S.root.classList.toggle('is-editing', on);
   addBtn.classList.toggle('btn-primary', !on && !drawer.isOpen); // "Done" is the primary action now
-  if (on) requestAnimationFrame(() => recentreForPanel(true, { w: editor.el.offsetWidth, h: editor.el.offsetHeight }));
-  else recentreForPanel(false, panel);
+  if (on) requestAnimationFrame(() => recenterForPanel(true, { w: editor.el.offsetWidth, h: editor.el.offsetHeight }));
+  else recenterForPanel(false, panel);
   S.bandPreview = null;
   for (const e of S.markers.values()) {
     updateVisibility(e);
@@ -892,7 +892,7 @@ function visibleRect() {
   return { x0, y0: top, w: Math.max(w, 120), h: Math.max(hh - top, 120) };
 }
 
-/** Map centre that puts latlng in the middle of the part of the map not covered by panels. */
+/** Map center that puts latlng in the middle of the part of the map not covered by panels. */
 function centerFor(ll, zoom) {
   const v = visibleRect();
   const size = S.map.getSize();
@@ -1029,7 +1029,7 @@ async function startPlacing() {
   S.mode = 'placing';
   S.root.classList.add('is-placing');
   addBtn.setAttribute('aria-pressed', 'true');
-  showBanner('Click the map where the new location should go.', [{ label: 'Cancel', onClick: cancelPlacing }], 'Enter drops it at the centre · Esc cancels');
+  showBanner('Click the map where the new location should go.', [{ label: 'Cancel', onClick: cancelPlacing }], 'Enter drops it at the center · Esc cancels');
   updateEmpty();
 }
 
@@ -1178,7 +1178,7 @@ function openCtx(pt, ll) {
     icon(ic), h('span', { class: 'map-menu-text' }, h('span', null, label)));
   ctxMenu = h('div', { class: 'map-ctx', role: 'menu', 'aria-label': 'Map actions' },
     item('plus', 'Add location here', () => beginNewAt(xy)),
-    item('pin', 'Centre the map here', () => S.map.panTo(ll, { animate: !reduceMotion() })),
+    item('pin', 'Center the map here', () => S.map.panTo(ll, { animate: !reduceMotion() })),
     item('compass', 'Show the whole map', () => fitMap(true)),
     editing() ? null : item('edit', 'Edit map', () => toggleEdit(true)));
   S.root.append(ctxMenu);

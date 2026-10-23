@@ -44,14 +44,14 @@ Only player decisions are stored; everything derivable is computed by `derive()`
                  "proficiency": { "skills": { "athletics": "none", "stealth": "expertise" }, "saves": { "dex": true } } },
                  // ^ Edit all → Proficiencies: final say on skill level ('none'|'proficient'|'expertise') / save proficiency
   "style": {                                        // the sheet's look (Edit all → Sheet style; characters/skin.js). null = default
-    "accent": "#22507c",                            // highlight colour: ability bands, proficiency marks (null = oxblood #7a1f1f)
-    "page": "#d6d3cc", "panel": "#eeece7", "border": "#9a958a",   // page background, box fill, border colour (#rrggbb)
+    "accent": "#22507c",                            // highlight color: ability bands, proficiency marks (null = oxblood #7a1f1f)
+    "page": "#d6d3cc", "panel": "#eeece7", "border": "#9a958a",   // page background, box fill, border color (#rrggbb)
     "borderStyle": "ridge",                         // 'solid' (null) | 'double' | 'ridge' (Carved) | 'dashed' | 'dotted' | 'none'
     "borderWidth": 2,                               // 1 (null) | 2 | 3 px; double is always 3, carved at least 2
     "corners": "square",                            // 'soft' (null) | 'square' | 'round'
     "headingFont": "garamond", "textFont": "palatino" },  // ids from skin.js FONTS (null = cinzel / alegreya); site or system fonts only
-    // Only #rrggbb colours and these ids are accepted (normalizeStyle on read); anything else reads as null, so a
-    // doc can't inject CSS. Text colour is derived from the box fill (or page) so it stays >= 4.5:1 in either theme.
+    // Only #rrggbb colors and these ids are accepted (normalizeStyle on read); anything else reads as null, so a
+    // doc can't inject CSS. Text color is derived from the box fill (or page) so it stays >= 4.5:1 in either theme.
   "details": { "alignment": "", "pronouns": "", "gender": "", "sexuality": "", "age": "", "height": "", "weight": "",
                "eyes": "", "hair": "", "skin": "", "appearance": "", "personalityTraits": "", "socialTraits": "",
                "mentalTraits": "", "ideals": "", "bonds": "", "flaws": "", "likes": "", "dislikes": "",
@@ -92,7 +92,7 @@ Inventory `custom` (inline overrides of the ref'd record): any record field (`na
 properties mastery range weaponKind category ac{base,dex,maxDex} strMin weight description`) plus `base` (weapon/armor
 id a magic item is made from, e.g. `{kind:'magic-item', ref:'weapon-1', custom:{base:'rapier'}}`), `bonus` (+N attack
 & damage for weapons, +N AC for armor/shields), `attackBonus`, `damageBonus`, `acBonus`, `modifiers`, `abilitySet`,
-`attunement`. Weapons: melee/ranged is `weaponKind` (raw srd `kind` is normalised by `buildRules`).
+`attunement`. Weapons: melee/ranged is `weaponKind` (raw srd `kind` is normalized by `buildRules`).
 
 ### Choice keys (`char.choices[key]`)
 | key | used for |
@@ -195,10 +195,10 @@ spells incl. always-prepared, feat and species spells), `innate:[{source, abilit
   checks & attacks while the source is in sight; Grappled attacks vs others; Restrained DEX saves), auto-fail STR/DEX
   saves (Paralyzed, Petrified, Stunned, Unconscious), Incapacitated (implied by those four: Initiative Disadvantage, no
   actions), Prone movement, Blinded/Deafened Perception. Charmed and Invisible change no numbers. **Negative
-  modifiers** on custom abilities, feats and items (and negative item `bonus/attackBonus/damageBonus/acBonus`), labelled
-  with the source name. **Armour**: heavy armour below its Strength −10 ft; armour without training → Disadvantage on
+  modifiers** on custom abilities, feats and items (and negative item `bonus/attackBonus/damageBonus/acBonus`), labeled
+  with the source name. **Armor**: heavy armor below its Strength −10 ft; armor without training → Disadvantage on
   STR/DEX D20 Tests and no spellcasting (notes); a Shield without training gives no AC (2024 Armor Training);
-  Stealth-disadvantage armour → note on Stealth.
+  Stealth-disadvantage armor → note on Stealth.
 - Overrides: a stored number (`overrides.ac/initiative/speed/…`) replaces the computed value, so its permanent penalties
   vanish; temporary ones (Exhaustion, conditions) still apply on top (initiative, speed, passive Perception).
 
@@ -210,7 +210,7 @@ alwaysPrepared changeable note alternatives countKey countByLevel countFrom`; `l
 `spells`, `subclass`, `subspecies`, `size`, `ability`, `ability-increase` (also used for `background:abilities`, with
 `points:3, maxPerAbility:2`), `damage-type`, `wild-shape-forms`. `multi` and `spellcasting` are never emitted.
 
-Rules to honour: proficiency by total level; HP = max die at first class level 1, then rolled/average + CON each level
+Rules to honor: proficiency by total level; HP = max die at first class level 1, then rolled/average + CON each level
 (min 1), + modifiers.hpPerLevel; AC from worn armor (light: +DEX, medium: +DEX max 2, heavy: none) + shield 2 (only
 with Shield training), or
 Unarmored Defense (Barbarian CON, Monk WIS without shield) / other class formulas; attack = ability mod (STR melee,
@@ -247,7 +247,7 @@ levelDownPlan(char, rules, classId) -> {fromLevel, toLevel, removesClass, totalB
 ```
 Flow: the sheet header shows an XP meter (click → Experience window: add / subtract / set, history, XP table, "Level up
 (ignore XP)", "Level down…"). When an XP change crosses a threshold (`xpLevelsCrossed > 0`) the window closes and
-`levelUpFlow` opens Level Up once per due level ("1 of 3"); cancelling leaves "Level up · N due" on the header (it never
+`levelUpFlow` opens Level Up once per due level ("1 of 3"); canceling leaves "Level up · N due" on the header (it never
 re-triggers on load). A level taken while no level is due is a milestone: Level Up offers to raise XP to the new level's
 minimum. `openLevelDown` lists what goes and offers to remove now-uncastable spells and to reset XP.
 
@@ -272,7 +272,7 @@ is its own effect (chip). Weapon cantrips (True Strike, Shillelagh) attack with 
 take their ray types from a fixed list (the table text is garbled). Mishap/side damage is skipped (Dimension Door,
 Teleport, Meld into Stone, Wish, Enlarge/Reduce). Healing: "regains Hit Points equal to XdY (+ mod)", "regains/restores
 N Hit Points", "half the damage dealt", "all its Hit Points". Audit (2026-10-22): 339 SRD spells, 178 show numbers;
-the rest are utility spells. Cantrips scale by character level (5/11/17); levelled spells show base dice + the upcast rule. The sheet renders
+the rest are utility spells. Cantrips scale by character level (5/11/17); leveled spells show base dice + the upcast rule. The sheet renders
 to-hit / DC through `adjustedValue(sheet, 'spellAttack:<class>' | 'spellDc:<class>' | '…:innate:<group>')`.
 Spells added anyway (off the class list, above the highest slot level, no spellcasting class) are stored normally and
 get a live "off-list" mark on the sheet; nothing is blocked.

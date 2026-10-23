@@ -134,7 +134,7 @@ export function createImageLayer(source) {
 
   function drawTile(c, coords) {
     const g = ctx2d(c);
-    // Each tile is 1 CSS px bigger than the grid step and overlaps its neighbour with real image
+    // Each tile is 1 CSS px bigger than the grid step and overlaps its neighbor with real image
     // content, so no hairline seams show when the level is scaled to a fractional zoom.
     const span = (TILE + OVERLAP) / 2 ** coords.z; // image px covered by this tile
     const x0 = (coords.x * TILE) / 2 ** coords.z;

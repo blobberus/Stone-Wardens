@@ -1,7 +1,7 @@
-// Favourites: entries a player stars for quick use. Pure helpers (Node-testable, no DOM).
+// Favorites: entries a player stars for quick use. Pure helpers (Node-testable, no DOM).
 // Stored as char.favorites = { items: [inventory uid], skills: [skill id], features: ['<sourceType>:<feature id>'],
 // spells: ['<source group>:<spell id>'] }.
-// Weapons are inventory items, so a favourite weapon is an `items` uid. Ids survive renames and level changes; a
+// Weapons are inventory items, so a favorite weapon is an `items` uid. Ids survive renames and level changes; a
 // feature or granted spell that is gone for now (level down) keeps its star for when it comes back. Deleted inventory
 // rows and removed custom abilities drop theirs (normalizeFavorites / removeAbilityFavorites); so does a stored spell
 // removed from the sheet or Edit all (dropSpellFavorite).
@@ -11,7 +11,7 @@ export const FAV_KINDS = ['items', 'skills', 'features', 'spells'];
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 const uniqStrings = (v) => [...new Set((Array.isArray(v) ? v : []).filter((x) => typeof x === 'string' && x))];
 
-/** The favourites key of a derived sheet feature: "<sourceType>:<id>" (custom abilities: "custom:<ability id>"). */
+/** The favorites key of a derived sheet feature: "<sourceType>:<id>" (custom abilities: "custom:<ability id>"). */
 export const featureFavKey = (f) => `${f?.sourceType || 'other'}:${f?.id || f?.name || ''}`;
 
 /**
@@ -34,7 +34,7 @@ export function customAbilityIds(abilities) {
   return (Array.isArray(abilities) ? abilities : []).map(abilityIdAt).filter(Boolean);
 }
 
-/** Clean favourites for a stored doc: string ids only, no duplicates, no deleted items or custom abilities. */
+/** Clean favorites for a stored doc: string ids only, no duplicates, no deleted items or custom abilities. */
 export function normalizeFavorites(fav, char = {}) {
   const f = isObj(fav) ? fav : {};
   const uids = new Set((Array.isArray(char.inventory) ? char.inventory : []).map((it) => it?.uid).filter(Boolean));
@@ -81,7 +81,7 @@ export function dropSpellFavorite(char, key, sheetSpells = []) {
 
 export const hasFavorites = (char) => FAV_KINDS.some((k) => (char?.favorites?.[k] || []).length);
 
-/** Stable sort: favourites first, everything else keeps its order. */
+/** Stable sort: favorites first, everything else keeps its order. */
 export function favoritesFirst(list, isFav) {
   const arr = Array.isArray(list) ? list : [];
   return [...arr.filter((x) => isFav(x)), ...arr.filter((x) => !isFav(x))];

@@ -28,7 +28,7 @@
 .cp-unresolved { color: var(--ink-muted); }
 .cp-term { border-bottom: 1px dotted var(--border-strong); cursor: help; }
 
-/* Location-type pin: the colour is the data (pin pigment), glyph in --pin-glyph. */
+/* Location-type pin: the color is the data (pin pigment), glyph in --pin-glyph. */
 .cp-swatch {
   display: inline-grid; place-items: center; flex: none;
   width: 26px; height: 26px; border-radius: 50%;

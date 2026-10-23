@@ -1,5 +1,5 @@
 // Debuffs on the sheet (pure; no DOM). derive() computes every stat WITH its debuffs (Exhaustion, conditions, negative
-// modifiers, armour penalties) and registers a reason for each; a second "pure" pass without them gives the base values.
+// modifiers, armor penalties) and registers a reason for each; a second "pure" pass without them gives the base values.
 // buildAdjust() diffs the two passes: sheet.adjust[key] = {label, format, base, value, reasons:[{label, amount?, note?}]}.
 // Keys: 'ac' 'initiative' 'speed' 'profBonus' 'hpMax' `score:<abil>` `ability:<abil>` (check) `save:<abil>`
 // `skill:<id>` `passive:perception|insight|investigation` `attack:<uid>|unarmed` `damage:<uid>|unarmed`
@@ -73,7 +73,7 @@ export function conditionReasons(conds, why) {
   }
 }
 
-/** Armour without training: Disadvantage on Str/Dex D20 Tests and no spellcasting (2024 Armor Training). */
+/** Armor without training: Disadvantage on Str/Dex D20 Tests and no spellcasting (2024 Armor Training). */
 export function armorTrainingReasons(name, why) {
   const label = `${name} (no armor training)`;
   why(STR_DEX_KEYS, label, { note: 'Disadvantage on Strength and Dexterity D20 Tests' });

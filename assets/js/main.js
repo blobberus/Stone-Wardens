@@ -255,7 +255,7 @@ function wireSaving() {
   window.addEventListener('focus', () => { if (Date.now() - lastPull > 30000) pull(); });
 
   // Timed auto-save: commit at most `autoSaveMinutes` after the first unsaved change (retrying a failed or
-  // cancelled save one interval later). With it off, remind players who leave changes uncommitted instead.
+  // canceled save one interval later). With it off, remind players who leave changes uncommitted instead.
   let dirtySince = store.isDirty() ? Date.now() : 0;
   let lastAuto = 0;
   let lastNudge = 0;

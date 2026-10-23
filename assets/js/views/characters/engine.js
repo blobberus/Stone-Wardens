@@ -344,7 +344,7 @@ export function levelDown(char, rules, classId) {
  * cantripsBefore, cantripsAfter, preparedBefore, preparedAfter, profBonusBefore, profBonusAfter, subclass (id lost)|null,
  * spellsAtRisk:[{id, name, level, reason}] (this class's spells above the new highest spell level, or all of them
  * when the class goes), resourcesBefore, resourcesAfter, next (the resulting doc), isLatest (classId is the
- * most recently levelled class), trimmed:[{key, label, before, after, removed:[id]}] (running-total picks such as
+ * most recently leveled class), trimmed:[{key, label, before, after, removed:[id]}] (running-total picks such as
  * Eldritch Invocations cut back to the new count in `next`, newest first), alwaysLost:[{id, name, level}]}
  */
 export function levelDownPlan(char, rules, classId) {

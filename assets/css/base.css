@@ -772,7 +772,7 @@ button.chip:hover, a.chip:hover { background: var(--surface-2); color: var(--ink
 .callout:is([data-callout="quote"], [data-callout="cite"]) { --c: var(--c-quote); --callout-icon: var(--mask-quote); }
 .callout:is([data-callout="quote"], [data-callout="cite"]) .callout-content { font-style: italic; }
 
-/* ---------- Masks (glyph shapes; colour comes from background: currentColor) */
+/* ---------- Masks (glyph shapes; color comes from background: currentColor) */
 :root {
   --mask-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
   --mask-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E");

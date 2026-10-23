@@ -78,7 +78,7 @@ export function openNewMapDialog({ parent = data.MAIN_MAP, fromLoc = null, name 
   });
 }
 
-/** Delete a sub-map after asking what happens to its places. Resolves the parent id, or null if cancelled. */
+/** Delete a sub-map after asking what happens to its places. Resolves the parent id, or null if canceled. */
 export async function deleteMapFlow(mapId) {
   const m = data.mapById(mapId);
   if (!m || m.isMain) return null;

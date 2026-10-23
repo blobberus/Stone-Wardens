@@ -143,7 +143,7 @@ function wireAdj() {
 
 /**
  * A displayed stat that debuffs may have changed. key: a `sheet.adjust` key ('ac', 'skill:stealth', 'spellAttack:wizard', …);
- * text: the already-formatted value. Lowered values get `.ch-adj.is-debuff` (debuff colour), note-only debuffs
+ * text: the already-formatted value. Lowered values get `.ch-adj.is-debuff` (debuff color), note-only debuffs
  * (Disadvantage, auto-fail…) `.is-noted` with a small marker; both show a card with the normal value and every reason
  * while hovered or focused (tap toggles it on touch).
  */
@@ -169,7 +169,7 @@ export function adjustedValue(sheet, key, text, { className } = {}) {
   return el;
 }
 
-// ---------- highlight colour & proficiency marks ----------
+// ---------- highlight color & proficiency marks ----------
 
 export const accentOf = (char) => (/^#[0-9a-f]{6}$/i.test(char?.style?.accent || '') ? char.style.accent.toLowerCase() : DEFAULT_ACCENT);
 
@@ -178,7 +178,7 @@ function luminance(hex) {
   return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
 }
 
-/** 'light' | 'dark': the ink (tokens --pin-glyph / --pin-ink, same in both themes) with more contrast on the colour. */
+/** 'light' | 'dark': the ink (tokens --pin-glyph / --pin-ink, same in both themes) with more contrast on the color. */
 export function accentInk(hex) {
   const L = luminance(/^#[0-9a-f]{6}$/i.test(hex || '') ? hex : DEFAULT_ACCENT);
   const light = (0.955 + 0.05) / (L + 0.05); // --pin-glyph #fffaf0
@@ -186,7 +186,7 @@ export function accentInk(hex) {
   return light >= dark ? 'light' : 'dark';
 }
 
-/** Attributes carrying a character's highlight colour (`--ch-hl` + data-hl-ink) for a container. */
+/** Attributes carrying a character's highlight color (`--ch-hl` + data-hl-ink) for a container. */
 export function accentAttrs(char) {
   const hex = accentOf(char); // validated #rrggbb, safe in a style string (h() can't set custom properties from an object)
   return { style: `--ch-hl: ${hex}`, 'data-hl-ink': accentInk(hex) };

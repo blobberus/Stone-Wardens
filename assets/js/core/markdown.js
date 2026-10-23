@@ -1,4 +1,4 @@
-// Obsidian-flavoured markdown: wikilinks, embeds, callouts, highlights, comments, tags, tasks, frontmatter.
+// Obsidian-flavored markdown: wikilinks, embeds, callouts, highlights, comments, tags, tasks, frontmatter.
 import { Marked } from '../../../vendor/marked/marked.esm.js';
 import DOMPurify from '../../../vendor/dompurify/purify.es.mjs';
 import { load as yamlLoad, dump as yamlDump } from '../../../vendor/js-yaml/js-yaml.mjs';

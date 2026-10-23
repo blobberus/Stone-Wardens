@@ -66,14 +66,14 @@ badges), `--radius-lg` 8 (modals), `--radius-pill` (tags, chips). Use a 1px bord
 ## Icons
 `assets/img/icons.svg`: `i-*` are 24px outline icons (16–20px in use, currentColor); `mk-*` are filled marker glyphs drawn
 for 16px inside a 28–32px pin. One plain icon where it helps a label. Never put icons in tinted squares or circles.
-`i-star` also takes `--icon-fill` (default none): set it on the button to colour the star in (Heroic Inspiration).
+`i-star` also takes `--icon-fill` (default none): set it on the button to color the star in (Heroic Inspiration).
 
 ## Do / Don't
 - Do show real campaign data at its real size (names, levels, HP, dates). Print zeros as zeros and missing values as "—".
-- Do use one primary action per view, where the job is done. Keep colour on meaning (status, selection, rubric).
+- Do use one primary action per view, where the job is done. Keep color on meaning (status, selection, rubric).
 - Do keep visible focus on everything and a hover state on every row and control. Motion is feedback only.
 - Don't use gradients, glows, glass/blur, text shadows, shadows on resting cards, emoji, lorem, or `alert/confirm/prompt`.
-- Don't put icons in tinted circles or give categories rainbow colours (use the pin pigments). Don't put accent on every
+- Don't put icons in tinted circles or give categories rainbow colors (use the pin pigments). Don't put accent on every
   button or on headings outside prose. No Cinzel below 20px, no tracked uppercase labels, no decorative 01/02 numbering.
 
 ## View CSS

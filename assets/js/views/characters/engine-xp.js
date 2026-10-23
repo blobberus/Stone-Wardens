@@ -114,7 +114,7 @@ export function xpAfterLevelChange(xp, newLevel, direction, rules) {
   return { xp: x, changed: false, reason: '' };
 }
 
-/** The class most recently levelled (from levelOrder), else the last class in `classes`. null for level 0. */
+/** The class most recently leveled (from levelOrder), else the last class in `classes`. null for level 0. */
 export function lastLeveledClass(char) {
   const classes = (Array.isArray(char?.classes) ? char.classes : []).filter((c) => c && c.id && num(c.level) > 0);
   if (!classes.length) return null;

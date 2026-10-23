@@ -230,7 +230,7 @@ section('bonus actions');
 {
   const feat = (id) => rules.featureById[id];
   eq('Cunning Action', E.bonusActionOptions(feat('rogue-cunning-action').description).map((o) => o.text), ['On your turn, you can take one of the following actions as a Bonus Action: Dash, Disengage, or Hide.']);
-  eq('Monk\'s Focus options labelled', E.bonusActionOptions(feat('monk-monks-focus').description).map((o) => o.label), ['Flurry of Blows', 'Patient Defense', 'Patient Defense', 'Step of the Wind', 'Step of the Wind']);
+  eq('Monk\'s Focus options labeled', E.bonusActionOptions(feat('monk-monks-focus').description).map((o) => o.label), ['Flurry of Blows', 'Patient Defense', 'Patient Defense', 'Step of the Wind', 'Step of the Wind']);
   eq('Rage: enter + extend', E.bonusActionOptions(feat('barbarian-rage').description).length, 2);
   eq('Fast Hands lists its choices', E.bonusActionOptions(feat('thief-fast-hands').description)[0].more, ['Sleight of Hand', 'Use an Object']);
   const inn = E.bonusActionOptions(feat('sorcerer-innate-sorcery').description)[0];

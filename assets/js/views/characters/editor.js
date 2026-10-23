@@ -17,7 +17,7 @@ import { renderScores } from './scores.js';
 import { rerender, section, portraitField, md, fmt, chip, modifiersEditor, cleanModifiers, loading, entryModal } from './widgets.js';
 import { openLevelUp } from './levelup.js';
 import { deleteWithWarning } from './trash.js';
-// Save bars, highlight colour, proficiency tables
+// Save bars, highlight color, proficiency tables
 import { store } from '../../core/store.js';
 import { saveNow, saveSoon } from '../../core/saving.js';
 import { hasPendingWrite, DEFAULT_ACCENT, ACCENT_PRESETS } from './data.js';
@@ -174,12 +174,12 @@ function changeXp(v) {
   }, 0);
 }
 
-/** An ability box for samples (highlight colour, sheet style preview). */
+/** An ability box for samples (highlight color, sheet style preview). */
 const sampleAbility = (name, mod, score, save, prof) => h('div', { class: 'ch-abil' },
   h('div', { class: 'ch-abil-check' }, h('span', { class: 'ch-abil-name' }, name), h('span', { class: 'ch-abil-mod num' }, mod), h('span', { class: 'ch-abil-score num' }, score)),
   h('div', { class: 'ch-abil-save' }, profMark(prof ? 'proficient' : 'none'), h('span', { class: 'ch-abil-save-label' }, 'Save'), h('span', { class: 'ch-abil-save-val num' }, save)));
 
-/** Sheet highlight colour: colour input + pigment presets + default; `onInput(hex)` previews while dragging. */
+/** Sheet highlight color: color input + pigment presets + default; `onInput(hex)` previews while dragging. */
 function accentField(c, { onInput } = {}) {
   const cur = accentOf(c);
   const paint = (hex) => onInput?.(hex);
@@ -189,18 +189,18 @@ function accentField(c, { onInput } = {}) {
   });
   return h('div', { class: 'ch-accent-field' },
     h('div', { class: 'stack stack-sm' },
-      h('span', { class: 'field-label ui' }, 'Highlight colour'),
+      h('span', { class: 'field-label ui' }, 'Highlight color'),
       h('div', { class: 'row ch-accent-row' },
-        h('input', { type: 'color', class: 'ch-color', value: cur, 'aria-label': 'Highlight colour', 'data-fk': 'e-accent', oninput: (e) => paint(e.target.value), onchange: (e) => set(e.target.value) }),
-        h('div', { class: 'ch-swatches', role: 'group', 'aria-label': 'Preset colours' }, ACCENT_PRESETS.map((p) => h('button', {
+        h('input', { type: 'color', class: 'ch-color', value: cur, 'aria-label': 'Highlight color', 'data-fk': 'e-accent', oninput: (e) => paint(e.target.value), onchange: (e) => set(e.target.value) }),
+        h('div', { class: 'ch-swatches', role: 'group', 'aria-label': 'Preset colors' }, ACCENT_PRESETS.map((p) => h('button', {
           class: 'ch-swatch', type: 'button', style: `--sw: ${p.value}`, title: p.name, 'aria-label': p.name, 'aria-pressed': String(cur === p.value), onclick: () => set(p.value),
         }))),
         h('button', { class: 'btn btn-sm btn-ghost', type: 'button', disabled: !c.style?.accent, onclick: () => set(null), title: 'Back to the default oxblood' }, icon('undo'), 'Default')),
-      h('span', { class: 'field-hint' }, 'Colours the ability boxes and proficiency marks on the sheet; the lettering on it switches between light and dark to stay readable.')));
+      h('span', { class: 'field-hint' }, 'Colors the ability boxes and proficiency marks on the sheet; the lettering on it switches between light and dark to stay readable.')));
 }
 
 /**
- * Sheet style (char.style, skin.js): one-click looks, highlight colour, page / box / border colours, border style and
+ * Sheet style (char.style, skin.js): one-click looks, highlight color, page / box / border colors, border style and
  * width, corners, heading and text fonts, with a live preview. Only the look changes; the sheet's layout stays.
  */
 function appearance({ c, s }) {
@@ -225,7 +225,7 @@ function appearance({ c, s }) {
         type: 'color', class: 'ch-color', value: st[key] || themeHex(cssVar), 'aria-label': label, 'data-fk': `e-sk-${key}`,
         oninput: (e) => paint({ [key]: e.target.value }), onchange: (e) => set({ [key]: e.target.value }),
       }),
-      h('button', { class: 'btn btn-sm btn-ghost', type: 'button', disabled: !st[key], onclick: () => set({ [key]: null }), title: 'Back to the theme colour' }, icon('undo'), 'Default')),
+      h('button', { class: 'btn btn-sm btn-ghost', type: 'button', disabled: !st[key], onclick: () => set({ [key]: null }), title: 'Back to the theme color' }, icon('undo'), 'Default')),
     hint ? h('span', { class: 'field-hint' }, hint) : null);
   const pickField = (label, key, list, dflt, { hint, disabled } = {}) => field(label,
     select(list.map((o) => ({ value: String(o.id), label: o.name })), String(st[key] ?? dflt),
@@ -245,12 +245,12 @@ function appearance({ c, s }) {
           title: p.id === 'parchment' ? 'The standard look (follows the light / dark theme)' : `Use the ${p.name} look (you can change any part afterwards)`,
           onclick: () => set({ ...p.style }),
         }, h('span', { class: 'ch-style-dot', style: `--sw-a: ${p.style.page || 'var(--bg)'}; --sw-b: ${p.style.panel || 'var(--surface)'}` }), p.name))),
-        h('span', { class: 'field-hint' }, 'A look sets everything below at once, highlight colour included.')),
+        h('span', { class: 'field-hint' }, 'A look sets everything below at once, highlight color included.')),
       accentField(c, { onInput: (hex) => paint({ accent: hex }) }),
       h('div', { class: 'ch-style-grid' },
         colorField('Page background', 'page', '--bg'),
         colorField('Box fill', 'panel', '--surface', 'Panels, stat boxes and fields. Text turns light or dark to stay readable.'),
-        colorField('Border colour', 'border', '--border'),
+        colorField('Border color', 'border', '--border'),
         pickField('Border style', 'borderStyle', BORDER_STYLES, 'solid'),
         pickField('Border width', 'borderWidth', BORDER_WIDTHS, 1, { disabled: fixedWidth, hint: st.borderStyle === 'double' ? 'Double lines are always thick.' : null }),
         pickField('Corners', 'corners', CORNERS, 'soft'),

@@ -5,7 +5,7 @@
    lapis for cross-references, and gold leaf only where a star has fallen.
    Light ("day vellum") is the default; [data-theme="dark"] on <html> is "night basalt".
    [data-ground="light" | "dark"] on any element switches that subtree to one set (a custom character-sheet
-   colour picks the set whose ink reads on it; characters/skin.js).
+   color picks the set whose ink reads on it; characters/skin.js).
    Use these tokens only — never raw hex values in view CSS.
    All text pairs below are checked to WCAG AA (4.5:1) on --bg, --surface and --surface-2.
    ============================================================================= */
@@ -64,7 +64,7 @@
   --c-quote: #6a5e4e;     /* umber */
 
   /* --- Map pin pigments (same in both themes: the map image does not change).
-         Glyph colour on every pin is --pin-glyph (>= 4.5:1 on each). Default pin = --pin-ink;
+         Glyph color on every pin is --pin-glyph (>= 4.5:1 on each). Default pin = --pin-ink;
          a selected pin gets a --gold ring. Offer these as the location-type swatches. */
   --pin-glyph: #fffaf0;
   --pin-ink: #1f1a14;

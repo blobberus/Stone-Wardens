@@ -33,7 +33,7 @@ export const SKILLS = [
   ['sleight-of-hand', 'Sleight of Hand', 'dex'], ['stealth', 'Stealth', 'dex'], ['survival', 'Survival', 'wis'],
 ].map(([id, name, ability]) => ({ id, name, ability }));
 
-/** Sheet highlight colour (ability boxes, proficiency marks): `char.style.accent`; null = this default (oxblood). */
+/** Sheet highlight color (ability boxes, proficiency marks): `char.style.accent`; null = this default (oxblood). */
 export { DEFAULT_ACCENT } from './skin.js';
 /** Presets = the theme-independent pin pigments (tokens.css), each readable with light or dark ink. */
 export const ACCENT_PRESETS = [
@@ -141,7 +141,7 @@ export function normalize(doc) {
   for (const k of ['abilities', 'saves', 'skills']) out.overrides[k] = isObj(out.overrides[k]) ? out.overrides[k] : {};
   const op = isObj(out.overrides.proficiency) ? out.overrides.proficiency : {};
   out.overrides.proficiency = { skills: isObj(op.skills) ? op.skills : {}, saves: isObj(op.saves) ? op.saves : {} };
-  out.style = { ...out.style, ...normalizeStyle(out.style) }; // whitelisted colours / ids only (skin.js)
+  out.style = { ...out.style, ...normalizeStyle(out.style) }; // whitelisted colors / ids only (skin.js)
   for (const k of Object.keys(base.extraProficiencies)) out.extraProficiencies[k] = Array.isArray(out.extraProficiencies[k]) ? out.extraProficiencies[k] : [];
   for (const k of ['classes', 'skills', 'feats', 'spells', 'inventory', 'conditions', 'abilities']) out[k] = Array.isArray(d[k]) ? d[k] : [];
   for (const k of ['choices', 'hitDiceUsed', 'resourcesUsed']) out[k] = isObj(d[k]) ? d[k] : {};

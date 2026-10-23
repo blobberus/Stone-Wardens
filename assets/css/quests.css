@@ -1,6 +1,6 @@
 /* =============================================================================
    Quests tab (views/quests): the quest log (left) and the open quest (right).
-   Quest symbols: main = crown (gold), minor = waypoint diamond (lapis), side = reward chest (verdigris); coloured
+   Quest symbols: main = crown (gold), minor = waypoint diamond (lapis), side = reward chest (verdigris); colored
    glyphs only, never on a tinted backdrop (docs/design.md). Below 760px of width one pane shows at a time.
    ============================================================================= */
 

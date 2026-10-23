@@ -38,7 +38,7 @@ export function sumPoints(v) {
   return Object.values(v).reduce((s, n) => s + Math.max(0, toNum(n)), 0);
 }
 
-/** Normalise an ability-increase value: {str:1} | 'str' | ['str','dex'] -> {str:1}. */
+/** Normalize an ability-increase value: {str:1} | 'str' | ['str','dex'] -> {str:1}. */
 export function increaseMap(v) {
   if (typeof v === 'string') return ABILITIES.includes(v) ? { [v]: 1 } : {};
   if (Array.isArray(v)) {

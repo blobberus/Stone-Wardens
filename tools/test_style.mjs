@@ -19,7 +19,7 @@ check('empty style = all null', Object.values(empty).every((v) => v === null) &&
 check('non-object style', eq(K.normalizeStyle(null), empty) && eq(K.normalizeStyle([1]), empty) && eq(K.normalizeStyle('x'), empty));
 check('hex lower-cased', K.normalizeStyle({ page: '#ABCDEF' }).page === '#abcdef');
 for (const bad of ['red', '#12345', '#1234567', 'url(x)', '#000000; background: red', 'var(--bg)', 12, null]) {
-  check(`bad colour rejected: ${bad}`, K.normalizeStyle({ page: bad, panel: bad, border: bad, accent: bad }).page === null
+  check(`bad color rejected: ${bad}`, K.normalizeStyle({ page: bad, panel: bad, border: bad, accent: bad }).page === null
     && K.normalizeStyle({ panel: bad }).panel === null && K.normalizeStyle({ border: bad }).border === null && K.normalizeStyle({ accent: bad }).accent === null);
 }
 check('default accent stored as null', K.normalizeStyle({ accent: '#7A1F1F' }).accent === null);
@@ -35,8 +35,8 @@ check('fonts whitelist, defaults null', K.normalizeStyle({ headingFont: 'hand', 
 check('unknown keys dropped', !('evil' in K.normalizeStyle({ evil: 'x' })));
 
 // ---------- ground / ink ----------
-check('dark colour -> dark ground', K.groundOf('#15132a') === 'dark' && K.groundOf('#251515') === 'dark' && K.groundOf('#000000') === 'dark');
-check('light colour -> light ground', K.groundOf('#eeece7') === 'light' && K.groundOf('#ffffff') === 'light' && K.groundOf('#f6f2e9') === 'light');
+check('dark color -> dark ground', K.groundOf('#15132a') === 'dark' && K.groundOf('#251515') === 'dark' && K.groundOf('#000000') === 'dark');
+check('light color -> light ground', K.groundOf('#eeece7') === 'light' && K.groundOf('#ffffff') === 'light' && K.groundOf('#f6f2e9') === 'light');
 
 function lum(h) {
   const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
@@ -44,7 +44,7 @@ function lum(h) {
 }
 const ratio = (a, b) => { const x = lum(a); const y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
 const INK = { light: '#1f1a14', dark: '#ebe3d3' };
-// Whatever colour is picked, ink, muted and faint ink read on it (AA 4.5:1), as box fill or as page behind boxes
+// Whatever color is picked, ink, muted and faint ink read on it (AA 4.5:1), as box fill or as page behind boxes
 let worst = 99;
 let worstPage = 99;
 const others = ['#ffffff', '#f6f2e9', '#1e1b16', '#000000', '#808080'];
@@ -59,8 +59,8 @@ for (let r = 0; r < 256; r += 17) for (let g = 0; g < 256; g += 17) for (let b =
     worstPage = Math.min(worstPage, ratio(hx, ink), ratio(hx, muted));
   }
 }
-check('box text contrast >= 4.5 on every colour', worst >= 4.5, worst.toFixed(2));
-check('page text contrast >= 4.5 on every page colour', worstPage >= 4.5, worstPage.toFixed(2));
+check('box text contrast >= 4.5 on every color', worst >= 4.5, worst.toFixed(2));
+check('page text contrast >= 4.5 on every page color', worstPage >= 4.5, worstPage.toFixed(2));
 check('theme ink kept where it reads', K.inkOn('#f6f2e9').ink === INK.light && K.inkOn('#1e1b16').ink === INK.dark);
 check('mid tone gets black or white', ['#000000', '#ffffff'].includes(K.inkOn('#777777').ink));
 

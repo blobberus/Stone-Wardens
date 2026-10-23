@@ -38,7 +38,7 @@ section('rules index');
 check('classes indexed', !!rules.classById.fighter && rules.classes.length >= 12);
 check('stub subclasses merged', rules.subclassById['eldritch-knight']?.origin === 'stub');
 check('custom weapon merged with weaponKind', rules.weaponById['stone-sling-x1']?.weaponKind === 'ranged' && rules.weaponById['stone-sling-x1']?.origin === 'custom');
-check('srd weapon kind normalised', rules.weaponById.longbow.weaponKind === 'ranged' && rules.weaponById.longsword.weaponKind === 'melee');
+check('srd weapon kind normalized', rules.weaponById.longbow.weaponKind === 'ranged' && rules.weaponById.longsword.weaponKind === 'melee');
 check('subclassesByClass includes stubs', rules.subclassesByClass.fighter.some((s) => s.id === 'battle-master'));
 
 // ------------------------------------------------------------------------------------------------
@@ -497,7 +497,7 @@ section('Debuffs: exhaustion, conditions, penalties (sheet.adjust)');
 }
 
 // ------------------------------------------------------------------------------------------------
-section('Favourites (engine-favs.js)');
+section('Favorites (engine-favs.js)');
 {
   const doc = {
     inventory: [inv('w1', 'weapon', 'longsword'), inv('g1', 'gear', 'rope-hempen')],
