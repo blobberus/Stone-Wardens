@@ -4,6 +4,7 @@ import { input, select, numberInput, icon, toast, confirmDialog } from '../../co
 import { getSetting, setSetting, applyTheme } from '../../core/settings.js';
 import { store } from '../../core/store.js';
 import { clearAuth } from '../../core/vault.js';
+import { lockDm } from '../../core/dm.js';
 
 let root;
 
@@ -56,11 +57,13 @@ function render() {
       dirty.length ? h('details', { class: 'set-dirty' }, h('summary', null, `${dirty.length} unsaved file(s)`), h('ul', null, dirty.map((p) => h('li', null, h('code', null, p))))) : null),
     section('lock', 'Session',
       h('div', { class: 'set-split' },
-        h('p', null, store.mode === 'sandbox' ? 'Sandbox mode: nothing leaves this browser.' : `Connected to ${store.scope} on GitHub.`),
+        h('p', null, store.mode === 'sandbox' ? 'Sandbox mode: nothing leaves this browser.' : `Connected to ${store.scope} on GitHub.`,
+          ' Locking forgets the login on this device (and DM mode), so the site asks for the password again. Unsaved changes stay here as drafts.'),
         h('button', {
           class: 'btn', type: 'button',
           onclick: async () => {
             if (store.isDirty() && !(await confirmDialog('You have unsaved changes. They stay on this device as drafts. Lock anyway?', { okLabel: 'Lock' }))) return;
+            await lockDm(); // a remembered DM login goes too, or the next person to enter would be the DM
             clearAuth(); location.href = location.pathname;
           },
         }, icon('lock'), 'Lock the site on this device'))),
