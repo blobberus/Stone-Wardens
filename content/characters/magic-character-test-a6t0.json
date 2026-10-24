@@ -113,37 +113,37 @@
   "pactUsed": 0,
   "inventory": [
     {
+      "qty": 1,
+      "equipped": true,
+      "attuned": false,
+      "notes": "",
+      "custom": null,
       "uid": "nkbda7",
       "kind": "weapon",
       "ref": "blowgun",
-      "name": "Blowgun",
+      "name": "Blowgun"
+    },
+    {
       "qty": 1,
       "equipped": true,
       "attuned": false,
       "notes": "",
-      "custom": null
-    },
-    {
+      "custom": null,
       "uid": "i6oxr5",
       "kind": "weapon",
       "ref": "flail",
-      "name": "Flail",
-      "qty": 1,
-      "equipped": true,
-      "attuned": false,
-      "notes": "",
-      "custom": null
+      "name": "Flail"
     },
     {
-      "uid": "h71c6s",
-      "kind": "weapon",
-      "ref": "dart",
-      "name": "Dart",
       "qty": 1,
       "equipped": false,
       "attuned": false,
       "notes": "",
-      "custom": null
+      "custom": null,
+      "uid": "h71c6s",
+      "kind": "weapon",
+      "ref": "dart",
+      "name": "Dart"
     }
   ],
   "currency": {
@@ -159,7 +159,7 @@
   },
   "hitDiceUsed": {},
   "deathSaves": {
-    "success": 2,
+    "success": 0,
     "fail": 0
   },
   "resourcesUsed": {
@@ -231,5 +231,5 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-23T02:18:59.684Z",
-  "updated": "2026-10-23T21:20:24.966Z"
+  "updated": "2026-10-24T18:54:31.689Z"
 }
