@@ -1,0 +1,24 @@
+{
+  "id": "a-lonely-town-50ht",
+  "title": "A Lonely Town",
+  "type": "minor",
+  "status": "active",
+  "parent": null,
+  "characters": [
+    "note:NPC 1"
+  ],
+  "objectives": [
+    {
+      "id": "o1",
+      "text": "Explore the Tavern at Lonestar",
+      "done": false
+    }
+  ],
+  "description": "",
+  "rewards": "",
+  "image": null,
+  "created": "2026-10-24T04:51:11.014Z",
+  "updated": "2026-10-24T04:51:50.436Z",
+  "createdBy": "",
+  "order": null
+}

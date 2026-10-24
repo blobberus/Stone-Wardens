@@ -1,6 +1,14 @@
 {
   "items": [
     {
+      "path": "content/quests/a-lonely-town-50ht.json",
+      "title": "A Lonely Town",
+      "label": "Quest",
+      "href": "#/quests/a-lonely-town-50ht",
+      "at": "2026-10-24T09:22:53.544Z",
+      "by": "The DM"
+    },
+    {
       "path": "wardens-library/Campaign-Information/Campaign-Pitch-version-1.pdf",
       "title": "Campaign Pitch version 1",
       "label": "Library document",
