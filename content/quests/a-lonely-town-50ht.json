@@ -2,7 +2,7 @@
   "id": "a-lonely-town-50ht",
   "title": "A Lonely Town",
   "type": "minor",
-  "status": "active",
+  "status": "completed",
   "parent": null,
   "characters": [
     "note:NPC 1"
@@ -18,7 +18,7 @@
   "rewards": "",
   "image": null,
   "created": "2026-10-24T04:51:11.014Z",
-  "updated": "2026-10-24T09:23:00.592Z",
+  "updated": "2026-10-24T09:23:03.886Z",
   "createdBy": "",
   "order": null
 }
