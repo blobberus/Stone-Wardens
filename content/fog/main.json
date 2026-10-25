@@ -1,0 +1,15 @@
+{
+  "map": "main",
+  "on": false,
+  "style": "clouds",
+  "color": "#3a3f47",
+  "opacity": 1,
+  "softness": 0.5,
+  "ops": [
+    {
+      "t": "add",
+      "k": "all"
+    }
+  ],
+  "updated": "2026-10-25T08:39:08.121Z"
+}
