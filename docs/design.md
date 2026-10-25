@@ -17,7 +17,9 @@ raw hex. Theme: `<html data-theme="dark">` (light is the default). `docs/preview
 - `--link` (lapis) for links, wikilinks and tags. `--focus` for rings. `--gold` for ornament only (never text). `--gold-soft` = `mark`.
 - Status: `--ok --warn --danger --info`, each with a `-soft` pale pair for pills and toasts (dark text of the same hue).
 - Callout pigments `--c-note … --c-quote`. Map pins (location-type swatches): `--pin-ink -rubric -vermilion -lapis -verdigris
-  -green -ochre -gold -murrey -slate -umber`, glyph `--pin-glyph`. Default pin `--pin-ink`; selected pin gets a 2px `--gold` ring.
+  -green -ochre -gold -murrey -slate -umber`, `--pin-glyph` (parchment). A place on the map is an inked map mark (map.css):
+  a parchment roundel ringed in sepia ink (`--pin-ink` warmed with `--pin-umber`), the type's pigment only as a wash and in the
+  glyph's ink, a thin parchment halo; rank 1 gets a second ring; the selected mark a `--gold` ring.
 
 ## Type
 Google Fonts: Cinzel 500–700, Alegreya 400/500/700 + italics, Alegreya Sans 400/500/700 + italic.
@@ -65,7 +67,8 @@ badges), `--radius-lg` 8 (modals), `--radius-pill` (tags, chips). Use a 1px bord
 
 ## Icons
 `assets/img/icons.svg`: `i-*` are 24px outline icons (16–20px in use, currentColor); `mk-*` are filled marker glyphs drawn
-for 16px inside a 28–32px pin. One plain icon where it helps a label. Never put icons in tinted squares or circles.
+at 12–18px inside an 18–26px map mark. One plain icon where it helps a label. Never put icons in tinted squares or circles
+(the map mark and its swatch are the one exception: a cartographer's symbol, not a UI chip).
 `i-star` also takes `--icon-fill` (default none): set it on the button to color the star in (Heroic Inspiration).
 
 ## Do / Don't
@@ -75,6 +78,9 @@ for 16px inside a 28–32px pin. One plain icon where it helps a label. Never pu
 - Don't use gradients, glows, glass/blur, text shadows, shadows on resting cards, emoji, lorem, or `alert/confirm/prompt`.
 - Don't put icons in tinted circles or give categories rainbow colors (use the pin pigments). Don't put accent on every
   button or on headings outside prose. No Cinzel below 20px, no tracked uppercase labels, no decorative 01/02 numbering.
+- Exception, marks and lettering drawn on a map (map.css `.map-pin`, `.map-pin-label`): they follow the map, not the UI.
+  Names in serif sepia ink with a parchment text halo (the only text shadow), rank-1 names in Cinzel capitals at 16px,
+  lightly tracked; the selected mark may glow faintly gold so it can be found among many.
 
 ## View CSS
 Each view owns `assets/css/<view>.css` and prefixes every class: `.map-` `.ch-` `.jr-` `.cp-` `.wl-` (settings: `.st-`).

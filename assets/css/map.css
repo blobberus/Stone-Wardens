@@ -44,20 +44,40 @@
 /* mk-* symbols carry their own fill/stroke; stop the .icon outline stroke leaking in. */
 .map-glyph { stroke: none; }
 
-/* A miniature pin (teardrop, tip down) in the type's pigment: legend, picker, search results. */
+/* Map marks sit on the map image, which is the same in both themes, so they use the fixed --pin-*
+   pigments and never the theme's ink: sepia (iron-gall warmed with umber) on parchment. A mark's own
+   pigment (--pin) only tints it: a wash on the parchment and the glyph's ink. The constants live on
+   .map-root, not on each pin: a moving pin's style is recomputed every zoom frame. */
+.map-root, .map-pin-preview, .map-swatch {
+  --mk-ink: color-mix(in srgb, var(--pin-ink) 78%, var(--pin-umber));
+  --mk-paper: color-mix(in srgb, var(--pin-glyph) 86%, var(--pin-ochre));
+  --mk-halo: color-mix(in srgb, var(--mk-paper) 78%, transparent);
+  --mk-shade: color-mix(in srgb, var(--pin-ink) 50%, transparent);
+  /* the lettering's halo: a crisp parchment edge, then a soft one */
+  --mk-letters: 1px 0 var(--mk-paper), -1px 0 var(--mk-paper), 0 1px var(--mk-paper), 0 -1px var(--mk-paper),
+    0 0 2px var(--mk-paper), 0 0 3px var(--mk-paper), 0 0 6px var(--mk-halo);
+}
+.map-pin, .map-swatch {
+  --mk-wash: color-mix(in srgb, var(--pin, var(--pin-ink)) 22%, var(--mk-paper));
+  --mk-tint: color-mix(in srgb, var(--pin, var(--pin-ink)) 48%, var(--mk-ink));
+}
+/* a pale custom pigment would make a pale glyph: keep it mostly ink */
+.map-pin.is-light, .map-swatch.is-light { --mk-tint: color-mix(in srgb, var(--pin) 22%, var(--mk-ink)); }
+
+/* The map mark in miniature: legend, picker, search results, edit list. */
 .map-swatch {
   display: inline-grid;
   place-items: center;
   flex: none;
   width: 22px; height: 22px;
   margin: 0 2px;
-  color: var(--pin-glyph);
-  background: var(--pin, var(--pin-ink));
-  border-radius: 50% 50% 50% 0;
-  transform: translateY(-2px) rotate(-45deg);
+  color: var(--mk-tint);
+  background: var(--mk-wash);
+  border: 1.25px solid var(--mk-ink);
+  border-radius: 50%;
 }
-.map-swatch > .icon { width: 14px; height: 14px; transform: rotate(45deg); }
-.map-swatch.is-light, .map-type-badge.is-light, .map-pin.is-light { color: var(--pin-ink); }
+.map-swatch > .icon { width: 14px; height: 14px; }
+.map-type-badge.is-light { color: var(--pin-ink); }
 .map-swatch-new {
   color: var(--ink-muted);
   background: transparent;
@@ -78,53 +98,52 @@
 }
 .map-type-badge .icon { width: 16px; height: 16px; }
 
-/* ---------- Pins ----------------------------------------------------------- */
-/* Leaflet positions .map-marker (32x46, anchored at the tip); everything inside is ours. */
+/* ---------- Pins: inked map marks ------------------------------------------- */
+/* Leaflet positions .map-marker, a 32 px hit box centered on the place; everything inside is ours.
+   The mark (.map-pin) is a small parchment roundel ringed in sepia ink with the type's glyph, and a
+   thin parchment halo outside the ring so it reads on the dark sea and over the map's own linework.
+   Size by rank: --mk-d (diameter) and --mk-g (glyph). Rings are box-shadows (--mk-rings). */
 .map-marker { outline: none; }
+.map-marker, .map-pin-preview { --mk-d: 20px; --mk-g: 14px; }
+.map-marker.rank-1, .map-pin-preview.rank-1 { --mk-d: 26px; --mk-g: 18px; }
+.map-marker.rank-2, .map-pin-preview.rank-2 { --mk-d: 22px; --mk-g: 15px; }
+.map-marker.rank-4, .map-pin-preview.rank-4 { --mk-d: 18px; --mk-g: 12px; }
 .map-pin {
+  --mk-rings: 0 0 0 1px var(--mk-halo);
   position: absolute;
-  left: 0; top: 0;
-  width: 32px; height: 46px;
-  color: var(--pin-glyph);
-  transform-origin: 16px 43px;
+  left: calc(50% - var(--mk-d) / 2);
+  top: calc(50% - var(--mk-d) / 2);
+  display: grid;
+  place-items: center;
+  width: var(--mk-d); height: var(--mk-d);
+  color: var(--mk-tint);
+  background: var(--mk-wash);
+  border: 1.5px solid var(--mk-ink);
+  border-radius: 50%;
+  box-shadow: var(--mk-rings), 0 1px 3px var(--mk-shade);
   transition: transform var(--dur) var(--ease);
 }
-.map-pin-shape { position: absolute; inset: 0; width: 32px; height: 46px; overflow: visible; }
-.map-pin-body {
-  fill: var(--pin, var(--pin-ink));
-  stroke: color-mix(in srgb, var(--pin-ink) 60%, transparent);
-  stroke-width: 1.25;
-  transition: stroke var(--dur) var(--ease);
-}
-.map-pin-ring { fill: none; stroke: var(--pin-glyph); stroke-opacity: 0.3; stroke-width: 1; }
-.map-pin-shadow { fill: var(--pin-ink); opacity: 0.28; }
-.map-pin-glyph { position: absolute; left: 8px; top: 8px; width: 16px; height: 16px; }
+.map-pin-glyph { width: var(--mk-g); height: var(--mk-g); }
+/* rank 1 (capitals, realms): a second ring, as old maps mark a capital */
+.map-marker.rank-1 .map-pin, .map-pin-preview.rank-1 .map-pin { --mk-rings: 0 0 0 1.5px var(--mk-wash), 0 0 0 2.5px var(--mk-ink), 0 0 0 3.5px var(--mk-halo); }
 
-.map-marker.is-major .map-pin { transform: scale(1.14); }
-.map-marker:hover .map-pin { transform: scale(1.12) translateY(-1px); }
-.map-marker.is-major:hover .map-pin { transform: scale(1.24) translateY(-1px); }
-.map-marker:focus-visible .map-pin-body { stroke: var(--focus); stroke-width: 3; }
+@media (hover: hover) { .map-marker:hover .map-pin { transform: scale(1.15); } } /* no sticky lift after a tap */
+.map-marker:focus-visible .map-pin { --mk-rings: 0 0 0 2px var(--mk-paper), 0 0 0 4px var(--focus); }
+/* the selected place: lifted, in a gold ring */
 .map-marker.is-selected .map-pin,
-.map-marker.is-selected:hover .map-pin { transform: scale(1.3); }
-.map-marker.is-selected .map-pin-body { stroke: var(--gold); stroke-width: 2; }
-/* a gold ground ring under the selected pin's tip, so it can be found among many */
-.map-marker.is-selected::before {
-  content: "";
-  position: absolute;
-  left: 4px; top: 38px;
-  width: 24px; height: 10px;
-  border: 1.5px solid var(--gold);
-  border-radius: 50%;
-  pointer-events: none;
+.map-marker.is-selected:hover .map-pin { transform: scale(1.2); }
+.map-marker.is-selected .map-pin {
+  --mk-rings: 0 0 0 1.5px var(--mk-paper), 0 0 0 4px var(--gold), 0 0 0 5px var(--mk-ink),
+    0 0 10px 5px color-mix(in srgb, var(--gold) 50%, transparent);
 }
 .map-marker.is-dimmed { opacity: 0.25; }
 .map-marker.is-dimmed:hover { opacity: 0.8; }
-.map-marker.is-ghost .map-pin-body { stroke: var(--gold); stroke-width: 2; stroke-dasharray: 3 2; }
+.map-marker.is-ghost .map-pin { border: 2px dashed var(--gold); }
 .map-marker.is-ghost .map-pin,
 .map-marker.is-moving .map-pin { animation: map-bob 0.9s var(--ease) infinite alternate; }
-@keyframes map-bob { from { transform: scale(1.3) translateY(0); } to { transform: scale(1.3) translateY(-5px); } }
+@keyframes map-bob { from { transform: scale(1.2) translateY(0); } to { transform: scale(1.2) translateY(-4px); } }
 
-.map-pin-preview { position: relative; display: block; flex: none; width: 32px; height: 46px; }
+.map-pin-preview { position: relative; display: block; flex: none; width: 32px; height: 32px; }
 
 /* Hierarchy panes (index.js): one Leaflet pane per rank, whose opacity follows the zoom, plus a
    pane for pins that must always show (selected, searched, moving). Fading a pane is one
@@ -133,78 +152,68 @@
 /* While a zoom runs, pins slide under a still cursor: no hover transitions (they made Chrome
    repaint and re-layerise pins every frame) and no hit-testing. */
 .map-root.is-zooming .map-marker { pointer-events: none; }
-.map-root.is-zooming .map-pin,
-.map-root.is-zooming .map-pin-body { transition: none; }
+.map-root.is-zooming .map-pin { transition: none; }
 .map-pane-rank { transition: opacity 160ms linear, visibility 0s; }
 .map-pane-rank.is-off { visibility: hidden; transition: opacity 160ms linear, visibility 0s linear 160ms; }
 .map-pane-rank.is-off .map-marker { pointer-events: none; }
-.map-marker.rank-4:not(.is-selected):not(.is-picked) .map-pin { transform: scale(0.9); }
-.map-marker.rank-4:not(.is-selected):not(.is-picked):hover .map-pin { transform: scale(1.04) translateY(-1px); }
-.map-marker.is-picked .map-pin-body { stroke: var(--focus); stroke-width: 3; }
-.map-marker.is-picked::after {
-  content: "";
-  position: absolute;
-  left: 2px; top: 36px;
-  width: 28px; height: 13px;
-  border: 2px solid var(--focus);
-  border-radius: 50%;
-  pointer-events: none;
-}
+.map-marker.is-picked .map-pin { --mk-rings: 0 0 0 1.5px var(--mk-paper), 0 0 0 3.5px var(--focus), 0 0 0 4.5px var(--mk-halo); }
 .map-root.is-editing .map-marker.leaflet-marker-draggable { cursor: grab; }
 .map-root.is-editing .map-marker.leaflet-drag-target,
 .map-root.is-editing .map-marker.leaflet-drag-target .map-pin { cursor: grabbing; }
+/* Touch: the box is 32 px; a finger gets 44 px (transparent, around the mark). */
+@media (pointer: coarse) {
+  .map-marker::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; }
+}
 
-/* "Has its own map" seal on the pin's shoulder. */
+/* "Has its own map" seal on the mark's shoulder. */
 .map-pin-sub {
   position: absolute;
-  right: -5px; top: -4px;
+  right: -7px; top: -7px;
   display: grid;
   place-items: center;
-  width: 16px; height: 16px;
-  color: var(--pin-ink);
-  background: var(--pin-glyph);
-  border: 1.5px solid var(--pin-ink);
+  width: 13px; height: 13px;
+  color: var(--mk-ink);
+  background: var(--mk-paper);
+  border: 1px solid var(--mk-ink);
   border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--mk-halo);
 }
-.map-pin-sub .icon { width: 10px; height: 10px; stroke-width: 2.4; }
+.map-pin-sub .icon { width: 8px; height: 8px; stroke-width: 2.8; }
 
-/* Labels: hidden by default; with the Labels toggle on, a rank's labels show once its pane is
-   mostly faded in (has-labels), so names arrive a moment after their pins. */
+/* Names, lettered under the mark like the map's own: serif, sepia ink with a parchment halo and no
+   plate; rank 1 in inscriptional capitals, rank 2 a size up from 3-4. Shown while the Labels
+   toggle is on (the default), once a rank's pane is mostly faded in (has-labels), so names arrive a
+   moment after their marks; hover, focus and the selection show one anyway. Part of the hit area. */
 .map-pin-label {
   position: absolute;
-  top: 46px; left: 50%;
+  top: calc(50% + var(--mk-d) / 2 + 2px);
+  left: 50%;
   display: none;
-  max-width: 190px;
-  padding: 1px 6px 2px;
-  overflow: hidden;
-  font: 600 var(--text-xs) / 1.25 var(--font-ui);
-  color: var(--ink);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  background: color-mix(in srgb, var(--surface) 86%, transparent);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent);
+  width: max-content;
+  max-width: 10.5em;
+  font: 700 var(--text-xs) / 1.08 var(--font-body);
+  color: var(--mk-ink);
+  text-align: center;
+  text-wrap: balance;
+  text-shadow: var(--mk-letters);
   transform: translateX(-50%);
-  pointer-events: none;
 }
-/* UI face on purpose: the same small caps in Alegreya made Chrome repaint these labels on every zoom frame. */
-.map-marker.is-major .map-pin-label {
-  top: 49px;
-  font: 700 var(--text-sm) / 1.15 var(--font-ui);
-  font-variant-caps: all-small-caps;
-  letter-spacing: 0.04em;
+/* Cinzel capitals under 20px are a deliberate exception here (docs/design.md): map lettering, like the
+   map's own realm names, and only for rank 1. */
+.map-marker.rank-1 .map-pin-label {
+  top: calc(50% + var(--mk-d) / 2 + 5px);
+  max-width: 14em;
+  font: 700 var(--text-sm) / 1.08 var(--font-display);
+  letter-spacing: 0.05em;
 }
+.map-marker.rank-2 .map-pin-label { font-size: 0.9375rem; }
 .map-root.map-labels .map-pane.has-labels .map-pin-label,
 .map-marker:hover .map-pin-label,
 .map-marker:focus-visible .map-pin-label,
 .map-marker.is-selected .map-pin-label,
 .map-marker.is-ghost .map-pin-label { display: block; }
 .map-marker.is-selected .map-pin-label,
-.map-marker.is-ghost .map-pin-label {
-  top: 52px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-}
+.map-marker.is-ghost .map-pin-label { top: calc(50% + var(--mk-d) * 0.6 + 8px); } /* clears the lifted mark and its ring */
 .map-marker.is-dimmed .map-pin-label { visibility: hidden; }
 
 /* ---------- Floating toolbars ---------------------------------------------- */
@@ -757,7 +766,7 @@
   background: var(--bg-sunk);
   border-radius: var(--radius);
 }
-.map-tf-preview .map-pin { transform: scale(1.15); }
+.map-tf-preview .map-pin { transform: scale(1.5); }
 .map-tf-preview-name { max-width: 100%; overflow: hidden; font: 600 var(--text-xs) / 1.2 var(--font-ui); white-space: nowrap; text-overflow: ellipsis; }
 .map-tf-icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 4px; }
 .map-tf-icon {
