@@ -1,4 +1,4 @@
-// Node test for the map design and fog models (assets/js/views/map/design.js, fog.js).
+// Node test for the map design and fog models (assets/js/views/map/design.js, fog.js) and the clouds' noise (clouds.js).
 // node tools/test_mapdesign.mjs   (no deps)
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const D = await import(pathToFileURL(path.join(ROOT, 'assets/js/views/map/design.js')).href);
 const F = await import(pathToFileURL(path.join(ROOT, 'assets/js/views/map/fog.js')).href);
+const C = await import(pathToFileURL(path.join(ROOT, 'assets/js/views/map/clouds.js')).href);
 
 let passed = 0;
 const failures = [];
@@ -236,6 +237,29 @@ section('fog: first-version documents');
   const stroke = F.normFog({ ops: [{ k: 'poly', p: [0, 0, 100, 0, 100, 100, 0, 100] }, { t: 'cut', k: 'brush', p: [0, 50, 100, 50], r: 5 }] });
   check('a brush stroke cuts a line', !F.fogCovers(stroke, 50, 53) && F.fogCovers(stroke, 50, 60));
   eq('the repo\'s fog (cover all, switched off)', [F.normFog({ on: false, ops: [{ t: 'add', k: 'all' }] }).on, F.normFog({ on: false, ops: [{ t: 'add', k: 'all' }] }).areas.length], [false, 1]);
+}
+
+section('clouds (the main map not revealed yet)');
+{
+  const n = 64;
+  const v = C.cloudField(n, { seed: 5, cells: 4, octaves: 4 });
+  check('n × n values', v.length === n * n);
+  let lo = Infinity, hi = -Infinity;
+  for (const x of v) { lo = Math.min(lo, x); hi = Math.max(hi, x); }
+  check('stretched to [0, 1]', Math.abs(lo) < 1e-6 && Math.abs(hi - 1) < 1e-6, [lo, hi]);
+  // seamless: the step across the tile's edge is no bigger than the usual step between neighbours
+  let inner = 0, edge = 0;
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n - 1; x++) inner = Math.max(inner, Math.abs(v[y * n + x + 1] - v[y * n + x]));
+    edge = Math.max(edge, Math.abs(v[y * n] - v[y * n + n - 1]), Math.abs(v[y] - v[(n - 1) * n + y]));
+  }
+  check('tiles without a seam', edge <= inner * 1.05, { edge, inner });
+  check('same seed, same clouds', C.cloudField(n, { seed: 5, cells: 4, octaves: 4 }).every((x, i) => x === v[i]));
+  check('another seed, other clouds', C.cloudField(n, { seed: 6, cells: 4, octaves: 4 }).some((x, i) => Math.abs(x - v[i]) > 0.1));
+  const day = C.cloudTones([221, 212, 193]), night = C.cloudTones([15, 13, 10]);
+  const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  check('day: clouds lighter, shadows darker than the ground', lum(day.light) > lum(day.base) && lum(day.shade) < lum(day.base));
+  check('night: pale clouds on the dark ground', lum(night.light) > lum(night.base) + 40 && lum(night.shade) <= lum(night.base));
 }
 
 console.log(`\n${passed} passed, ${failures.length} failed`);

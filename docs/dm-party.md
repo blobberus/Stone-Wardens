@@ -45,6 +45,12 @@ a few hundred commits an hour), so the repo alone can't be fast. On top of it:
    304 "not modified" answer doesn't count against the rate limit) every 5 s, or every 20 s while the live channel is
    up, and pulls at most every 12 s.
 
+Every screen, not only the party view, follows the branch the same way (main.js `followBranch`): after each commit a
+screen announces it on `sw1/<room>/c` (sealed like the sheets, not retained, flagged when made in DM mode), and the
+others check GitHub at once, pulling at most every 4 s for the DM's commits (releases, Inbox notifications, fog
+reveals reach the players within a few seconds of the DM's save) and every 30 s for players'. Without the live
+channel they still ask every 10 s while shown (free while nothing changed) and when the tab is shown again.
+
 The status beside the Characters button: **Live** (a change shows within about a second; measured 155 ms between two
 tabs), **Connecting…**, or **Live updates off** (the brokers can't be reached: changes show once a sheet is saved,
 about 15 s). Sandbox mode (`?sandbox`) uses a BroadcastChannel between tabs instead of the brokers.

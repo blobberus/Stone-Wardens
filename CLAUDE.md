@@ -61,7 +61,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 - Reads: GitHub git-trees API (one recursive call) + blobs by sha, cached in IndexedDB by sha.
 - Writes: Git Data API batch commit (tree with base_tree -> commit -> update ref; retry on non-fast-forward).
   Conflict check: if remote sha != the sha we loaded, user chooses overwrite/keep theirs.
-  `store.pullIfChanged()` pulls only after `backend.headChanged()` (conditional GET of the ref; a 304 is free).
+  `store.pullIfChanged()` pulls only after `backend.headChanged(store.headCommit)` (conditional GET of the ref; a 304
+  is free).
 - Live (`core/live.js` + `core/mqtt.js`, a copy of Combat Ring's): every local write of a character sheet is also
   published at once over public MQTT brokers, gzip'd and AES-GCM sealed with a key from the token (HKDF), retained per
   sheet; only the DM's party view subscribes. `characters/data.js` shows a live copy while its `updated` is newer than
@@ -70,7 +71,11 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   all dirty docs. `beforeunload` warns when uncommitted. Auto-commit (`autoCommit`, default on) 2 s (`autoCommitDelay`)
   after the last edit (`store.scheduleAutoCommit`): at most one per 15 s per device while editing, paused 2 min after a
   GitHub rate-limit error (every player shares the owner's token: ~500 writes/h, 3 per commit); edits made during a
-  save are committed after it. Auto-pull on focus/2 min.
+  save are committed after it. Following others' changes (main.js `followBranch`): after each commit a screen
+  announces it over the live channel (live.js `followCommits`, topic `sw1/<room>/c`, flagged when made in DM mode);
+  every open screen checks at once for the DM's (a release, a notification, a fog reveal shows in ~1-3 s), else asks
+  GitHub every 10 s while shown (304 = free); pulls (3 requests on the shared token) at most every 4 s for the DM's
+  changes and every 30 s for players'; again on focus / tab shown; an announced commit not visible yet is retried.
   `main.js` `wireSaving` auto-saves `autoSaveMinutes` (default 5, 0 = off) after the first unsaved change; with that
   and auto-commit off it shows a "Save now" toast after `saveReminder` minutes instead. Views call `saveNow()` from
   `core/saving.js` for a Save button that behaves like the sidebar one. Big changes call `saveSoon(reason)` right
@@ -143,8 +148,10 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   everything map-wide (new maps, image, name, duplicate, move, delete, zoom bands, offset / scale, design, pictures,
   fog) is the DM's (`data.canDesign()`; anyone while no DM is set up; docs/map-model.md). Parents (`maptree.js`, pure,
   `node tools/test_maptree.mjs`): absent / unknown / looping = the main map, `parent: null` = a map of its own.
-  While the DM hides the main map, players get the first map of its own or "The DM hasn't revealed the map yet."
-  (`data.mainUnrevealed()`, `homeMapId()`; marker `content/map/hidden.json`).
+  While the DM hides the main map, players get the first map of its own or "The DM hasn't revealed the map yet." over
+  drifting clouds that hide the whole map (`clouds.js`: seamless noise tiles in the background's tones, one small
+  canvas at 1/3 scale, ~15 fps, paused out of sight; they part when the map arrives) (`data.mainUnrevealed()`,
+  `homeMapId()`; marker `content/map/hidden.json`).
 - Design per map (`design` in the map doc: background, crop, compass, scale bar + ruler + travel time, border: 15
   styles picked from pictures, incl. hand-made inked / torn / burnt / ink wash, with corners, second color, mat, gap),
   pictures (`content/map-pictures/`) and fog of war (`content/fog/<mapId>.json` v2: one layer of `areas` {pts, holes,

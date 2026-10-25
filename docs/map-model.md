@@ -36,7 +36,8 @@ Design (background, crop, compass, scale and ruler, border), pictures on maps, f
   it, and the public marker `content/map/hidden.json` says so. For a viewer who can't read it (players, the DM with DM
   mode locked: `data.mainUnrevealed()`), the main map is not in `maps()` / `mapById()` / links / search;
   `homeMapId()` is the first map of their own, which `#/map` shows (the hash becomes `#/map/m/<id>`), or, when there is
-  none, the blank parchment under "The DM hasn't revealed the map yet." without the tools. A map whose parent would be
+  none, "The DM hasn't revealed the map yet." over drifting clouds that hide the whole map (clouds.js), without the
+  tools; the clouds part (fade out) when the map arrives. A map whose parent would be
   the main map then shows as a map of its own. Without the marker, a missing config.json is still the placeholder
   "The Uncharted Realm", as on a fresh site. Players who have the map open move over when the change arrives
   (index.js `runSync`).

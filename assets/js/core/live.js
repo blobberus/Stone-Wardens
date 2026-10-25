@@ -9,6 +9,9 @@
 // client publishes; only a screen that watches (the DM's party view) subscribes.
 // A live copy is a hint, not the record: readers take it only while it is newer than the stored doc (`updated`), and
 // GitHub stays the truth. Sandbox (?sandbox): a BroadcastChannel between tabs, retained messages in localStorage.
+// Commit announcements: after each commit a screen makes, a tiny sealed note on `sw1/<room>/c` (not retained) names
+// the commit and whether the DM made it; every open screen follows them (followCommits, main.js) and checks GitHub at
+// once, so a release, a notification or a fog reveal reaches the players within seconds instead of on the next poll.
 import { MqttClient, topicMatches } from './mqtt.js';
 import { sealBytes, openBytes } from './dm-crypto.js';
 import { utf8, b64encode, b64decode } from './util.js';
@@ -25,7 +28,7 @@ const rid = () => Math.random().toString(36).slice(2, 10) + Math.random().toStri
 const S = {
   secret: null, local: false, room: null, roomP: null, transports: null,
   shares: [], docs: new Map(), watchers: new Set(), statusFns: new Set(), timers: new Map(),
-  cid: rid(), clock: 0, out: Promise.resolve(),
+  cid: rid(), clock: 0, out: Promise.resolve(), commitFns: new Set(), seenCommits: [],
 };
 
 // ---------- setup ----------
@@ -51,6 +54,13 @@ export function liveStatus() {
   return { state: online ? 'online' : states.includes('connecting') ? 'connecting' : 'offline', online, total: states.length };
 }
 export const onLiveStatus = (fn) => { S.statusFns.add(fn); return () => S.statusFns.delete(fn); };
+
+/** fn({sha, dm}) for each commit another screen announces (connects and subscribes; for the whole session). */
+export function followCommits(fn) {
+  S.commitFns.add(fn);
+  connect().then((ok) => { if (ok) for (const t of S.transports) t.client.subscribe(commitTopic()); });
+}
+const commitTopic = () => `${PREFIX}/${S.room.id}/c`;
 
 /**
  * Watch the live copies: fn(path, entry) for each one newer than what this screen had. Connects and subscribes;
@@ -104,6 +114,7 @@ function connect() {
 // ---------- publishing ----------
 
 store.on((ev) => {
+  if (ev.type === 'saved' && ev.paths?.length && S.secret) announceCommit();
   if (ev.type !== 'put' || !ev.path || !S.secret || !shared(ev.path)) return;
   clearTimeout(S.timers.get(ev.path));
   S.timers.set(ev.path, setTimeout(() => { S.timers.delete(ev.path); publish(ev.path); }, DELAY));
@@ -127,6 +138,16 @@ function publish(path) {
     if (bytes.length > BIG) console.warn(`[live] ${path} is ${Math.round(bytes.length / 1024)} KB; some brokers keep only smaller messages`);
     for (const t of S.transports) t.client.publish(`${PREFIX}/${S.room.id}/o/${env.k}`, bytes, { retain: true });
   }).catch((e) => console.warn('[live] publish failed', e));
+}
+
+/** Tell the other screens this one just committed (dm: made in DM mode, so they check at the DM's pace). */
+function announceCommit() {
+  const env = { k: 'c', t: stamp(), c: store.headCommit || '', dm: store.layer ? 1 : 0 };
+  S.out = S.out.then(async () => {
+    if (!(await connect())) return;
+    const bytes = await pack(env);
+    for (const t of S.transports) t.client.publish(commitTopic(), bytes);
+  }).catch((e) => console.warn('[live] announce failed', e));
 }
 
 // Topic level from a path ('/', '#', '+' are not allowed inside one).
@@ -163,9 +184,11 @@ async function gunzip(bytes) {
 const versions = new Map(); // path -> newest version seen (each broker delivers its own copy)
 
 async function receive(topic, bytes) {
-  if (!S.room || !bytes?.length || !S.watchers.size) return;
+  if (!S.room || !bytes?.length) return;
   const parts = topic.split('/');
-  if (parts[0] !== PREFIX || parts[1] !== S.room.id || parts[2] !== 'o') return;
+  if (parts[0] !== PREFIX || parts[1] !== S.room.id) return;
+  if (parts[2] === 'c' && parts.length === 3) { await receiveCommit(bytes); return; }
+  if (parts[2] !== 'o' || !S.watchers.size) return;
   let env;
   try { env = await unpack(bytes); } catch { return; } // not ours, or tampered with
   const path = env?.d?.path;
@@ -178,6 +201,19 @@ async function receive(topic, bytes) {
   S.docs.set(path, entry);
   for (const fn of S.watchers) { try { fn(path, entry); } catch (e) { console.error('[live] watcher failed', e); } }
   store.emit({ type: 'live', path }); // open views of it redraw (readers pick the newer copy, characters/data.js)
+}
+
+/** A commit announcement: once per commit (each broker delivers its own copy; any order), never our own. */
+async function receiveCommit(bytes) {
+  if (!S.commitFns.size) return;
+  let env;
+  try { env = await unpack(bytes); } catch { return; }
+  if (env?.k !== 'c' || !Array.isArray(env.t) || env.t[1] === S.cid) return;
+  const id = env.t.join(':');
+  if (S.seenCommits.includes(id)) return;
+  S.seenCommits = [...S.seenCommits.slice(-49), id];
+  const note = { sha: typeof env.c === 'string' ? env.c : '', dm: !!env.dm };
+  for (const fn of S.commitFns) { try { fn(note); } catch (e) { console.error('[live] commit follower failed', e); } }
 }
 
 // ---------- sandbox transport (one browser: tabs talk through a BroadcastChannel) ----------

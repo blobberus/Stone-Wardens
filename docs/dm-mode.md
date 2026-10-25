@@ -88,8 +88,8 @@ switch under its name plate or from Hidden from players (its places, pictures, f
 Released) asks first, then hides it with its image, fog, pictures, places and every map inside it, each with what is
 on it; maps of their own (`parent: null`, docs/map-model.md) stay visible. A public marker `content/map/hidden.json`
 (`{hidden: true}`, nothing else) is written with it and removed on release, so players' devices know the main map is
-hidden: their Map tab opens the first visible map of its own, or says "The DM hasn't revealed the map yet." when there
-is none (a fresh site without the marker still shows the placeholder map). Releasing the main map brings back what was
+hidden: their Map tab opens the first visible map of its own, or says "The DM hasn't revealed the map yet." over
+clouds when there is none (a fresh site without the marker still shows the placeholder map). Releasing the main map brings back what was
 hidden with it (and what was added to it while hidden), not what the DM had hidden on its own before. A map inside a
 still-hidden map (the main map or any other) can be released first: Release asks "Release it as a map of its own, not
 linked to that map?" and the players get it with `parent: null`, with its places, pictures, fog and sub-maps. A place,

@@ -127,5 +127,8 @@ map inside it, each with what is on it, after a confirmation that says what goes
 before. A place, picture or fog of a hidden map can't be released alone, but a map inside a hidden map can: it is
 released as a map of its own (not linked to the hidden map, after the DM agrees), with everything on it. Hidden maps
 show a lock beside their name in the name plate and the Maps list. While the main map is hidden, players' Map tab
-opens the first visible map of its own, or "The DM hasn't revealed the map yet." (the public marker
+opens the first visible map of its own, or "The DM hasn't revealed the map yet." over drifting clouds, as if fog of
+war covered the whole map (`clouds.js`: two seamless tiles of fractal noise in the background's tones, drawn at a third
+of the screen's size into one canvas at ~15 frames a second, stopped while out of sight, still under reduced motion;
+they part when the DM releases the map) (the public marker
 `content/map/hidden.json` tells their devices; see docs/dm-mode.md).

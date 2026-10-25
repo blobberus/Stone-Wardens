@@ -11,7 +11,7 @@ import { preloadAll } from './core/compendium.js';
 import { setSaveHandler } from './core/saving.js';
 import { restoreDm } from './core/dm.js';
 import { wireDmShell } from './core/dm-ui.js';
-import { configureLive } from './core/live.js';
+import { configureLive, followCommits } from './core/live.js';
 
 // Sidebar order (DM Screen shown only in DM mode), under the Combat Ring link. core/dm-ui.js puts the Inbox at the bottom,
 // right above Settings.
@@ -89,6 +89,51 @@ async function showGate(error) {
 }
 
 // ---------- app ----------
+
+/**
+ * Pick up other players' changes while the tab is shown. Another screen's commit announcement (live.js followCommits)
+ * starts a check at once; else GitHub is asked every 10 s whether the branch moved, which costs nothing while it hasn't
+ * (a 304). A pull costs 3 requests on the token every player shares, so there is at most one per 30 s for players'
+ * changes and one per 4 s for the DM's (releases, notifications, fog reveals). An announced commit GitHub doesn't show
+ * yet (its ref lags a moment) is asked for again after 1.5, 3, 6 and 12 s.
+ */
+function followBranch() {
+  const CHECK_EVERY = 10000, GAP = 30000, GAP_DM = 4000;
+  let lastCheck = Date.now(), lastPull = Date.now(), timer = 0, running = false;
+  let hurry = false; // check at the DM's pace: a commit the DM announced, or the tab shown again
+  let chase = null; // {sha, tries}: the announced commit, until this screen has it
+  const shown = () => document.visibilityState === 'visible';
+  const plan = () => {
+    clearTimeout(timer);
+    if (!shown()) return; // checks resume when the tab is shown again
+    const now = Date.now();
+    timer = setTimeout(check, Math.max(0, hurry ? 0 : lastCheck + CHECK_EVERY - now, lastPull + (hurry ? GAP_DM : GAP) - now));
+  };
+  const check = async () => {
+    if (running || !shown()) return;
+    if (store.saving) { timer = setTimeout(check, 2000); return; } // a save brings this screen up to date anyway
+    running = true;
+    lastCheck = Date.now();
+    let failed = false;
+    try {
+      if (await store.pullIfChanged()) lastPull = Date.now();
+    } catch (e) { failed = true; console.warn('[pull]', e); }
+    running = false;
+    if (chase && (!chase.sha || store.headCommit === chase.sha || store.mode === 'sandbox' || ++chase.tries > 4)) chase = null;
+    hurry = !!chase;
+    if (failed) lastCheck = Date.now() + 50000; // offline or refused: try again in a minute
+    if (chase) { clearTimeout(timer); timer = setTimeout(check, 1500 * 2 ** (chase.tries - 1)); } else plan();
+  };
+  const soon = () => { if (Date.now() - lastCheck > 5000) { hurry = true; plan(); } };
+  followCommits(({ sha, dm }) => {
+    if (dm) { hurry = true; chase = { sha, tries: 0 }; }
+    plan();
+  });
+  document.addEventListener('visibilitychange', soon);
+  window.addEventListener('focus', soon);
+  window.addEventListener('online', soon);
+  plan();
+}
 
 async function enter(backend, scope) {
   store.use(backend, scope);
@@ -275,15 +320,7 @@ function wireSaving() {
     if (store.isDirty()) { e.preventDefault(); e.returnValue = ''; }
   });
 
-  // Pick up other players' changes.
-  let lastPull = Date.now();
-  const pull = async () => {
-    if (store.saving || document.visibilityState !== 'visible') return;
-    lastPull = Date.now();
-    try { await store.pull(); } catch (e) { console.warn('[pull]', e); }
-  };
-  setInterval(pull, 120000);
-  window.addEventListener('focus', () => { if (Date.now() - lastPull > 30000) pull(); });
+  followBranch();
 
   // Timed auto-save: commit at most `autoSaveMinutes` after the first unsaved change (retrying a failed or
   // canceled save one interval later). With it off, remind players who leave changes uncommitted instead.

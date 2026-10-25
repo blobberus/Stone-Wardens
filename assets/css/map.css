@@ -1373,14 +1373,19 @@ a.map-crumb:hover { color: var(--link-hover); }
 .map-crumbs-extra .dm-vis { box-shadow: var(--shadow); }
 .map-crumb .dm-mark { margin-left: 6px; }
 
-/* Players while the DM hides the main map and no map of its own is visible: a card over the blank parchment */
+/* Players while the DM hides the main map and no map of its own is visible: a card over drifting clouds (clouds.js),
+   as if fog of war covered the whole map; they part (fade) when the map arrives */
 .map-unrevealed {
   position: absolute; inset: 0; z-index: 8; /* over the map's own controls (they are hidden anyway) */
   display: grid; place-items: center; padding: var(--space-5);
-  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  background: var(--bg-sunk);
+  transition: opacity 1.2s ease;
 }
 .map-unrevealed[hidden] { display: none; }
+.map-unrevealed.is-parting { opacity: 0; pointer-events: none; }
+.map-clouds { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 .map-unrevealed-card {
+  position: relative; /* over the clouds */
   display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
   max-width: 34rem; padding: var(--space-5) var(--space-6); text-align: center;
   background: var(--surface); border: 1px solid var(--border-float); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);

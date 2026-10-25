@@ -36,6 +36,7 @@ import { createFogView, FOG_PANE, FOG_EDGE_PANE, TOOL_PANE } from './fogview.js'
 import { createPictures, PIC_PANE } from './pictures.js';
 import { createDesignPanel } from './designpanel.js';
 import { openCopyMapDialog } from './submaps.js';
+import { createClouds } from './clouds.js';
 
 // DM mode: places can be hidden from the players until released (core/dm.js); a place on a hidden map goes with it
 registerHideable({
@@ -86,6 +87,8 @@ const S = {
 let drawer, search, legend, menu, crumbs, collection, editor, zoomer, banner, emptyCard, addBtn, labelsBtn, measureBtn, ctxMenu = null;
 let decor, fogV, pictures, designPanel;
 let unrevealedCard = null; // players, while the DM hides the main map and there is no map of its own to show
+let clouds = null; // the clouds under that card
+let partTimer = 0; // the clouds parting when the map arrives
 
 const toLatLng = (x, y) => L.latLng(-y, x);
 const toXY = (ll) => ({ x: ll.lng, y: -ll.lat });
@@ -307,7 +310,9 @@ function mountView(el) {
   }, icon('ruler'), h('span', { class: 'map-tool-label' }, 'Ruler'));
   banner = h('div', { class: 'map-banner', role: 'status', hidden: true });
   emptyCard = h('div', { class: 'map-empty', hidden: true });
+  clouds = createClouds();
   unrevealedCard = h('div', { class: 'map-unrevealed', role: 'status', hidden: true },
+    clouds.el,
     h('div', { class: 'map-unrevealed-card' },
       h('span', { class: 'map-unrevealed-mark', 'aria-hidden': 'true' }, icon('map')),
       h('h2', { class: 'map-unrevealed-title' }, 'The DM hasn’t revealed the map yet.'),
@@ -390,7 +395,10 @@ function mountView(el) {
   document.addEventListener('keydown', onKey);
   store.on(onStore);
   // the fog's wash follows the background, which follows the light / dark theme by default
-  new MutationObserver(() => fogV.sync({ animate: false })).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  new MutationObserver(() => {
+    fogV.sync({ animate: false });
+    if (!unrevealedCard.hidden) clouds.show(cloudColor());
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   onDmMode(() => { // DM mode on / off: lock marks, the fog seen through or not, the design tabs, the map's switch
     editor.dmChanged();
     fogV.sync({ animate: false });
@@ -1062,14 +1070,24 @@ async function moveCurrentMap() {
 
 /**
  * Players (and the DM with DM mode locked) while the DM hides the main map: #/map shows the first map of its own
- * (applyRoute), or, when there is none, this "not revealed yet" card over the blank parchment, without the tools.
+ * (applyRoute), or, when there is none, this "not revealed yet" card over clouds that hide the whole map (clouds.js),
+ * without the tools. When the map arrives the clouds part (fade out).
  */
 function syncUnrevealed() {
   const on = S.mapId === data.MAIN_MAP && !data.mapById(data.MAIN_MAP);
+  const was = S.root.classList.contains('is-unrevealed');
   S.root.classList.toggle('is-unrevealed', on);
-  if (unrevealedCard) unrevealedCard.hidden = !on;
+  if (unrevealedCard) {
+    clearTimeout(partTimer);
+    unrevealedCard.classList.toggle('is-parting', !on && was);
+    if (on) { clouds.show(cloudColor()); unrevealedCard.hidden = false; }
+    else if (was) partTimer = setTimeout(() => { unrevealedCard.hidden = true; unrevealedCard.classList.remove('is-parting'); clouds.stop(); }, 1200);
+    else { unrevealedCard.hidden = true; clouds.stop(); }
+  }
   if (on) { closePopovers(); if (drawer?.isOpen) closeDrawer({ force: true }); }
 }
+/** The clouds' ground: the color around the map (the main map's own background is hidden from this viewer). */
+const cloudColor = () => getComputedStyle(unrevealedCard).backgroundColor;
 
 /** The DM's question before hiding the main map: what goes with it, what stays. */
 function mainHideQuestion() {

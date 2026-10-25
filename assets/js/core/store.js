@@ -60,6 +60,8 @@ class Store {
     this.autoPausedUntil = 0; // GitHub said "rate limit": no auto-commits until then
     // DM mode (core/dm.js) while unlocked: hidden items shown at their own paths, written sealed. null otherwise.
     this.layer = null;
+    this.headCommit = null; // the commit this mirror was last brought up to (live.js announces it after a save)
+    this.checking = null; // a pullIfChanged in flight (callers share it)
   }
 
   /** Does the DM layer handle this path? (Never its own files under content/dm/ or the inbox.) */
@@ -117,7 +119,8 @@ class Store {
   // ---------- loading ----------
 
   async load() {
-    const { files } = await this.backend.tree();
+    const { head, files } = await this.backend.tree();
+    this.headCommit = head?.commit || null;
     await this.applyRemote(files, new Set(), false);
     for (const [p, d] of Object.entries(this.drafts)) {
       if (d.bin) continue;
@@ -171,20 +174,29 @@ class Store {
     return changed;
   }
 
-  async pull() {
+  /** at: the head commit, when the caller already knows it (pullIfChanged). */
+  async pull(at = null) {
     if (this.saving || !this.backend) return [];
-    const { files } = await this.backend.tree();
+    const { head, files } = await this.backend.tree(at);
+    if (this.saving) return []; // a save started meanwhile: it brings the mirror up to date itself
+    this.headCommit = head?.commit || null;
     return this.applyRemote(files);
   }
 
   /**
    * pull(), but only after the backend says the branch moved (a cheap check, free while nothing changed).
-   * -> the changed paths, or null when it didn't pull.
+   * -> the changed paths, or null when it didn't pull. Calls while one runs share it.
    */
-  async pullIfChanged() {
-    if (this.saving || !this.backend) return null;
-    if (this.backend.headChanged && !(await this.backend.headChanged())) return null;
-    return this.pull();
+  pullIfChanged() {
+    if (this.saving || !this.backend) return Promise.resolve(null);
+    if (!this.checking) {
+      this.checking = (async () => {
+        const moved = this.backend.headChanged ? await this.backend.headChanged(this.headCommit) : true;
+        if (!moved) return null;
+        return this.pull(typeof moved === 'string' && moved !== 'sandbox' ? moved : null);
+      })().finally(() => { this.checking = null; });
+    }
+    return this.checking;
   }
 
   // ---------- reading ----------
@@ -429,6 +441,7 @@ class Store {
       } else if (this.drafts[p]) this.drafts[p].baseSha = sha; // edited again while saving
     }
     this.persistDrafts();
+    if (result.head?.commit) this.headCommit = result.head.commit;
     await this.applyRemote(result.files, keepTheirs);
     this.emit({ type: 'saved', paths: Object.keys(snapshot) });
     return { saved: changes.length };

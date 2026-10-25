@@ -37,17 +37,20 @@ export class GitHubBackend {
     return res.json();
   }
 
-  async head() {
-    const ref = await this.request('GET', `/git/ref/heads/${encodeURIComponent(this.branch)}`);
-    const commit = await this.request('GET', `/git/commits/${ref.object.sha}`);
-    return { commit: ref.object.sha, tree: commit.tree.sha };
+  /** The branch's head {commit, tree}; at: a commit sha already known (headChanged), which saves asking for the ref. */
+  async head(at = null) {
+    const sha = at || (await this.request('GET', `/git/ref/heads/${encodeURIComponent(this.branch)}`)).object.sha;
+    const commit = await this.request('GET', `/git/commits/${sha}`);
+    return { commit: sha, tree: commit.tree.sha };
   }
 
   /**
-   * Has the branch moved since the last call? A conditional GET of the ref (If-None-Match): GitHub answers 304 when it
-   * hasn't, and a 304 doesn't count against the rate limit, so a screen can ask every few seconds.
+   * Is the branch's head another commit than `known` (the one this screen has)? -> its sha, else false. A conditional
+   * GET of the ref (If-None-Match): GitHub answers 304 while it hasn't changed since the last answer, and a 304 doesn't
+   * count against the rate limit, so a screen can ask every few seconds. Comparing with `known` (not with the last
+   * answer) means a pull that failed or was skipped is simply asked for again.
    */
-  async headChanged() {
+  async headChanged(known) {
     const res = await fetch(`${API}/repos/${this.owner}/${this.repo}/git/ref/heads/${encodeURIComponent(this.branch)}`, {
       cache: 'no-store',
       headers: {
@@ -57,18 +60,17 @@ export class GitHubBackend {
         ...(this.refTag ? { 'If-None-Match': this.refTag } : {}),
       },
     });
-    if (res.status === 304) return false;
+    if (res.status === 304) return this.refSha && this.refSha !== known ? this.refSha : false;
     if (!res.ok) throw new GitHubError(res.status, res.statusText);
     this.refTag = res.headers.get('etag');
     const sha = (await res.json())?.object?.sha;
-    const moved = sha !== this.refSha;
     this.refSha = sha;
-    return moved;
+    return sha && sha !== known ? sha : false;
   }
 
-  /** Full recursive listing of blobs: [{path, sha, size}] plus the head it came from. */
-  async tree() {
-    const head = await this.head();
+  /** Full recursive listing of blobs: [{path, sha, size}] plus the head it came from (at: that commit). */
+  async tree(at = null) {
+    const head = await this.head(at);
     const t = await this.request('GET', `/git/trees/${head.tree}?recursive=1`);
     if (t.truncated) console.warn('[store] repo tree truncated by GitHub API');
     const files = t.tree.filter((e) => e.type === 'blob').map((e) => ({ path: e.path, sha: e.sha, size: e.size }));
