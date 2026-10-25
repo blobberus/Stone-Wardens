@@ -38,8 +38,8 @@
       }
     },
     "border": {
-      "show": false,
-      "type": "double",
+      "show": true,
+      "type": "checker",
       "color": "#1f1a14",
       "width": 1.6
     }
