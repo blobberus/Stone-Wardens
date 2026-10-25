@@ -1,22 +1,6 @@
 {
   "items": [
     {
-      "path": "content/locations/lonestar-vvc1.json",
-      "title": "Lonestar",
-      "label": "Map place",
-      "href": "#/map/loc/lonestar-vvc1",
-      "at": "2026-10-25T16:46:46.288Z",
-      "by": "The DM"
-    },
-    {
-      "path": "content/map/config.json",
-      "title": "Caspernos and Surrounding Lands",
-      "label": "Map",
-      "href": "#/map",
-      "at": "2026-10-25T16:45:10.997Z",
-      "by": "The DM"
-    },
-    {
       "path": "content/quests/a-lonely-town-50ht.json",
       "title": "A Lonely Town",
       "label": "Quest",
