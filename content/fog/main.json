@@ -1,15 +1,9 @@
 {
   "map": "main",
-  "on": false,
-  "style": "clouds",
-  "color": "#3a3f47",
+  "v": 2,
+  "on": true,
   "opacity": 1,
   "softness": 0.5,
-  "ops": [
-    {
-      "t": "add",
-      "k": "all"
-    }
-  ],
-  "updated": "2026-10-25T08:39:08.121Z"
+  "areas": [],
+  "updated": "2026-10-25T16:49:03.860Z"
 }
