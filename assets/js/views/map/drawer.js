@@ -1,6 +1,6 @@
 // Right-hand drawer over the map: location details, the editor, and per-location actions.
 import { h, mount } from '../../core/dom.js';
-import { icon, toast, confirmDialog, input, markdownEditor } from '../../core/ui.js';
+import { icon, toast, confirmDialog, input, markdownEditor, pickFromList } from '../../core/ui.js';
 import { renderInto } from '../../core/markdown.js';
 import { fmtDate, nameKey } from '../../core/util.js';
 import { saveSoon, saveHint, majorSaveOn } from '../../core/saving.js';
@@ -9,7 +9,7 @@ import { typeBadge, rankBadge } from './pins.js';
 import { typePicker } from './typeform.js';
 import { RANKS, rankName } from './ranks.js';
 import { mapOptions } from './submaps.js';
-import { hiddenChoice, visibilityToggle } from '../../core/dm-ui.js';
+import { hiddenChoice, visibilityToggle, hiddenMark } from '../../core/dm-ui.js';
 
 export async function copyText(text) {
   try {
@@ -27,6 +27,10 @@ export async function copyText(text) {
 }
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+/** The name of the map a place is on. */
+const mapNameOf = (l) => data.mapById(l.map)?.name || (l.map === data.MAIN_MAP ? 'the main map' : 'another map');
+/** "A, B and C" */
+const andList = (parts) => parts.flatMap((p, i) => [i ? (i === parts.length - 1 ? ' and ' : ', ') : '', p]);
 
 /**
  * Rank chooser: "Auto" (the type's default) or 1-4. Returns an element with .update(typeRank).
@@ -82,6 +86,7 @@ export function createDrawer(ctx) {
     const mentions = data.backlinks(loc);
     const rank = data.rankOf(loc);
     const sub = loc.submap && data.mapById(loc.submap);
+    const twins = data.twinsOf(loc); // the same place on other maps (linked: shared name, type, description, tags)
     const title = h('h2', { class: 'map-drawer-title', tabindex: '-1' }, loc.name);
     st.body = h('div', { class: 'map-drawer-body' },
       sub ? h('a', { class: 'map-submap-link', href: data.mapHref(sub.id), title: `Open the map of ${sub.name}` },
@@ -92,6 +97,9 @@ export function createDrawer(ctx) {
           h('span', null, plural(data.locationsOn(sub.id).length, 'place'))),
         icon('chevron-right')) : null,
       h('div', { class: 'map-drawer-badges' }, typeBadge(type), rankBadge(rank, rankName(rank), !loc.rank)),
+      twins.length ? h('p', { class: 'map-twins', title: 'Linked: the same place, with the same name, type, description and tags' },
+        icon('link'), h('span', null, 'Also on ', andList(twins.map((t) => h('a', { class: 'map-twin', href: data.locHref(t) },
+          t.map === loc.map ? 'this map (another pin)' : mapNameOf(t)))))) : null,
       visibilityToggle(data.locPath(loc.id), { label: 'this place' }), // DM mode only
       loc.lostMap ? h('p', { class: 'map-lost' }, icon('warning'), `This place belonged to a map that no longer exists (${loc.lostMap}), so it is shown here.`) : null,
       desc,
@@ -140,7 +148,9 @@ export function createDrawer(ctx) {
 
   async function remove(loc) {
     const n = data.backlinks(loc).length;
+    const twins = data.twinsOf(loc);
     const msg = `“${loc.name}” will be removed from the map for everyone${majorSaveOn() ? '' : ' once you save'}.`
+      + (twins.length ? ` The same place on ${twins.map(mapNameOf).join(', ')} stays, with its description.` : '')
       + (n ? ` ${n} ${n === 1 ? 'note links' : 'notes link'} here; ${n === 1 ? 'that link' : 'those links'} will stop working.` : '')
       + (loc.submap && data.mapById(loc.submap) ? ` Its map “${data.mapById(loc.submap).name}” is kept (open it from the map menu).` : '');
     if (!(await confirmDialog(msg, { title: 'Delete this location?', okLabel: 'Delete', danger: true }))) return;
@@ -157,6 +167,7 @@ export function createDrawer(ctx) {
     const f = {
       name: loc.name || '', type: loc.type || 'other', rank: loc.rank || null, submap: loc.submap || '',
       description: loc.description || '', tags: (loc.tags || []).join(', '), x: loc.x, y: loc.y,
+      same: loc.same || null, linkTo: null, // its group of linked places; a place picked to link it with
     };
     st.form = f;
     st.initial = JSON.stringify(f);
@@ -165,9 +176,13 @@ export function createDrawer(ctx) {
 
     const err = h('span', { class: 'map-field-error', role: 'alert', hidden: true }, 'Give the place a name.');
     const dupe = h('span', { class: 'field-hint map-dupe', hidden: true });
+    const linked = () => { // the places it is (or, once saved, will be) linked with
+      if (f.linkTo) { const t = data.locationById(f.linkTo); return t ? [t, ...data.twinsOf(t).filter((o) => o.id !== st.id)] : []; }
+      return f.same && !isNew ? data.twinsOf(loc) : [];
+    };
     const checkDupe = () => {
       const other = f.name.trim() && data.findLocation(f.name.trim());
-      const clash = other && other.id !== st.id && nameKey(other.name) === nameKey(f.name);
+      const clash = other && other.id !== st.id && nameKey(other.name) === nameKey(f.name) && !linked().some((l) => l.id === other.id);
       dupe.hidden = !clash;
       dupe.textContent = clash ? `Another place is already called “${other.name}”${other.map !== onMap ? ` (on ${data.mapById(other.map)?.name || 'another map'})` : ''}. Copy link will use its id so links stay exact.` : '';
     };
@@ -202,6 +217,56 @@ export function createDrawer(ctx) {
       onInput: (v) => { f.description = v; },
     });
     const tagsIn = input({ value: f.tags, placeholder: 'e.g. haunted, act-one, river', id: 'map-f-tags', oninput: (e) => { f.tags = e.target.value; } });
+
+    // Linked places: the same place on another map shares name, type, description and tags (twins.js)
+    const linkBox = h('div', { class: 'map-link-box' });
+    const fillFrom = (t) => {
+      Object.assign(f, { name: t.name, type: t.type, description: t.description, tags: t.tags.join(', ') });
+      nameIn.value = f.name;
+      picker.update(ctx.types(), f.type);
+      ranks.update(ctx.typeOf(f.type).rank);
+      editor.value = f.description;
+      tagsIn.value = f.tags;
+      err.hidden = true;
+      checkDupe();
+      ctx.preview(f);
+    };
+    const pickTwin = async () => {
+      const mine = new Set([st.id, ...(f.same && !isNew ? data.twinsOf(loc).map((t) => t.id) : [])]);
+      const items = data.locations().filter((l) => !mine.has(l.id));
+      if (!items.length) { toast('There are no other places to link with yet.'); return; }
+      const t = await pickFromList({
+        title: 'The same place as…', items, empty: 'No place matches.',
+        render: (l) => h('span', { class: 'map-twin-pick' }, h('strong', null, l.name), h('span', { class: 'muted' }, ` · ${mapNameOf(l)}`), hiddenMark(l.path)),
+        search: (l) => `${l.name} ${mapNameOf(l)} ${l.tags.join(' ')}`,
+      });
+      if (!t) return;
+      f.linkTo = t.id;
+      f.same = null;
+      fillFrom(t);
+      drawLink();
+    };
+    const drawLink = () => {
+      const list = linked();
+      linkBox.classList.toggle('is-linked', list.length > 0);
+      if (list.length) {
+        mount(linkBox,
+          h('p', { class: 'map-link-text' }, icon('link'), h('span', null,
+            'The same place as ', andList(list.map((l) => h('strong', null, `${l.name} on ${mapNameOf(l)}`))), '. ',
+            `Name, type, description and tags are shared: a change here changes ${list.length === 1 ? 'it' : 'them'} too.`)),
+          h('button', {
+            class: 'btn btn-sm btn-ghost', type: 'button', title: 'Keep this place separate (it keeps the text it has now)',
+            onclick: () => { f.linkTo = null; f.same = null; drawLink(); checkDupe(); },
+          }, 'Unlink'));
+      } else {
+        mount(linkBox,
+          h('button', { class: 'btn btn-sm', type: 'button', onclick: pickTwin }, icon('link'), h('span', null, 'Same place as…')),
+          h('span', { class: 'field-hint' }, isNew
+            ? 'Already on another map? Link them, and its name, type, description and tags stay the same on both.'
+            : 'The same place as one on another map? Link them: it takes that place’s name, type, description and tags.'));
+      }
+    };
+    drawLink();
     const pos = h('span', { class: 'map-pos' });
     const drawPos = () => {
       pos.textContent = `Position ${Math.round(f.x)}, ${Math.round(f.y)}${isNew ? ' · drag the pin or click the map to adjust' : ''}`;
@@ -215,7 +280,8 @@ export function createDrawer(ctx) {
       if (!name) { err.hidden = false; nameIn.focus(); return false; }
       const tags = [...new Set(f.tags.split(',').map((s) => s.trim().replace(/^#/, '')).filter(Boolean))];
       const base = isNew ? { map: onMap } : (data.locationById(st.id) || loc);
-      const saved = data.saveLocation({ ...base, name, type: f.type, rank: f.rank, submap: f.submap || null, description: f.description, tags, x: f.x, y: f.y }, { hidden: isNew ? vis.hidden : null });
+      const saved = data.saveLocation({ ...base, name, type: f.type, rank: f.rank, submap: f.submap || null, description: f.description, tags, x: f.x, y: f.y, same: f.same },
+        { hidden: isNew ? vis.hidden : null, linkTo: f.linkTo });
       st.form = null;
       ctx.setLastType(f.type);
       ctx.saved(saved, isNew);
@@ -235,6 +301,7 @@ export function createDrawer(ctx) {
         closeBtn()),
       h('div', { class: 'map-drawer-body stack' },
         isNew ? hiddenChoice(vis) : null,
+        linkBox,
         h('div', { class: 'field' }, h('label', { class: 'field-label', for: 'map-f-name' }, 'Name'), nameIn, err, dupe),
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Type'), picker),
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Rank'), ranks, ranks.hint),

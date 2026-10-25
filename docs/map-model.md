@@ -17,7 +17,7 @@ Design (background, crop, compass, scale and ruler, border), pictures on maps, f
 | Main map hidden | `content/map/hidden.json` | `{hidden: true}`, public, only while the DM hides the main map (see below) |
 | Sub-map | `content/maps/<mapId>.json` | `{id, name, parent, image, width, height, createdBy, created, updated, rankBands?, design?, copiedFrom?}` |
 | Sub-map image | `content/maps/<mapId>/<file>.<ext>` | |
-| Place | `content/locations/<id>.json` | every place on every map |
+| Place | `content/locations/<id>.json` | every place on every map; `same` + `sharedAt` when linked (below) |
 | Picture | `content/map-pictures/<id>.json` | an image laid on a map (`docs/map-design.md`); the file in `content/media/map-pictures/` |
 | Fog | `content/fog/<mapId>.json` | the map's fog of war (`docs/map-design.md`) |
 
@@ -103,6 +103,29 @@ those controls are simply not shown; a stray call says "Only the DM can …".
 - Maps carry no tags of their own: link them with `[[map:Name]]` (place tags stay as they were).
 - Sample content: the sub-map `starfall-vale-p94a` "Starfall Vale" (an original SVG region map) with two places,
   Brinewick and The Warden Stones. To remove it: open it, ⋯ → Delete this map… → delete the places too.
+
+## Linked places (the same place on several maps)
+
+A city on the main map can be the same city on a region map: **linked places** (`twins.js`, pure, `node
+tools/test_twins.mjs`). Each keeps its own map, position, rank and the map it opens; **name, type, description and
+tags are shared**, so editing any of them on one changes all of them.
+
+- In the New location form, **Same place as…** picks the place (any map, search by name, map or tag): the form fills
+  with its name, type, description and tags, a box says what it is linked with, and **Unlink** undoes it before
+  saving. The Edit form shows the same box: Unlink keeps the place separate (with the text it has now), and an
+  unlinked place can be linked the same way (it takes the other place's text). The details panel says "Also on
+  <map>", each a link to that pin.
+- Documents: every member holds the shared fields itself plus `same` (the group's random id, `same-xxxx`, never
+  derived from a name, so a hidden member's name can't show through a visible one) and `sharedAt` (when the shared
+  fields last changed). The index (`linkTwins`) gives every member the fields of the member changed last that this
+  viewer can read, and `twins` (the other members' ids; `data.twinsOf(loc)`). `saveLocation` writes a change of the
+  shared fields to every member it can read (moving or re-ranking one doesn't touch the others), `{linkTo: id}` joins
+  that place's group (written into it first if it had none). A member that couldn't be written (hidden from whoever
+  edited) catches up when read, and a visible member reads right for players while another is hidden by the DM;
+  each member is hidden and released on its own.
+- Deleting or unlinking leaves the others as they are; a group left with one place loses its link fields. Duplicating
+  a map makes plain copies (not linked). Links by name open the oldest member; "Mentioned in" counts links to any
+  member.
 
 ## `[[map:…]]` links
 

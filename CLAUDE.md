@@ -148,6 +148,9 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   everything map-wide (new maps, image, name, duplicate, move, delete, zoom bands, offset / scale, design, pictures,
   fog) is the DM's (`data.canDesign()`; anyone while no DM is set up; docs/map-model.md). Parents (`maptree.js`, pure,
   `node tools/test_maptree.mjs`): absent / unknown / looping = the main map, `parent: null` = a map of its own.
+  Linked places (`twins.js`, `node tools/test_twins.mjs`; form "Same place as…"): the same place on several maps shares
+  name, type, description and tags (each member holds them plus `same` group id + `sharedAt`; the latest wins on read;
+  `saveLocation` writes changes to all members; own map, position, rank, submap); docs/map-model.md "Linked places".
   While the DM hides the main map, players get the first map of its own or "The DM hasn't revealed the map yet." over
   drifting clouds that hide the whole map (`clouds.js`: seamless noise tiles in the background's tones, one small
   canvas at 1/3 scale, ~15 fps, paused out of sight; they part when the map arrives) (`data.mainUnrevealed()`,
@@ -281,7 +284,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).
 - Rules engine: `node tools/test_engine.mjs` and `node tools/test_spells.mjs` (spell numbers, XP, spell filters; both must stay
-  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. Map design and fog: `node tools/test_mapdesign.mjs`. Map parents / maps of their own: `node tools/test_maptree.mjs`. Character printouts: `node tools/test_print.mjs`. Party view and live messages: `node tools/test_party.mjs`. DM crypto: `node tools/test_dm.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
+  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. Map design and fog: `node tools/test_mapdesign.mjs`. Map parents / maps of their own: `node tools/test_maptree.mjs`. Linked places: `node tools/test_twins.mjs`. Character printouts: `node tools/test_print.mjs`. Party view and live messages: `node tools/test_party.mjs`. DM crypto: `node tools/test_dm.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
   the sheet doesn't show (11 known, intentional gaps).
 - Syntax: portable `node --check`. Markdown renderer can be exercised in Node by stubbing `DOMPurify.sanitize`.
 

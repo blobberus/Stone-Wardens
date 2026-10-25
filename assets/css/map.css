@@ -1366,6 +1366,20 @@ a.map-crumb:hover { color: var(--link-hover); }
 .map-marker.is-fogged .map-pin { opacity: 0.55; }
 .map-marker.is-fogged .map-pin-label { font-style: italic; opacity: 0.8; }
 
+/* Linked places (twins.js): "Also on" in the details, the link box in the form */
+.map-twins { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; font: 400 var(--text-sm) / 1.4 var(--font-ui); color: var(--ink-muted); }
+.map-twins > .icon { width: 15px; height: 15px; flex: none; color: var(--gold); }
+a.map-twin { color: var(--link); }
+.map-link-box { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.map-link-box .field-hint { flex: 1 1 14rem; margin: 0; }
+.map-link-box.is-linked {
+  padding: var(--space-2) var(--space-3); border: 1px dashed var(--border-strong); border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.map-link-text { display: flex; flex: 1 1 14rem; gap: 6px; margin: 0; font: 400 var(--text-sm) / 1.45 var(--font-ui); color: var(--ink); }
+.map-link-text > .icon { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--gold); }
+.map-twin-pick .dm-mark { margin-left: 6px; }
+
 /* The map's name plate: a lock on a hidden map, and the DM's hide / release switch under it */
 .map-crumbs-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; max-width: 100%; pointer-events: none; }
 .map-crumbs-wrap > * { pointer-events: auto; }

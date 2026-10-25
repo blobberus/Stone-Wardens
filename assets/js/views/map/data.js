@@ -19,6 +19,7 @@ import { validRank, normBands } from './ranks.js';
 import { normDesign } from './design.js';
 import { FOG_DIR, fogPath, normFog, scaleAreas, fogCovers } from './fog.js';
 import { mapTree, canMoveInto } from './maptree.js';
+import { linkTwins, sharedOf, sharedDiffer } from './twins.js';
 
 export const LOC_DIR = 'content/locations';
 export const MAP_DIR = 'content/map';
@@ -437,6 +438,8 @@ function normLoc(d, path) {
     y: num(d.y),
     description: typeof d.description === 'string' ? d.description : '',
     tags: Array.isArray(d.tags) ? d.tags.map((t) => String(t).trim()).filter(Boolean) : [],
+    same: typeof d.same === 'string' && d.same.trim() ? d.same.trim() : null, // linked places (twins.js)
+    sharedAt: typeof d.sharedAt === 'string' ? d.sharedAt : null,
     path,
   };
 }
@@ -448,6 +451,7 @@ function index() {
       if (!path.endsWith('.json') || !isObj(data)) continue;
       list.push(normLoc(data, path));
     }
+    linkTwins(list); // linked places share name, type, description and tags; each gets `twins`
     list.sort(byName);
     const byId = new Map();
     const byKey = new Map();
@@ -476,6 +480,8 @@ export const locations = () => index().list;
 /** Locations on one map. */
 export const locationsOn = (mapId) => index().byMap.get(mapId) || [];
 export const locationById = (id) => index().byId.get(String(id ?? '')) || null;
+/** The other places linked with this one (the same place on other maps), as this viewer can see them. */
+export const twinsOf = (loc) => (loc?.twins || []).map((id) => locationById(id)).filter(Boolean);
 
 /** Effective rank: the place's own rank, else its type's default rank. */
 export const rankOf = (loc) => validRank(loc?.rank) || typeOf(loc?.type).rank || 3;
@@ -497,15 +503,23 @@ export function findLocation(target, { loose = false, map = null } = {}) {
 
 export const locPath = (id) => `${LOC_DIR}/${id}.json`;
 
-/** Create or update a location. Returns the normalized saved location. opts.hidden: DM mode, a new place hidden. */
-export function saveLocation(loc, { hidden = null } = {}) {
+/**
+ * Create or update a location. Returns the normalized saved location. opts.hidden: DM mode, a new place hidden.
+ * Linked places (twins.js): loc.same keeps it in its group (null: unlinked); opts.linkTo: the id of a place to link
+ * it with (it joins that place's group). A change to the shared fields is written to every member this viewer can see.
+ */
+export function saveLocation(loc, { hidden = null, linkTo = null } = {}) {
   const now = new Date().toISOString();
-  const { path, id: _id, name, type, rank, map, lostMap: _lost, submap, x, y, description, tags, createdBy, created, updated: _u, ...extra } = loc;
+  const { path, id: _id, name, type, rank, map, lostMap: _lost, submap, x, y, description, tags, createdBy, created, updated: _u, same, sharedAt, twins: _tw, ...extra } = loc;
   let id = loc.id;
   if (!id) {
     id = uid(name || 'location');
     while (store.has(locPath(id))) id = uid(name || 'location');
   }
+  const before = store.get(path || locPath(id)); // as stored (not as linked)
+  let group = typeof same === 'string' && same ? same : null;
+  const target = linkTo && linkTo !== id ? locationById(linkTo) : null;
+  if (target) group = joinGroup(target, now);
   const r = validRank(rank);
   const doc = {
     id,
@@ -523,17 +537,53 @@ export function saveLocation(loc, { hidden = null } = {}) {
     updated: now,
     ...extra,
   };
+  const changed = !before || !!target || sharedDiffer(before, doc);
+  if (group) Object.assign(doc, { same: group, sharedAt: changed ? now : sharedAt || before?.sharedAt || now });
   const p = path || locPath(id);
   // A place on a hidden map is hidden too: players would otherwise see it on the main map (normLoc's lost pins).
   const onHidden = mapHidden(doc.map);
   const isNew = !store.has(p);
   store.put(p, doc, { hidden: onHidden && isNew ? true : hidden });
   if (onHidden && !isNew && !isHidden(p)) hideItem(p).catch((e) => console.warn('[map] could not hide a place moved to a hidden map', e));
+  if (group && changed) { // the other members get the shared fields (those this viewer can see; the rest catch up when read)
+    for (const m of groupPaths(group)) {
+      if (m === p) continue;
+      const raw = store.get(m);
+      if (raw && sharedDiffer(raw, doc)) store.put(m, { ...raw, ...sharedOf(doc), sharedAt: doc.sharedAt, updated: now });
+    }
+  }
+  if (before?.same && before.same !== group) tidyGroup(before.same);
   return locationById(baseName(p).replace(/\.json$/i, '')) || normLoc(doc, p);
 }
 
+/** The documents in a group of linked places (as stored, so a member not yet caught up still counts). */
+const groupPaths = (group) => store.list(LOC_DIR).filter((d) => d.path.endsWith('.json') && isObj(d.data) && d.data.same === group).map((d) => d.path);
+
+/** The group a place is linked in, made for it (and written into it) if it has none yet. */
+function joinGroup(target, now) {
+  const raw = store.get(target.path);
+  if (raw?.same) return raw.same;
+  const group = uid('same'); // random: a hidden member's name must not show in a visible member's document
+  store.put(target.path, { ...raw, same: group, sharedAt: raw?.sharedAt || raw?.updated || raw?.created || now });
+  return group;
+}
+
+/** A group left with one member is no group: that place loses its link fields. */
+function tidyGroup(group) {
+  const rest = groupPaths(group);
+  if (rest.length !== 1) return;
+  const { same: _s, sharedAt: _a, ...raw } = store.get(rest[0]) || {};
+  if (raw.id) store.put(rest[0], raw);
+}
+
+/** Take a place out of its group of linked places: it keeps the shared text as its own. */
+export const unlinkLocation = (loc) => saveLocation({ ...loc, same: null });
+
 export function deleteLocation(loc) {
-  store.remove(loc.path || locPath(loc.id));
+  const p = loc.path || locPath(loc.id);
+  const group = store.get(p)?.same;
+  store.remove(p);
+  if (group) tidyGroup(group);
 }
 
 /** Another place or map shares this name, so links by name would be ambiguous. */
@@ -730,8 +780,8 @@ export async function copyMap(srcId, { name = '', parent = MAIN_MAP, places = tr
   mapIndex = null;
   if (places) {
     for (const l of locationsOn(src.id)) {
-      const { id: _li, path: _lp, lostMap: _lm, created: _lc, createdBy: _lb, updated: _lu, ...keep } = l;
-      saveLocation({ ...keep, map: id }, { hidden: hiddenItem(l.path) });
+      const { id: _li, path: _lp, lostMap: _lm, created: _lc, createdBy: _lb, updated: _lu, same: _ls, sharedAt: _la, ...keep } = l;
+      saveLocation({ ...keep, map: id }, { hidden: hiddenItem(l.path) }); // a copy, not linked with the original
     }
   }
   if (pictures) {
@@ -875,7 +925,7 @@ function plainLine(line) {
 function linkHits(l, want) {
   if (l.prefix === 'map') {
     const r = resolveTarget(l.target, l.anchor);
-    return !!r && (want.loc ? r.loc?.id === want.loc.id : r.map?.id === want.map.id);
+    return !!r && (want.loc ? !!r.loc && (r.loc.id === want.loc.id || want.loc.twins?.includes(r.loc.id)) : r.map?.id === want.map.id);
   }
   if (!l.prefix) return nameKey(l.target) === nameKey(want.loc ? want.loc.name : want.map.name);
   return false;
@@ -911,7 +961,7 @@ export function backlinks(target) {
   }
   out.sort((a, b) => a.sort.localeCompare(b.sort, undefined, { numeric: true, sensitivity: 'base' }));
   for (const other of locations()) {
-    if (want.loc && other.id === want.loc.id) continue;
+    if (want.loc && (other.id === want.loc.id || want.loc.twins?.includes(other.id))) continue; // its own (shared) text
     if (!other.description.includes('[[')) continue;
     if (extractLinks(other.description).some(matches)) out.push({ title: other.name, href: locHref(other), context: other.map === MAIN_MAP ? 'Map' : (mapById(other.map)?.name || 'Map'), snippet: '' });
   }
