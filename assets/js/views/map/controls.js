@@ -297,9 +297,9 @@ export function createLegend(ctx) {
 // ---------- map menu ----------
 
 /**
- * ctx: {info() -> {name, width, height, image, isPlaceholder, isMain}, editing(), toggleEdit(), openFilter(),
+ * ctx: {info() -> {name, width, height, image, isPlaceholder, isMain, standalone}, editing(), toggleEdit(), openFilter(),
  *       rename(), replaceImage(), resetImage(), fit(), subMaps() -> [{id, name, count}], openMap(id),
- *       addSubmap(), deleteMap(), copyLink(), openSwitcher()}
+ *       addSubmap(), moveMap(), deleteMap(), copyLink(), openSwitcher()}
  */
 export function createMenu(ctx) {
   const button = h('button', { class: 'btn map-tool-btn map-tool-icon', type: 'button', 'aria-label': 'Map menu', title: 'Map menu: edit, sub-maps, image' }, icon('more'));
@@ -317,7 +317,7 @@ export function createMenu(ctx) {
     panel.append(
       h('div', { class: 'map-menu-head' },
         h('strong', null, info.name),
-        h('span', null, [info.isMain ? 'Main map' : 'Sub-map', info.isPlaceholder ? 'blank placeholder' : baseName(info.image), dims].filter(Boolean).join(' · '))),
+        h('span', null, [info.isMain ? 'Main map' : info.standalone ? 'Map of its own' : 'Sub-map', info.isPlaceholder ? 'blank placeholder' : baseName(info.image), dims].filter(Boolean).join(' · '))),
       h('div', { class: 'map-pop-scroll map-menu-scroll' },
         item(editing ? 'check' : 'edit', editing ? 'Finish editing' : 'Edit map', ctx.toggleEdit, { hint: editing ? 'Back to the normal map' : 'Move, rename and re-rank every place', cls: 'map-menu-strong' }),
         item('filter', 'Filter places…', ctx.openFilter, { hint: 'By rank or location type' }),
@@ -337,7 +337,9 @@ export function createMenu(ctx) {
         ] : null,
         item('link', 'Copy link to this map', ctx.copyLink),
         item('compass', 'Show the whole map', ctx.fit),
-        info.isMain || !manage ? null : [h('hr', { class: 'map-menu-sep' }), item('trash', 'Delete this map…', ctx.deleteMap, { cls: 'map-menu-danger' })]));
+        info.isMain || !manage ? null : [h('hr', { class: 'map-menu-sep' }),
+          ctx.moveMap ? item('layers', 'Move into another map…', ctx.moveMap, { hint: info.standalone ? 'Now a map of its own' : 'Or out, to a map of its own' }) : null,
+          item('trash', 'Delete this map…', ctx.deleteMap, { cls: 'map-menu-danger' })]));
   }, { className: 'map-menu', role: 'menu', label: 'Map menu' });
   return { el: wrap, pop };
 }

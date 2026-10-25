@@ -3,8 +3,10 @@
 // Layout: content/map/config.json = the main map; content/maps/<mapId>.json = a sub-map, its image in
 // content/maps/<mapId>/; content/locations/<id>.json = a place ("map" field = its sub-map, absent = main);
 // content/map-pictures/<id>.json = a picture laid on a map; content/fog/<mapId>.json = a map's fog of war.
-// DM mode: a hidden sub-map takes its places, image, pictures, fog and sub-maps with it (companions), and whatever is
-// added to a hidden map starts hidden. See docs/map-model.md and docs/map-design.md.
+// DM mode: a hidden map (the main map too) takes its places, image, pictures, fog and sub-maps with it (companions),
+// and whatever is added to a hidden map starts hidden. A sub-map document with `parent: null` is a map of its own
+// (maptree.js). While the main map is hidden, content/map/hidden.json ({hidden: true}, public) tells players' devices
+// so, and the Map tab shows a map of its own instead. See docs/map-model.md and docs/map-design.md.
 import { store } from '../../core/store.js';
 import { registerLinkType, matchNames } from '../../core/links.js';
 import { entries } from '../../core/compendium.js';
@@ -12,15 +14,18 @@ import { extractLinks, parseFrontmatter } from '../../core/markdown.js';
 import { href } from '../../core/router.js';
 import { uid, nameKey, slugify, byName, baseName } from '../../core/util.js';
 import { getSetting } from '../../core/settings.js';
-import { registerHideable, isHidden, hideItem, isDm, dmConfigured } from '../../core/dm.js';
+import { registerHideable, isHidden, hideItem, isDm, dmConfigured, onDmMode } from '../../core/dm.js';
 import { validRank, normBands } from './ranks.js';
 import { normDesign } from './design.js';
 import { FOG_DIR, fogPath, normFog, scaleAreas, fogCovers } from './fog.js';
+import { mapTree, canMoveInto } from './maptree.js';
 
 export const LOC_DIR = 'content/locations';
 export const MAP_DIR = 'content/map';
 export const MAPS_DIR = 'content/maps';
 export const CONFIG_PATH = `${MAP_DIR}/config.json`;
+/** Public marker while the DM hides the main map: it says only that (players can't read the sealed map). */
+export const MAIN_HIDDEN_PATH = `${MAP_DIR}/hidden.json`;
 export const MAIN_MAP = 'main';
 export const TYPE_KIND = 'location-type';
 export const TYPE_DIR = `content/library/${TYPE_KIND}`;
@@ -205,32 +210,30 @@ export function readConfig() {
   return isObj(c) ? c : {};
 }
 
+/**
+ * Is the main map hidden from this viewer? The DM hid it (the public marker is there) and this device can't read it:
+ * a player, or the DM with DM mode locked. In DM mode it shows (with a lock) once its envelope is open.
+ */
+export const mainUnrevealed = () => !isDm() && !store.has(CONFIG_PATH) && store.has(MAIN_HIDDEN_PATH);
+
 function mapsIdx() {
   if (mapIndex) return mapIndex;
   const cfg = readConfig();
-  const main = { id: MAIN_MAP, isMain: true, parent: null, name: String(cfg.name || '').trim() || DEFAULT_MAP_NAME, path: CONFIG_PATH, image: cfg.image || '', rankBands: cfg.rankBands };
+  const gone = mainUnrevealed();
+  const main = { id: MAIN_MAP, isMain: true, parent: null, standalone: false, unrevealed: gone, name: String(cfg.name || '').trim() || DEFAULT_MAP_NAME, path: CONFIG_PATH, image: cfg.image || '', rankBands: cfg.rankBands };
   const subs = [];
   for (const { path, data: d } of store.list(MAPS_DIR)) {
     if (!path.endsWith('.json') || !isObj(d)) continue;
     const id = baseName(path).replace(/\.json$/i, '');
     if (!id || id === MAIN_MAP) continue;
-    subs.push({ ...d, id, isMain: false, parent: String(d.parent || MAIN_MAP), name: String(d.name || '').trim() || 'Unnamed map', path, image: d.image || '' });
+    subs.push({ ...d, id, isMain: false, parent: d.parent === null ? null : d.parent, name: String(d.name || '').trim() || 'Unnamed map', path, image: d.image || '' });
   }
-  const byId = new Map([[MAIN_MAP, main], ...subs.map((m) => [m.id, m])]);
-  for (const m of subs) if (!byId.has(m.parent) || m.parent === m.id) m.parent = MAIN_MAP;
-  for (const m of subs) { // break cycles
-    const seen = new Set([m.id]);
-    for (let p = m.parent; p && p !== MAIN_MAP; p = byId.get(p)?.parent) {
-      if (seen.has(p)) { m.parent = MAIN_MAP; break; }
-      seen.add(p);
-    }
-  }
-  const kids = new Map();
-  for (const m of subs) { if (!kids.has(m.parent)) kids.set(m.parent, []); kids.get(m.parent).push(m); }
-  for (const l of kids.values()) l.sort(byName);
-  const list = [];
-  const walk = (m, depth) => { m.depth = depth; list.push(m); for (const c of kids.get(m.id) || []) walk(c, depth + 1); };
-  walk(main, 0);
+  // parents: unknown / self / loops = the main map; null = a map of its own (maptree.js)
+  const tree = mapTree(subs, { mainShown: !gone, compare: byName });
+  for (const m of subs) { m.parent = tree.parent.get(m.id); m.standalone = m.parent === null; }
+  const all = new Map([[MAIN_MAP, main], ...subs.map((m) => [m.id, m])]);
+  const list = tree.order.map(({ id, depth }) => Object.assign(all.get(id), { depth }));
+  const byId = new Map(list.map((m) => [m.id, m])); // the main map is not there while it is hidden from this viewer
   const byKey = new Map();
   const bySlug = new Map();
   for (const m of list) {
@@ -238,14 +241,31 @@ function mapsIdx() {
     if (!bySlug.has(slugify(m.name))) bySlug.set(slugify(m.name), m);
     if (m.id !== m.id.toLowerCase()) byId.set(m.id.toLowerCase(), m);
   }
-  mapIndex = { list, byId, kids, byKey, bySlug };
+  mapIndex = { list, byId, kids: tree.kids, byKey, bySlug, main, parents: tree.parent };
   return mapIndex;
 }
 
-/** Every map, main first, then sub-maps depth-first by name (each has .depth). Treat as read-only. */
+/**
+ * Every map this viewer can see: the main map and its sub-maps first, then the maps of their own, each followed by its
+ * sub-maps (depth-first by name; each has .depth). Treat as read-only.
+ */
 export const maps = () => mapsIdx().list;
+/** A map by id (null for the main map while it is hidden from this viewer: mainUnrevealed). */
 export const mapById = (id) => mapsIdx().byId.get(String(id ?? '')) || null;
+/** The main map's entry even while it is hidden from this viewer (fallback for drawing the empty Map tab). */
+export const mainMap = () => mapsIdx().main;
+/** Maps directly inside id (null: the maps of their own). */
 export const childMaps = (id) => mapsIdx().kids.get(id) || [];
+/** The map #/map shows: the main map, or while it is hidden from this viewer the first map of its own (null: none). */
+export const homeMapId = () => (mapById(MAIN_MAP) ? MAIN_MAP : maps()[0]?.id || null);
+
+/** A parent for a new or moved map: null stays null (a map of its own); an unknown map falls back to the main map. */
+function validParent(p) {
+  if (p === null) return null;
+  const m = mapById(p);
+  if (m) return m.id;
+  return mapById(MAIN_MAP) ? MAIN_MAP : null;
+}
 
 /** Match a map id, a name, or (loose) a slug of the name. */
 export function findMap(target, { loose = false } = {}) {
@@ -283,29 +303,54 @@ export function readMapConfig(id) {
 export function writeMapConfig(id, patch) {
   const next = { ...readMapConfig(id), ...patch };
   if (id === MAIN_MAP) {
+    // Hidden from this viewer: a write would bring back a blank public main map beside the sealed one.
+    if (mainUnrevealed()) { console.warn('[map] the main map is hidden; not written'); return; }
     const { image, width, height, name, ...rest } = next;
-    store.put(CONFIG_PATH, { image, width, height, name, ...rest });
+    // A visible main map stays visible: never sealed by the "New: hidden" safety net (a fresh site has no config yet).
+    store.put(CONFIG_PATH, { image, width, height, name, ...rest }, { hidden: isHidden(CONFIG_PATH) ? null : false });
     return;
   }
   const { id: _id, name, parent, image, width, height, ...rest } = next;
-  store.put(mapPath(id), { id, name, parent: parent || MAIN_MAP, image: image || '', width: width || 0, height: height || 0, ...rest, updated: new Date().toISOString() });
+  store.put(mapPath(id), { id, name, parent: parent === null ? null : parent || MAIN_MAP, image: image || '', width: width || 0, height: height || 0, ...rest, updated: new Date().toISOString() });
 }
 
 /** Back-compat: patch the main map's config. */
 export const writeConfig = (patch) => writeMapConfig(MAIN_MAP, patch);
 
+/** The main map's config exists (a fresh site has none until something is changed): written blank if missing. */
+export function ensureMainConfig() {
+  if (!store.has(CONFIG_PATH) && !mainUnrevealed()) writeMapConfig(MAIN_MAP, {});
+}
+
 /**
- * Can this device manage maps: their design, pictures and fog, and new maps, images, names, copies, deletions, zoom bands
- * and the bulk offset / scale? The DM in DM mode; anyone while no DM is set up. (Places are everyone's to add and edit.)
+ * Can this device manage maps: their design, pictures and fog, and new maps, images, names, copies, moves, deletions,
+ * zoom bands and the bulk offset / scale? The DM in DM mode; anyone while no DM is set up. (Places are everyone's.)
  */
 export const canDesign = () => isDm() || !dmConfigured();
-/** Is this sub-map hidden from the players (DM mode)? The main map never is. */
-export const mapHidden = (id) => !!id && id !== MAIN_MAP && isHidden(mapPath(id));
+/** Is this map (the main map too) hidden from the players (DM mode)? */
+export const mapHidden = (id) => !!id && isHidden(mapPath(id));
+
+/**
+ * Move a sub-map into another map (or out: parent null = a map of its own), with everything on it. A loop is refused.
+ * Moved into a hidden map (DM mode), it is hidden too, with everything on it. -> {hidden: true if it was hidden now}.
+ */
+export async function moveMap(id, parent) {
+  const m = mapById(id);
+  if (!m || m.isMain) throw new Error('The main map sits inside no other map.');
+  const to = parent === null ? null : mapById(parent)?.id;
+  if (to === undefined) throw new Error('That map no longer exists.');
+  if (!canMoveInto(mapsIdx().parents, id, to)) throw new Error('A map can’t go inside itself or one of its own sub-maps.');
+  if ((m.parent ?? null) === to) return { hidden: false };
+  const hide = !!to && mapHidden(to) && !mapHidden(id);
+  if (hide) await hideItem(mapPath(id)); // first, so a failure leaves it where it was; the move is then sealed too
+  writeMapConfig(id, { parent: to });
+  return { hidden: hide };
+}
 
 /** Create a sub-map (blank placeholder image). Returns its id. hidden (DM mode): a sub-map of a hidden map always is. */
 export function createMap({ name, parent = MAIN_MAP, hidden = null }) {
   const n = String(name || '').trim() || 'New map';
-  const par = mapById(parent) ? parent : MAIN_MAP;
+  const par = validParent(parent); // null: a map of its own
   const base = mapHidden(par) || hidden === true ? 'map' : n; // a hidden map's id must not spell its name: visible places may name it (submap)
   let id = uid(base);
   while (id === MAIN_MAP || store.has(mapPath(id))) id = uid(base);
@@ -349,7 +394,7 @@ export function placeholderSize() {
 
 /** Config with defaults filled in: {id, image, width, height, name, isPlaceholder, bands}. width/height may be 0. */
 export async function effectiveConfig(id = MAIN_MAP) {
-  const m = mapById(id) || mapById(MAIN_MAP);
+  const m = mapById(id) || mapById(MAIN_MAP) || mainMap();
   const c = readMapConfig(m.id);
   const placeholder = isPlaceholderImage(c.image);
   let width = Number(c.width) || 0;
@@ -358,6 +403,7 @@ export async function effectiveConfig(id = MAIN_MAP) {
   return {
     id: m.id,
     isMain: m.isMain,
+    standalone: !!m.standalone,
     image: placeholder ? PLACEHOLDER_IMAGE : String(c.image),
     width,
     height,
@@ -512,19 +558,28 @@ export const locHref = (loc) => (loc.map === MAIN_MAP ? href('map', 'loc', loc.i
 /** Places on other maps that open this map. */
 export const linksTo = (mapId) => locations().filter((l) => l.submap === mapId);
 
+/** Where the places of a deleted map can go: its parent, or (a map of its own) the main map; null = nowhere. */
+export function moveTargetOf(id) {
+  const m = mapById(id);
+  if (!m) return null;
+  return (m.parent && mapById(m.parent)?.id) || (mapById(MAIN_MAP) ? MAIN_MAP : null);
+}
+
 /**
- * Delete a sub-map. pins: 'move' (to the parent map, around the place that opened it) or 'delete'.
- * Child maps move up to the parent; places that opened this map lose the link.
+ * Delete a sub-map. pins: 'move' (to the parent map, around the place that opened it; a map of its own: to the main
+ * map) or 'delete'. Child maps move up to the parent (a map of its own: they become maps of their own); places that
+ * opened this map lose the link.
  */
 export async function deleteMap(id, { pins = 'move' } = {}) {
   const m = mapById(id);
   if (!m || m.isMain) return;
-  const parent = mapById(m.parent) ? m.parent : MAIN_MAP;
+  const parent = m.parent && mapById(m.parent) ? m.parent : null; // null: it is a map of its own
+  const dest = moveTargetOf(id);
   const own = locationsOn(id);
-  if (pins === 'delete') own.forEach(deleteLocation);
+  if (pins === 'delete' || !dest) own.forEach(deleteLocation);
   else if (own.length) {
-    const p = await effectiveConfig(parent);
-    const anchor = locationsOn(parent).find((l) => l.submap === id);
+    const p = await effectiveConfig(dest);
+    const anchor = locationsOn(dest).find((l) => l.submap === id);
     const W = p.width || DEFAULT_SIZE.width;
     const H = p.height || DEFAULT_SIZE.height;
     const cx = anchor ? anchor.x : W / 2;
@@ -533,10 +588,10 @@ export async function deleteMap(id, { pins = 'move' } = {}) {
     own.forEach((l, i) => { // a small sunflower spiral, so moved pins don't sit on top of each other
       const a = i * 2.39996;
       const r = r0 * Math.sqrt(i + 1);
-      saveLocation({ ...l, map: parent, x: Math.min(W, Math.max(0, cx + Math.cos(a) * r)), y: Math.min(H, Math.max(0, cy + Math.sin(a) * r)) });
+      saveLocation({ ...l, map: dest, x: Math.min(W, Math.max(0, cx + Math.cos(a) * r)), y: Math.min(H, Math.max(0, cy + Math.sin(a) * r)) });
     });
   }
-  for (const c of childMaps(id)) writeMapConfig(c.id, { parent });
+  for (const c of childMaps(id)) writeMapConfig(c.id, { parent }); // null: they become maps of their own
   for (const l of linksTo(id)) saveLocation({ ...l, submap: null });
   for (const pic of picturesOn(id)) deletePicture(pic);
   if (store.has(fogPath(id))) store.remove(fogPath(id));
@@ -649,7 +704,7 @@ export async function copyMap(srcId, { name = '', parent = MAIN_MAP, places = tr
   if (!src) throw new Error('That map no longer exists.');
   const cfg = readMapConfig(src.id);
   const n = String(name || '').trim() || `${src.name} (copy)`;
-  const par = mapById(parent) ? parent : MAIN_MAP;
+  const par = validParent(parent); // null: a map of its own
   const hide = mapHidden(par) || !!hidden;
   let id = uid(hide ? 'map' : n); // see createMap
   while (id === MAIN_MAP || store.has(mapPath(id))) id = uid(hide ? 'map' : n);
@@ -730,7 +785,38 @@ function mapCompanions(id) {
   return out;
 }
 const hiddenMapReason = (id, what) => (mapHidden(id) ? `${what} is on the hidden map “${mapById(id)?.name || id}”. Release that map to show it.` : null);
+const mainName = () => mainMap().name;
 
+/**
+ * What hiding the main map takes along (not counting what is hidden already), for the DM's confirmation.
+ * -> {image, fog, places, pictures, maps (all below it), own (visible maps of their own: what players see instead)}
+ */
+export function mainHideCounts() {
+  const cfg = readConfig();
+  const shown = (p) => !isHidden(p);
+  return {
+    image: !isPlaceholderImage(cfg.image) && shown(cfg.image),
+    fog: store.has(fogPath(MAIN_MAP)) && shown(fogPath(MAIN_MAP)),
+    places: locationsOn(MAIN_MAP).filter((l) => shown(l.path)).length,
+    pictures: picturesOn(MAIN_MAP).filter((p) => shown(p.path)).length,
+    maps: descendantIds(MAIN_MAP).filter((id) => !mapHidden(id)).length,
+    own: childMaps(null).filter((m) => !mapHidden(m.id)).length,
+  };
+}
+
+// The main map (content/map/config.json): hidden with its image, fog, pictures, places and every map inside it (each
+// with what is on it); maps of their own stay. While it is hidden, the public marker content/map/hidden.json tells the
+// players' devices to show a map of their own (or "not revealed yet") instead of a blank placeholder.
+registerHideable({
+  prefix: `${MAP_DIR}/`, label: 'Map', icon: 'map', order: 44, accept: (p) => p === CONFIG_PATH,
+  describe: (path, d) => (path === CONFIG_PATH
+    ? { title: String(d?.name || '').trim() || DEFAULT_MAP_NAME, href: mapHref(MAIN_MAP) }
+    : { title: `Image of ${mainName()}`, href: mapHref(MAIN_MAP) }),
+  companions: (path) => (path === CONFIG_PATH ? mapCompanions(MAIN_MAP) : []),
+  releaseBlock: (path) => (path === CONFIG_PATH ? null : hiddenMapReason(MAIN_MAP, 'This image')),
+  afterHide: (path) => { if (path === CONFIG_PATH) store.put(MAIN_HIDDEN_PATH, { hidden: true }, { hidden: false }); },
+  afterRelease: (path) => { if (path === CONFIG_PATH && store.has(MAIN_HIDDEN_PATH)) store.remove(MAIN_HIDDEN_PATH); },
+});
 registerHideable({
   prefix: `${MAPS_DIR}/`, label: 'Map', icon: 'map', order: 45, accept: isMapDoc,
   describe: (path, d) => {
@@ -738,22 +824,31 @@ registerHideable({
     return isMapDoc(path) ? { title: d?.name || mapById(id)?.name || 'Map', href: mapHref(id) } : { title: `Image of ${mapById(id)?.name || 'a map'}`, href: mapHref(id) };
   },
   companions: (path) => (isMapDoc(path) ? mapCompanions(mapIdOfPath(path)) : []),
-  releaseBlock: (path, d) => {
+  releaseBlock: (path) => (isMapDoc(path) ? null : hiddenMapReason(mapIdOfPath(path), 'This image')),
+  // Inside a map that is still hidden: released as a map of its own (parent null), with everything on it.
+  releaseAs: (path, d) => {
+    if (!isMapDoc(path)) return null;
     const id = mapIdOfPath(path);
-    if (!isMapDoc(path)) return hiddenMapReason(id, 'This image');
-    const parent = String(d?.parent || MAIN_MAP);
-    return mapHidden(parent) ? `It is inside the hidden map “${mapById(parent)?.name || parent}”. Release that map first.` : null;
+    const up = mapById(id)?.parent;
+    if (!up || !mapHidden(up)) return null;
+    const name = d?.name || mapById(id)?.name || 'This map';
+    return {
+      title: 'Release it as a map of its own?',
+      question: `“${name}” is inside the hidden map “${mapById(up)?.name || up}”. Release it as a map of its own, not linked to that map? Its places, pictures, fog and sub-maps come with it.`,
+      okLabel: 'Release as a map of its own',
+      data: { ...d, parent: null, updated: new Date().toISOString() },
+    };
   },
 });
 registerHideable({
   prefix: `${PIC_DIR}/`, label: 'Map picture', icon: 'image', order: 52, accept: (p) => p.endsWith('.json'),
   describe: (path, d) => ({ title: d?.name || 'Picture', href: mapHref(d?.map || MAIN_MAP) }),
-  releaseBlock: (path, d) => hiddenMapReason(d?.map, 'This picture'),
+  releaseBlock: (path, d) => hiddenMapReason(d?.map || MAIN_MAP, 'This picture'),
 });
 registerHideable({
   prefix: `${FOG_DIR}/`, label: 'Map fog', icon: 'map', order: 95, pickable: false, accept: () => false,
   describe: (path, d) => ({ title: `Fog of ${mapById(d?.map)?.name || 'a map'}`, href: mapHref(d?.map || MAIN_MAP) }),
-  releaseBlock: (path, d) => hiddenMapReason(d?.map, 'This fog'),
+  releaseBlock: (path, d) => hiddenMapReason(d?.map || MAIN_MAP, 'This fog'),
 });
 
 // ---------- backlinks ----------
@@ -823,7 +918,7 @@ export function backlinks(target) {
 store.on((ev) => {
   const paths = ev.path ? [ev.path] : ev.paths || [];
   const all = ev.type === 'load';
-  const mapsChanged = all || paths.some((p) => p === CONFIG_PATH || p.startsWith(`${MAPS_DIR}/`));
+  const mapsChanged = all || paths.some((p) => p.startsWith(`${MAP_DIR}/`) || p.startsWith(`${MAPS_DIR}/`)); // config, the hidden marker
   if (mapsChanged) mapIndex = null;
   if (all || paths.some((p) => p.startsWith(`${PIC_DIR}/`))) picIndex = null;
   if (all) fogCache.clear();
@@ -831,6 +926,7 @@ store.on((ev) => {
   if (mapsChanged || paths.some((p) => p.startsWith(`${LOC_DIR}/`))) locIndex = null;
   if (all || paths.some((p) => p.startsWith(`${TYPE_DIR}/`))) refreshTypes();
 });
+onDmMode(() => { mapIndex = null; locIndex = null; }); // the main map hidden from this viewer or not (mainUnrevealed)
 refreshTypes();
 
 /**

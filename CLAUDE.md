@@ -37,7 +37,9 @@ srd/                  generated SRD 5.2 JSON (tools/build_srd.py) + srd/stubs/*.
 content/              ALL user data, written by the site through the GitHub API
   characters/<id>.json  characters/recently-deleted/<id>.json (trash, `trashed:{at,by}`)
   locations/<id>.json (optional `map` sub-map id, `submap` it opens, `rank` 1-4)  map/config.json (+ map image)
-  maps/<mapId>.json + maps/<mapId>/<image>   sub-maps {id,name,parent,image,width,height,design?}; docs/map-model.md
+  map/hidden.json                public marker {hidden:true} while the DM hides the main map
+  maps/<mapId>.json + maps/<mapId>/<image>   sub-maps {id,name,parent,image,width,height,design?}; parent null = a map
+                                of its own (not linked to the main map); docs/map-model.md
   map-pictures/<id>.json (+ media/map-pictures/)  fog/<mapId>.json   pictures on maps, fog of war; docs/map-design.md
                                 (sample: starfall-vale-p94a "Starfall Vale" + 2 places, safe to delete)
   quests/<id>.json  media/quests/<file>   quest log (docs/quests-model.md)
@@ -130,13 +132,17 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 
 ## Map tab
 - Model, routes, ranks and links: `docs/map-model.md`. Controls float over the map: search (top left) with the
-  **Maps** button on its right (`collection.js`: every map nested by parent, with thumbnail, parent, place count and
-  a copy-able `[[map:Name]]` link), the current map's name under them (`createCrumbs`: parents as links on sub-maps;
-  DM mode: the sub-map's hide / release switch under it); right toolbar Add location, Filter, Labels, Ruler (once a
-  scale is set), ⋯ (Design map…, Rename map… (also the name in Edit map's header), Duplicate this map…, Hide compass,
-  scale and border on this device). Big PNG/JPG uploads become same-size WebP (image.js `asWebp`). Places are
-  everyone's to add and edit; everything map-wide (new maps, image, name, duplicate, delete, zoom bands, offset / scale,
-  design, pictures, fog) is the DM's (`data.canDesign()`; anyone while no DM is set up; docs/map-model.md).
+  **Maps** button on its right (`collection.js`: every map nested by parent, then the maps of their own, with
+  thumbnail, parent, place count and a copy-able `[[map:Name]]` link), the current map's name under them
+  (`createCrumbs`: parents as links on sub-maps; DM mode: any map's hide / release switch under it, the main map's
+  too); right toolbar Add location, Filter, Labels, Ruler (once a scale is set), ⋯ (Design map…, Rename map… (also the
+  name in Edit map's header), Duplicate this map…, Move into another map…, Hide compass, scale and border on this
+  device). Big PNG/JPG uploads become same-size WebP (image.js `asWebp`). Places are everyone's to add and edit;
+  everything map-wide (new maps, image, name, duplicate, move, delete, zoom bands, offset / scale, design, pictures,
+  fog) is the DM's (`data.canDesign()`; anyone while no DM is set up; docs/map-model.md). Parents (`maptree.js`, pure,
+  `node tools/test_maptree.mjs`): absent / unknown / looping = the main map, `parent: null` = a map of its own.
+  While the DM hides the main map, players get the first map of its own or "The DM hasn't revealed the map yet."
+  (`data.mainUnrevealed()`, `homeMapId()`; marker `content/map/hidden.json`).
 - Design per map (`design` in the map doc: background, crop, compass, scale bar + ruler + travel time, border),
   pictures (`content/map-pictures/`) and fog of war (`content/fog/<mapId>.json` v2: one layer of `areas` {pts, holes,
   on} like the Combat Ring's, Fog / Clearing, lasso / polygon / rectangle / click to reveal / select; players see the map
@@ -155,8 +161,11 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   compendium entry, journal note, library upload, map place) has the switch; each item page has `visibilityToggle`;
   lists show `hiddenMark`. Writes that copy an item (note rename/move, folder move, photos of a note or quest) pass
   `{hidden: isHidden(source)}` so visibility follows the item. `registerHideable` may add `companions(path)` (hidden and
-  released together, recorded as `with` in the envelope: a sub-map takes its places, image, pictures, fog, sub-maps) and
-  `releaseBlock(path, data)` (a place of a hidden map can't be released alone); anything added to a hidden map is hidden. DM Screen tab (views/dm, menu only in DM mode): hidden
+  released together, recorded as `with` in the envelope: a map takes its places, image, pictures, fog, sub-maps; the
+  main map every map inside it, not the maps of their own), `releaseBlock(path, data)` (a place of a hidden map can't
+  be released alone), `releaseAs(path, data)` (released in another form after a question: a map inside a hidden map
+  becomes a map of its own; `releasePlan`, dm-ui `askRelease`, `releaseItem(p, {as: true})`) and `afterHide` /
+  `afterRelease` (the main map's public marker); anything added to a hidden map is hidden. DM Screen tab (views/dm, menu only in DM mode): hidden
   list + Release, released log + Hide again + × (`forgetReleased`: off the list only, the item stays public; optionally
   its Inbox notification too), hide an existing item, Create buttons (New quest, New map…), New-items-hidden default; a second tab **Party**
   (`#/dm/party`, views/dm/party.js + pure party-model.js, docs/dm-party.md): every character on one screen (cards scale
@@ -260,7 +269,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).
 - Rules engine: `node tools/test_engine.mjs` and `node tools/test_spells.mjs` (spell numbers, XP, spell filters; both must stay
-  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. Map design and fog: `node tools/test_mapdesign.mjs`. Character printouts: `node tools/test_print.mjs`. Party view and live messages: `node tools/test_party.mjs`. DM crypto: `node tools/test_dm.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
+  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. Map design and fog: `node tools/test_mapdesign.mjs`. Map parents / maps of their own: `node tools/test_maptree.mjs`. Character printouts: `node tools/test_print.mjs`. Party view and live messages: `node tools/test_party.mjs`. DM crypto: `node tools/test_dm.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
   the sheet doesn't show (11 known, intentional gaps).
 - Syntax: portable `node --check`. Markdown renderer can be exercised in Node by stubbing `DOMPurify.sanitize`.
 

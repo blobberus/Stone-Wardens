@@ -103,7 +103,12 @@ In DM mode the copy can start hidden; a copy of a hidden map starts hidden.
 
 ## Hiding a map (DM mode)
 
-On a sub-map, the switch under its name plate hides it from the players **with everything on it**: its image and
-background image, fog, pictures, places and sub-maps (core/dm.js `companions`). Release brings them all back, except
-what was hidden on its own before. A place, picture or fog of a hidden map can't be released alone. Hidden maps show
-a lock beside their name in the name plate and the Maps list. The main map can't be hidden.
+On any map, the main map too, the switch under its name plate hides it from the players **with everything on it**:
+its image and background image, fog, pictures, places and sub-maps (core/dm.js `companions`; for the main map every
+map inside it, each with what is on it, after a confirmation that says what goes and what stays). Maps of their own
+(`parent: null`, docs/map-model.md) stay visible. Release brings them all back, except what was hidden on its own
+before. A place, picture or fog of a hidden map can't be released alone, but a map inside a hidden map can: it is
+released as a map of its own (not linked to the hidden map, after the DM agrees), with everything on it. Hidden maps
+show a lock beside their name in the name plate and the Maps list. While the main map is hidden, players' Map tab
+opens the first visible map of its own, or "The DM hasn't revealed the map yet." (the public marker
+`content/map/hidden.json` tells their devices; see docs/dm-mode.md).
