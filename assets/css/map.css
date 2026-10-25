@@ -1074,6 +1074,9 @@ a.map-crumb:hover { color: var(--link-hover); }
 .map-edit-rename .icon { flex: none; width: 12px; height: 12px; opacity: 0.7; }
 .map-edit-rename:hover, .map-edit-rename:focus-visible { color: var(--ink); background: var(--surface-2); }
 .map-edit-rename:hover .map-edit-map { color: var(--ink); }
+.map-edit-rename:disabled { cursor: default; background: none; }
+.map-edit-rename:disabled .icon { display: none; }
+.map-edit-rename:disabled .map-edit-map { color: var(--ink-muted); }
 .map-edit-tools { display: flex; flex-direction: column; gap: var(--space-2); flex: none; padding: var(--space-3) var(--space-3) var(--space-2); border-bottom: 1px solid var(--rule); }
 .map-edit-selrow { display: flex; align-items: center; gap: var(--space-2); min-height: 28px; padding: 0 2px; }
 .map-edit-all { font-size: var(--text-sm); }

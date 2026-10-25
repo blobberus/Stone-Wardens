@@ -63,7 +63,7 @@ async function copyLink(m) {
 }
 
 /**
- * ctx: {current() -> mapId, addSubmap()}
+ * ctx: {current() -> mapId, addSubmap(), canManage() -> may add maps (the DM)}
  * Returns {el, pop, open()}. The panel keeps itself up to date while open (store events).
  */
 export function createCollection(ctx) {
@@ -152,7 +152,7 @@ export function createCollection(ctx) {
       listEl,
       h('div', { class: 'map-pop-foot map-coll-foot' },
         h('p', { class: 'map-pop-note' }, 'Paste a map’s link into any note or description to open it from there.'),
-        h('button', { type: 'button', class: 'btn btn-sm', onclick: () => { pop.close(); ctx.addSubmap(); } }, icon('plus'), h('span', null, 'Add a sub-map…'))),
+        ctx.canManage?.() === false ? null : h('button', { type: 'button', class: 'btn btn-sm', onclick: () => { pop.close(); ctx.addSubmap(); } }, icon('plus'), h('span', null, 'Add a sub-map…'))),
     ].filter(Boolean));
     panel.addEventListener('keydown', (e) => {
       const inFilter = !!e.target.classList?.contains('map-coll-search');

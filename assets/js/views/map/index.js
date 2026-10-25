@@ -101,6 +101,12 @@ const decorOff = () => prefs.decor === false;
 const seeThrough = () => !fogV?.preview && (isDm() || S.designTab === 'fog');
 /** Is a place hidden by its map's fog from this viewer? */
 const fogHidesLoc = (l) => !!l && !seeThrough() && fogCovers(data.fogOf(l.map), l.x, l.y);
+/** Map-wide changes are the DM's (data.canDesign); a stray call from elsewhere just says so. */
+const dmOnly = (what, fn) => (...args) => {
+  if (data.canDesign()) return fn(...args);
+  toast(`Only the DM can ${what}.`);
+  return null;
+};
 /** The fog's wash: the color around the map (its background, which may follow the light or dark theme). */
 function fogColor() {
   const c = S.canvas && getComputedStyle(S.canvas).backgroundColor;
@@ -186,7 +192,7 @@ function mountView(el) {
     search: (q) => { search.set(q); search.focus(); },
     setLastType: (id) => { prefs.lastType = id; savePrefs(); },
     mapId: () => S.mapId,
-    newSubmap: ({ name, parent }) => openNewMapDialog({ parent, name }),
+    newSubmap: dmOnly('add maps', ({ name, parent }) => openNewMapDialog({ parent, name })),
   });
   search = createSearch({
     locations: () => data.locations().filter((l) => !fogHidesLoc(l)), // places under the fog stay unknown
@@ -224,19 +230,19 @@ function mountView(el) {
     toggleEdit: () => toggleEdit(),
     canDesign: data.canDesign,
     designMap: () => toggleEdit(true, 'design'),
-    copyMap: () => copyCurrentMap(),
+    copyMap: dmOnly('duplicate maps', () => copyCurrentMap()),
     hasDecor: () => hasDecorations(S.design),
     decorOff,
     toggleDecor,
     openFilter: () => legend.pop.open(),
-    rename: () => renameMap(info()),
-    replaceImage: () => replaceImage(info()),
-    resetImage: () => resetImage(info()),
+    rename: dmOnly('rename maps', () => renameMap(info())),
+    replaceImage: dmOnly('change map images', () => replaceImage(info())),
+    resetImage: dmOnly('change map images', () => resetImage(info())),
     fit: () => fitMap(true),
     subMaps: () => data.childMaps(S.mapId).map((m) => ({ id: m.id, name: m.name, count: data.locationsOn(m.id).filter((l) => !fogHidesLoc(l)).length })),
     openMap: (id) => navigate(data.mapHref(id)),
-    addSubmap: () => addSubmap(),
-    deleteMap: () => deleteCurrentMap(),
+    addSubmap: dmOnly('add maps', () => addSubmap()),
+    deleteMap: dmOnly('delete maps', () => deleteCurrentMap()),
     copyLink: copyMapLink,
     openSwitcher: () => collection.open(),
   });
@@ -250,7 +256,8 @@ function mountView(el) {
   collection = createCollection({
     current: () => S.mapId,
     placeCount: (id) => data.locationsOn(id).filter((l) => !fogHidesLoc(l)).length,
-    addSubmap: () => addSubmap(),
+    addSubmap: dmOnly('add maps', () => addSubmap()),
+    canManage: data.canDesign,
   });
   editor = createEditor({
     root: S.root,
@@ -271,9 +278,9 @@ function mountView(el) {
     focusLoc: (loc, zoom) => (zoom ? flyToLoc(loc) : ensureVisible(loc)),
     openDetails: (id) => openLocation(id, { fly: false }),
     exit: () => toggleEdit(false),
-    replaceImage: () => replaceImage(info()),
-    rename: () => renameMap(info()),
-    newSubmap: ({ name, parent }) => openNewMapDialog({ parent, name }),
+    replaceImage: dmOnly('change map images', () => replaceImage(info())),
+    rename: dmOnly('rename maps', () => renameMap(info())),
+    newSubmap: dmOnly('add maps', ({ name, parent }) => openNewMapDialog({ parent, name })),
     setBandPreview: (b) => { S.bandPreview = b; updateRanks(); },
     zoomU: () => S.zoomU,
     rankShift: () => S.rankShift || 0,
@@ -1011,7 +1018,7 @@ async function addSubmap({ fromLoc = null, name = '', title } = {}) {
 function newMapAsked() {
   if (!S.wantNewMap) return;
   S.wantNewMap = false;
-  addSubmap({ title: 'New map' });
+  dmOnly('add maps', () => addSubmap({ title: 'New map' }))();
 }
 
 async function copyCurrentMap() {

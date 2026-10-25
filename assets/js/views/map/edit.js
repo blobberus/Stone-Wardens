@@ -60,6 +60,20 @@ export function createEditor(ctx) {
       + (majorSaveOn() ? 'Your changes are saved for the party when you press Done.' : 'Changes stay drafts until you press Save.');
   };
 
+  // Map-wide changes (the DM's, or anyone's while no DM is set up): rename, offset / scale every pin, a new image, zoom bands
+  const renameBtn = h('button', { type: 'button', class: 'map-edit-rename', title: 'Rename this map', onclick: () => ctx.rename?.() }, mapName, icon('edit'));
+  const offsetBtn = h('button', { type: 'button', class: 'btn btn-sm', onclick: () => openTransform(), title: 'Shift or scale pins by numbers, e.g. after replacing the image with a different size' }, icon('sort'), h('span', null, 'Offset / scale…'));
+  const replaceBtn = h('button', { type: 'button', class: 'btn btn-sm', onclick: () => ctx.replaceImage(), title: 'Upload a new image for this map' }, icon('upload'), h('span', null, 'Replace image…'));
+  function drawManage() {
+    const can = !!ctx.canDesign?.();
+    renameBtn.disabled = !can;
+    renameBtn.title = can ? 'Rename this map' : '';
+    offsetBtn.hidden = !can;
+    replaceBtn.hidden = !can;
+    bandsEl.hidden = !can;
+    if (!can && bandsEl.open) bandsEl.open = false;
+  }
+
   const placesPane = h('div', { class: 'map-edit-pane', role: 'tabpanel', 'data-tab': 'places' },
     h('div', { class: 'map-edit-tools' },
       searchIn,
@@ -70,8 +84,8 @@ export function createEditor(ctx) {
     h('footer', { class: 'map-edit-foot' },
       h('div', { class: 'map-edit-actions' },
         undoBtn,
-        h('button', { type: 'button', class: 'btn btn-sm', onclick: () => openTransform(), title: 'Shift or scale pins by numbers, e.g. after replacing the image with a different size' }, icon('sort'), h('span', null, 'Offset / scale…')),
-        h('button', { type: 'button', class: 'btn btn-sm', onclick: () => ctx.replaceImage(), title: 'Upload a new image for this map' }, icon('upload'), h('span', null, 'Replace image…'))),
+        offsetBtn,
+        replaceBtn),
       hintEl));
   const designTabs = ctx.design?.tabs || [];
   for (const t of designTabs) {
@@ -83,8 +97,8 @@ export function createEditor(ctx) {
   const el = h('aside', { class: 'map-edit', 'aria-label': 'Edit map', hidden: true },
     h('header', { class: 'map-edit-head' },
       h('div', { class: 'map-edit-titles' }, h('h2', { class: 'map-edit-title' }, 'Edit map'),
-        // the map's name: click to rename it (also ⋯ → Rename map…)
-        h('button', { type: 'button', class: 'map-edit-rename', title: 'Rename this map', onclick: () => ctx.rename?.() }, mapName, icon('edit'))),
+        // the map's name: click to rename it (also ⋯ → Rename map…; the DM's, like the other map-wide changes)
+        renameBtn),
       h('button', { class: 'btn btn-primary btn-sm', type: 'button', onclick: () => ctx.exit(), title: 'Back to the normal map (Esc)' }, icon('check'), h('span', null, 'Done'))),
     tabsEl,
     placesPane,
@@ -255,7 +269,7 @@ export function createEditor(ctx) {
       types.map((t) => h('option', { value: t.id, selected: t.id === l.type }, t.name)));
     const ranks = rankPicker({ value: l.rank, typeRank: ctx.typeOf(l.type).rank, compact: true, onChange: (r) => save({ rank: r }, 'Re-rank') });
     const subSel = h('select', { class: 'select', 'aria-label': 'Opens a map' },
-      mapOptions(l.submap || '', { exclude: l.map, none: 'No map' }), h('option', { value: '__new' }, 'New sub-map…'));
+      mapOptions(l.submap || '', { exclude: l.map, none: 'No map' }), ctx.canDesign?.() ? h('option', { value: '__new' }, 'New sub-map…') : null);
     subSel.addEventListener('change', async () => {
       if (subSel.value !== '__new') { save({ submap: subSel.value || null }, 'Link a map to'); return; }
       const id = await ctx.newSubmap({ name: cur()?.name || l.name, parent: l.map });
@@ -548,6 +562,7 @@ export function createEditor(ctx) {
       st.changed = false;
       el.hidden = false;
       mapName.textContent = ctx.info().name;
+      drawManage();
       drawHint();
       renderList();
       drawUndo();
@@ -559,7 +574,7 @@ export function createEditor(ctx) {
     /** Something was changed in a design tab: commit when editing ends. */
     markChanged() { st.changed = true; },
     /** DM mode turned on or off while editing: the design tabs come or go. */
-    dmChanged() { if (st.open) setTab(designOn() ? st.tab : 'places'); },
+    dmChanged() { if (st.open) { drawManage(); setTab(designOn() ? st.tab : 'places'); renderList(); } },
     /** Leave edit mode (pending nudges and bands are written first). Returns true when anything was changed. */
     close() {
       commitNudge.flush();

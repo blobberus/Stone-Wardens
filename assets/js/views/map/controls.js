@@ -313,6 +313,7 @@ export function createMenu(ctx) {
     const dims = info.width && info.height ? `${Math.round(info.width)} × ${Math.round(info.height)} px` : '';
     const subs = ctx.subMaps();
     const editing = ctx.editing();
+    const manage = !!ctx.canDesign?.(); // new maps, images, names, copies, deletions: the DM's (anyone while no DM is set up)
     panel.append(
       h('div', { class: 'map-menu-head' },
         h('strong', null, info.name),
@@ -325,16 +326,18 @@ export function createMenu(ctx) {
         h('hr', { class: 'map-menu-sep' }),
         h('p', { class: 'map-menu-label' }, info.isMain ? 'Sub-maps' : `Sub-maps of ${info.name}`),
         subs.map((m) => item('layers', m.name, () => ctx.openMap(m.id), { hint: `${m.count} place${m.count === 1 ? '' : 's'}` })),
-        item('plus', 'Add a sub-map…', ctx.addSubmap, { hint: 'A separate map for a place, e.g. a city or dungeon' }),
+        manage ? item('plus', 'Add a sub-map…', ctx.addSubmap, { hint: 'A separate map for a place, e.g. a city or dungeon' }) : null,
         editing ? null : item('layers', 'Map collection…', ctx.openSwitcher, { hint: 'Every map, with the link to each' }),
         h('hr', { class: 'map-menu-sep' }),
-        item('upload', 'Replace map image…', ctx.replaceImage, { hint: 'PNG, JPG, WebP or SVG — e.g. a Wonderdraft export' }),
-        item('undo', 'Reset to placeholder', ctx.resetImage, { disabled: info.isPlaceholder }),
-        item('edit', 'Rename map…', ctx.rename),
-        item('copy', 'Duplicate this map…', ctx.copyMap, { hint: 'A new map with the same image, design, places, pictures and fog' }),
+        manage ? [
+          item('upload', 'Replace map image…', ctx.replaceImage, { hint: 'PNG, JPG, WebP or SVG — e.g. a Wonderdraft export' }),
+          item('undo', 'Reset to placeholder', ctx.resetImage, { disabled: info.isPlaceholder }),
+          item('edit', 'Rename map…', ctx.rename),
+          item('copy', 'Duplicate this map…', ctx.copyMap, { hint: 'A new map with the same image, design, places, pictures and fog' }),
+        ] : null,
         item('link', 'Copy link to this map', ctx.copyLink),
         item('compass', 'Show the whole map', ctx.fit),
-        info.isMain ? null : [h('hr', { class: 'map-menu-sep' }), item('trash', 'Delete this map…', ctx.deleteMap, { cls: 'map-menu-danger' })]));
+        info.isMain || !manage ? null : [h('hr', { class: 'map-menu-sep' }), item('trash', 'Delete this map…', ctx.deleteMap, { cls: 'map-menu-danger' })]));
   }, { className: 'map-menu', role: 'menu', label: 'Map menu' });
   return { el: wrap, pop };
 }

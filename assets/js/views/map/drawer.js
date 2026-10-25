@@ -187,7 +187,7 @@ export function createDrawer(ctx) {
     const subSel = h('select', { class: 'select', id: 'map-f-submap' });
     const drawSub = () => mount(subSel,
       mapOptions(f.submap, { exclude: onMap, none: 'No map' }),
-      h('option', { value: '__new' }, 'New sub-map…'));
+      data.canDesign() ? h('option', { value: '__new' }, 'New sub-map…') : null); // new maps are the DM's
     subSel.addEventListener('change', async () => {
       if (subSel.value !== '__new') { f.submap = subSel.value; ctx.preview(f); return; }
       const id = await ctx.newSubmap({ name: f.name.trim(), parent: onMap });

@@ -49,6 +49,15 @@ the default for places of that type) and `major` (= rank 1, kept for the compend
 `major` flag wins over a stale `rank`). Built-in defaults: city 1; town, castle, port, forest, mountain 2;
 village, temple, landmark, danger, dungeon, ruins, cave, portal, battle, quest, other 3; camp, tavern, shop 4.
 
+## Who may change what
+
+Places are everyone's: add, name, describe, type, rank, move and link them (to an existing map), in the place panel
+or Edit map → Places. Everything map-wide is the DM's (`data.canDesign()`: the DM in DM mode, or anyone while no DM is
+set up): new maps (⋯ → Add a sub-map, the Maps list, "New sub-map…" in a place's "Opens a map", `#/map?new=1`), the
+image (replace, reset), the name, Duplicate, Delete, the zoom bands, Offset / scale of every pin, and the Design,
+Pictures and Fog tabs (background, crop, compass, the scale / distance settings, border, pictures, fog). For a player
+those controls are simply not shown; a stray call says "Only the DM can …".
+
 ## Routes
 
 - `#/map` — main map. `#/map/loc/<id>` — a place on the main map (still accepted for sub-map places; the view

@@ -294,7 +294,10 @@ export function writeMapConfig(id, patch) {
 /** Back-compat: patch the main map's config. */
 export const writeConfig = (patch) => writeMapConfig(MAIN_MAP, patch);
 
-/** Can this device change maps' design, pictures and fog? The DM in DM mode; anyone while no DM is set up. */
+/**
+ * Can this device manage maps: their design, pictures and fog, and new maps, images, names, copies, deletions, zoom bands
+ * and the bulk offset / scale? The DM in DM mode; anyone while no DM is set up. (Places are everyone's to add and edit.)
+ */
 export const canDesign = () => isDm() || !dmConfigured();
 /** Is this sub-map hidden from the players (DM mode)? The main map never is. */
 export const mapHidden = (id) => !!id && id !== MAIN_MAP && isHidden(mapPath(id));
