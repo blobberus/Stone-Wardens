@@ -23,11 +23,11 @@
       "color": "#1f1a14"
     },
     "scale": {
-      "show": true,
+      "show": false,
       "ruler": true,
       "unit": "miles",
       "custom": "",
-      "perPx": 0.4028558661055545,
+      "perPx": 0.40314452731304173,
       "style": "checkered",
       "corner": "bl",
       "pace": {
