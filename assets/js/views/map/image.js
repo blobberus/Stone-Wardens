@@ -150,7 +150,7 @@ function placedThings(mapId) {
   if (n) parts.push(plural(n, 'existing pin'));
   const p = data.picturesOn(mapId).length;
   if (p) parts.push(plural(p, 'picture'));
-  if (data.fogOf(mapId).ops.length) parts.push('the fog');
+  if (data.fogOf(mapId).areas.length) parts.push('the fog');
   if (d.crop) parts.push('the crop');
   if (Number(d.scale?.perPx) > 0) parts.push('the scale');
   return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0] || '';

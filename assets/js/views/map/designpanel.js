@@ -1,7 +1,9 @@
 // The Design, Pictures and Fog tabs of Edit map (edit.js shows them to the DM, or to everyone while no DM is set up).
 //   Design: background, crop, compass, scale bar / ruler and travel time, border; "Hide compass, scale and border".
 //   Pictures: add uploaded pictures to the map, then move, resize, turn, fade, stack, hide (DM) or delete them.
-//   Fog: paint fog or reveal with a brush, rectangle or lasso; cover / reveal all; undo; its look; preview as players.
+//   Fog (like the Combat Ring's fog controls): draw Fog or a Clearing with a lasso, polygon or rectangle; click to reveal
+//   / hide an area; select areas to reveal, hide or delete; cover the whole map, reveal / hide / delete all; undo; how
+//   strong and soft the wash is; DM view / Player view.
 // Sliders preview while dragged and are written when let go; every change is a store draft that the view commits
 // when editing ends (Done), like the rest of Edit map. docs/map-design.md.
 import { h, mount } from '../../core/dom.js';
@@ -12,7 +14,6 @@ import { visibilityToggle, hiddenMark } from '../../core/dm-ui.js';
 import {
   BACKGROUNDS, COMPASS_TYPES, CORNERS, UNITS, SCALE_STYLES, BORDER_TYPES, INK, normCrop, compassSvg, fmtNum, unitName,
 } from './design.js';
-import { FOG_STYLES } from './fog.js';
 import * as data from './data.js';
 
 const SWATCHES = [INK, '#ffffff', '#8e1b1b', '#22507c', '#8f6a14', '#23675f', '#465266'];
@@ -80,7 +81,7 @@ const field = (label, control) => h('label', { class: 'map-ds-field' }, h('span'
  *       edited(), setTab(id|null) (which design tab is open, for the view)}
  */
 export function createDesignPanel(ctx) {
-  const st = { tab: null, d: null, lastShown: null, tool: { kind: 'pan', mode: 'cut', size: 70 }, cropText: null };
+  const st = { tab: null, d: null, lastShown: null, cropText: null };
   const designEl = h('div', { class: 'map-ds', 'data-tab': 'design' });
   const picsEl = h('div', { class: 'map-ds', 'data-tab': 'pictures' });
   const fogEl = h('div', { class: 'map-ds', 'data-tab': 'fog' });
@@ -269,46 +270,83 @@ export function createDesignPanel(ctx) {
       list.length ? h('ul', { class: 'map-ds-pics', role: 'list' }, [...list].reverse().map(rowOf)) : null);
   }
 
-  // ---------- fog ----------
+  // ---------- fog (like the Combat Ring's fog controls) ----------
 
-  const TOOLS = [
-    { id: 'pan', label: 'Move map', icon: 'hand' },
-    { id: 'brush', label: 'Brush', icon: 'brush' },
-    { id: 'rect', label: 'Rectangle', icon: 'square-dashed' },
-    { id: 'lasso', label: 'Lasso', icon: 'lasso' },
+  const FOG_MODES = [
+    { id: 'pan', label: 'Move map', icon: 'hand', key: 'M', hint: 'Drag to move the map (or hold Space with any tool)' },
+    { id: 'lasso', label: 'Lasso', icon: 'lasso', key: 'L', hint: 'Draw a shape freehand' },
+    { id: 'poly', label: 'Polygon', icon: 'polygon', key: 'P', hint: 'Click corner by corner' },
+    { id: 'rect', label: 'Rectangle', icon: 'square-dashed', key: 'R', hint: 'Drag a rectangle' },
+    { id: 'toggle', label: 'Click to reveal / hide', icon: 'eye', key: 'T', hint: 'Click a fog area to reveal it, or to hide it again' },
+    { id: 'select', label: 'Select (delete, reveal)', icon: 'pointer', key: 'V', hint: 'Click areas or drag a box over them, then reveal, hide or delete them' },
   ];
-  function applyTool() {
-    const t = st.tool;
-    ctx.fog.setTool(st.tab === 'fog' && t.kind !== 'pan' ? t : null);
-  }
-  const countText = (n) => (n ? `${plural(n, 'stroke')} so far.` : 'No fog yet. “Cover all”, then reveal, is the quickest start.');
+  const FOG_HINTS = {
+    pan: 'Pick a tool to draw on the map. The wheel zooms; with any tool, hold Space to move the map.',
+    lasso: 'Drag a shape on the map. A click (no drag) reveals or hides the area under it. Alt switches Fog / Clearing while drawing.',
+    poly: 'Click the corners; click the first one again, double-click or press Enter to close it. Backspace takes back a corner, Esc cancels.',
+    rect: 'Drag a rectangle on the map. A click (no drag) reveals or hides the area under it. Alt switches Fog / Clearing while drawing.',
+    toggle: 'Click a fog area: revealed to the players, or the fog is back. Revealed areas keep a dotted outline for you.',
+    select: 'Click an area (Shift: more) or drag a box over several, then reveal, hide or delete them. Delete removes them, Esc clears.',
+  };
+  const countText = (n, open) => (n
+    ? `${plural(n, 'fog area')}${open ? `, ${open} revealed` : ''}.`
+    : 'No fog yet. “Cover the whole map”, then reveal what the party knows, is the quickest start.');
+  const fogBtn = (k, ic, label, onclick, { title = '', disabled = false, cls = '' } = {}) => h('button', {
+    type: 'button', class: ['btn btn-sm', cls], 'data-k': k, title: title || null, disabled, onclick,
+  }, ic ? icon(ic) : null, h('span', null, label));
+  const fogDo = (fn) => () => { fn(); redraw(fogEl, drawFog); };
+  ctx.fog.onUi(() => { if (st.tab === 'fog') redraw(fogEl, drawFog); });
+
   function drawFog() {
     const f = ctx.fog.fog;
-    const t = st.tool;
-    const n = f.ops.length;
+    const n = f.areas.length;
+    const open = f.areas.filter((a) => !a.on).length;
+    const tool = ctx.fog.tool;
+    const picked = tool === 'select' ? ctx.fog.pickedAreas() : [];
+    const pickedOpen = picked.filter((a) => !a.on).length;
     mount(fogEl,
       h('div', { class: 'map-ds-top' },
-        toggle('fon', 'Show the fog', f.on, (v) => { ctx.fog.setStyle({ on: v }); redraw(fogEl, drawFog); }),
-        hint('Players see the fog as painted, and places under it are hidden from them until you reveal them. You see through it.')),
-      section('Paint',
-        segmented('ftool', 'Tool', TOOLS, t.kind, (v) => { t.kind = v; applyTool(); redraw(fogEl, drawFog); }, { icons: true }),
-        t.kind !== 'pan' ? segmented('fmode', 'Paint', [{ id: 'add', label: 'Add fog' }, { id: 'cut', label: 'Reveal' }], t.mode, (v) => { t.mode = v; applyTool(); redraw(fogEl, drawFog); }) : null,
-        t.kind === 'brush' ? range('fsize', 'Brush size', { min: 10, max: 260, value: t.size, fmt: (v) => `${v} px`, oninput: (v) => { t.size = v; applyTool(); } }) : null,
-        hint(t.kind === 'pan' ? 'Pick a tool to paint on the map (keys B, R, L; M moves the map again).' : `${t.kind === 'brush' ? 'Drag on the map to paint.' : t.kind === 'rect' ? 'Drag a rectangle on the map.' : 'Draw a closed shape on the map.'} The wheel still zooms; “Move map” pans.`),
+        segmented('fview', 'View', [
+          { id: 'dm', label: 'DM view', hint: 'See through the fog, with every area’s outline' },
+          { id: 'player', label: 'Player view', hint: 'See the map as the players do (Shift+P)' },
+        ], ctx.fog.preview ? 'player' : 'dm', (v) => ctx.fog.setPreview(v === 'player')),
+        toggle('fon', 'Fog of war on this map', f.on, (v) => { ctx.fog.setStyle({ on: v }); redraw(fogEl, drawFog); }),
+        hint(f.on
+          ? 'Players see the fog, and places under it are hidden from them until you reveal them.'
+          : 'Off: the players see the whole map. Your fog stays here, ready to switch on.')),
+      section('Draw',
+        segmented('fwhat', 'What a drawing makes', [
+          { id: 'fog', label: 'Fog', hint: 'Draw fog that hides what is under it' },
+          { id: 'clear', label: 'Clearing', hint: 'Draw a clear hole inside fog' },
+        ], ctx.fog.what, (v) => { ctx.fog.setWhat(v); redraw(fogEl, drawFog); }),
+        h('div', { class: 'map-ds-fogmodes', role: 'radiogroup', 'aria-label': 'Fog tool' }, FOG_MODES.map((m) => h('button', {
+          type: 'button', role: 'radio', class: ['map-ds-fogmode', tool === m.id && 'is-on'], 'aria-checked': String(tool === m.id),
+          'data-k': `ftool:${m.id}`, title: `${m.hint} (${m.key})`, onclick: () => { ctx.fog.setTool(m.id); redraw(fogEl, drawFog); },
+        }, icon(m.icon), h('span', null, m.label), h('kbd', { class: 'map-ds-key', 'aria-hidden': 'true' }, m.key)))),
+        tool === 'select' ? h('div', { class: 'map-ds-fogpick', role: 'status' },
+          h('p', null, picked.length ? `${plural(picked.length, 'fog area')} selected` : 'Nothing selected'),
+          picked.length ? row(
+            fogBtn('fpreveal', 'eye', 'Reveal', fogDo(() => ctx.fog.revealPicked()), { disabled: pickedOpen === picked.length }),
+            fogBtn('fphide', 'eye-off', 'Hide', fogDo(() => ctx.fog.hidePicked()), { disabled: pickedOpen === 0 }),
+            fogBtn('fpdel', 'trash', 'Delete', fogDo(() => ctx.fog.deletePicked()), { title: 'Delete (Del)', cls: 'btn-danger' })) : null) : null,
+        hint(FOG_HINTS[tool] || FOG_HINTS.pan),
         row(
-          h('button', { type: 'button', class: 'btn btn-sm', 'data-k': 'fcover', onclick: () => { ctx.fog.coverAll(); redraw(fogEl, drawFog); }, title: 'Fog over the whole map; then reveal what the party knows' }, icon('cloud'), h('span', null, 'Cover all')),
-          h('button', { type: 'button', class: 'btn btn-sm', 'data-k': 'freveal', onclick: () => { ctx.fog.revealAll(); redraw(fogEl, drawFog); } }, icon('eye'), h('span', null, 'Reveal all')),
-          h('button', { type: 'button', class: 'btn btn-sm', 'data-k': 'fundo', disabled: !ctx.fog.canUndo, onclick: () => { ctx.fog.undo(); redraw(fogEl, drawFog); }, title: 'Undo (Ctrl+Z)' }, icon('undo'), h('span', null, 'Undo')),
-          h('button', { type: 'button', class: 'btn btn-sm', 'data-k': 'fredo', disabled: !ctx.fog.canRedo, onclick: () => { ctx.fog.redo(); redraw(fogEl, drawFog); }, title: 'Redo (Ctrl+Shift+Z)' }, h('span', null, 'Redo'))),
-        h('p', { class: 'map-ds-hint', 'data-count': '' }, countText(n))),
-      section('Look',
-        segmented('fstyle', 'Style', FOG_STYLES, f.style, (v) => { ctx.fog.setStyle({ style: v }); redraw(fogEl, drawFog); }),
-        f.style === 'solid' ? colors('fcol', f.color, (v) => { ctx.fog.setStyle({ color: v }); redraw(fogEl, drawFog); }) : null,
-        range('fop', 'Opacity', { min: 20, max: 100, value: Math.round(f.opacity * 100), fmt: (v) => `${v}%`, onchange: (v) => ctx.fog.setStyle({ opacity: v / 100 }) }),
+          fogBtn('fundo', 'undo', 'Undo', fogDo(() => ctx.fog.undo()), { title: 'Undo (Ctrl+Z)', disabled: !ctx.fog.canUndo }),
+          fogBtn('fredo', null, 'Redo', fogDo(() => ctx.fog.redo()), { title: 'Redo (Ctrl+Shift+Z)', disabled: !ctx.fog.canRedo })),
+        h('p', { class: 'map-ds-hint', 'data-count': '' }, countText(n, open))),
+      section('Players see',
+        h('div', { class: 'map-ds-fogwash' },
+          h('span', { class: 'map-ds-fogchip', style: { background: ctx.fog.color }, 'aria-hidden': 'true' }),
+          h('span', null, 'The map fades into its background color.')),
+        range('fop', 'Strength', { min: 20, max: 100, value: Math.round(f.opacity * 100), fmt: (v) => `${v}%`, onchange: (v) => ctx.fog.setStyle({ opacity: v / 100 }) }),
         range('fsoft', 'Soft edges', { min: 0, max: 100, value: Math.round(f.softness * 100), fmt: (v) => `${v}%`, onchange: (v) => ctx.fog.setStyle({ softness: v / 100 }) }),
-        hint('Faded color with a lower opacity lets players glimpse the land beneath.')),
-      section('Check',
-        toggle('fprev', 'Preview as the players see it', ctx.fog.preview, (v) => ctx.fog.setPreview(v)),
+        hint('The color follows Design → Background. A lower strength lets the players glimpse the land beneath.')),
+      section('All the fog',
+        h('div', { class: 'map-ds-fogall' },
+          fogBtn('fcover', 'layers', 'Cover the whole map', fogDo(() => ctx.fog.coverAll()), { title: 'Fog over the whole map; then reveal what the party knows' }),
+          fogBtn('frevealall', 'eye', 'Reveal all fog', fogDo(() => ctx.fog.revealAll()), { disabled: !n || open === n }),
+          fogBtn('fhideall', 'eye-off', 'Hide it all again', fogDo(() => ctx.fog.hideAll()), { disabled: !open }),
+          fogBtn('fdelall', 'trash', 'Delete all fog', fogDo(() => { if (ctx.fog.deleteAll()) toast('Deleted all the fog. Ctrl+Z brings it back.'); }), { disabled: !n })),
         hint('Players who open the map after you reveal land see the fog clear gradually. The fog only covers the picture: for a true secret, also hide the place itself (DM mode).')));
   }
 
@@ -330,14 +368,14 @@ export function createDesignPanel(ctx) {
       st.d = null;
       ctx.setTab(id);
       ctx.pictures.setEditing(id === 'pictures');
-      applyTool();
+      ctx.fog.setActive(id === 'fog');
       draws[id]?.();
     },
     /** Leave the open tab (another tab, Done, or another map). */
     hide() {
       if (!st.tab) return;
       if (ctx.cropping()) ctx.stopCrop();
-      ctx.fog.setTool(null);
+      ctx.fog.setActive(false);
       ctx.pictures.setEditing(false);
       st.tab = null;
       st.d = null;
@@ -349,14 +387,7 @@ export function createDesignPanel(ctx) {
     refresh(kind = null) {
       if (st.tab === 'design' && kind === 'design') { st.d = null; if (!ctx.cropping()) ctx.preview(D()); draws.design(); }
       if (st.tab === 'pictures' && (!kind || kind === 'pictures')) draws.pictures();
-      if (st.tab === 'fog' && (!kind || kind === 'fog')) {
-        const u = fogEl.querySelector('[data-k="fundo"]');
-        const r = fogEl.querySelector('[data-k="fredo"]');
-        if (u) u.disabled = !ctx.fog.canUndo;
-        if (r) r.disabled = !ctx.fog.canRedo;
-        const c = fogEl.querySelector('[data-count]');
-        if (c) c.textContent = countText(ctx.fog.fog.ops.length);
-      }
+      if (st.tab === 'fog' && (!kind || kind === 'fog')) draws.fog();
     },
     pictureSelected() { if (st.tab === 'pictures') draws.pictures(); },
     /** Change the design from the map (the compass dragged to a new spot): saved like a change made here. */
@@ -373,16 +404,16 @@ export function createDesignPanel(ctx) {
       if (!st.tab) return false;
       const z = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z';
       if (st.tab === 'fog' && z) { if (e.shiftKey) ctx.fog.redo(); else ctx.fog.undo(); draws.fog(); return true; }
+      if (st.tab === 'fog' && ctx.fog.onKey(e)) { draws.fog(); return true; }
       if (st.tab === 'pictures' && (e.key === 'Delete' || e.key === 'Backspace') && ctx.pictures.selected) {
         const p = data.pictureById(ctx.pictures.selected);
         if (p) { data.deletePicture(p); ctx.edited(); toast(`Removed “${p.name}” from the map.`); }
         return true;
       }
-      if (st.tab === 'fog' && /^[bBrRlLmM]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        st.tool.kind = { b: 'brush', r: 'rect', l: 'lasso', m: 'pan' }[e.key.toLowerCase()];
-        applyTool();
-        draws.fog();
-        return true;
+      if (st.tab === 'fog' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.shiftKey && e.key.toLowerCase() === 'p') { ctx.fog.setPreview(!ctx.fog.preview); draws.fog(); return true; }
+        const m = !e.shiftKey && FOG_MODES.find((x) => x.key.toLowerCase() === e.key.toLowerCase());
+        if (m) { ctx.fog.setTool(m.id); draws.fog(); return true; }
       }
       return false;
     },

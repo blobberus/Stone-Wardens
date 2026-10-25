@@ -95,7 +95,7 @@ export function openCopyMapDialog(mapId, { fogHides = () => false } = {}) {
     let result = null;
     const nPlaces = data.locationsOn(src.id).filter((l) => !fogHides(l)).length; // what this viewer may know of
     const nPics = data.picturesOn(src.id).length;
-    const hasFog = data.fogOf(src.id).ops.length > 0;
+    const hasFog = data.fogOf(src.id).areas.length > 0;
     const fogLocked = hasFog && !data.canDesign(); // places under the fog only travel with their fog
     const f = { name: `${src.name} (copy)`, parent: src.isMain ? data.MAIN_MAP : src.parent, places: true, pictures: true, fog: true };
     const vis = { hidden: data.mapHidden(src.id) ? true : null };

@@ -90,26 +90,68 @@ section('compass and border SVG');
   }
 }
 
-section('fog ops');
+section('fog areas');
 {
-  eq('rect normalized', F.normOp({ t: 'add', k: 'rect', p: [10, 10, -5, 20] }), { t: 'add', k: 'rect', p: [5, 10, 5, 20] });
-  eq('bad ops dropped', [F.normOp({ k: 'rect', p: [1, 2] }), F.normOp({ k: 'poly', p: [1, 2, 3, 4] }), F.normOp({ k: 'brush', p: [1, 2] }), F.normOp({ k: 'x' }), F.normOp({ k: 'brush', p: [1, 'a'], r: 2 })], [null, null, null, null, null]);
-  eq('t defaults to add', F.normOp({ k: 'all' }), { t: 'add', k: 'all' });
-  const fog = F.normFog({ style: 'weird', opacity: 5, softness: -1, ops: [{ k: 'all' }, { t: 'cut', k: 'rect', p: [0, 0, 100, 100] }, { t: 'add', k: 'brush', p: [50, 50], r: 10 }, null] }, 'main');
-  eq('normFog', [fog.map, fog.on, fog.style, fog.opacity, fog.softness, fog.ops.length], ['main', true, 'clouds', 1, 0, 3]);
-  check('covered outside the cut', F.fogCovers(fog, 500, 500));
-  check('revealed inside the cut', !F.fogCovers(fog, 20, 20));
-  check('brush re-covers', F.fogCovers(fog, 55, 52));
-  check('off = nothing covered', !F.fogCovers({ ...fog, on: false }, 500, 500));
-  check('active', F.fogActive(fog) && !F.fogActive(F.normFog({ ops: [{ t: 'cut', k: 'all' }] })));
-  const poly = F.normFog({ ops: [{ k: 'poly', p: [0, 0, 100, 0, 100, 100, 0, 100] }, { t: 'cut', k: 'brush', p: [0, 50, 100, 50], r: 5 }] });
-  check('inside polygon', F.fogCovers(poly, 50, 20));
-  check('outside polygon', !F.fogCovers(poly, 150, 20));
-  check('brush stroke cuts a line', !F.fogCovers(poly, 50, 53) && F.fogCovers(poly, 50, 60));
+  const sq = (x, y, s) => F.rectPts(x, y, s, s);
+  const fog = (areas, extra = {}) => F.normFog({ areas, ...extra }, 'main');
+  // normalising
+  const n = F.normFog({ opacity: 5, softness: -1, areas: [{ id: 'a', pts: [0, 0, 10, 0, 10, 10] }, { pts: [1, 2] }, null, { id: 'b', pts: [0, 0, 5, 0, 5, 5, 0, 5], holes: [[1, 1, 2], [1, 1, 2, 1, 2, 2]], on: false, z: 3 }] }, 'main');
+  eq('normFog', [n.map, n.v, n.on, n.opacity, n.softness, n.areas.length], ['main', 2, true, 1, 0, 2]);
+  eq('bad holes dropped, on / z kept', [n.areas[1].holes.length, n.areas[1].on, n.areas[1].z], [1, false, 3]);
+  check('active only with a hidden area', F.fogActive(n) && !F.fogActive(fog([{ pts: sq(0, 0, 9), on: false }])) && !F.fogActive({ ...n, on: false }));
+  // covering, holes, revealed areas
+  let areas = F.addArea([], F.rectPts(0, 0, 1000, 1000), { id: 'all', z: 1 });
+  areas = F.cutFog(areas, sq(100, 100, 100));
+  const f1 = fog(areas);
+  check('covered outside a clearing', F.fogCovers(f1, 500, 500));
+  check('clear inside the clearing', !F.fogCovers(f1, 150, 150));
+  check('fog off = nothing covered', !F.fogCovers({ ...f1, on: false }, 500, 500));
+  eq('areaAt finds the area', F.areaAt(f1, 500, 500)?.id, 'all');
+  eq('areaAt misses the clearing', F.areaAt(f1, 150, 150), null);
+  // one layer: a new area is cut out of the ones it touches; an area inside a cutter goes
+  areas = F.addArea(areas, sq(400, 400, 100), { id: 'patch', z: 2 });
+  eq('the old area got a hole for the new one', areas.find((a) => a.id === 'all').holes.length, 2);
+  const f2 = fog(areas.map((a) => (a.id === 'patch' ? { ...a, on: false } : a)));
+  check('a revealed patch shows its land', !F.fogCovers(f2, 450, 450));
+  check('the rest stays covered', F.fogCovers(f2, 700, 700));
+  eq('areaAt finds a revealed area (the DM can hide it again)', F.areaAt(f2, 450, 450)?.id, 'patch');
+  const gone = F.cutFog(areas, sq(350, 350, 200));
+  check('an area wholly inside a clearing is deleted', !gone.some((a) => a.id === 'patch'));
+  eq('holes inside the new clearing are merged into it', gone.find((a) => a.id === 'all').holes.length, 2);
+  const apart = F.cutFog([{ id: 'x', pts: sq(0, 0, 10), holes: [], on: true, z: 1 }], sq(50, 50, 10));
+  eq('a clearing elsewhere leaves an area alone', apart[0].holes.length, 0);
+  // geometry helpers
+  check('polysMeet: crossing without corners inside', F.polysMeet(F.rectPts(0, 4, 20, 2), F.rectPts(8, 0, 2, 20)));
+  check('polyInside', F.polyInside(sq(2, 2, 2), sq(0, 0, 10)) && !F.polyInside(sq(8, 8, 5), sq(0, 0, 10)));
+  eq('areasIn: the Select box', F.areasIn(fog(areas), [380, 380, 420, 420]).map((a) => a.id).sort(), ['all', 'patch']);
+  eq('rectPts flips negative sizes', F.rectPts(10, 10, -5, 20), [5, 10, 10, 10, 10, 30, 5, 30]);
+  check('whole map', F.wholeMap({ w: 300, h: 200 }).join() === '0,0,300,0,300,200,0,200' && F.wholeMap(null)[0] < -1000);
   eq('simplify keeps the shape', F.simplify([0, 0, 1, 0.01, 2, 0, 3, 5, 4, 10], 0.1), [0, 0, 2, 0, 4, 10]);
-  check('hash of a prefix', F.opsHash(fog.ops, 2) === F.opsHash(fog.ops.slice(0, 2)) && F.opsHash(fog.ops, 2) !== F.opsHash(fog.ops, 3));
-  const sc = F.scaleOps([{ t: 'add', k: 'rect', p: [10, 20, 30, 40] }, { t: 'add', k: 'brush', p: [1, 2], r: 4 }], 2, 2);
-  eq('scaled ops', sc, [{ t: 'add', k: 'rect', p: [20, 40, 60, 80] }, { t: 'add', k: 'brush', p: [2, 4], r: 8 }]);
+  check('polyArea', Math.abs(F.polyArea(sq(0, 0, 10))) === 100);
+  // size cap: many detailed clearings are simplified until the area fits
+  let big = [{ id: 'b', pts: F.rectPts(0, 0, 10000, 10000), holes: [], on: true, z: 1 }];
+  const wiggly = (cx, cy) => Array.from({ length: 400 }, (_, i) => { const t = (i / 400) * Math.PI * 2; const r = 40 + 3 * Math.sin(i * 1.7); return [cx + r * Math.cos(t), cy + r * Math.sin(t)]; }).flat();
+  for (let i = 0; i < 12; i++) big = F.cutFog(big, wiggly(500 + i * 300, 500));
+  check('area kept under AREA_BYTES', JSON.stringify(big[0]).length <= F.AREA_BYTES, JSON.stringify(big[0]).length);
+  check('clearings still clear after simplifying', !F.fogCovers(fog(big), 500, 500) && F.fogCovers(fog(big), 5000, 5000));
+  // fingerprint, scaling
+  const h1 = F.fogHash(f1);
+  check('hash changes with a reveal', h1 !== F.fogHash(fog(f1.areas.map((a) => ({ ...a, on: false })))) && h1 === F.fogHash(fog(f1.areas)));
+  eq('scaled areas', F.scaleAreas([{ id: 's', pts: [10, 20, 30, 20, 30, 40], holes: [[12, 22, 14, 22, 14, 24]], on: true, z: 1 }], 2, 3)[0].pts, [20, 60, 60, 60, 60, 120]);
+}
+
+section('fog: first-version documents');
+{
+  const old = F.normFog({ on: true, style: 'clouds', ops: [{ k: 'all' }, { t: 'cut', k: 'rect', p: [0, 0, 100, 100] }, { t: 'add', k: 'brush', p: [50, 50], r: 10 }, { t: 'cut', k: 'poly', p: [600, 600, 700, 600, 700, 700, 600, 700] }, null] }, 'main', { w: 1000, h: 800 });
+  check('converted to areas', old.areas.length >= 2 && !('ops' in old), old.areas.length);
+  check('covered outside the cut', F.fogCovers(old, 500, 500));
+  check('revealed inside the cut', !F.fogCovers(old, 20, 20));
+  check('a brush dab re-covers', F.fogCovers(old, 55, 52));
+  check('a cut polygon is clear', !F.fogCovers(old, 650, 650));
+  check('"all" uses the map size', JSON.stringify(old.areas[0].pts) === JSON.stringify(F.wholeMap({ w: 1000, h: 800 })));
+  const stroke = F.normFog({ ops: [{ k: 'poly', p: [0, 0, 100, 0, 100, 100, 0, 100] }, { t: 'cut', k: 'brush', p: [0, 50, 100, 50], r: 5 }] });
+  check('a brush stroke cuts a line', !F.fogCovers(stroke, 50, 53) && F.fogCovers(stroke, 50, 60));
+  eq('the repo\'s fog (cover all, switched off)', [F.normFog({ on: false, ops: [{ t: 'add', k: 'all' }] }).on, F.normFog({ on: false, ops: [{ t: 'add', k: 'all' }] }).areas.length], [false, 1]);
 }
 
 console.log(`\n${passed} passed, ${failures.length} failed`);

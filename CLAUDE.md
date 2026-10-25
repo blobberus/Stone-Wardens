@@ -136,8 +136,9 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   scale is set), ⋯ (Design map…, Rename map… (also the name in Edit map's header), Duplicate this map…, Hide compass,
   scale and border on this device). Big PNG/JPG uploads become same-size WebP (image.js `asWebp`).
 - Design per map (`design` in the map doc: background, crop, compass, scale bar + ruler + travel time, border),
-  pictures (`content/map-pictures/`) and fog of war (`content/fog/<mapId>.json`, ops `add`/`cut` × all/rect/poly/brush;
-  players don't see places under it, the DM sees through it; changes fade in) are edited in Edit map's Design /
+  pictures (`content/map-pictures/`) and fog of war (`content/fog/<mapId>.json` v2: one layer of `areas` {pts, holes,
+  on} like the Combat Ring's, Fog / Clearing, lasso / polygon / rectangle / click to reveal / select; players see the map
+  fade into its background color and no places under it, the DM sees through it; changes fade in) are edited in Edit map's Design /
   Pictures / Fog tabs (`designpanel.js`; `data.canDesign()` = DM mode, or anyone while no DM is set up).
   docs/map-design.md; `node tools/test_mapdesign.mjs`. Overlays use `layers.js boundsLayer` in their own panes
   (pictures 410, fog 450, border 455, map compass 460, tools 650; pins 601-640).

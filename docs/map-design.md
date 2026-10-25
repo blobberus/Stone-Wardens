@@ -57,23 +57,40 @@ and, in DM mode, the hidden / visible switch. Big rasters are scaled to 4096 px 
 
 ## Fog of war (`content/fog/<mapId>.json`)
 
+Modelled on the Combat Ring's fog (one layer of areas, Fog / Clearing, Select mode), with this site's own look: the
+map fades into its background color.
+
 ```json
-{ "map": "main", "on": true, "style": "clouds|mist|solid", "color": "#3a3f47", "opacity": 1, "softness": 0.5,
-  "ops": [ { "t": "add", "k": "all" }, { "t": "cut", "k": "brush", "p": [x0, y0, x1, y1, …], "r": 40 } ] }
+{ "map": "main", "v": 2, "on": true, "opacity": 1, "softness": 0.5,
+  "areas": [ { "id": "fmh3k2a01", "pts": [0, 0, 4961, 0, 4961, 3508, 0, 3508], "holes": [[x0, y0, x1, y1, …]], "on": true, "z": 1 } ] }
 ```
 
-- `ops` run in order: `add` paints fog, `cut` reveals; kinds `all`, `rect` `[x, y, w, h]`, `poly` (a closed shape) and
-  `brush` (a stroke of radius `r`). Strokes are simplified before they are saved.
-- **Players** see it as painted (clouds: soft billows with ragged edges; mist: a thin veil; faded color: any color at
-  any opacity, so the land can show through). Places under it are hidden from them: no pin, not in search, not in
-  Edit map's list, not counted in the filter or the Maps list (a link to one still opens it).
-- **The DM** sees through it (a slate tint) and pins under it are faded with an italic name; "Preview as the players
-  see it" shows the real look.
+- `on`: fog of war on this map (off = the players see the whole map; the DM still sees and edits the areas).
+- An **area** is one patch of fog: `pts` its outline (a closed shape, image px), `holes` the clearings cut into it,
+  `on` true = hidden from the players, false = revealed (the DM keeps a dotted outline, so it can be hidden again), `z`
+  the drawing order. **One layer**: a new area, or a clearing, is cut out of every area it touches (added as a hole;
+  an area wholly inside it is deleted), so areas never overlap. Clearings are simplified so an area stays under 40 kB;
+  at most 400 areas per map.
+- **Players** see a wash of the map's background color (Design → Background; the default follows the light or dark
+  theme) over every hidden area, `opacity` strong (100% = the land is gone, lower = glimpsed), its edge softened by
+  `softness`. The mask is blurred and doubled, so the soft edge lies outside the true outline: the blur never shows
+  anything the DM hid. Places under it are hidden from them: no pin, not in search, not in Edit map's list, not counted
+  in the filter or the Maps list (a link to one still opens it).
+- **The DM** sees through it (the same color, lighter and crisp); in the Fog tab each area also has a dashed gold
+  outline (revealed: dotted; under the pointer: thicker; selected: solid with a gold wash). Pins under the fog are
+  faded with an italic name. **DM view / Player view** (Shift+P) shows the real look.
 - **Gradual reveal**: when the fog changes while someone is looking, the old fog fades into the new one. A device also
-  remembers the fog it last showed (`localStorage['sw:map:fogseen']`, a fingerprint of the ops); if the new ops start
-  with the same ones (the DM revealed more), the old fog is painted first and clears over a few seconds.
-- Tools: Move map / Brush / Rectangle / Lasso (keys M, B, R, L), each adding fog or revealing; brush size; Cover all
-  (starts a fresh layer), Reveal all, Undo / Redo (Ctrl+Z, Ctrl+Shift+Z). At most 4000 ops per map.
+  remembers a small picture of the fog it last showed a player (`localStorage['sw:map:fogseen2']`, 4 maps); if the fog
+  changed since, that picture is laid over the new fog and clears over a few seconds.
+- **Fog tab** (Edit map, like the Combat Ring's fog controls): DM view / Player view; "Fog of war on this map"; Draw:
+  **Fog | Clearing** (what a drawing makes; Alt flips it while drawing), tools **Move map** (M), **Lasso** (L),
+  **Polygon** (P: click corners; the first corner again, a double-click or Enter closes it; Backspace takes one back;
+  Esc cancels), **Rectangle** (R), **Click to reveal / hide** (T), **Select** (V: click, Shift-click, or drag a box;
+  then Reveal / Hide / Delete, Del key); a click without dragging with Lasso or Rectangle also reveals / hides the area
+  under it; Space held moves the map with any tool; Undo / Redo (Ctrl+Z, Ctrl+Shift+Z). Players see: the color chip,
+  Strength, Soft edges. All the fog: Cover the whole map, Reveal all fog, Hide it all again, Delete all fog.
+- First-version documents (`ops`: add / cut × all / rect / poly / brush, `style` clouds / mist / solid, `color`) are
+  read into areas (`areasFromOps`; a brush stroke becomes its outline) and written in the new form at the next change.
 - The fog only covers the picture: the map image and place files are still in the public repository. For a true
   secret, also hide the place (DM mode).
 

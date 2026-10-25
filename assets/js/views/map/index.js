@@ -32,7 +32,7 @@ import { visibilityToggle, hiddenMark } from '../../core/dm-ui.js';
 import { normDesign, normCrop, borderPad, hasDecorations } from './design.js';
 import { fogCovers, fogActive } from './fog.js';
 import { createDecor, DECOR_PANE, BORDER_PANE } from './decor.js';
-import { createFogView, FOG_PANE, TOOL_PANE } from './fogview.js';
+import { createFogView, FOG_PANE, FOG_EDGE_PANE, TOOL_PANE } from './fogview.js';
 import { createPictures, PIC_PANE } from './pictures.js';
 import { createDesignPanel } from './designpanel.js';
 import { openCopyMapDialog } from './submaps.js';
@@ -101,6 +101,11 @@ const decorOff = () => prefs.decor === false;
 const seeThrough = () => !fogV?.preview && (isDm() || S.designTab === 'fog');
 /** Is a place hidden by its map's fog from this viewer? */
 const fogHidesLoc = (l) => !!l && !seeThrough() && fogCovers(data.fogOf(l.map), l.x, l.y);
+/** The fog's wash: the color around the map (its background, which may follow the light or dark theme). */
+function fogColor() {
+  const c = S.canvas && getComputedStyle(S.canvas).backgroundColor;
+  return c && !/rgba\(0, 0, 0, 0\)|transparent/.test(c) ? c : (design().background.color || '#c9b98f');
+}
 
 // ---------- mount ----------
 
@@ -134,6 +139,8 @@ function mountView(el) {
     mapId: () => S.mapId,
     size: () => S.size,
     seeThrough,
+    editing: () => S.designTab === 'fog',
+    color: fogColor,
     changed: refreshPins,
     edited: () => editor.markChanged(),
   });
@@ -332,7 +339,7 @@ function mountView(el) {
   S.panes.pin.classList.add('map-pane', 'map-pane-pinned', 'has-labels');
   S.panes.pin.style.zIndex = '640';
   // Design layers: pictures, fog, border, a compass drawn on the map (all under the pins), tools (above them)
-  for (const [name, z, cls] of [[PIC_PANE, 410, 'map-pane-pictures'], [FOG_PANE, 450, 'map-pane-fog'], [BORDER_PANE, 455, 'map-pane-border'], [DECOR_PANE, 460, 'map-pane-decor'], [TOOL_PANE, 650, 'map-pane-tools']]) {
+  for (const [name, z, cls] of [[PIC_PANE, 410, 'map-pane-pictures'], [FOG_PANE, 450, 'map-pane-fog'], [FOG_EDGE_PANE, 452, 'map-pane-fogedge'], [BORDER_PANE, 455, 'map-pane-border'], [DECOR_PANE, 460, 'map-pane-decor'], [TOOL_PANE, 650, 'map-pane-tools']]) {
     const pane = S.map.createPane(name);
     pane.style.zIndex = String(z);
     pane.classList.add(cls);
@@ -361,6 +368,8 @@ function mountView(el) {
   document.addEventListener('keydown', onKeyCapture, true);
   document.addEventListener('keydown', onKey);
   store.on(onStore);
+  // the fog's wash follows the background, which follows the light / dark theme by default
+  new MutationObserver(() => fogV.sync({ animate: false })).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   onDmMode(() => { // DM mode on / off: lock marks, the fog seen through or not, the design tabs, the map's switch
     editor.dmChanged();
     fogV.sync({ animate: false });

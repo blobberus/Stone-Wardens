@@ -15,7 +15,7 @@ import { getSetting } from '../../core/settings.js';
 import { registerHideable, isHidden, hideItem, isDm, dmConfigured } from '../../core/dm.js';
 import { validRank, normBands } from './ranks.js';
 import { normDesign } from './design.js';
-import { FOG_DIR, fogPath, normFog, scaleOps, fogCovers } from './fog.js';
+import { FOG_DIR, fogPath, normFog, scaleAreas, fogCovers } from './fog.js';
 
 export const LOC_DIR = 'content/locations';
 export const MAP_DIR = 'content/map';
@@ -618,9 +618,13 @@ export function deletePicture(pic) {
 // ---------- fog of war ----------
 
 const fogCache = new Map(); // mapId -> normalized fog (dropped when the document changes)
-/** The fog of a map (normalized; ops: [] when it has none). Shared object: treat as read-only. */
+/** The fog of a map (normalized; areas: [] when it has none). Shared object: treat as read-only. */
 export function fogOf(mapId) {
-  if (!fogCache.has(mapId)) fogCache.set(mapId, normFog(store.get(fogPath(mapId)), mapId));
+  if (!fogCache.has(mapId)) {
+    const raw = store.get(fogPath(mapId));
+    const cfg = raw && !Array.isArray(raw.areas) ? readMapConfig(mapId) : null; // a first-version fog's "cover all" needs the size
+    fogCache.set(mapId, normFog(raw, mapId, cfg?.width > 0 ? { w: cfg.width, h: cfg.height } : null));
+  }
   return fogCache.get(mapId);
 }
 /** Write a map's fog (a new fog document of a hidden map is hidden). */
@@ -695,7 +699,7 @@ export function rescaleMapContent(mapId, sx, sy) {
   if (!(sx > 0 && sy > 0) || (sx === 1 && sy === 1)) return;
   for (const loc of locationsOn(mapId)) saveLocation({ ...loc, x: loc.x * sx, y: loc.y * sy });
   for (const pic of picturesOn(mapId)) savePicture({ ...pic, x: pic.x * sx, y: pic.y * sy, w: pic.w * sx, h: pic.h * sy });
-  if (store.has(fogPath(mapId))) { const f = fogOf(mapId); saveFog(mapId, { ...f, ops: scaleOps(f.ops, sx, sy) }); }
+  if (store.has(fogPath(mapId))) { const f = fogOf(mapId); saveFog(mapId, { ...f, areas: scaleAreas(f.areas, sx, sy) }); }
   const cfg = readMapConfig(mapId);
   if (isObj(cfg.design)) {
     const d = structuredClone(cfg.design);
