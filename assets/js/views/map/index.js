@@ -265,6 +265,7 @@ function mountView(el) {
     openDetails: (id) => openLocation(id, { fly: false }),
     exit: () => toggleEdit(false),
     replaceImage: () => replaceImage(info()),
+    rename: () => renameMap(info()),
     newSubmap: ({ name, parent }) => openNewMapDialog({ parent, name }),
     setBandPreview: (b) => { S.bandPreview = b; updateRanks(); },
     zoomU: () => S.zoomU,

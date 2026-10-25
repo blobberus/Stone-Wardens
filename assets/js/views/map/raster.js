@@ -44,12 +44,17 @@ async function downscale(src, w, h) {
   return c;
 }
 
-async function decodeRaster(url) {
+async function decodeRaster(url, width, height) {
   const cap = maxPixels();
   if (typeof createImageBitmap === 'function') {
     try {
       const blob = await (await fetch(url)).blob();
-      let bmp = await createImageBitmap(blob); // decodes off the main thread
+      let bmp = null;
+      const f = width * height > cap ? Math.sqrt(cap / (width * height)) : 1;
+      if (f < 1) { // over the cap (e.g. a 17 MP map on an iPad): decode straight to the smaller size, no full-size copy
+        try { bmp = await createImageBitmap(blob, { resizeWidth: Math.round(width * f), resizeHeight: Math.round(height * f), resizeQuality: 'high' }); } catch { bmp = null; }
+      }
+      bmp = bmp || await createImageBitmap(blob); // decodes off the main thread
       if (bmp.width * bmp.height > cap) {
         const f = Math.sqrt(cap / (bmp.width * bmp.height));
         const small = await downscale(bmp, bmp.width * f, bmp.height * f);
@@ -86,7 +91,7 @@ async function build(url, width, height, svg) {
     vector = await loadImg(url);
     base = await rasteriseSvg(vector, width, height);
   } else {
-    base = await decodeRaster(url);
+    base = await decodeRaster(url, width, height);
   }
   const bw = base.naturalWidth || base.width;
   const bh = base.naturalHeight || base.height;

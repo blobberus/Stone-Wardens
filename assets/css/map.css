@@ -1070,6 +1070,10 @@ a.map-crumb:hover { color: var(--link-hover); }
 .map-edit-titles { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
 .map-edit-title { margin: 0; font: 600 var(--text-xl) / 1.2 var(--font-display); letter-spacing: 0.02em; }
 .map-edit-map { overflow: hidden; font: 400 var(--text-xs) / 1.3 var(--font-ui); color: var(--ink-muted); white-space: nowrap; text-overflow: ellipsis; }
+.map-edit-rename { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; margin: 0 -4px; padding: 1px 4px; color: var(--ink-muted); background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer; text-align: left; }
+.map-edit-rename .icon { flex: none; width: 12px; height: 12px; opacity: 0.7; }
+.map-edit-rename:hover, .map-edit-rename:focus-visible { color: var(--ink); background: var(--surface-2); }
+.map-edit-rename:hover .map-edit-map { color: var(--ink); }
 .map-edit-tools { display: flex; flex-direction: column; gap: var(--space-2); flex: none; padding: var(--space-3) var(--space-3) var(--space-2); border-bottom: 1px solid var(--rule); }
 .map-edit-selrow { display: flex; align-items: center; gap: var(--space-2); min-height: 28px; padding: 0 2px; }
 .map-edit-all { font-size: var(--text-sm); }

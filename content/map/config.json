@@ -1,7 +1,8 @@
 {
-  "image": "content/map/map-of-caspernos-and-surrounding-lands.png",
+  "image": "content/map/map-of-caspernos-and-surrounding-lands.webp",
   "width": 4961,
   "height": 3508,
+  "name": "Caspernos and Surrounding Lands",
   "design": {
     "background": {
       "kind": "theme",

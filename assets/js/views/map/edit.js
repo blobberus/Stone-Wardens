@@ -82,7 +82,9 @@ export function createEditor(ctx) {
   const tabsEl = h('div', { class: 'map-edit-tabs', role: 'tablist', 'aria-label': 'What to edit', hidden: true });
   const el = h('aside', { class: 'map-edit', 'aria-label': 'Edit map', hidden: true },
     h('header', { class: 'map-edit-head' },
-      h('div', { class: 'map-edit-titles' }, h('h2', { class: 'map-edit-title' }, 'Edit map'), mapName),
+      h('div', { class: 'map-edit-titles' }, h('h2', { class: 'map-edit-title' }, 'Edit map'),
+        // the map's name: click to rename it (also ⋯ → Rename map…)
+        h('button', { type: 'button', class: 'map-edit-rename', title: 'Rename this map', onclick: () => ctx.rename?.() }, mapName, icon('edit'))),
       h('button', { class: 'btn btn-primary btn-sm', type: 'button', onclick: () => ctx.exit(), title: 'Back to the normal map (Esc)' }, icon('check'), h('span', null, 'Done'))),
     tabsEl,
     placesPane,

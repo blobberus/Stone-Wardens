@@ -133,7 +133,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   **Maps** button on its right (`collection.js`: every map nested by parent, with thumbnail, parent, place count and
   a copy-able `[[map:Name]]` link), the current map's name under them (`createCrumbs`: parents as links on sub-maps;
   DM mode: the sub-map's hide / release switch under it); right toolbar Add location, Filter, Labels, Ruler (once a
-  scale is set), ⋯ (Design map…, Duplicate this map…, Hide compass, scale and border on this device).
+  scale is set), ⋯ (Design map…, Rename map… (also the name in Edit map's header), Duplicate this map…, Hide compass,
+  scale and border on this device). Big PNG/JPG uploads become same-size WebP (image.js `asWebp`).
 - Design per map (`design` in the map doc: background, crop, compass, scale bar + ruler + travel time, border),
   pictures (`content/map-pictures/`) and fog of war (`content/fog/<mapId>.json`, ops `add`/`cut` × all/rect/poly/brush;
   players don't see places under it, the DM sees through it; changes fade in) are edited in Edit map's Design /

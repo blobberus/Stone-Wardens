@@ -25,6 +25,11 @@ Design (background, crop, compass, scale and ruler, border), pictures on maps, f
 - `image: ""` (or the placeholder path) = the blank parchment placeholder; `width/height` are the image's pixel
   size and define the coordinate space (pins are stored in image pixels, origin top-left).
 - `rankBands` (optional): `[[from,to] × 4]` in percent of the map's zoom range (see Hierarchy). Absent = defaults.
+- `name`: shown in the name plate; renamed from ⋯ → Rename map… or by clicking the name in Edit map's header. The main
+  map's default is "The Uncharted Realm" (this campaign: "Caspernos and Surrounding Lands").
+- Uploads (`image.js chooseImage`): a PNG or JPG of 3 MB or more is re-encoded in the browser as a WebP of the same pixel
+  size (quality 0.9, transparency kept) when that is at least 20% smaller; everyone downloads the map, and a 28 MB PNG
+  export is ~2.4 MB as WebP. The main map's image is `content/map/map-of-caspernos-and-surrounding-lands.webp`.
 
 Place fields (new ones are optional, so old documents keep working):
 
@@ -97,7 +102,7 @@ sub-maps as "Name (map)". `![[map:Sub-map]]` embeds a short summary of the map.
 ## Rendering and performance
 
 - The map image is decoded (raster) or rasterised (SVG) once into a pyramid (full, ½, ¼ … ≥ 512 px; full level capped at
-  64 MP desktop / 16 MP on phones) and drawn as 257 px CPU canvas tiles by an `L.GridLayer` (1 px overlap hides
+  64 MP desktop / 16 MP on phones and tablets, decoded straight to that size) and drawn as 257 px CPU canvas tiles by an `L.GridLayer` (1 px overlap hides
   seams). SVG maps draw tiles straight from the vector when zoomed past the raster level, so they stay sharp.
 - Zoom is continuous and eased for wheel/trackpad/buttons/keys/double-click (`zoom.js`, Leaflet `zoomAnimation`
   off, `zoomSnap: 0`); pinch uses Leaflet's touch zoom. Frames only move tiles and pins.
