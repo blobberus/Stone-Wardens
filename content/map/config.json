@@ -1,7 +1,7 @@
 {
   "design": {
     "background": {
-      "kind": "theme",
+      "kind": "color",
       "color": "#c9b98f",
       "image": "",
       "fit": "tile"
