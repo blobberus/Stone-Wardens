@@ -1,0 +1,43 @@
+{
+  "design": {
+    "background": {
+      "kind": "theme",
+      "color": "#c9b98f",
+      "image": "",
+      "fit": "tile"
+    },
+    "crop": null,
+    "compass": {
+      "show": false,
+      "type": "rose",
+      "anchor": "screen",
+      "corner": "bl",
+      "size": 112,
+      "x": 0.1,
+      "y": 0.82,
+      "mapSize": 0.12,
+      "rotation": 0,
+      "color": "#1f1a14"
+    },
+    "scale": {
+      "show": false,
+      "ruler": true,
+      "unit": "miles",
+      "custom": "",
+      "perPx": 0,
+      "style": "checkered",
+      "corner": "bl",
+      "pace": {
+        "on": false,
+        "per": 24,
+        "label": "days on foot"
+      }
+    },
+    "border": {
+      "show": false,
+      "type": "double",
+      "color": "#1f1a14",
+      "width": 1.6
+    }
+  }
+}
