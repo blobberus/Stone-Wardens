@@ -145,7 +145,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   `node tools/test_maptree.mjs`): absent / unknown / looping = the main map, `parent: null` = a map of its own.
   While the DM hides the main map, players get the first map of its own or "The DM hasn't revealed the map yet."
   (`data.mainUnrevealed()`, `homeMapId()`; marker `content/map/hidden.json`).
-- Design per map (`design` in the map doc: background, crop, compass, scale bar + ruler + travel time, border),
+- Design per map (`design` in the map doc: background, crop, compass, scale bar + ruler + travel time, border: 15
+  styles picked from pictures, incl. hand-made inked / torn / burnt / ink wash, with corners, second color, mat, gap),
   pictures (`content/map-pictures/`) and fog of war (`content/fog/<mapId>.json` v2: one layer of `areas` {pts, holes,
   on} like the Combat Ring's, Fog / Clearing, lasso / polygon / rectangle / click to reveal / select; players see the map
   fade into its background color and no places under it, the DM sees through it; changes fade in) are edited in Edit map's Design /

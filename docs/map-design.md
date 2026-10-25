@@ -23,9 +23,14 @@ The main map's `content/map/config.json` or a sub-map's `content/maps/<id>.json`
                "size": 112, "x": 0.1, "y": 0.82, "mapSize": 0.12, "rotation": 0, "color": "#1f1a14" },
   "scale": { "show": true, "ruler": true, "unit": "miles|km|leagues|feet|m|days|custom", "custom": "", "perPx": 0.05,
              "style": "checkered|line|ticks", "corner": "bl", "pace": { "on": true, "per": 24, "label": "days on foot" } },
-  "border": { "show": true, "type": "line|double|checker|ornate", "color": "#1f1a14", "width": 1.6 }
+  "border": { "show": true, "type": "double", "color": "#1f1a14", "accent": "", "width": 1.6, "pad": 0,
+              "corners": "auto|none|square|rosette|knot|star", "mat": "paper|color|none", "matColor": "#efe5cc" }
 }
 ```
+
+Border `type`: `line`, `double`, `inked` (hand-inked), `checker`, `ruler` (graduated), `ornate`, `rope`, `meander`
+(Greek key), `vine`, `beads` (bead and reel), `scallop`, `deco` (art deco), `deckle` (torn edge: torn parchment),
+`burnt` (burnt edge), `wash` (ink wash).
 
 - **Background**: what shows around the image (where it is cropped, or zoomed out). Presets, a color, or an uploaded
   image (tiled or cover), stored in the map's folder.
@@ -37,8 +42,20 @@ The main map's `content/map/config.json` or a sub-map's `content/maps/<id>.json`
   "Measure two points…" (click two points, type their distance). The bar picks a round length for each zoom.
   `ruler` lets everyone use the **Ruler** tool (toolbar, or right-click → Measure from here): click points, double-click
   or Enter ends the path; it shows the length and, with a travel pace, the time ("48 miles · ≈ 2 days on foot").
-- **Border**: a frame drawn around the shown image, outside it (`width` = percent of its short side), on a paper mat
-  except for the single line.
+- **Border**: a frame drawn around the shown (cropped) image, outside it. The Design tab shows every style as a
+  little picture in the border's own colors; picking one adds the border (and moves an untouched thickness to that
+  style's own, `BORDER_TYPES[].width`). Fifteen styles: tidy cartographic ones (single / double line, checkered band,
+  graduated degree ticks, ornate, rope, Greek key, vine, bead and reel, scalloped, art deco) and hand-made ones
+  (hand-inked double line that wobbles and crosses at the corners, torn parchment, burnt edge, ink wash that bleeds a
+  little onto the map). Options: `width` (the band) and `pad` (space between map and frame), both percent of the
+  image's short side; `color`; `accent`, a second color for what the style names (inner line, leaves, ground,
+  scorch…; `''` = the style's own); `corners` (`auto` = the style's own: rope a knot, vine a rosette, ornate a
+  square…); `mat` = what is behind the frame (parchment, a `matColor`, or none = see-through; torn and burnt parchment
+  are always paper). Older designs keep their look (`mat` missing: none for the single line, parchment otherwise).
+  Built once per change as one SVG (design.js `borderSvg`): rules are rectangles, a motif is ONE path per side
+  orientation (a whole number of tiles between the corners, `<use>`d on both opposite sides and clipped), the
+  hand-made edges are seeded noise (the same on every device). Per-element or pattern-based repeats made each zoom
+  frame several times slower; every style rasterises in under 3 ms per frame on the main map.
 - "Hide compass, scale and border" (Design tab) turns all three off for everyone and back on; each also has its own
   switch. A replacement image of another size rescales the crop and scale with the pins (and pictures and fog).
 

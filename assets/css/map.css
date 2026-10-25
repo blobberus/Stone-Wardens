@@ -1509,6 +1509,31 @@ a.map-crumb:hover { color: var(--link-hover); }
 .map-ds-compass { aspect-ratio: 1; padding: 3px; background: #efe5cc; border: 1px solid var(--border-strong); border-radius: var(--radius); cursor: pointer; }
 .map-ds-compass > svg { display: block; width: 100%; height: 100%; pointer-events: none; }
 .map-ds-compass.is-on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink); }
+/* Border styles and corners: a picture of each (design.js borderPreviewSvg, the map's own colors) and its name */
+.map-ds-borders { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; }
+.map-ds-borders.is-corners { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 4px; }
+.map-ds-border {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 3px 3px 4px;
+  font: 500 var(--text-xs) / 1.2 var(--font-ui);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.map-ds-border:hover { background: var(--surface-2); }
+.map-ds-border.is-on { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.map-ds-border:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.map-ds-border-art { display: block; aspect-ratio: 3 / 2; overflow: hidden; border-radius: 3px; }
+.map-ds-border-art > svg { display: block; width: 100%; height: 100%; pointer-events: none; }
+.map-ds-border-name { overflow: hidden; text-align: center; white-space: nowrap; text-overflow: ellipsis; }
+.is-corners .map-ds-border { flex-direction: row; align-items: center; gap: 6px; padding: 3px 6px 3px 3px; }
+.is-corners .map-ds-border-art { flex: none; width: 30px; aspect-ratio: 1; }
+.is-corners .map-ds-border-name { text-align: left; }
 .map-ds-pics { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
 .map-ds-pic + .map-ds-pic { border-top: 1px solid var(--rule); }
 .map-ds-pic.is-open { background: var(--surface-2); border-radius: var(--radius-sm); }
