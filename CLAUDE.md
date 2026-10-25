@@ -129,6 +129,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   `#/dm` (DM Screen), `#/dm/party` (its Party page). `#/quests?new=1`, `#/map?new=1`, `#/compendium?new=1`, `#/wardens-library?upload=1` open the create forms.
 
 ## Map tab
+- Places are inked map marks (`pins.js`, map.css "Pins"): parchment roundel + type glyph in sepia ink, size by rank, a 32px
+  hit box (44px on touch), names lettered under them (Labels on by default); docs/map-model.md "Pins and names".
 - Model, routes, ranks and links: `docs/map-model.md`. Controls float over the map: search (top left) with the
   **Maps** button on its right (`collection.js`: every map nested by parent, with thumbnail, parent, place count and
   a copy-able `[[map:Name]]` link), the current map's name under them (`createCrumbs`: parents as links on sub-maps;

@@ -56,8 +56,8 @@ a.dm-note-link:hover { background: var(--surface-2); }
 .map-drawer-body > .dm-vis { margin-bottom: var(--space-3); }
 .cp-actions > .dm-vis { margin-left: auto; }
 .wl-reader.is-folded .wl-reader-actions > .dm-vis { padding: 0 8px; font-size: var(--text-xs); }
-/* A hidden place on the map (DM mode): dashed gold outline, like the pin being placed */
-.map-marker.is-dm-hidden .map-pin-body { stroke: var(--gold); stroke-width: 2.4; stroke-dasharray: 3 2; }
+/* A hidden place on the map (DM mode): dashed gold edge, like the pin being placed */
+.map-marker.is-dm-hidden .map-pin { border: 2px dashed var(--gold); }
 .map-marker.is-dm-hidden .map-pin-label { font-style: italic; }
 
 /* Log in / set up */

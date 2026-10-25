@@ -94,6 +94,22 @@ sub-maps as "Name (map)". `![[map:Sub-map]]` embeds a short summary of the map.
   "Show every rank at every zoom". Stored per device in `localStorage['sw:map:prefs']`
   (`hidden`, `hiddenRanks`, `allZoom`, `labels`, `views{mapId}`, `lastType`).
 
+## Pins and names
+
+- A place is drawn as an inked map mark (`pins.js` `pinIcon`, map.css "Pins"): a small parchment roundel ringed in sepia
+  ink, centered on the place, with its type's `mk-*` glyph. The type's pigment only tints it (a wash, the glyph's ink).
+  Size by rank (26 / 22 / 20 / 18 px; rank 1 gets a second ring, like a capital on an old map). The marker box is a 32px
+  hit area (`PIN_SIZE`, anchored at its center); on touch screens (`pointer: coarse`) it reaches 44px.
+- States: selected = lifted, in a gold ring; search non-matches faded; hover lifts it; keyboard focus = blue ring; edit
+  picks = blue ring; placing / moving = dashed gold edge, bobbing. DM mode: a hidden place has a dashed gold edge (dm.css),
+  a place under the fog is faded with an italic name. A place that opens a sub-map has a small seal on its shoulder.
+- Names are lettered under the mark like the map's own: serif, sepia ink with a parchment text halo, no plate; rank 1
+  in Cinzel capitals, rank 2 a little larger than 3–4. They are part of the hit area. The **Labels** toggle is on by
+  default (`prefs.labels !== false`); a rank's names show once its pane is mostly faded in (`has-labels`, ≥ 0.7), so
+  zoomed out only the top ranks are named. Hover, focus and the selection show a name anyway.
+- Marks and names sit on the map image, which is the same in both themes, so they use the fixed `--pin-*` tokens;
+  only the gold and focus rings follow the theme. The legend / picker swatches are the same mark in miniature.
+
 ## Rendering and performance
 
 - The map image is decoded (raster) or rasterised (SVG) once into a pyramid (full, ½, ¼ … ≥ 512 px; full level capped at
@@ -102,5 +118,6 @@ sub-maps as "Name (map)". `![[map:Sub-map]]` embeds a short summary of the map.
 - Zoom is continuous and eased for wheel/trackpad/buttons/keys/double-click (`zoom.js`, Leaflet `zoomAnimation`
   off, `zoomSnap: 0`); pinch uses Leaflet's touch zoom. Frames only move tiles and pins.
 - Pins: stable z-index (image y), one Leaflet pane per rank whose opacity follows the zoom (4 style writes per
-  frame), off-screen pins culled (`display:none`, no transform writes), no pin transitions or hit-testing while a
+  frame), off-screen pins culled (`display:none`, no transform writes), the marks' color constants on `.map-root`
+  rather than on each pin (a moving pin's style is recomputed every frame), no pin transitions or hit-testing while a
   zoom runs.

@@ -1,12 +1,12 @@
 // Marker visuals: Leaflet divIcon pins (built as strings — cheap for hundreds of markers),
 // plus small DOM swatches/badges for the legend, picker and drawer.
+// A pin is an inked map mark: a small parchment roundel with the type's glyph, centered on the place,
+// its name lettered under it (map.css). The 32 px box is the hit area; the mark inside is smaller.
 import { h } from '../../core/dom.js';
 
 const SPRITE = 'assets/img/icons.svg';
-export const PIN_SIZE = [32, 46];
-export const PIN_ANCHOR = [16, 43];
-// Teardrop: head circle r=13 at (16,16), tip at (16,43).
-const PIN_PATH = 'M16 43C13.6 35.6 3 28.6 3 16a13 13 0 0 1 26 0c0 12.6-10.6 19.6-13 27z';
+export const PIN_SIZE = [32, 32];
+export const PIN_ANCHOR = [16, 16];
 
 // Marker glyph symbols are `mk-*` in the current sprite; accept `i-mk-*` too in case it is renamed.
 let glyphPrefix = '';
@@ -23,17 +23,13 @@ export function glyph(name, cls = '') {
   return svg;
 }
 
-const SHAPE = '<svg class="map-pin-shape" viewBox="0 0 32 46" aria-hidden="true" focusable="false">'
-  + '<ellipse class="map-pin-shadow" cx="16" cy="43.5" rx="6.5" ry="2.2"/>'
-  + `<path class="map-pin-body" d="${PIN_PATH}"/>`
-  + '<circle class="map-pin-ring" cx="16" cy="16" r="10.6"/>'
-  + '</svg>';
-// A small "this place has its own map" seal on the pin's shoulder.
+// A small "this place has its own map" seal on the mark's shoulder.
 const SUB = `<span class="map-pin-sub" aria-hidden="true"><svg class="icon"><use href="${SPRITE}#i-layers"/></svg></span>`;
 
 // type.css is a sanitized color or var(--pin-*); type.icon is restricted to the mk-* set (see data.js).
+// The pigment only tints the mark (a wash and the glyph's ink); the ring and the lettering are sepia ink.
 function pinInner(type, sub = false) {
-  return `<span class="map-pin${type.light ? ' is-light' : ''}" style="--pin:${type.css || type.color}">${SHAPE}`
+  return `<span class="map-pin${type.light ? ' is-light' : ''}" style="--pin:${type.css || type.color}">`
     + `<svg class="icon map-glyph map-pin-glyph" aria-hidden="true" focusable="false"><use href="${glyphHref(type.icon)}"/></svg>${sub ? SUB : ''}</span>`;
 }
 
@@ -76,14 +72,14 @@ export function PinMarker() {
   return PinClass;
 }
 
-/** A standalone pin (DOM) for previews. type: {icon, color, css?, light?, rank?} */
+/** A standalone pin (DOM) for previews, at its rank's size. type: {icon, color, css?, light?, rank?} */
 export function pinPreview(type) {
-  const el = h('span', { class: 'map-pin-preview' });
+  const el = h('span', { class: ['map-pin-preview', `rank-${type.rank || 3}`] });
   el.innerHTML = pinInner(type);
   return el;
 }
 
-/** Round colored disc with the type glyph. */
+/** The map mark in miniature (parchment disc, tinted, with the type glyph): legend, picker, search. */
 export function swatch(type) {
   return h('span', { class: ['map-swatch', type.light && 'is-light'], style: `--pin:${type.css || type.color}`, 'aria-hidden': 'true' }, glyph(type.icon));
 }

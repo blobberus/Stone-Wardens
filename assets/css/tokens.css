@@ -64,8 +64,9 @@
   --c-quote: #6a5e4e;     /* umber */
 
   /* --- Map pin pigments (same in both themes: the map image does not change).
-         Glyph color on every pin is --pin-glyph (>= 4.5:1 on each). Default pin = --pin-ink;
-         a selected pin gets a --gold ring. Offer these as the location-type swatches. */
+         Offer these as the location-type swatches. --pin-glyph on each pigment is >= 4.5:1 (type badges).
+         Map marks (map.css) are sepia ink on parchment mixed from --pin-ink / --pin-umber / --pin-glyph,
+         tinted by the type's pigment; a selected mark gets a --gold ring. */
   --pin-glyph: #fffaf0;
   --pin-ink: #1f1a14;
   --pin-rubric: #8e1b1b;
