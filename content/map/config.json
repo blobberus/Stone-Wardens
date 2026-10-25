@@ -1,7 +1,10 @@
 {
+  "image": "content/map/map-of-caspernos-and-surrounding-lands.png",
+  "width": 4961,
+  "height": 3508,
   "design": {
     "background": {
-      "kind": "color",
+      "kind": "theme",
       "color": "#c9b98f",
       "image": "",
       "fit": "tile"
