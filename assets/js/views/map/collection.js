@@ -1,5 +1,5 @@
 // Map collection: the "Maps" button under the search and its panel. Lists every map (main first, sub-maps
-// nested under their parent) with a thumbnail, its parent, its number of places and the [[map:…]] link
+// nested under their parent, then the maps of their own) with a thumbnail, its parent, its number of places and the [[map:…]] link
 // that opens it from any note. Entries are plain links (#/map/m/<id>), so opening one is the same route
 // as every other sub-map navigation.
 import { h, clear } from '../../core/dom.js';
@@ -52,7 +52,7 @@ async function thumbUrl(image) {
 
 /** Does a map match every word of the filter (name or parent name)? */
 function matches(m, words) {
-  const hay = nameKey(`${m.name} ${m.isMain ? 'main map' : data.mapById(m.parent)?.name || ''}`);
+  const hay = nameKey(`${m.name} ${m.isMain ? 'main map' : m.standalone ? 'map of its own' : data.mapById(m.parent)?.name || ''}`);
   return words.every((w) => hay.includes(w));
 }
 
@@ -90,8 +90,8 @@ export function createCollection(ctx) {
       },
       img,
       h('span', { class: 'map-coll-text' },
-        h('span', { class: 'map-coll-name' }, h('strong', null, m.name), m.isMain ? null : hiddenMark(data.mapPath(m.id)), here ? h('span', { class: 'badge badge-accent' }, 'Shown') : null),
-        h('span', { class: 'map-coll-meta' }, `${m.isMain ? 'Main map' : `in ${data.mapById(m.parent)?.name || 'the main map'}`} · ${plural(n, 'place')}`),
+        h('span', { class: 'map-coll-name' }, h('strong', null, m.name), hiddenMark(data.mapPath(m.id)), here ? h('span', { class: 'badge badge-accent' }, 'Shown') : null),
+        h('span', { class: 'map-coll-meta' }, `${m.isMain ? 'Main map' : m.standalone ? 'Map of its own' : `in ${data.mapById(m.parent)?.name || 'the main map'}`} · ${plural(n, 'place')}`),
         h('code', { class: 'map-coll-link' }, link))),
       h('button', {
         type: 'button', class: 'btn btn-ghost btn-icon btn-sm map-coll-copy', 'aria-label': `Copy the link to ${m.name}`, title: `Copy ${link}`,
@@ -179,7 +179,7 @@ export function createCollection(ctx) {
   store.on((ev) => {
     if (!pop.isOpen || queued) return;
     const paths = ev.path ? [ev.path] : ev.paths || [];
-    const hit = ev.type === 'load' || paths.some((p) => p === data.CONFIG_PATH || p.startsWith(`${data.MAPS_DIR}/`) || p.startsWith(`${data.LOC_DIR}/`));
+    const hit = ev.type === 'load' || paths.some((p) => p.startsWith(`${data.MAP_DIR}/`) || p.startsWith(`${data.MAPS_DIR}/`) || p.startsWith(`${data.LOC_DIR}/`));
     if (!hit) return;
     queued = true;
     queueMicrotask(() => { queued = false; if (pop.isOpen) drawList(); });

@@ -1,8 +1,9 @@
 # Map model (Map tab)
 
 Code: `assets/js/views/map/` — `index.js` (view, routes, markers, hierarchy panes), `data.js` (documents, maps
-registry, `map:` link type), `raster.js` (image tiles), `zoom.js` (smooth zoom), `ranks.js`, `edit.js` (edit mode),
-`submaps.js` (create/delete dialogs), `drawer.js`, `controls.js` (search, filter, ⋯ menu, breadcrumb, popover helper),
+registry, `map:` link type), `maptree.js` (which map sits inside which; pure, `node tools/test_maptree.mjs`),
+`raster.js` (image tiles), `zoom.js` (smooth zoom), `ranks.js`, `edit.js` (edit mode),
+`submaps.js` (create / move / delete dialogs), `drawer.js`, `controls.js` (search, filter, ⋯ menu, breadcrumb, popover helper),
 `collection.js` (the "Maps" button and the map collection), `image.js`, `pins.js`, `typeform.js`. Styles: `assets/css/map.css`.
 Design (background, crop, compass, scale and ruler, border), pictures on maps, fog of war and duplicating maps:
 `docs/map-design.md` (`design.js`, `decor.js`, `pictures.js`, `fog.js`, `fogdraw.js`, `fogview.js`, `designpanel.js`, `layers.js`).
@@ -13,6 +14,7 @@ Design (background, crop, compass, scale and ruler, border), pictures on maps, f
 |---|---|---|
 | Main map | `content/map/config.json` | `{image, width, height, name, rankBands?, design?}` — unchanged from before sub-maps |
 | Main map image | `content/map/<file>.<ext>` | |
+| Main map hidden | `content/map/hidden.json` | `{hidden: true}`, public, only while the DM hides the main map (see below) |
 | Sub-map | `content/maps/<mapId>.json` | `{id, name, parent, image, width, height, createdBy, created, updated, rankBands?, design?, copiedFrom?}` |
 | Sub-map image | `content/maps/<mapId>/<file>.<ext>` | |
 | Place | `content/locations/<id>.json` | every place on every map |
@@ -20,8 +22,24 @@ Design (background, crop, compass, scale and ruler, border), pictures on maps, f
 | Fog | `content/fog/<mapId>.json` | the map's fog of war (`docs/map-design.md`) |
 
 - The main map's id is the reserved word `main`; sub-map ids are `uid(name)` (`duskhold-k3x9`), filename = id.
-- `parent`: the map it sits inside (`main` or another sub-map id). Unknown, self or cyclic parents are treated as
-  `main`. Sub-maps nest to any depth; the breadcrumb follows `parent`.
+- `parent`: the map it sits inside (`main` or another sub-map id). Absent, empty, unknown, self or cyclic parents are
+  treated as `main` (so old documents keep working; a loop breaks at its first map by id). Sub-maps nest to any depth;
+  the breadcrumb follows `parent`.
+- `parent: null` (written out) = **a map of its own**: not linked to the main map. It is listed at the top level of
+  the Maps collection, after the main map and its tree ("Map of its own"), its breadcrumb starts with itself, and it
+  stays visible when the DM hides the main map. Its own sub-maps nest under it as usual. The new-map and duplicate
+  dialogs' "Inside" select offers "No parent (a map of its own)"; ⋯ → **Move into another map…** (DM only) moves a
+  sub-map, with everything on it, into another map or out to a map of its own (`data.moveMap`; never into itself or
+  one of its own sub-maps; into a hidden map it is hidden too). Deleting a map of its own turns its sub-maps into maps
+  of their own and moves its places to the main map (or deletes them).
+- **The main map hidden (DM mode, docs/dm-mode.md).** `content/map/config.json` is sealed with everything on and in
+  it, and the public marker `content/map/hidden.json` says so. For a viewer who can't read it (players, the DM with DM
+  mode locked: `data.mainUnrevealed()`), the main map is not in `maps()` / `mapById()` / links / search;
+  `homeMapId()` is the first map of their own, which `#/map` shows (the hash becomes `#/map/m/<id>`), or, when there is
+  none, the blank parchment under "The DM hasn't revealed the map yet." without the tools. A map whose parent would be
+  the main map then shows as a map of its own. Without the marker, a missing config.json is still the placeholder
+  "The Uncharted Realm", as on a fresh site. Players who have the map open move over when the change arrives
+  (index.js `runSync`).
 - `image: ""` (or the placeholder path) = the blank parchment placeholder; `width/height` are the image's pixel
   size and define the coordinate space (pins are stored in image pixels, origin top-left).
 - `rankBands` (optional): `[[from,to] × 4]` in percent of the map's zoom range (see Hierarchy). Absent = defaults.
@@ -56,7 +74,7 @@ village, temple, landmark, danger, dungeon, ruins, cave, portal, battle, quest, 
 
 - The **Maps** button sits on the search's right (icon only when the map is 640px wide or less). It opens the
   collection under the map's name plate: every map, the main
-  map first and sub-maps indented under their parent, each with a thumbnail, its parent, its number of places and
+  map first and sub-maps indented under their parent, then the maps of their own (each with its sub-maps), each with a thumbnail, its parent, its number of places and
   its `[[map:…]]` link with a copy button (same text and toast as "Copy link to this map"). The shown map is marked.
 - Entries are links to `#/map/m/<id>`, so opening one is the same route as any other sub-map navigation (Back
   returns, each map restores its own view). A filter field (name or parent name) appears from 7 maps.
@@ -65,7 +83,8 @@ village, temple, landmark, danger, dungeon, ruins, cave, portal, battle, quest, 
 - Thumbnails load when an entry scrolls into view. Raster images are shrunk once per image version (to 240px wide,
   one at a time); SVGs are used as they are.
 - Under the search, a name plate shows the current map ("⁂ The Uncharted Realm"); on a sub-map its parents come
-  first as links ("The Uncharted Realm › Starfall Vale"). It replaced the bottom-left cartouche and the old ▾ switcher.
+  first as links ("The Uncharted Realm › Starfall Vale"); a map of its own starts the chain itself. It replaced the bottom-left cartouche and the old ▾ switcher.
+  In DM mode a lock follows a hidden map's name (the main map's too) and the hide / release switch sits under the plate.
 - Maps carry no tags of their own: link them with `[[map:Name]]` (place tags stay as they were).
 - Sample content: the sub-map `starfall-vale-p94a` "Starfall Vale" (an original SVG region map) with two places,
   Brinewick and The Warden Stones. To remove it: open it, ⋯ → Delete this map… → delete the places too.

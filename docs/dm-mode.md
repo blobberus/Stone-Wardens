@@ -52,14 +52,19 @@ Envelope file names are random, so they say nothing about the item; its real pat
   Released) or "Hide an existing item…" seals a public item; its uploaded images go with it unless another visible
   document names them.
 - **Tabs** register what they can hide: `registerHideable({prefix, label, icon, order, accept(path), describe(path,
-  data) -> {title, href}, companions?(path), releaseBlock?(path, data)})` (quests, compendium library items, journal
-  notes, Warden's Library documents, map places, sub-maps, map pictures; `content/media/` images ride along with their
-  item). `companions(path)` lists items hidden together with it (a sub-map: its image and background image, fog,
-  pictures, places and sub-maps); they are recorded in the envelope (`with`) and released with it, while anything that
-  was already hidden on its own stays hidden. Companions added hidden later (a place made on a hidden map, its fog) are released with it too
+  data) -> {title, href}, companions?(path), releaseBlock?(path, data), releaseAs?(path, data), afterHide?(path),
+  afterRelease?(path)})` (quests, compendium library items, journal notes, Warden's Library documents, map places, the
+  main map, sub-maps, map pictures; `content/media/` images ride along with their item). `companions(path)` lists items
+  hidden together with it (a map: its image and background image, fog, pictures, places and sub-maps); they are
+  recorded in the envelope (`with`) and released with it, while anything that was already hidden on its own stays
+  hidden. Companions added hidden later (a place made on a hidden map, its fog) are released with it too
   (hidden after it). Hiding is all or nothing: if one companion fails, the others go back and the DM sees the error;
   an item being hidden or released can't be switched again until that finishes (`dmBusy`). `releaseBlock` returns why an item can't be released alone (a place on
-  a hidden map would show up on the main map), and Release says so. `accept` also limits the safety net: journal folder metadata
+  a hidden map would show up on the main map), and Release says so. `releaseAs` returns `{title, question, okLabel,
+  data}` when an item can only be released in another form (a map inside a hidden map: as a map of its own, `parent:
+  null`): `releasePlan(path)` tells the UI, which asks that question instead of the usual one, and `releaseItem(path,
+  {as: true})` writes `data` as the public document. `afterHide` / `afterRelease` run once it is done (the main map's
+  public marker). Both the switch and the DM Screen's Release go through `askRelease(path)` (dm-ui.js). `accept` also limits the safety net: journal folder metadata
   (`_chapter.json`) and library READMEs are never hidden. Tabs redraw their switches and marks on `onDmMode(fn)`
   (DM mode turned on or off).
 - **Saving** seals pending edits first (`store.save` waits for `layer.flush()`), and `store.isDirty()` counts them, so
@@ -73,11 +78,22 @@ Envelope file names are random, so they say nothing about the item; its real pat
 | Compendium | new entry / custom copy editor | entry page actions (Status: "Hidden from the players") | lists, search, recent |
 | Journal | New note dialog (quick "+" notes follow the default) | under the note's title | file tree |
 | Warden's Library | Add documents dialog | reader actions | shelf cards and table |
-| Map | New location panel, Add a sub-map (DM Screen: New map), Duplicate this map (map pictures follow "New: hidden") | place panel, under the badges; a sub-map under its name plate (with everything on it); a picture in Edit map → Pictures | pin with a dashed gold edge; lock beside a map's name (plate, Maps list); dashed gold outline on a picture |
+| Map | New location panel, Add a sub-map (DM Screen: New map), Duplicate this map (map pictures follow "New: hidden") | place panel, under the badges; any map under its name plate, the main map too (with everything on it); a picture in Edit map → Pictures | pin with a dashed gold edge; lock beside a map's name (plate, Maps list, the main map too); dashed gold outline on a picture |
 
 The DM Screen's Create buttons open those forms (`#/quests?new=1`, `#/map?new=1` = the new-map dialog over the main
 map, `#/compendium?new=1`, `#/journal/new`, `#/wardens-library?upload=1`). A new hidden map is released with the
 switch under its name plate or from Hidden from players (its places, pictures, fog and sub-maps come along).
+
+**Hiding the main map.** The switch under the main map's name plate (or "Hide an existing item…", or Hide again in
+Released) asks first, then hides it with its image, fog, pictures, places and every map inside it, each with what is
+on it; maps of their own (`parent: null`, docs/map-model.md) stay visible. A public marker `content/map/hidden.json`
+(`{hidden: true}`, nothing else) is written with it and removed on release, so players' devices know the main map is
+hidden: their Map tab opens the first visible map of its own, or says "The DM hasn't revealed the map yet." when there
+is none (a fresh site without the marker still shows the placeholder map). Releasing the main map brings back what was
+hidden with it (and what was added to it while hidden), not what the DM had hidden on its own before. A map inside a
+still-hidden map (the main map or any other) can be released first: Release asks "Release it as a map of its own, not
+linked to that map?" and the players get it with `parent: null`, with its places, pictures, fog and sub-maps. A place,
+picture or fog of a hidden map still can't be released alone.
 
 Visibility follows the item: a hidden quest's or note's uploaded photos are hidden too (a visible one's are visible),
 and renaming or moving a note, a folder of notes or a library document keeps each file hidden or visible as it was.

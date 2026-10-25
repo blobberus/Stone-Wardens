@@ -11,7 +11,7 @@ import { store } from './store.js';
 import { saveNow, saveSoon } from './saving.js';
 import {
   isDm, isHidden, onDm, dmConfigured, setupDm, unlockDm, dmNewHidden, setDmNewHidden, hideItem, releaseItem, describe,
-  isHideablePath, INBOX_DIR, dmBusy,
+  isHideablePath, INBOX_DIR, dmBusy, releasePlan,
 } from './dm.js';
 
 const INBOX_KEY = 'sw:inbox'; // {seen: ISO time everything before is read, read: [id]}
@@ -207,13 +207,29 @@ function when(at) {
 // ---------- per item ----------
 
 /**
+ * Ask the DM before releasing a hidden item (the switch and the DM Screen's Release). Resolves the options for
+ * releaseItem, or null: canceled, or it can't be released on its own (a toast says why). An item that can only be
+ * released in another form (a map inside a hidden map: as a map of its own) asks that question instead.
+ */
+export async function askRelease(path, name = describe(path).title) {
+  const plan = releasePlan(path);
+  if (plan.blocked) { toast(plan.blocked, { type: 'error', timeout: 7000 }); return null; }
+  const tail = 'Every player will see it and get a notification in their Inbox.';
+  if (plan.question) {
+    return (await confirmDialog(`${plan.question} ${tail}`, { title: plan.title || 'Release to the players?', okLabel: plan.okLabel || 'Release' })) ? { as: true } : null;
+  }
+  return (await confirmDialog(`Release “${name}”? ${tail}`, { title: 'Release to the players?', okLabel: 'Release' })) ? {} : null;
+}
+
+/**
  * The noticeable hidden / visible switch of an item, for its page or editor; null outside DM mode or for items that
- * can't be hidden. path: the item's path (or a function returning it). Hiding seals it at once; making it visible
- * releases it (players get a notification), after a confirmation. The switch redraws itself after a change (views
- * that re-render anyway simply drop it). opts.small: false = full button size, for a row of full-size buttons.
+ * can't be hidden. path: the item's path (or a function returning it). Hiding seals it at once (opts.confirmHide() ->
+ * a question asks first, for big ones like the main map); making it visible releases it (players get a notification),
+ * after a confirmation. The switch redraws itself after a change (views that re-render anyway simply drop it).
+ * opts.small: false = full button size, for a row of full-size buttons.
  */
 export function visibilityToggle(path, opts = {}) {
-  const { label = 'this', onChange, before, small = true } = opts;
+  const { label = 'this', onChange, before, small = true, confirmHide } = opts;
   const p = typeof path === 'function' ? path() : path;
   if (!isDm() || !p || !isHideablePath(p)) return null;
   const hidden = isHidden(p);
@@ -228,11 +244,14 @@ export function visibilityToggle(path, opts = {}) {
         await before?.(); // e.g. an editor writes its pending draft first
         if (hidden) {
           const name = describe(p).title;
-          if (!(await confirmDialog(`Release “${name}”? Every player will see it and get a notification in their Inbox.`, { title: 'Release to the players?', okLabel: 'Release' }))) return;
-          await releaseItem(p);
+          const how = await askRelease(p, name);
+          if (!how) return;
+          await releaseItem(p, how);
           saveSoon('DM release');
           toast(`Released “${name}”. The players have been notified.`, { type: 'success' });
         } else {
+          const ask = confirmHide?.();
+          if (ask && !(await confirmDialog(ask, { title: 'Hide from the players?', okLabel: 'Hide' }))) return;
           await hideItem(p);
           saveSoon('DM hide');
           toast('Hidden from the players. Earlier versions stay in the site’s history on GitHub.', { timeout: 6000 });

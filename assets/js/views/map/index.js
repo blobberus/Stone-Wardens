@@ -24,7 +24,7 @@ import { replaceImage, resetImage, renameMap } from './image.js';
 import { loadImageSource, createImageLayer } from './raster.js';
 import { createZoomer } from './zoom.js';
 import { RANK_IDS, rankOpacity, rankWhere, normBands } from './ranks.js';
-import { openNewMapDialog, deleteMapFlow } from './submaps.js';
+import { openNewMapDialog, deleteMapFlow, openMoveMapDialog } from './submaps.js';
 import { createEditor } from './edit.js';
 import { createCollection } from './collection.js';
 import { registerHideable, isHidden, onDmMode, isDm } from '../../core/dm.js';
@@ -41,7 +41,10 @@ import { openCopyMapDialog } from './submaps.js';
 registerHideable({
   prefix: `${data.LOC_DIR}/`, label: 'Map place', icon: 'pin', order: 50, accept: (p) => p.endsWith('.json'),
   describe: (path, d) => ({ title: d?.name, href: d?.id ? data.locHref({ ...d, map: d.map || data.MAIN_MAP }) : null }),
-  releaseBlock: (path, d) => (data.mapHidden(d?.map) ? `This place is on the hidden map “${data.mapById(d.map)?.name || d.map}”. Release that map to show it.` : null),
+  releaseBlock: (path, d) => {
+    const on = d?.map || data.MAIN_MAP; // no map field: the main map
+    return data.mapHidden(on) ? `This place is on the hidden map “${data.mapById(on)?.name || on}”. Release that map to show it.` : null;
+  },
 });
 
 const PREFS_KEY = 'sw:map:prefs';
@@ -82,6 +85,7 @@ const S = {
 };
 let drawer, search, legend, menu, crumbs, collection, editor, zoomer, banner, emptyCard, addBtn, labelsBtn, measureBtn, ctxMenu = null;
 let decor, fogV, pictures, designPanel;
+let unrevealedCard = null; // players, while the DM hides the main map and there is no map of its own to show
 
 const toLatLng = (x, y) => L.latLng(-y, x);
 const toXY = (ll) => ({ x: ll.lng, y: -ll.lat });
@@ -182,7 +186,7 @@ function mountView(el) {
     newSubmap: ({ name, parent }) => openNewMapDialog({ parent, name }),
   });
   search = createSearch({
-    locations: () => data.locations().filter((l) => !fogHidesLoc(l)), // places under the fog stay unknown
+    locations: () => data.locations().filter((l) => !fogHidesLoc(l) && data.mapById(l.map)), // places under the fog stay unknown
     typeOf: data.typeOf,
     mapId: () => S.mapId,
     mapName: (id) => data.mapById(id)?.name || '',
@@ -229,6 +233,7 @@ function mountView(el) {
     subMaps: () => data.childMaps(S.mapId).map((m) => ({ id: m.id, name: m.name, count: data.locationsOn(m.id).filter((l) => !fogHidesLoc(l)).length })),
     openMap: (id) => navigate(data.mapHref(id)),
     addSubmap: () => addSubmap(),
+    moveMap: () => moveCurrentMap(),
     deleteMap: () => deleteCurrentMap(),
     copyLink: copyMapLink,
     openSwitcher: () => collection.open(),
@@ -236,9 +241,12 @@ function mountView(el) {
   crumbs = createCrumbs({
     chain: () => data.mapChain(S.mapId),
     href: data.mapHref,
-    mark: (m) => (m.isMain ? null : hiddenMark(data.mapPath(m.id))),
-    // DM mode, on a sub-map: hide it (with its places, pictures, fog and sub-maps) or release it to the players
-    extra: () => (S.mapId === data.MAIN_MAP ? null : visibilityToggle(data.mapPath(S.mapId), { label: 'this map and everything on it', onChange: () => crumbs.update() })),
+    mark: (m) => hiddenMark(data.mapPath(m.id)),
+    // DM mode: hide the map shown (with its places, pictures, fog and sub-maps; the main map: every map inside it) or
+    // release it to the players
+    extra: () => visibilityToggle(data.mapPath(S.mapId), S.mapId === data.MAIN_MAP
+      ? { label: 'the main map, the maps inside it and everything on them', before: data.ensureMainConfig, confirmHide: mainHideQuestion, onChange: () => crumbs.update() }
+      : { label: 'this map and everything on it', onChange: () => crumbs.update() }),
   });
   collection = createCollection({
     current: () => S.mapId,
@@ -284,6 +292,11 @@ function mountView(el) {
   }, icon('ruler'), h('span', { class: 'map-tool-label' }, 'Ruler'));
   banner = h('div', { class: 'map-banner', role: 'status', hidden: true });
   emptyCard = h('div', { class: 'map-empty', hidden: true });
+  unrevealedCard = h('div', { class: 'map-unrevealed', role: 'status', hidden: true },
+    h('div', { class: 'map-unrevealed-card' },
+      h('span', { class: 'map-unrevealed-mark', 'aria-hidden': 'true' }, icon('map')),
+      h('h2', { class: 'map-unrevealed-title' }, 'The DM hasn’t revealed the map yet.'),
+      h('p', null, 'It appears here as soon as the DM shows it to the players.')));
 
   S.root.append(
     S.canvas,
@@ -299,7 +312,8 @@ function mountView(el) {
       h('button', { class: 'map-zoom-btn', type: 'button', 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => zoomStep(-1) }, icon('minus')),
       h('button', { class: 'map-zoom-btn', type: 'button', 'aria-label': 'Show the whole map', title: 'Show the whole map', onclick: () => fitMap(true) }, icon('compass'))),
     editor.el,
-    drawer.el);
+    drawer.el,
+    unrevealedCard);
 
   S.map = L.map(S.canvas, {
     crs: L.CRS.Simple,
@@ -383,7 +397,7 @@ async function init() {
   const want = r ? routeTarget(r) : { map: data.MAIN_MAP };
   const first = want.loc ? data.findLocation(want.loc, { loose: true })?.map : data.findMap(want.map, { loose: true })?.id;
   try {
-    await loadMap(first || data.MAIN_MAP);
+    await loadMap((data.mapById(first) && first) || data.homeMapId() || data.MAIN_MAP); // main hidden from this viewer: a map of its own
   } catch (e) {
     console.error('[map] init failed', e);
     toast(`The map could not load: ${e.message}`, { type: 'error' });
@@ -407,7 +421,7 @@ function measure(url) {
 
 /** Make id the active map: markers, image, view, controls. */
 async function loadMap(id) {
-  const m = data.mapById(id) || data.mapById(data.MAIN_MAP);
+  const m = data.mapById(id) || data.mapById(data.MAIN_MAP) || data.mainMap(); // mainMap: hidden from this viewer
   editor.flush();
   S.mapId = m.id;
   S.mapParent = m.parent;
@@ -416,6 +430,7 @@ async function loadMap(id) {
   for (const e of S.markers.values()) e.marker.remove();
   S.markers.clear();
   S.root.classList.toggle('is-submap', !m.isMain);
+  syncUnrevealed();
   crumbs.update();
   decor.reset();
   pictures.clear();
@@ -710,11 +725,17 @@ async function runSync() {
   if (!S.ready) return; // init does a full sync
   const d = S.dirty;
   S.dirty = { locs: false, types: false, config: false, journal: false, fog: false, pics: false };
-  if (d.config && !data.mapById(S.mapId)) { // the map we are on was deleted
-    navigate(data.mapHref(data.mapById(S.mapParent) ? S.mapParent : data.MAIN_MAP), { replace: true });
-    return;
+  if (d.config && !data.mapById(S.mapId)) { // the map we are on was deleted, or the DM hid it from this viewer
+    const up = (S.mapParent && data.mapById(S.mapParent)?.id) || data.homeMapId();
+    if (up || S.mapId !== data.MAIN_MAP) { // else: stay on the hidden main map, "not revealed yet" (syncUnrevealed)
+      const to = up || data.MAIN_MAP;
+      if (S.visible) navigate(data.mapHref(to), { replace: true });
+      else await switchMap(to); // another tab is shown: change maps quietly
+      return;
+    }
   }
   if (d.config) {
+    syncUnrevealed();
     applyConfig().then(() => designPanel.refresh('design')).catch((e) => console.error('[map] config', e));
     crumbs.update();
   }
@@ -1012,6 +1033,41 @@ async function copyCurrentMap() {
 async function deleteCurrentMap() {
   const parent = await deleteMapFlow(S.mapId);
   if (parent) navigate(data.mapHref(parent));
+}
+
+/** ⋯ → Move into another map… (map-wide editing: the DM only, or anyone while no DM is set up). */
+async function moveCurrentMap() {
+  if (!data.canDesign()) { toast('Only the DM can move maps.'); return; }
+  if (await openMoveMapDialog(S.mapId)) { S.mapParent = data.mapById(S.mapId)?.parent ?? null; crumbs.update(); menu.pop.refresh(); }
+}
+
+// ---------- the main map hidden (DM mode) ----------
+
+/**
+ * Players (and the DM with DM mode locked) while the DM hides the main map: #/map shows the first map of its own
+ * (applyRoute), or, when there is none, this "not revealed yet" card over the blank parchment, without the tools.
+ */
+function syncUnrevealed() {
+  const on = S.mapId === data.MAIN_MAP && !data.mapById(data.MAIN_MAP);
+  S.root.classList.toggle('is-unrevealed', on);
+  if (unrevealedCard) unrevealedCard.hidden = !on;
+  if (on) { closePopovers(); if (drawer?.isOpen) closeDrawer({ force: true }); }
+}
+
+/** The DM's question before hiding the main map: what goes with it, what stays. */
+function mainHideQuestion() {
+  const n = data.mainHideCounts();
+  const plural = (k, one, many = `${one}s`) => `${k} ${k === 1 ? one : many}`;
+  const parts = [n.image && 'its image', n.fog && 'its fog', n.places && plural(n.places, 'place'), n.pictures && plural(n.pictures, 'picture'),
+    n.maps && `the ${plural(n.maps, 'map')} inside it (with everything on them)`].filter(Boolean);
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+  const single = parts.length === 1 && (n.image || n.fog || [n.places, n.pictures, n.maps].includes(1));
+  return [
+    `Hide “${data.mapById(data.MAIN_MAP)?.name || data.DEFAULT_MAP_NAME}” from the players?`,
+    list ? `${list[0].toUpperCase()}${list.slice(1)} go${single ? 'es' : ''} with it.` : '',
+    n.own ? `${n.own === 1 ? 'The map of its own stays' : `The ${n.own} maps of their own stay`} visible, and players see ${n.own === 1 ? 'it' : 'the first'} on the Map tab instead.` : 'Players see “The DM hasn’t revealed the map yet.” on the Map tab.',
+    'Releasing it brings all of that back (except what you had hidden on its own).',
+  ].filter(Boolean).join(' ');
 }
 
 async function copyMapLink() {
@@ -1573,6 +1629,11 @@ async function applyRoute(parts, fly) {
       return;
     }
     mapId = m.id;
+  }
+  if (mapId === data.MAIN_MAP && !data.mapById(data.MAIN_MAP)) { // the DM hides the main map from this viewer
+    const home = data.homeMapId();
+    if (home) { navigate(data.mapHref(home), { replace: true }); return; } // the first map of its own
+    loc = null; // else "not revealed yet" (syncUnrevealed)
   }
   if (mapId !== S.mapId) {
     if (!(await switchMap(mapId))) { setHash(drawer.mode === 'view' ? drawer.id : null); return; }

@@ -37,7 +37,10 @@ const kinds = []; // {prefix, label, icon, describe(path, data) -> {title, href}
  * Tabs describe their hideable items (DM Screen lists, released log, notifications):
  * registerHideable({prefix: 'content/quests/', label: 'Quest', icon: 'quests', describe(path, data) -> {title, href}})
  * Optional: companions(path) -> [paths] hidden along with the item (a map's places, image and sub-maps) and released
- * with it; releaseBlock(path, data) -> a reason it can't be released on its own (a place on a hidden map), or null.
+ * with it; releaseBlock(path, data) -> a reason it can't be released on its own (a place on a hidden map), or null;
+ * releaseAs(path, data) -> {title, question, okLabel, data} when it can only be released in another form, after the
+ * DM confirms the question (a map inside a hidden map: as a map of its own), or null; afterHide(path) /
+ * afterRelease(path): called once it is hidden / released (the main map's public "hidden" marker).
  */
 export function registerHideable(def) {
   const i = kinds.findIndex((k) => k.prefix === def.prefix);
@@ -419,12 +422,31 @@ async function hideNow(path, { withAttachments = true } = {}) {
   S.items.set(path, it);
   setReleased(releasedItems().filter((x) => x.path !== path));
   store.emit({ type: 'put', path });
+  try { kind?.afterHide?.(path); } catch (e) { console.warn('[dm] afterHide failed', e); }
   notify();
 }
 
 /**
+ * How Release would go for a hidden item (asked before the DM confirms): {blocked: why it can't be released on its
+ * own, or null; title, question, okLabel: it can only be released in another form (a map inside a hidden map: as a
+ * map of its own) once the DM agrees: pass {as: true} to releaseItem; else null}.
+ */
+export function releasePlan(path) {
+  const it = S.items.get(path);
+  const k = kindOf(path);
+  const none = { blocked: null, title: null, question: null, okLabel: null };
+  if (!it || !k) return none;
+  let blocked = null;
+  let alt = null;
+  try { blocked = k.releaseBlock?.(path, it.data) || null; } catch (e) { console.warn('[dm] releaseBlock failed', e); }
+  if (!blocked) try { alt = k.releaseAs?.(path, it.data) || null; } catch (e) { console.warn('[dm] releaseAs failed', e); }
+  return { ...none, blocked, title: alt?.title || null, question: alt?.question || null, okLabel: alt?.okLabel || null };
+}
+
+/**
  * Release a hidden item: the plain file goes back to its path (with any hidden files whose path it names, e.g. its
- * image), the envelope goes, it joins the released log and everyone gets a notification.
+ * image), the envelope goes, it joins the released log and everyone gets a notification. opts.as: the DM agreed to
+ * release it in another form (releasePlan().question, e.g. a map inside a hidden map as a map of its own).
  */
 export async function releaseItem(path, opts = {}) {
   if (!S.items.has(path) || !S.key) return null;
@@ -433,26 +455,29 @@ export async function releaseItem(path, opts = {}) {
   try { return await releaseNow(path, opts); } finally { S.busy.delete(path); }
 }
 
-async function releaseNow(path, { announce = true, attachment = false } = {}) {
+async function releaseNow(path, { announce = true, attachment = false, as = false } = {}) {
   const it = S.items.get(path);
   if (!it) return null;
-  const why = attachment ? null : kindOf(path)?.releaseBlock?.(path, it.data);
+  const kind = kindOf(path);
+  const why = attachment ? null : kind?.releaseBlock?.(path, it.data);
   if (why) throw new Error(why);
+  const alt = attachment ? null : kind?.releaseAs?.(path, it.data) || null;
+  if (alt && !as) throw new Error(alt.question || 'It can’t be released as it is.');
   await flush(it);
-  const info = describe(path, it.data);
+  const out = alt ? alt.data : it.data; // what the players get
+  const info = describe(path, out);
   const bytes = it.bin ? await plainBytes(it) : null;
   if (it.bin && !bytes) throw new Error('missing');
   it.dead = true; // a late seal must not bring the envelope back
   S.items.delete(path); // from here on the store writes the plain file
   if (it.bin) await store.putBinary(path, new Blob([bytes], { type: it.mime || mimeOf(path) }), { hidden: false });
-  else store.put(path, extOf(path) === 'json' && it.data != null ? it.data : it.text ?? '', { hidden: false });
+  else store.put(path, extOf(path) === 'json' && out != null ? out : it.text ?? '', { hidden: false });
   store.remove(it.env);
   if (it.bin) store.remove(it.bin);
   // attachments: hidden files this one names (a quest's image, a note's photos)
   if (it.text) for (const other of [...S.items.keys()]) if (it.text.includes(other)) await releaseItem(other, { announce: false, attachment: true });
   for (const other of it.with || []) if (S.items.has(other)) await releaseItem(other, { announce: false, attachment: true }); // its companions
   // and companions added (hidden) after it was hidden, e.g. places made on a hidden map; older ones were hidden on their own
-  const kind = kindOf(path);
   if (kind?.companions) {
     let later = [];
     try { later = (await kind.companions(path)) || []; } catch (e) { console.warn('[dm] companions failed', e); }
@@ -461,6 +486,7 @@ async function releaseNow(path, { announce = true, attachment = false } = {}) {
       if (o && String(o.hiddenAt || '') >= String(it.hiddenAt || '')) await releaseItem(other, { announce: false, attachment: true });
     }
   }
+  try { kind?.afterRelease?.(path); } catch (e) { console.warn('[dm] afterRelease failed', e); }
   if (attachment) { notify(); return info; }
   const now = new Date().toISOString();
   setReleased([{ path, title: info.title, label: info.label, href: info.href, at: now, by: byWho() }, ...releasedItems().filter((x) => x.path !== path)]);

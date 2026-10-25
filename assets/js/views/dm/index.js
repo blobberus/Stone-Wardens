@@ -4,7 +4,7 @@
 //   controls: core/dm-ui.js; docs/dm-mode.md.
 // - #/dm/party: the party at a glance, live (party.js; docs/dm-party.md).
 import { h, mount } from '../../core/dom.js';
-import { icon, toast, confirmDialog, choiceDialog, checkbox, pickFromList, openModal } from '../../core/ui.js';
+import { icon, toast, choiceDialog, checkbox, pickFromList, openModal } from '../../core/ui.js';
 import { store } from '../../core/store.js';
 import { navigate } from '../../core/router.js';
 import { saveSoon, saveNow } from '../../core/saving.js';
@@ -13,7 +13,7 @@ import {
   isDm, onDm, dmNewHidden, setDmNewHidden, hiddenItems, releasedItems, releaseItem, hideItem, lockDm, changeDmPassword,
   hideableKinds, isHidden, describe, forgetReleased, notificationsOf, DM_DIR, INBOX_DIR,
 } from '../../core/dm.js';
-import { dmLogin } from '../../core/dm-ui.js';
+import { dmLogin, askRelease } from '../../core/dm-ui.js';
 import { renderParty, startParty, stopParty, partyEvent } from './party.js';
 
 const VIEW = 'dm';
@@ -154,9 +154,10 @@ function releasedRow(x) {
 }
 
 async function release(x) {
-  if (!(await confirmDialog(`Release “${x.title}”? Every player will see it and get a notification in their Inbox.`, { title: 'Release to the players?', okLabel: 'Release' }))) return;
+  const how = await askRelease(x.path, x.title); // a map inside a hidden map is released as a map of its own
+  if (!how) return;
   try {
-    await releaseItem(x.path);
+    await releaseItem(x.path, how);
     saveSoon('DM release');
     toast(`Released “${x.title}”. The players have been notified.`, { type: 'success' });
   } catch (e) { toast(`Could not release it: ${e.message || e}`, { type: 'error' }); }
