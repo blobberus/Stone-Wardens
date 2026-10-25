@@ -608,6 +608,20 @@ export const locHref = (loc) => (loc.map === MAIN_MAP ? href('map', 'loc', loc.i
 /** Places on other maps that open this map. */
 export const linksTo = (mapId) => locations().filter((l) => l.submap === mapId);
 
+/**
+ * Where a place moved to another map lands at first (the mover then drags it to its spot): beside the place there that
+ * opens the map it came from, else the middle of the map (of its crop).
+ */
+export function landingSpot(mapId, fromMap = null) {
+  const cfg = readMapConfig(mapId);
+  const W = Number(cfg.width) > 0 ? Number(cfg.width) : DEFAULT_SIZE.width; // 0: the placeholder (4000 x 3000)
+  const H = Number(cfg.height) > 0 ? Number(cfg.height) : DEFAULT_SIZE.height;
+  const anchor = fromMap && locationsOn(mapId).find((l) => l.submap === fromMap);
+  if (anchor) return { x: Math.min(W, anchor.x + Math.min(W, H) * 0.02), y: anchor.y };
+  const c = normDesign(cfg.design, { width: W, height: H }).crop || { x: 0, y: 0, w: W, h: H };
+  return { x: c.x + c.w / 2, y: c.y + c.h / 2 };
+}
+
 /** Where the places of a deleted map can go: its parent, or (a map of its own) the main map; null = nowhere. */
 export function moveTargetOf(id) {
   const m = mapById(id);

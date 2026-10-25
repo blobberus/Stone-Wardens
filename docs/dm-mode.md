@@ -58,7 +58,8 @@ Envelope file names are random, so they say nothing about the item; its real pat
   hidden together with it (a map: its image and background image, fog, pictures, places and sub-maps); they are
   recorded in the envelope (`with`) and released with it, while anything that was already hidden on its own stays
   hidden. Companions added hidden later (a place made on a hidden map, its fog) are released with it too
-  (hidden after it). Hiding is all or nothing: if one companion fails, the others go back and the DM sees the error;
+  (hidden after it); one that has left since (a place moved to another map) is not: only what `companions(path)` still
+  lists is released with it. Hiding is all or nothing: if one companion fails, the others go back and the DM sees the error;
   an item being hidden or released can't be switched again until that finishes (`dmBusy`). `releaseBlock` returns why an item can't be released alone (a place on
   a hidden map would show up on the main map), and Release says so. `releaseAs` returns `{title, question, okLabel,
   data}` when an item can only be released in another form (a map inside a hidden map: as a map of its own, `parent:
@@ -112,7 +113,8 @@ places", linking to the map; more than three names read "A, B and 4 more").
 Visibility follows the item: a hidden quest's or note's uploaded photos are hidden too (a visible one's are visible),
 and renaming or moving a note, a folder of notes or a library document keeps each file hidden or visible as it was.
 Whatever is added to a hidden map (a place, a picture, its fog, a new image, a sub-map) starts hidden, and a place
-moved onto a hidden map is hidden; a copy of a hidden map starts hidden unless the DM switches it to visible.
+moved onto a hidden map is hidden; a hidden place moved off it onto a visible map stays hidden (released on its own);
+a copy of a hidden map starts hidden unless the DM switches it to visible.
 
 ## DM Screen, Inbox, staying logged in
 

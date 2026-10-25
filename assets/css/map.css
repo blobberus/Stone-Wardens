@@ -710,6 +710,10 @@
 .map-field-error { font: 500 var(--text-xs) / 1.4 var(--font-ui); color: var(--danger); }
 .map-dupe { color: var(--warn); }
 .map-pos { font: 400 var(--text-xs) / 1.4 var(--font-ui); color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+/* Edit form: Where (another map, Move pin on this one) */
+.map-where-pos { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.map-where-pos .map-pos { flex: 1 1 12rem; }
+.map-where-pos .btn { flex: none; }
 
 .map-typepick { display: flex; flex-direction: column; gap: var(--space-2); }
 .map-typepick-current {
@@ -1221,6 +1225,8 @@ a.map-crumb:hover { color: var(--link-hover); }
     transform: translateY(24px);
   }
   .map-drawer:has(.map-form) { max-height: 88%; }
+  /* Move pin in the Edit form: the sheet steps aside so the whole map can be used (the banner has Put back / Done) */
+  .map-root.is-moving .map-drawer.is-open:has(.map-form) { visibility: hidden; opacity: 0; transform: translateY(100%); }
   .map-drawer { z-index: 6; }
   .map-drawer-title { font-size: var(--text-xl); }
   /* Search and an icon-only Maps button share the row left of the toolbar; the map's name under them may run

@@ -501,12 +501,14 @@ async function releaseNow(path, { announce = true, attachment = false, as = fals
   // attachments: hidden files this one names (a quest's image, a note's photos)
   if (it.text) for (const other of [...S.items.keys()]) if (it.text.includes(other)) await releaseItem(other, { announce: false, attachment: true });
   const stay = new Set(keep);
-  for (const other of it.with || []) if (S.items.has(other) && !stay.has(other)) await releaseItem(other, { announce: false, attachment: true }); // its companions
+  // what is with it now: one hidden with it that has left since (a place moved to another map) stays hidden
+  let current = null;
+  if (kind?.companions) try { current = (await kind.companions(path)) || []; } catch (e) { console.warn('[dm] companions failed', e); }
+  const still = current && new Set(current);
+  for (const other of it.with || []) if (S.items.has(other) && !stay.has(other) && (!still || still.has(other))) await releaseItem(other, { announce: false, attachment: true }); // its companions
   // and companions added (hidden) after it was hidden, e.g. places made on a hidden map; older ones were hidden on their own
-  if (kind?.companions) {
-    let later = [];
-    try { later = (await kind.companions(path)) || []; } catch (e) { console.warn('[dm] companions failed', e); }
-    for (const other of later) {
+  if (current) {
+    for (const other of current) {
       const o = S.items.get(other);
       if (o && !stay.has(other) && String(o.hiddenAt || '') >= String(it.hiddenAt || '')) await releaseItem(other, { announce: false, attachment: true });
     }

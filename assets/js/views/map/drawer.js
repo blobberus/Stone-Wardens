@@ -10,6 +10,7 @@ import { typePicker } from './typeform.js';
 import { RANKS, rankName } from './ranks.js';
 import { mapOptions } from './submaps.js';
 import { hiddenChoice, visibilityToggle, hiddenMark } from '../../core/dm-ui.js';
+import { isHidden } from '../../core/dm.js';
 
 export async function copyText(text) {
   try {
@@ -60,13 +61,13 @@ export function rankPicker({ value, typeRank, onChange, compact = false }) {
 }
 
 /**
- * ctx: {typeOf, types, close({force}), startMove(id), finishMove(save), isMoving(), saved(loc, isNew),
+ * ctx: {typeOf, types, close({force}), startMove(id, {form}), finishMove(save), isMoving(), saved(loc, isNew, {from}),
  *       preview(form), resetPreview(), newType() -> Promise<type|null>, search(q), setLastType(id),
  *       mapId(), newSubmap({name, loc}) -> Promise<mapId|null>}
  */
 export function createDrawer(ctx) {
   const el = h('aside', { class: 'map-drawer', 'aria-label': 'Location details' });
-  const st = { mode: null, id: null, form: null, initial: '', moving: false, sig: '', setPos: null, body: null };
+  const st = { mode: null, id: null, form: null, initial: '', moving: false, sig: '', setPos: null, onMoving: null, body: null };
 
   const sigOf = (loc, type) => JSON.stringify([loc, type.name, type.color, type.icon, type.rank, loc.submap && data.mapById(loc.submap)?.name]);
   const closeBtn = () => h('button', { class: 'btn-icon map-drawer-close', type: 'button', 'aria-label': 'Close panel', title: 'Close (Esc)', onclick: () => ctx.close() }, icon('close'));
@@ -164,14 +165,15 @@ export function createDrawer(ctx) {
   // ---------- editor ----------
 
   function renderEditor({ loc, isNew }) {
+    const onMap = loc.map || ctx.mapId();
     const f = {
       name: loc.name || '', type: loc.type || 'other', rank: loc.rank || null, submap: loc.submap || '',
       description: loc.description || '', tags: (loc.tags || []).join(', '), x: loc.x, y: loc.y,
       same: loc.same || null, linkTo: null, // its group of linked places; a place picked to link it with
+      map: onMap, // another map: it moves there when saved
     };
     st.form = f;
     st.initial = JSON.stringify(f);
-    const onMap = loc.map || ctx.mapId();
     const vis = { hidden: null }; // DM mode: a new place hidden from the players?
 
     const err = h('span', { class: 'map-field-error', role: 'alert', hidden: true }, 'Give the place a name.');
@@ -201,11 +203,11 @@ export function createDrawer(ctx) {
     });
     const subSel = h('select', { class: 'select', id: 'map-f-submap' });
     const drawSub = () => mount(subSel,
-      mapOptions(f.submap, { exclude: onMap, none: 'No map' }),
+      mapOptions(f.submap, { exclude: f.map, none: 'No map' }),
       data.canDesign() ? h('option', { value: '__new' }, 'New sub-map…') : null); // new maps are the DM's
     subSel.addEventListener('change', async () => {
       if (subSel.value !== '__new') { f.submap = subSel.value; ctx.preview(f); return; }
-      const id = await ctx.newSubmap({ name: f.name.trim(), parent: onMap });
+      const id = await ctx.newSubmap({ name: f.name.trim(), parent: f.map });
       if (id) f.submap = id;
       drawSub();
       ctx.preview(f);
@@ -267,29 +269,68 @@ export function createDrawer(ctx) {
       }
     };
     drawLink();
+    // Where it is: a new spot on this map (Move pin: drag it or click the map; kept when the form is saved), or another
+    // map (it moves there when saved, and is then dragged to its spot there)
     const pos = h('span', { class: 'map-pos' });
+    const moveBtn = isNew ? null : h('button', {
+      class: 'btn btn-sm', type: 'button',
+      onclick: () => { if (ctx.isMoving()) ctx.finishMove(true); else ctx.startMove(st.id, { form: true }); },
+    });
+    const mapSel = isNew || data.maps().length < 2 ? null : h('select', { class: 'select', id: 'map-f-map' }, mapOptions(f.map));
+    const whereHint = h('span', { class: 'field-hint', hidden: true });
+    mapSel?.addEventListener('change', () => {
+      if (ctx.isMoving()) ctx.finishMove(false);
+      f.map = mapSel.value;
+      if (f.submap === f.map) f.submap = ''; // a place can't open the map it is on
+      drawSub();
+      drawPos();
+      ctx.preview(f);
+    });
+    const mapName = (id) => data.mapById(id)?.name || 'that map';
     const drawPos = () => {
-      pos.textContent = `Position ${Math.round(f.x)}, ${Math.round(f.y)}${isNew ? ' · drag the pin or click the map to adjust' : ''}`;
+      const away = !isNew && f.map !== onMap;
+      const moving = !isNew && ctx.isMoving();
+      const moved = !isNew && (Math.round(f.x) !== Math.round(loc.x) || Math.round(f.y) !== Math.round(loc.y));
+      pos.textContent = away ? `It moves to ${mapName(f.map)} when you save. Then drag it to its spot there.`
+        : moving ? 'Drag the pin, or click the map where it goes.'
+          : `Position ${Math.round(f.x)}, ${Math.round(f.y)}${isNew ? ' · drag the pin or click the map to adjust' : moved ? ' · moved, save to keep it' : ''}`;
+      if (moveBtn) {
+        moveBtn.hidden = away;
+        moveBtn.setAttribute('aria-pressed', String(moving));
+        moveBtn.title = moving ? 'Done moving (Save keeps the new spot)' : 'Drag the pin to a new spot on this map, or click the map';
+        mount(moveBtn, icon(moving ? 'check' : 'pin'), h('span', null, moving ? 'Done' : 'Move pin'));
+      }
+      // DM mode: a hidden map hides what is moved onto it; a hidden place stays hidden on a visible map
+      const hint = !away ? ''
+        : data.mapHidden(f.map) && !isHidden(loc.path) ? `${mapName(f.map)} is hidden from the players, so this place will be too.`
+          : !data.mapHidden(f.map) && isHidden(loc.path) ? 'It stays hidden from the players there until you release it.' : '';
+      whereHint.textContent = hint;
+      whereHint.hidden = !hint;
     };
     st.setPos = ({ x, y }) => { f.x = x; f.y = y; drawPos(); };
+    st.onMoving = drawPos;
     drawPos();
     checkDupe();
 
     const save = () => {
       const name = f.name.trim();
       if (!name) { err.hidden = false; nameIn.focus(); return false; }
+      if (!isNew && ctx.isMoving()) ctx.finishMove(true); // the pin's new spot goes into the form
       const tags = [...new Set(f.tags.split(',').map((s) => s.trim().replace(/^#/, '')).filter(Boolean))];
       const base = isNew ? { map: onMap } : (data.locationById(st.id) || loc);
-      const saved = data.saveLocation({ ...base, name, type: f.type, rank: f.rank, submap: f.submap || null, description: f.description, tags, x: f.x, y: f.y, same: f.same },
+      const away = !isNew && f.map !== onMap && data.mapById(f.map) ? f.map : null; // moved to another map
+      const at = away ? data.landingSpot(away, onMap) : { x: f.x, y: f.y };
+      const saved = data.saveLocation({ ...base, name, type: f.type, rank: f.rank, ...(away ? { map: away } : {}), submap: f.submap || null, description: f.description, tags, x: at.x, y: at.y, same: f.same },
         { hidden: isNew ? vis.hidden : null, linkTo: f.linkTo });
       st.form = null;
       ctx.setLastType(f.type);
-      ctx.saved(saved, isNew);
+      ctx.saved(saved, isNew, { from: away ? onMap : null });
       return true;
     };
     const cancel = async () => {
       if (isNew) { ctx.close(); return; }
       if (!(await api.confirmLeave())) return;
+      if (ctx.isMoving()) ctx.finishMove(false);
       ctx.resetPreview();
       api.showLocation(st.id);
     };
@@ -305,11 +346,16 @@ export function createDrawer(ctx) {
         h('div', { class: 'field' }, h('label', { class: 'field-label', for: 'map-f-name' }, 'Name'), nameIn, err, dupe),
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Type'), picker),
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Rank'), ranks, ranks.hint),
+        isNew ? null : h('div', { class: 'field map-where' }, // an existing place: move it on this map or to another
+          mapSel ? h('label', { class: 'field-label', for: 'map-f-map' }, 'Where') : h('span', { class: 'field-label' }, 'Where'),
+          mapSel,
+          h('div', { class: 'map-where-pos' }, pos, moveBtn),
+          whereHint),
         h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Description'), editor),
         h('div', { class: 'field' }, h('label', { class: 'field-label', for: 'map-f-submap' }, 'Opens a map'), subSel,
           h('span', { class: 'field-hint' }, 'A detailed map of this place (a city, a dungeon…). Its pin gets a seal and the panel an “Open map” link.')),
         h('div', { class: 'field' }, h('label', { class: 'field-label', for: 'map-f-tags' }, 'Tags'), tagsIn, h('span', { class: 'field-hint' }, 'Separate with commas.')),
-        pos),
+        isNew ? pos : null),
       h('footer', { class: 'map-drawer-foot' },
         h('span', { class: 'map-foot-hint' }, 'Ctrl+Enter to save'),
         h('span', { class: 'map-spacer' }),
@@ -341,7 +387,7 @@ export function createDrawer(ctx) {
     showLocation(id) {
       const loc = data.locationById(id);
       if (!loc) return false;
-      Object.assign(st, { mode: 'view', id: loc.id, form: null, setPos: null });
+      Object.assign(st, { mode: 'view', id: loc.id, form: null, setPos: null, onMoving: null });
       const title = renderView(loc);
       show();
       st.body.scrollTop = 0;
@@ -368,7 +414,7 @@ export function createDrawer(ctx) {
 
     setMoving(on) {
       st.moving = !!on;
-      if (st.mode === 'view') { const loc = data.locationById(st.id); if (loc) renderView(loc); }
+      if (st.mode === 'view') { const loc = data.locationById(st.id); if (loc) renderView(loc); } else st.onMoving?.(); // the Edit form's Move pin
     },
 
     /** Re-render the details if the location (or its type) changed, or when forced (journal changed). */
@@ -383,7 +429,7 @@ export function createDrawer(ctx) {
     },
 
     close() {
-      Object.assign(st, { mode: null, id: null, form: null, moving: false, setPos: null });
+      Object.assign(st, { mode: null, id: null, form: null, moving: false, setPos: null, onMoving: null });
       el.classList.remove('is-open');
     },
 

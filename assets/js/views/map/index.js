@@ -78,7 +78,8 @@ const S = {
   match: null, // Set of ids matching the search, or null
   selectedId: null, previewId: null,
   mode: 'idle', // 'idle' | 'placing' | 'moving'
-  moveId: null, moveFrom: null, ghost: null,
+  moveId: null, moveFrom: null, moveForm: false, ghost: null,
+  pendingMove: null, // a place just moved to another map: dragged to its spot once that map shows it
   ready: false, visible: false, pendingRoute: null, wantNewMap: false, staleMentions: false,
   dirty: { locs: false, types: false, config: false, journal: false, fog: false, pics: false }, syncQueued: false,
   ctxClosedAt: 0, resizeRaf: 0, emptyKey: '', loadTimer: 0,
@@ -1361,6 +1362,7 @@ async function openLocation(id, { fly = false } = {}) {
   setHash(loc.id);
   if (fly) flyToLoc(loc);
   else requestAnimationFrame(() => ensureVisible(loc));
+  if (S.pendingMove === loc.id) { S.pendingMove = null; startMove(loc.id, { landed: true }); }
   updateEmpty();
   return true;
 }
@@ -1381,10 +1383,18 @@ async function closeDrawer({ force = false } = {}) {
   return true;
 }
 
-function afterSave(loc, isNew) {
+function afterSave(loc, isNew, { from = null } = {}) {
   removeGhost();
   S.previewId = null;
   syncMarkers();
+  if (from && loc.map !== S.mapId) { // moved to another map (the Edit form's Where): open it there, to drag it to its spot
+    const to = data.mapById(loc.map)?.name || 'another map';
+    toast(`Moved “${loc.name}” to ${to}. ${saveHint()}`.trim(), { type: 'success' });
+    saveSoon(`map: move “${loc.name}” to ${to}`);
+    S.pendingMove = loc.id;
+    openLocation(loc.id);
+    return;
+  }
   select(loc.id);
   drawer.showLocation(loc.id);
   setDrawerOpen(true);
@@ -1421,6 +1431,7 @@ function resetPreview() {
   if (!e) return;
   e.marker.setIcon(pinIcon(e.loc, e.type, { selected: id === S.selectedId, rank: e.rank, sub: e.sub }));
   e.sig = markerSig(e.loc, e.type, e.rank, e.sub);
+  if (S.moveId !== id) e.marker.setLatLng(toLatLng(e.loc.x, e.loc.y)); // moved in the Edit form, not saved
   applyState(e);
 }
 
@@ -1502,23 +1513,34 @@ async function beginNewAt(xy) {
 }
 
 // ---------- moving (single pin, from the drawer) ----------
+// The details' Move saves the spot itself; the Edit form's Move pin (form) only hands it to the form, which saves it
+// with the rest (Cancel there puts the pin back). landed: a place just moved to this map from the Edit form.
 
-function startMove(id) {
+function startMove(id, { form = false, landed = false } = {}) {
   const e = S.markers.get(id);
   if (!e) return;
   cancelPlacing();
   closeCtx();
   S.mode = 'moving';
   S.moveId = id;
+  S.moveForm = form;
   S.moveFrom = e.marker.getLatLng();
+  if (form) S.previewId = id; // so closing the form unsaved puts it back (resetPreview)
   updateVisibility(e);
   e.marker.dragging?.enable();
   S.root.classList.add('is-moving');
   applyState(e);
-  showBanner(`Drag “${e.loc.name}” to its new place, or click the map.`, [
-    { label: 'Cancel', onClick: () => finishMove(false) },
-    { label: 'Save position', primary: true, onClick: () => finishMove(true) },
-  ], 'Enter saves · Esc cancels');
+  if (form) {
+    showBanner(`Drag “${e.loc.name}” to its new place, or click the map.`, [
+      { label: 'Put back', onClick: () => finishMove(false) },
+      { label: 'Done', primary: true, onClick: () => finishMove(true) },
+    ], 'Save the form to keep it · Esc puts it back');
+  } else {
+    showBanner(landed ? `Drag “${e.loc.name}” to its place on ${info().name}, or click the map.` : `Drag “${e.loc.name}” to its new place, or click the map.`, [
+      { label: landed ? 'Leave it here' : 'Cancel', onClick: () => finishMove(false) },
+      { label: 'Save position', primary: true, onClick: () => finishMove(true) },
+    ], landed ? 'Enter saves · Esc leaves it here' : 'Enter saves · Esc cancels');
+  }
   drawer.setMoving(true);
   updateEmpty();
 }
@@ -1527,12 +1549,21 @@ function finishMove(save) {
   if (S.mode !== 'moving') return;
   const e = S.markers.get(S.moveId);
   const from = S.moveFrom;
+  const form = S.moveForm;
   S.mode = 'idle';
   S.moveId = null;
   S.moveFrom = null;
+  S.moveForm = false;
   S.root.classList.remove('is-moving');
   hideBanner();
-  if (e) {
+  if (e && form) { // the Edit form keeps the spot (or the one it had) until it is saved
+    if (!editing()) e.marker.dragging?.disable();
+    const p = save ? clampXY(toXY(e.marker.getLatLng())) : toXY(from);
+    e.marker.setLatLng(toLatLng(p.x, p.y));
+    drawer.setPosition(p);
+    updateVisibility(e);
+    applyState(e);
+  } else if (e) {
     if (!editing()) e.marker.dragging?.disable();
     if (save) {
       const p = clampXY(toXY(e.marker.getLatLng()));
@@ -1555,6 +1586,7 @@ function onMarkerDragEnd(e) {
   if (S.moveId !== e.id) return;
   const p = clampXY(toXY(e.marker.getLatLng()));
   e.marker.setLatLng(toLatLng(p.x, p.y));
+  if (S.moveForm) drawer.setPosition(p);
 }
 
 // ---------- map events ----------
@@ -1575,7 +1607,7 @@ function onMapClick(ev) {
   if (S.mode === 'picking') { pickAt(toXY(ev.latlng)); return; }
   if (S.mode === 'placing') { placeAt(ev.latlng); return; }
   const p = clampXY(toXY(ev.latlng));
-  if (S.mode === 'moving') { S.markers.get(S.moveId)?.marker.setLatLng(toLatLng(p.x, p.y)); return; }
+  if (S.mode === 'moving') { S.markers.get(S.moveId)?.marker.setLatLng(toLatLng(p.x, p.y)); if (S.moveForm) drawer.setPosition(p); return; }
   if (drawer.mode === 'new' && S.ghost) { S.ghost.setLatLng(toLatLng(p.x, p.y)); drawer.setPosition(p); return; }
   if (drawer.mode === 'view') { closeDrawer(); return; }
   if (editing() && S.designTab === 'pictures') { pictures.select(null); return; }

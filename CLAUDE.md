@@ -148,6 +148,9 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   everything map-wide (new maps, image, name, duplicate, move, delete, zoom bands, offset / scale, design, pictures,
   fog) is the DM's (`data.canDesign()`; anyone while no DM is set up; docs/map-model.md). Parents (`maptree.js`, pure,
   `node tools/test_maptree.mjs`): absent / unknown / looping = the main map, `parent: null` = a map of its own.
+  Moving a place (docs/map-model.md "Moving a place"): the panel's Move, Edit map, or the Edit form's Where (Move pin:
+  drag / click, kept when the form is saved; or another map: it lands by `data.landingSpot`, then opens there to drag;
+  a hidden place moved off a hidden map stays hidden, dm.js releases only current `companions` with a map).
   Linked places (`twins.js`, `node tools/test_twins.mjs`; form "Same place as…"): the same place on several maps shares
   name, type, description and tags (each member holds them plus `same` group id + `sharedAt`; the latest wins on read;
   `saveLocation` writes changes to all members; own map, position, rank, submap); docs/map-model.md "Linked places".

@@ -104,6 +104,19 @@ those controls are simply not shown; a stray call says "Only the DM can …".
 - Sample content: the sub-map `starfall-vale-p94a` "Starfall Vale" (an original SVG region map) with two places,
   Brinewick and The Warden Stones. To remove it: open it, ⋯ → Delete this map… → delete the places too.
 
+## Moving a place
+
+- On its map: **Move** in the place panel (drag the pin or click the map, then Save position), Edit map (drag pins,
+  arrow keys), or the Edit location form's **Where → Move pin**: drag the pin or click the map, **Done** (or Put back);
+  the new spot is saved with the form and Cancel puts the pin back. On a narrow screen the form's sheet steps aside
+  while moving.
+- To another map: the Edit form's **Where** select lists every map this viewer can see. Saved there, the place lands
+  beside the place on that map that opens the map it came from (moving up from a sub-map), else in the middle of the
+  map (of its crop) (`data.landingSpot`); the view opens it there ready to drag ("Leave it here" / Save position), and
+  the move is committed at once (`saveSoon`). It keeps its links, type, rank and the map it opens (cleared if that is
+  the map it moved to). DM mode: moved onto a hidden map it is hidden too (the form says so); a hidden place moved onto
+  a visible map stays hidden, and is no longer released with the map it left (docs/dm-mode.md).
+
 ## Linked places (the same place on several maps)
 
 A city on the main map can be the same city on a region map: **linked places** (`twins.js`, pure, `node
