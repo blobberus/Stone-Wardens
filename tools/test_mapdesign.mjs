@@ -90,6 +90,90 @@ section('compass and border SVG');
   }
 }
 
+/** '' when the markup is balanced XML made only of tags with quoted attributes (no text), else what is wrong. */
+function xmlProblem(svg) {
+  const re = /<(\/?)([a-zA-Z][\w:-]*)((?:\s+[\w:-]+="[^"<>]*")*)\s*(\/?)>/g;
+  const stack = [];
+  let last = 0;
+  let m;
+  while ((m = re.exec(svg))) {
+    if (svg.slice(last, m.index).trim()) return `stray text at ${last}: ${svg.slice(last, m.index).slice(0, 40)}`;
+    last = re.lastIndex;
+    if (m[1]) { if (stack.pop() !== m[2]) return `mismatched </${m[2]}>`; } else if (!m[4]) stack.push(m[2]);
+  }
+  if (svg.slice(last).trim()) return `stray text at the end: ${svg.slice(last, last + 40)}`;
+  if (stack.length) return `unclosed ${stack.join(',')}`;
+  if (/NaN|undefined|Infinity|null/.test(svg)) return 'a bad number';
+  const ids = [...svg.matchAll(/\sid="([^"]+)"/g)].map((x) => x[1]);
+  if (new Set(ids).size !== ids.length) return 'duplicate ids';
+  for (const ref of [...svg.matchAll(/url\(#([^)]+)\)|href="#([^"]+)"/g)].map((x) => x[1] || x[2])) if (!ids.includes(ref)) return `missing #${ref}`;
+  for (const d of svg.matchAll(/\sd="([^"]*)"/g)) if (!/^[MmLlHhVvCcSsQqAaZz0-9.\s-]*$/.test(d[1])) return `odd path data ${d[1].slice(0, 40)}`;
+  return '';
+}
+
+section('border model');
+{
+  eq('border defaults', D.normDesign(null).border, { show: false, type: 'double', color: D.INK, accent: '', width: 1.6, pad: 0, corners: 'auto', mat: 'paper', matColor: D.PAPER });
+  eq('old single line keeps no mat', D.normDesign({ border: { show: true, type: 'line', color: '#000000', width: 2 } }).border.mat, 'none');
+  eq('old double line keeps its paper mat', D.normDesign({ border: { show: true, type: 'double', width: 2 } }).border.mat, 'paper');
+  const x = D.normDesign({ border: { type: 'bogus', corners: 'spiral', mat: 'glass', accent: 'red', matColor: 'url(x)', pad: 99, width: 0.01 } }).border;
+  eq('whitelisted and clamped', [x.type, x.corners, x.mat, x.accent, x.matColor, x.pad, x.width], ['double', 'auto', 'paper', '', D.PAPER, 5, 0.3]);
+  const y = D.normDesign({ border: { type: 'rope', corners: 'knot', mat: 'color', accent: '#ABCDEF', matColor: '#123', pad: '1.25' } }).border;
+  eq('kept and rounded', [y.type, y.corners, y.mat, y.accent, y.matColor, y.pad], ['rope', 'knot', 'color', '#abcdef', '#123', 1.3]);
+  eq('no negative gap', D.normDesign({ border: { pad: -2 } }).border.pad, 0);
+  eq('every style is known', D.BORDER_TYPES.map((t) => D.normDesign({ border: { type: t.id } }).border.type), D.BORDER_TYPES.map((t) => t.id));
+  check('every style has a good width', D.BORDER_TYPES.every((t) => t.width >= 0.3 && t.width <= 6));
+  eq('band + gap', D.borderPad({ show: true, width: 2, pad: 1 }, { x: 0, y: 0, w: 1000, h: 500 }), 15);
+  eq('own corners', ['line', 'ornate', 'rope', 'vine', 'checker', 'deco'].map((t) => D.borderCorners({ type: t, corners: 'auto' })), ['none', 'square', 'knot', 'rosette', 'blocks', 'jewel']);
+  eq('chosen corners', D.borderCorners({ type: 'ornate', corners: 'star' }), 'star');
+  eq('second color use', [D.borderAccentUse({ type: 'line', corners: 'auto' }), D.borderAccentUse({ type: 'line', corners: 'rosette' }), D.borderAccentUse({ type: 'double' })], ['', 'corners', 'inner line']);
+}
+
+section('border SVG');
+{
+  check('the SVG checker catches problems', ['<svg><g></svg>', '<svg><path d="M0 NaN"/></svg>', '<svg><use href="#x"/></svg>', '<svg>text</svg>', '<svg><g id="a"/><g id="a"/></svg>'].every((s) => xmlProblem(s))
+    && !xmlProblem('<svg viewBox="0 0 1 1"><defs><g id="a"/></defs><use href="#a"/></svg>'));
+  const rect = { x: 100, y: 50, w: 1000, h: 500 };
+  // the four older styles look as they did (same rules at the same places)
+  const old = (type) => D.borderSvg(D.normDesign({ border: { show: true, type, width: 2, color: '#000000' } }).border, rect).svg;
+  check('double: thick and thin rules', old('double').includes('<rect x="91.8" y="41.8" width="1016.4" height="516.4" fill="none" stroke="#000000" stroke-width="2.6"/>')
+    && old('double').includes('<rect x="96.8" y="46.8" width="1006.4" height="506.4" fill="none" stroke="#000000" stroke-width="1"/>') && old('double').includes(`fill="${D.PAPER}"`));
+  check('line: one rule, no mat', old('line').includes('stroke-width="4.2"') && !old('line').includes(D.PAPER));
+  check('ornate: corner squares and diamonds', (old('ornate').match(/<rect x="[^"]+" y="[^"]+" width="9.2" height="9.2"/g) || []).length === 4);
+  check('checker: corner blocks', (old('checker').match(/width="6.2" height="6.2"/g) || []).length === 4);
+  const corners = D.BORDER_CORNERS.map((c) => c.id);
+  let bad = '';
+  let n = 0;
+  for (const t of D.BORDER_TYPES) {
+    for (const corner of corners) {
+      for (const mat of ['paper', 'color', 'none']) {
+        const b = D.normDesign({ border: { show: true, type: t.id, corners: corner, mat, matColor: '#334455', accent: corner === 'star' ? '#aa0000' : '', pad: mat === 'color' ? 1.5 : 0, width: t.width } }).border;
+        const { svg, box } = D.borderSvg(b, rect, { id: `t${n++}` });
+        const p = xmlProblem(svg);
+        const B = (t.width / 100) * 500;
+        const T = B + b.pad * 5;
+        if (p) bad ||= `${t.id}/${corner}/${mat}: ${p}`;
+        else if (!svg.startsWith('<svg ') || JSON.stringify(box) !== JSON.stringify({ x: 100 - T, y: 50 - T, w: 1000 + 2 * T, h: 500 + 2 * T })) bad ||= `${t.id}/${corner}/${mat}: box ${JSON.stringify(box)}`;
+      }
+    }
+    const prev = D.borderPreviewSvg(t.id, D.normDesign({ border: { type: t.id } }).border);
+    if (xmlProblem(prev)) bad ||= `preview ${t.id}: ${xmlProblem(prev)}`;
+    for (const corner of corners) { const cp = D.borderPreviewSvg(t.id, {}, { id: `c${corner}`, corners: corner, zoom: 'corner' }); if (xmlProblem(cp)) bad ||= `corner preview ${t.id}/${corner}: ${xmlProblem(cp)}`; }
+  }
+  check(`every style × corner × mat is valid SVG (${n})`, !bad, bad);
+  const evil = D.borderSvg({ type: 'vine', color: 'url(javascript:x)', accent: '"><script>', matColor: 'red;', mat: 'color', width: 2 }, rect).svg;
+  check('colors are sanitized', !/javascript|script|red;/.test(evil) && !xmlProblem(evil));
+  const big = { x: 0, y: 0, w: 4961, h: 3508 }; // the main map
+  const sizes = D.BORDER_TYPES.map((t) => [t.id, D.borderSvg(D.normDesign({ border: { show: true, type: t.id, width: t.width } }).border, big).svg.length]);
+  const heavy = sizes.filter(([, s]) => s > 160 * 1024);
+  check('no frame is too heavy on the main map (< 160 KB)', !heavy.length, heavy);
+  const ruggedA = D.borderSvg({ type: 'burnt', width: 2.6 }, big).svg;
+  check('hand-made styles are the same every time', ruggedA === D.borderSvg({ type: 'burnt', width: 2.6 }, big).svg
+    && D.borderSvg({ type: 'inked', width: 2 }, rect).svg === D.borderSvg({ type: 'inked', width: 2 }, rect).svg);
+  const strip = D.borderSvg({ type: 'meander', width: 2 }, rect).svg;
+  check('motif strips are clipped between the corners', strip.includes('<rect x="10" y="0" width="1000" height="10"/>') && strip.includes('<rect x="10" y="0" width="500" height="10"/>'));
+}
+
 section('fog ops');
 {
   eq('rect normalized', F.normOp({ t: 'add', k: 'rect', p: [10, 10, -5, 20] }), { t: 'add', k: 'rect', p: [5, 10, 5, 20] });

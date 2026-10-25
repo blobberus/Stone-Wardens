@@ -134,7 +134,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   a copy-able `[[map:Name]]` link), the current map's name under them (`createCrumbs`: parents as links on sub-maps;
   DM mode: the sub-map's hide / release switch under it); right toolbar Add location, Filter, Labels, Ruler (once a
   scale is set), ⋯ (Design map…, Duplicate this map…, Hide compass, scale and border on this device).
-- Design per map (`design` in the map doc: background, crop, compass, scale bar + ruler + travel time, border),
+- Design per map (`design` in the map doc: background, crop, compass, scale bar + ruler + travel time, border: 15
+  styles picked from pictures, incl. hand-made inked / torn / burnt / ink wash, with corners, second color, mat, gap),
   pictures (`content/map-pictures/`) and fog of war (`content/fog/<mapId>.json`, ops `add`/`cut` × all/rect/poly/brush;
   players don't see places under it, the DM sees through it; changes fade in) are edited in Edit map's Design /
   Pictures / Fog tabs (`designpanel.js`; `data.canDesign()` = DM mode, or anyone while no DM is set up).

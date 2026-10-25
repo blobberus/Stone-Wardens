@@ -10,12 +10,15 @@ import { store } from '../../core/store.js';
 import { slugify, stripExt, extOf } from '../../core/util.js';
 import { visibilityToggle, hiddenMark } from '../../core/dm-ui.js';
 import {
-  BACKGROUNDS, COMPASS_TYPES, CORNERS, UNITS, SCALE_STYLES, BORDER_TYPES, INK, normCrop, compassSvg, fmtNum, unitName,
+  BACKGROUNDS, COMPASS_TYPES, CORNERS, UNITS, SCALE_STYLES, BORDER_TYPES, BORDER_CORNERS, BORDER_MATS, INK, PAPER, normCrop,
+  compassSvg, borderPreviewSvg, borderAccentUse, fmtNum, unitName,
 } from './design.js';
 import { FOG_STYLES } from './fog.js';
 import * as data from './data.js';
 
 const SWATCHES = [INK, '#ffffff', '#8e1b1b', '#22507c', '#8f6a14', '#23675f', '#465266'];
+const MAT_SWATCHES = [PAPER, '#f7f1e3', '#e3d2a8', '#c9b98f', '#b9c4c1', '#3a342c', '#ffffff'];
+const COLOR_NAMES = { [INK]: 'Ink', '#ffffff': 'White', [PAPER]: 'Parchment', '#f7f1e3': 'Ivory', '#e3d2a8': 'Old paper', '#c9b98f': 'Tan', '#b9c4c1': 'Sea grey', '#3a342c': 'Dark' };
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const BG_EXT = new Set(['png', 'jpg', 'jpeg', 'webp', 'svg', 'avif']);
 
@@ -62,16 +65,23 @@ function range(k, label, { min, max, step = 1, value, fmt = String, oninput, onc
   return h('label', { class: 'map-ds-field' }, h('span', { class: 'map-ds-label' }, label, out), inp);
 }
 
-function colors(k, value, onchange) {
+/** Color swatches + a custom color. auto: {label, title} adds a first choice that gives '' (the style's own color). */
+function colors(k, value, onchange, { swatches = SWATCHES, auto = null, custom = value } = {}) {
   return h('div', { class: 'map-ds-colors', role: 'group', 'aria-label': 'Color' },
-    SWATCHES.map((c) => h('button', {
+    auto ? h('button', {
+      type: 'button', class: ['map-ds-seg-btn', !value && 'is-on'], 'data-k': `${k}:auto`, title: auto.title,
+      'aria-pressed': String(!value), onclick: () => onchange(''),
+    }, h('span', null, auto.label)) : null,
+    swatches.map((c) => h('button', {
       type: 'button', class: ['map-ds-swatch', c === value && 'is-on'], style: { background: c }, 'data-k': `${k}:${c}`,
-      'aria-label': c === INK ? 'Ink' : c === '#ffffff' ? 'White' : c, 'aria-pressed': String(c === value), onclick: () => onchange(c),
+      'aria-label': COLOR_NAMES[c] || c, title: COLOR_NAMES[c] || c, 'aria-pressed': String(c === value), onclick: () => onchange(c),
     })),
-    h('input', { type: 'color', class: 'map-ds-color', value, 'data-k': `${k}:custom`, 'aria-label': 'Custom color', onchange: (e) => onchange(e.target.value) }));
+    h('input', { type: 'color', class: 'map-ds-color', value: custom, 'data-k': `${k}:custom`, 'aria-label': 'Custom color', onchange: (e) => onchange(e.target.value) }));
 }
 
 const field = (label, control) => h('label', { class: 'map-ds-field' }, h('span', { class: 'map-ds-label' }, label), control);
+/** A labelled group of buttons (a div: a <label> would pass every click on it to its first button). */
+const group = (label, control) => h('div', { class: 'map-ds-field' }, h('span', { class: 'map-ds-label' }, label), control);
 
 /**
  * ctx: {mapId(), info(), design() -> the map's design, preview(design) (show without saving), write(design),
@@ -225,13 +235,53 @@ export function createDesignPanel(ctx) {
             field('Unit of time', h('input', { class: 'input', value: s.pace.label, maxlength: 24, 'data-k': 'plabel', onchange: (e) => set((x) => { x.scale.pace.label = e.target.value.trim() || 'days on foot'; }, false) }))) : null,
           s.pace.on ? hint('D&D travel pace: 24 miles a day at a normal pace, 30 fast, 18 slow.') : null,
         ] : hint('Set the distance first: type how far it is across, or measure two points.')),
-      section('Border',
-        toggle('bshow', 'Show a border', b.show, (v) => set((x) => { x.border.show = v; })),
-        b.show ? [
-          field('Style', select(BORDER_TYPES.map((x) => ({ value: x.id, label: x.label })), b.type, (v) => set((x) => { x.border.type = v; }), { 'data-k': 'btype' })),
-          range('bwidth', 'Thickness', { min: 0.3, max: 6, step: 0.1, value: b.width, fmt: (v) => `${v}%`, oninput: (v) => { D().border.width = v; preview(); }, onchange: () => commit(false) }),
-          colors('bcol', b.color, (v) => set((x) => { x.border.color = v; })),
-        ] : null));
+      borderSection(b));
+  }
+
+  /**
+   * Border: every frame style as a little picture in this border's colors (picking one adds the border), then its
+   * thickness, the space around the map, colors, corners and what is behind the frame. docs/map-design.md.
+   */
+  function borderSection(b) {
+    const meta = BORDER_TYPES.find((t) => t.id === b.type) || BORDER_TYPES[0];
+    const pick = (t) => set((x) => {
+      // a thickness still at the old style's own value moves to the new style's; one the DM chose stays
+      if (x.border.width === BORDER_TYPES.find((o) => o.id === x.border.type)?.width) x.border.width = t.width;
+      x.border.type = t.id;
+      x.border.show = true;
+      if (t.paper && x.border.mat === 'none') x.border.mat = 'paper';
+    });
+    const accent = borderAccentUse(b);
+    const slide = (key) => ({ oninput: (v) => { D().border[key] = v; preview(); }, onchange: () => commit() }); // redraw: the pictures follow
+    return section('Border',
+      toggle('bshow', 'Show a border', b.show, (v) => set((x) => { x.border.show = v; })),
+      b.show ? null : hint('Pick a style to put a frame around the map.'),
+      h('div', { class: 'map-ds-borders', role: 'radiogroup', 'aria-label': 'Border style' }, BORDER_TYPES.map((t) => {
+        const on = b.show && t.id === b.type;
+        return h('button', {
+          type: 'button', role: 'radio', class: ['map-ds-border', on && 'is-on'], 'aria-checked': String(on), title: t.label,
+          'data-k': `btype:${t.id}`, onclick: () => pick(t),
+        }, h('span', { class: 'map-ds-border-art', innerHTML: borderPreviewSvg(t.id, b) }), h('span', { class: 'map-ds-border-name' }, t.label));
+      })),
+      b.show ? [
+        range('bwidth', 'Thickness', { min: 0.3, max: 6, step: 0.1, value: b.width, fmt: (v) => `${v}%`, ...slide('width') }),
+        range('bpad', 'Space around the map', { min: 0, max: 5, step: 0.1, value: b.pad, fmt: (v) => (v ? `${v}%` : 'None'), ...slide('pad') }),
+        group('Color', colors('bcol', b.color, (v) => set((x) => { x.border.color = v; }))),
+        accent ? group(`Second color · ${accent}`, colors('bacc', b.accent, (v) => set((x) => { x.border.accent = v; }), {
+          auto: { label: 'Auto', title: 'The style’s own second color' }, custom: b.accent || meta.tint || b.color,
+        })) : null,
+        group('Corners', h('div', { class: 'map-ds-borders is-corners', role: 'radiogroup', 'aria-label': 'Corners' }, BORDER_CORNERS.map((k) => {
+          const on = k.id === b.corners;
+          return h('button', {
+            type: 'button', role: 'radio', class: ['map-ds-border', on && 'is-on'], 'aria-checked': String(on), title: k.hint || k.label,
+            'data-k': `bcorner:${k.id}`, onclick: () => set((x) => { x.border.corners = k.id; }),
+          }, h('span', { class: 'map-ds-border-art', innerHTML: borderPreviewSvg(b.type, b, { id: `bpc${k.id}`, corners: k.id, zoom: 'corner' }) }),
+          h('span', { class: 'map-ds-border-name' }, k.label));
+        }))),
+        group('Behind the frame', segmented('bmat', 'Behind the frame', meta.paper ? BORDER_MATS.filter((m) => m.id !== 'none') : BORDER_MATS, b.mat, (v) => set((x) => { x.border.mat = v; }))),
+        b.mat === 'color' ? colors('bmatc', b.matColor, (v) => set((x) => { x.border.matColor = v; }), { swatches: MAT_SWATCHES }) : null,
+        hint('Thickness and space are shares of the map’s shorter side. The frame goes around the shown (cropped) map.'),
+      ] : null);
   }
 
   // ---------- pictures ----------
