@@ -1,17 +1,17 @@
 // DM Screen (shown in the menu only in DM mode), two pages under its tabs:
 // - #/dm: everything hidden from the players, release it (players get an Inbox notification), the released log with
-//   "Hide again", hide an existing item, create something hidden, DM settings. The layer itself: core/dm.js; shared
+//   "Hide again" and × (off the list only), hide an existing item, create something hidden, DM settings. The layer itself: core/dm.js; shared
 //   controls: core/dm-ui.js; docs/dm-mode.md.
 // - #/dm/party: the party at a glance, live (party.js; docs/dm-party.md).
 import { h, mount } from '../../core/dom.js';
-import { icon, toast, confirmDialog, pickFromList, openModal } from '../../core/ui.js';
+import { icon, toast, confirmDialog, choiceDialog, checkbox, pickFromList, openModal } from '../../core/ui.js';
 import { store } from '../../core/store.js';
 import { navigate } from '../../core/router.js';
 import { saveSoon, saveNow } from '../../core/saving.js';
 import { fmtDate } from '../../core/util.js';
 import {
   isDm, onDm, dmNewHidden, setDmNewHidden, hiddenItems, releasedItems, releaseItem, hideItem, lockDm, changeDmPassword,
-  hideableKinds, isHidden, describe, DM_DIR, INBOX_DIR,
+  hideableKinds, isHidden, describe, forgetReleased, notificationsOf, DM_DIR, INBOX_DIR,
 } from '../../core/dm.js';
 import { dmLogin } from '../../core/dm-ui.js';
 import { renderParty, startParty, stopParty, partyEvent } from './party.js';
@@ -104,6 +104,7 @@ function render() {
           h('span', { class: 'muted ui text-sm' }, 'The default of the switch in every “create” form while DM mode is on (also in the menu, under the DM button).')),
         h('div', { class: 'dm-create-btns' },
           h('a', { class: 'btn', href: '#/quests?new=1' }, icon('quests'), 'New quest'),
+          h('a', { class: 'btn', href: '#/map?new=1' }, icon('map'), 'New map'),
           h('a', { class: 'btn', href: '#/compendium?new=1' }, icon('compendium'), 'New compendium entry'),
           h('a', { class: 'btn', href: '#/journal/new' }, icon('journal'), 'New journal note'),
           h('a', { class: 'btn', href: '#/wardens-library?upload=1' }, icon('library'), 'Add documents')))),
@@ -117,7 +118,7 @@ function render() {
     h('section', { class: 'panel dm-panel' },
       h('header', { class: 'panel-head' }, icon('eye'), h('h2', null, 'Released'), h('span', { class: 'badge' }, String(released.length))),
       h('div', { class: 'panel-body' }, released.length ? [releasedBar, h('ul', { class: 'dm-list', role: 'list' }, releasedShown.map(releasedRow))]
-        : h('p', { class: 'muted ui text-sm' }, 'Nothing released yet. Released items show here; “Hide again” takes one back.'))));
+        : h('p', { class: 'muted ui text-sm' }, 'Nothing listed. Released items show here; “Hide again” takes one back, × only takes it off this list.'))));
 }
 
 function groups(list, row) {
@@ -144,7 +145,12 @@ function releasedRow(x) {
     h('span', { class: 'dm-row-main' },
       x.href && !gone ? h('a', { class: 'dm-row-title', href: x.href }, x.title) : h('span', { class: 'dm-row-title' }, x.title),
       h('span', { class: 'dm-row-meta muted' }, [x.label, x.at ? `released ${fmtDate(x.at)}` : '', gone ? 'deleted since' : ''].filter(Boolean).join(' · '))),
-    gone ? null : h('button', { class: 'btn btn-sm', type: 'button', onclick: () => hideAgain(x) }, icon('eye-off'), 'Hide again'));
+    h('span', { class: 'dm-row-acts' },
+      gone ? null : h('button', { class: 'btn btn-sm', type: 'button', onclick: () => hideAgain(x) }, icon('eye-off'), 'Hide again'),
+      h('button', {
+        class: 'btn-icon btn-sm dm-row-forget', type: 'button', onclick: () => forget(x, gone),
+        title: 'Remove from this list (it stays released)', 'aria-label': `Remove “${x.title}” from the Released list`,
+      }, icon('close'))));
 }
 
 async function release(x) {
@@ -162,6 +168,25 @@ async function hideAgain(x) {
     saveSoon('DM hide');
     toast(`“${x.title}” is hidden again. Players who already opened it may remember it, and it stays in the site’s history on GitHub.`, { timeout: 7000 });
   } catch (e) { toast(`Could not hide it: ${e.message || e}`, { type: 'error' }); }
+}
+
+/** Take an entry off the Released list: the item stays where it was released, visible to the players. */
+async function forget(x, gone) {
+  const notes = notificationsOf(x.path).length;
+  const opts = { inbox: notes > 0 };
+  const ok = await choiceDialog(h('div', { class: 'stack' },
+    h('p', null, gone
+      ? `Take “${x.title}” off the Released list? It has been deleted since.`
+      : `Take “${x.title}” off the Released list? It stays where it was released, and the players can still see it.`),
+    notes ? checkbox(true, (on) => { opts.inbox = on; }, `Also take its notification out of the players’ Inbox`) : null),
+  [{ label: 'Cancel', value: false, kind: 'ghost' }, { label: 'Remove from list', value: true, kind: 'primary' }],
+  { title: 'Remove from the Released list?' });
+  if (!ok) return;
+  try {
+    const n = forgetReleased(x.path, { inbox: opts.inbox });
+    saveSoon('DM list');
+    toast(`“${x.title}” is off the Released list${n ? ' and out of the Inbox' : ''}.${gone ? '' : ' It is still released.'}`);
+  } catch (e) { toast(`Could not remove it: ${e.message || e}`, { type: 'error' }); }
 }
 
 /** Pick any public item a tab registered as hideable (quests, library items, notes, documents, places…). */

@@ -73,10 +73,11 @@ Envelope file names are random, so they say nothing about the item; its real pat
 | Compendium | new entry / custom copy editor | entry page actions (Status: "Hidden from the players") | lists, search, recent |
 | Journal | New note dialog (quick "+" notes follow the default) | under the note's title | file tree |
 | Warden's Library | Add documents dialog | reader actions | shelf cards and table |
-| Map | New location panel, Add a sub-map, Duplicate this map (map pictures follow "New: hidden") | place panel, under the badges; a sub-map under its name plate (with everything on it); a picture in Edit map → Pictures | pin with a dashed gold edge; lock beside a map's name (plate, Maps list); dashed gold outline on a picture |
+| Map | New location panel, Add a sub-map (DM Screen: New map), Duplicate this map (map pictures follow "New: hidden") | place panel, under the badges; a sub-map under its name plate (with everything on it); a picture in Edit map → Pictures | pin with a dashed gold edge; lock beside a map's name (plate, Maps list); dashed gold outline on a picture |
 
-The DM Screen's Create buttons open those forms (`#/quests?new=1`, `#/compendium?new=1`, `#/journal/new`,
-`#/wardens-library?upload=1`).
+The DM Screen's Create buttons open those forms (`#/quests?new=1`, `#/map?new=1` = the new-map dialog over the main
+map, `#/compendium?new=1`, `#/journal/new`, `#/wardens-library?upload=1`). A new hidden map is released with the
+switch under its name plate or from Hidden from players (its places, pictures, fog and sub-maps come along).
 
 Visibility follows the item: a hidden quest's or note's uploaded photos are hidden too (a visible one's are visible),
 and renaming or moving a note, a folder of notes or a library document keeps each file hidden or visible as it was.
@@ -89,8 +90,10 @@ moved onto a hidden map is hidden; a copy of a hidden map starts hidden unless t
   released** (`#/dm`) and **Party** (`#/dm/party`: every character's hit points, AC, passive Perception, abilities,
   conditions and a private note, live; docs/dm-party.md). The menu's DM Screen link goes back to the page last shown.
   Hidden & released: Create shortcuts; **Hidden from players**
-  (grouped by category, Release); **Released** (newest first, Hide again). A released item is public again, so it is
-  only in Released; hiding it again moves it back. Both lists have category chips (All, Quests, Compendium entries,
+  (grouped by category, Release); **Released** (newest first, Hide again, × = off this list only). A released item is
+  public again, so it is only in Released; hiding it again moves it back. × (`forgetReleased(path, {inbox})`) takes the
+  entry out of `released.json` and leaves the item where it is, public; ticked (the default, shown when there is one)
+  its Inbox notification goes too (`notificationsOf(path)`). An item deleted since can only be taken off the list. Both lists have category chips (All, Quests, Compendium entries,
   Journal notes, Library documents, Map places, Images, with counts) to show one kind at a time.
 - **Inbox** (navigation): notifications of the last 14 days, unread badge; read state per device (`sw:inbox`), "Mark
   all read".

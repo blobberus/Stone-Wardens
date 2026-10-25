@@ -22,10 +22,10 @@ export function mapOptions(selected, { exclude = null, none = null } = {}) {
 }
 
 /**
- * openNewMapDialog({parent, fromLoc, name}) -> Promise<mapId|null>
+ * openNewMapDialog({parent, fromLoc, name, title}) -> Promise<mapId|null>
  * fromLoc: a place (on the parent map) that should open the new map.
  */
-export function openNewMapDialog({ parent = data.MAIN_MAP, fromLoc = null, name = '' } = {}) {
+export function openNewMapDialog({ parent = data.MAIN_MAP, fromLoc = null, name = '', title = 'Add a sub-map' } = {}) {
   return new Promise((resolve) => {
     let result = null;
     const f = { name: name || fromLoc?.name || '', parent: data.mapById(fromLoc?.map || parent) ? (fromLoc?.map || parent) : data.MAIN_MAP, from: fromLoc?.id || '', picked: null };
@@ -67,12 +67,14 @@ export function openNewMapDialog({ parent = data.MAIN_MAP, fromLoc = null, name 
       const loc = f.from && data.locationById(f.from);
       if (loc) data.saveLocation({ ...loc, submap: id });
       result = id;
-      toast(`Created the map “${n}”. ${saveHint('Press Save to share it.')}`.trim(), { type: 'success' });
+      toast(data.mapHidden(id)
+        ? `Created the map “${n}”, hidden from the players. Release it with the switch under its name or from the DM Screen.`
+        : `Created the map “${n}”. ${saveHint('Press Save to share it.')}`.trim(), { type: 'success', timeout: data.mapHidden(id) ? 6000 : 3500 });
       saveSoon(`map: new sub-map “${n}”`);
       return true;
     };
     const m = openModal({
-      title: 'Add a sub-map',
+      title,
       body,
       className: 'map-nm-modal',
       actions: [{ label: 'Cancel', kind: 'ghost' }, { label: 'Create map', kind: 'primary', onClick: create }],

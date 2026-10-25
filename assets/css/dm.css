@@ -91,10 +91,11 @@ a.dm-note-link:hover { background: var(--surface-2); }
 .dm-row-title { font: 600 var(--text-md) / 1.3 var(--font-body); color: var(--ink); overflow-wrap: anywhere; }
 a.dm-row-title { color: var(--link); }
 .dm-row-meta { font: 400 var(--text-xs) / 1.35 var(--font-ui); }
+.dm-row-acts { display: flex; flex: none; align-items: center; gap: 4px; margin-left: auto; }
 .dm-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 @media (max-width: 600px) {
   .dm-row { flex-wrap: wrap; }
-  .dm-row > .btn { margin-left: 30px; }
+  .dm-row > .btn, .dm-row > .dm-row-acts { margin-left: 30px; }
 }
 
 /* DM Screen pages (Hidden & released | Party) */

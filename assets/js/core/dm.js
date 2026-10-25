@@ -343,6 +343,22 @@ function setReleased(list) {
   store.put(RELEASED_PATH, { items: list.slice(0, RELEASED_KEEP) });
 }
 
+/** The Inbox notifications that announced this item: [{path, data}]. */
+export const notificationsOf = (path) => store.list(INBOX_DIR).filter((x) => x.data?.path === path);
+
+/**
+ * Take an item off the released log (the DM Screen's Released list); with inbox, its notifications leave the players'
+ * Inbox too. The item itself stays where it was released, visible to everyone. -> number of notifications removed.
+ */
+export function forgetReleased(path, { inbox = false } = {}) {
+  if (!S.key) throw new Error('DM mode is locked.');
+  setReleased(releasedItems().filter((x) => x.path !== path));
+  const notes = inbox ? notificationsOf(path) : [];
+  for (const n of notes) store.remove(n.path);
+  notify();
+  return notes.length;
+}
+
 /**
  * Hide an existing (public) item: seal it, then delete the plain file (earlier versions stay in the git history).
  * Uploaded images it names (content/media/…) go with it, unless another visible document names them too, and so do

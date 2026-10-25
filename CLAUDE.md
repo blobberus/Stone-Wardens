@@ -126,7 +126,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   their link types at import time and re-render from `store.on` events.
 - Routes: `#/map[/loc/<id>]`, `#/map/m/<mapId>[/loc/<id>]` (sub-maps), `#/characters[/<id>[/<section>]]`, `#/journal[/_|/<folder…>[/<note>]][?h=|q=|tag=|folder]`,
   `#/journal/new?title=`, `#/quests[/<id>[/edit]]`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`,
-  `#/dm` (DM Screen), `#/dm/party` (its Party page). `#/quests?new=1`, `#/compendium?new=1`, `#/wardens-library?upload=1` open the create forms.
+  `#/dm` (DM Screen), `#/dm/party` (its Party page). `#/quests?new=1`, `#/map?new=1`, `#/compendium?new=1`, `#/wardens-library?upload=1` open the create forms.
 
 ## Map tab
 - Model, routes, ranks and links: `docs/map-model.md`. Controls float over the map: search (top left) with the
@@ -153,7 +153,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   `{hidden: isHidden(source)}` so visibility follows the item. `registerHideable` may add `companions(path)` (hidden and
   released together, recorded as `with` in the envelope: a sub-map takes its places, image, pictures, fog, sub-maps) and
   `releaseBlock(path, data)` (a place of a hidden map can't be released alone); anything added to a hidden map is hidden. DM Screen tab (views/dm, menu only in DM mode): hidden
-  list + Release, released log + Hide again, hide an existing item, New-items-hidden default; a second tab **Party**
+  list + Release, released log + Hide again + × (`forgetReleased`: off the list only, the item stays public; optionally
+  its Inbox notification too), hide an existing item, Create buttons (New quest, New map…), New-items-hidden default; a second tab **Party**
   (`#/dm/party`, views/dm/party.js + pure party-model.js, docs/dm-party.md): every character on one screen (cards scale
   to fit the view, up to six at a glance in a DM Screen pane) with HP, AC, passive Perception, abilities, conditions
   and a private note each (sealed in `content/dm/party.json`, `dm.js readSealed/writeSealed`), live (core/live.js) with

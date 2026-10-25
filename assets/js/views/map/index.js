@@ -75,7 +75,7 @@ const S = {
   selectedId: null, previewId: null,
   mode: 'idle', // 'idle' | 'placing' | 'moving'
   moveId: null, moveFrom: null, ghost: null,
-  ready: false, visible: false, pendingRoute: null, staleMentions: false,
+  ready: false, visible: false, pendingRoute: null, wantNewMap: false, staleMentions: false,
   dirty: { locs: false, types: false, config: false, journal: false, fog: false, pics: false }, syncQueued: false,
   ctxClosedAt: 0, resizeRaf: 0, emptyKey: '', loadTimer: 0,
   design: null, designDraft: null, view: null, imageUrl: '', cropping: false, designTab: null, pick: null,
@@ -390,7 +390,8 @@ async function init() {
   }
   S.ready = true;
   updateEmpty();
-  if (r) applyRoute(r, true);
+  if (r) await applyRoute(r, true);
+  newMapAsked();
 }
 
 // ---------- maps / image / config ----------
@@ -990,10 +991,17 @@ async function editType(t) {
 
 // ---------- sub-maps ----------
 
-async function addSubmap({ fromLoc = null, name = '' } = {}) {
-  const id = await openNewMapDialog({ parent: S.mapId, fromLoc, name });
+async function addSubmap({ fromLoc = null, name = '', title } = {}) {
+  const id = await openNewMapDialog({ parent: S.mapId, fromLoc, name, title });
   if (id) navigate(data.mapHref(id));
   return id;
+}
+
+/** #/map?new=1 (the DM Screen's "New map"): the new-map dialog over the main map, once it has loaded. */
+function newMapAsked() {
+  if (!S.wantNewMap) return;
+  S.wantNewMap = false;
+  addSubmap({ title: 'New map' });
 }
 
 async function copyCurrentMap() {
@@ -1535,6 +1543,7 @@ function onKey(e) {
 // #/map                         main map
 // #/map/loc/<id>                a place (on whatever map it is; sub-map places get the long form)
 // #/map/m/<mapId>[/loc/<id>]    a sub-map, optionally with one of its places open
+// #/map?new=1                   the main map with the new-map dialog open (DM Screen "New map")
 
 function routeTarget(parts = []) {
   const [a, b, c, d] = parts;
@@ -1592,8 +1601,9 @@ function showView(route) {
   });
   if (S.staleMentions) { S.staleMentions = false; drawer.refresh({ force: true }); }
   const parts = route?.parts || [];
+  if (route?.query?.new) { S.wantNewMap = true; history.replaceState(null, '', '#/map'); } // asked once: Back or reload don't reopen it
   if (!S.ready) { S.pendingRoute = parts; return; }
-  applyRoute(parts, fromElsewhere);
+  applyRoute(parts, fromElsewhere).then(newMapAsked);
 }
 
 function hideView() {
