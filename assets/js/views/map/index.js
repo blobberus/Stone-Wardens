@@ -27,8 +27,8 @@ import { RANK_IDS, rankOpacity, rankWhere, normBands } from './ranks.js';
 import { openNewMapDialog, deleteMapFlow, openMoveMapDialog } from './submaps.js';
 import { createEditor } from './edit.js';
 import { createCollection } from './collection.js';
-import { registerHideable, isHidden, onDmMode, isDm } from '../../core/dm.js';
-import { visibilityToggle, hiddenMark } from '../../core/dm-ui.js';
+import { registerHideable, isHidden, onDmMode, isDm, releaseTogether } from '../../core/dm.js';
+import { visibilityToggle, hiddenMark, pickToRelease } from '../../core/dm-ui.js';
 import { normDesign, normCrop, borderPad, hasDecorations } from './design.js';
 import { fogCovers, fogActive } from './fog.js';
 import { createDecor, DECOR_PANE, BORDER_PANE } from './decor.js';
@@ -238,6 +238,8 @@ function mountView(el) {
     canDesign: data.canDesign,
     designMap: () => toggleEdit(true, 'design'),
     copyMap: dmOnly('duplicate maps', () => copyCurrentMap()),
+    hiddenPlaces: () => hiddenPlacesHere().length,
+    revealPlaces,
     hasDecor: () => hasDecorations(S.design),
     decorOff,
     toggleDecor,
@@ -1048,6 +1050,37 @@ function newMapAsked() {
   if (!S.wantNewMap) return;
   S.wantNewMap = false;
   dmOnly('add maps', () => addSubmap({ title: 'New map' }))();
+}
+
+/** DM mode on a visible map: its hidden places (⋯ → Reveal hidden places…; a hidden map asks when it is released). */
+const hiddenPlacesHere = () => (isDm() && !data.mapHidden(S.mapId) ? data.locationsOn(S.mapId).filter((l) => isHidden(l.path)) : []);
+
+/** Release several hidden places of this map at once, under one notification in the players' Inbox. */
+async function revealPlaces() {
+  const list = hiddenPlacesHere().sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  if (!list.length) { toast('Every place on this map is visible to the players.'); return; }
+  const mapName = info().name;
+  const plural = (k) => `${k} place${k === 1 ? '' : 's'}`;
+  const picked = await pickToRelease({
+    title: 'Reveal hidden places',
+    intro: `Tick the places on “${mapName}” to show the players. They get one notification in their Inbox for all of them.`,
+    heading: 'Hidden places',
+    items: list.map((l) => ({ path: l.path, title: l.name, checked: false })),
+    okLabel: (k) => (k ? `Reveal ${plural(k)}` : 'Reveal'),
+  });
+  if (!picked?.size) return;
+  const names = list.filter((l) => picked.has(l.path)).map((l) => l.name);
+  const title = names.length <= 3 ? names.join(names.length === 3 ? ', ' : ' and ').replace(/, ([^,]*)$/, ' and $1')
+    : `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`;
+  try {
+    const n = await releaseTogether(list.filter((l) => picked.has(l.path)).map((l) => l.path), { title, label: 'Map places', href: data.mapHref(S.mapId) });
+    saveSoon('DM release');
+    toast(`Revealed ${plural(n)}. The players have ${n === 1 ? 'a' : 'one'} notification.`, { type: 'success' });
+  } catch (e) {
+    toast(`Could not reveal them all: ${e.message || e}`, { type: 'error' });
+  }
+  syncMarkers();
+  menu.pop.refresh();
 }
 
 async function copyCurrentMap() {

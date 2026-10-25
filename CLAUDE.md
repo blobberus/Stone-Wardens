@@ -174,8 +174,10 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   released together, recorded as `with` in the envelope: a map takes its places, image, pictures, fog, sub-maps; the
   main map every map inside it, not the maps of their own), `releaseBlock(path, data)` (a place of a hidden map can't
   be released alone), `releaseAs(path, data)` (released in another form after a question: a map inside a hidden map
-  becomes a map of its own; `releasePlan`, dm-ui `askRelease`, `releaseItem(p, {as: true})`) and `afterHide` /
-  `afterRelease` (the main map's public marker); anything added to a hidden map is hidden. DM Screen tab (views/dm, menu only in DM mode): hidden
+  becomes a map of its own; `releasePlan`, dm-ui `askRelease`, `releaseItem(p, {as: true})`), `afterHide` /
+  `afterRelease` (the main map's public marker) and `releaseChoices(path, data)` + `choiceNoun` (a map's hidden places:
+  a checklist in the release question, `pickToRelease`; `releaseItem(p, {also, keep})`, one notification for all;
+  ⋯ → Reveal hidden places… on a visible map: `releaseTogether`); anything added to a hidden map is hidden. DM Screen tab (views/dm, menu only in DM mode): hidden
   list + Release, released log + Hide again + × (`forgetReleased`: off the list only, the item stays public; optionally
   its Inbox notification too), hide an existing item, Create buttons (New quest, New map…), New-items-hidden default; a second tab **Party**
   (`#/dm/party`, views/dm/party.js + pure party-model.js, docs/dm-party.md): every character on one screen (cards scale

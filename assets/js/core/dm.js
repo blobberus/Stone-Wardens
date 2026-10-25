@@ -40,7 +40,9 @@ const kinds = []; // {prefix, label, icon, describe(path, data) -> {title, href}
  * with it; releaseBlock(path, data) -> a reason it can't be released on its own (a place on a hidden map), or null;
  * releaseAs(path, data) -> {title, question, okLabel, data} when it can only be released in another form, after the
  * DM confirms the question (a map inside a hidden map: as a map of its own), or null; afterHide(path) /
- * afterRelease(path): called once it is hidden / released (the main map's public "hidden" marker).
+ * afterRelease(path): called once it is hidden / released (the main map's public "hidden" marker);
+ * releaseChoices(path, data) -> [paths] the DM picks from when releasing it (a map's places: those that would come
+ * along, ticked, and those hidden on their own, not), with choiceNoun: [one, many] ('place', 'places').
  */
 export function registerHideable(def) {
   const i = kinds.findIndex((k) => k.prefix === def.prefix);
@@ -444,9 +446,30 @@ export function releasePlan(path) {
 }
 
 /**
+ * What the DM may pick from when releasing a hidden item (registerHideable releaseChoices: a map's hidden places).
+ * -> {items: [{path, title, label, href, along}], one, many}; along: it would be released with the item anyway (hidden
+ * with it, or added while it was hidden), else it was hidden on its own and stays hidden unless picked.
+ */
+export function releaseChoices(path) {
+  const it = S.items.get(path);
+  const k = kindOf(path);
+  const [one, many] = k?.choiceNoun || ['item', 'items'];
+  if (!it || !k?.releaseChoices) return { items: [], one, many };
+  let list = [];
+  try { list = k.releaseChoices(path, it.data) || []; } catch (e) { console.warn('[dm] releaseChoices failed', e); }
+  const withIt = new Set(it.with || []);
+  const items = [...new Set(list)].filter((p) => p !== path && S.items.has(p)).map((p) => ({
+    path: p, ...describe(p), along: withIt.has(p) || String(S.items.get(p).hiddenAt || '') >= String(it.hiddenAt || ''),
+  }));
+  return { items, one, many };
+}
+
+/**
  * Release a hidden item: the plain file goes back to its path (with any hidden files whose path it names, e.g. its
  * image), the envelope goes, it joins the released log and everyone gets a notification. opts.as: the DM agreed to
  * release it in another form (releasePlan().question, e.g. a map inside a hidden map as a map of its own).
+ * opts.also / opts.keep (releaseChoices, the DM's picks): hidden on their own but released with it (each in the
+ * Released list, all under its one notification) / would come along but stay hidden.
  */
 export async function releaseItem(path, opts = {}) {
   if (!S.items.has(path) || !S.key) return null;
@@ -455,7 +478,7 @@ export async function releaseItem(path, opts = {}) {
   try { return await releaseNow(path, opts); } finally { S.busy.delete(path); }
 }
 
-async function releaseNow(path, { announce = true, attachment = false, as = false } = {}) {
+async function releaseNow(path, { announce = true, attachment = false, as = false, also = [], keep = [] } = {}) {
   const it = S.items.get(path);
   if (!it) return null;
   const kind = kindOf(path);
@@ -463,6 +486,7 @@ async function releaseNow(path, { announce = true, attachment = false, as = fals
   if (why) throw new Error(why);
   const alt = attachment ? null : kind?.releaseAs?.(path, it.data) || null;
   if (alt && !as) throw new Error(alt.question || 'It can’t be released as it is.');
+  const offered = attachment ? [] : releaseChoices(path).items.map((c) => c.path); // counted in its notification
   await flush(it);
   const out = alt ? alt.data : it.data; // what the players get
   const info = describe(path, out);
@@ -476,23 +500,48 @@ async function releaseNow(path, { announce = true, attachment = false, as = fals
   if (it.bin) store.remove(it.bin);
   // attachments: hidden files this one names (a quest's image, a note's photos)
   if (it.text) for (const other of [...S.items.keys()]) if (it.text.includes(other)) await releaseItem(other, { announce: false, attachment: true });
-  for (const other of it.with || []) if (S.items.has(other)) await releaseItem(other, { announce: false, attachment: true }); // its companions
+  const stay = new Set(keep);
+  for (const other of it.with || []) if (S.items.has(other) && !stay.has(other)) await releaseItem(other, { announce: false, attachment: true }); // its companions
   // and companions added (hidden) after it was hidden, e.g. places made on a hidden map; older ones were hidden on their own
   if (kind?.companions) {
     let later = [];
     try { later = (await kind.companions(path)) || []; } catch (e) { console.warn('[dm] companions failed', e); }
     for (const other of later) {
       const o = S.items.get(other);
-      if (o && String(o.hiddenAt || '') >= String(it.hiddenAt || '')) await releaseItem(other, { announce: false, attachment: true });
+      if (o && !stay.has(other) && String(o.hiddenAt || '') >= String(it.hiddenAt || '')) await releaseItem(other, { announce: false, attachment: true });
     }
   }
   try { kind?.afterRelease?.(path); } catch (e) { console.warn('[dm] afterRelease failed', e); }
   if (attachment) { notify(); return info; }
+  for (const other of also) {
+    if (!S.items.has(other)) continue;
+    try { await releaseItem(other, { announce: false }); } catch (e) { console.warn('[dm] could not release', other, e); }
+  }
   const now = new Date().toISOString();
   setReleased([{ path, title: info.title, label: info.label, href: info.href, at: now, by: byWho() }, ...releasedItems().filter((x) => x.path !== path)]);
-  if (announce) postNotification({ title: info.title, label: info.label, href: info.href, path });
+  const n = offered.filter((p) => !S.items.has(p)).length; // its places (say) shown with it now
+  const [one, many] = kind?.choiceNoun || ['item', 'items'];
+  if (announce) postNotification({ title: info.title, label: n ? `${info.label} and ${n} ${n === 1 ? one : many}` : info.label, href: info.href, path });
   notify();
   return info;
+}
+
+/**
+ * Release several hidden items under one notification, e.g. places on a visible map picked together. Each joins the
+ * Released list. note: {title, label, href} for the Inbox when there is more than one (one alone gets its own).
+ * -> how many were released. A failure stops there: what was released so far is announced, then it throws.
+ */
+export async function releaseTogether(paths, note) {
+  const infos = [];
+  let error = null;
+  for (const p of paths) {
+    if (!S.items.has(p)) continue;
+    try { const info = await releaseItem(p, { announce: false }); if (info) infos.push({ path: p, ...info }); } catch (e) { error = e; break; }
+  }
+  if (infos.length === 1) postNotification({ title: infos[0].title, label: infos[0].label, href: infos[0].href, path: infos[0].path });
+  else if (infos.length) postNotification(note);
+  if (error) throw error;
+  return infos.length;
 }
 
 // ---------- inbox ----------

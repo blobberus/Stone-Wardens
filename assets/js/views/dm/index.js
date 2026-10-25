@@ -13,7 +13,7 @@ import {
   isDm, onDm, dmNewHidden, setDmNewHidden, hiddenItems, releasedItems, releaseItem, hideItem, lockDm, changeDmPassword,
   hideableKinds, isHidden, describe, forgetReleased, notificationsOf, DM_DIR, INBOX_DIR,
 } from '../../core/dm.js';
-import { dmLogin, askRelease } from '../../core/dm-ui.js';
+import { dmLogin, askRelease, releasedText } from '../../core/dm-ui.js';
 import { renderParty, startParty, stopParty, partyEvent } from './party.js';
 
 const VIEW = 'dm';
@@ -159,7 +159,7 @@ async function release(x) {
   try {
     await releaseItem(x.path, how);
     saveSoon('DM release');
-    toast(`Released “${x.title}”. The players have been notified.`, { type: 'success' });
+    toast(releasedText(x.title, how), { type: 'success' });
   } catch (e) { toast(`Could not release it: ${e.message || e}`, { type: 'error' }); }
 }
 

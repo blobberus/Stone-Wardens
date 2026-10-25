@@ -93,6 +93,16 @@ a.dm-row-title { color: var(--link); }
 .dm-row-meta { font: 400 var(--text-xs) / 1.35 var(--font-ui); }
 .dm-row-acts { display: flex; flex: none; align-items: center; gap: 4px; margin-left: auto; }
 .dm-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+/* Release with a checklist (a map's places; ⋯ → Reveal hidden places): pickToRelease */
+.dm-rel-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
+.dm-rel-all { display: inline-flex; gap: 2px; margin-left: auto; }
+.dm-rel-list {
+  display: flex; flex-direction: column; gap: 2px; margin: 0; padding: var(--space-2); list-style: none;
+  max-height: min(46vh, 360px); overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2);
+}
+.dm-rel-list > li[hidden] { display: none; }
+.dm-rel-item { padding: 4px 2px; }
+.dm-rel-item small { font: 400 var(--text-xs) / 1.3 var(--font-ui); }
 @media (max-width: 600px) {
   .dm-row { flex-wrap: wrap; }
   .dm-row > .btn, .dm-row > .dm-row-acts { margin-left: 30px; }

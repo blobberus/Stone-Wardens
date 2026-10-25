@@ -813,6 +813,9 @@ registerHideable({
     ? { title: String(d?.name || '').trim() || DEFAULT_MAP_NAME, href: mapHref(MAIN_MAP) }
     : { title: `Image of ${mainName()}`, href: mapHref(MAIN_MAP) }),
   companions: (path) => (path === CONFIG_PATH ? mapCompanions(MAIN_MAP) : []),
+  // its hidden places, picked in the release question (one notification for the map and the ones ticked)
+  releaseChoices: (path) => (path === CONFIG_PATH ? locationsOn(MAIN_MAP).map((l) => l.path) : []),
+  choiceNoun: ['place', 'places'],
   releaseBlock: (path) => (path === CONFIG_PATH ? null : hiddenMapReason(MAIN_MAP, 'This image')),
   afterHide: (path) => { if (path === CONFIG_PATH) store.put(MAIN_HIDDEN_PATH, { hidden: true }, { hidden: false }); },
   afterRelease: (path) => { if (path === CONFIG_PATH && store.has(MAIN_HIDDEN_PATH)) store.remove(MAIN_HIDDEN_PATH); },
@@ -824,6 +827,8 @@ registerHideable({
     return isMapDoc(path) ? { title: d?.name || mapById(id)?.name || 'Map', href: mapHref(id) } : { title: `Image of ${mapById(id)?.name || 'a map'}`, href: mapHref(id) };
   },
   companions: (path) => (isMapDoc(path) ? mapCompanions(mapIdOfPath(path)) : []),
+  releaseChoices: (path) => (isMapDoc(path) ? locationsOn(mapIdOfPath(path)).map((l) => l.path) : []),
+  choiceNoun: ['place', 'places'],
   releaseBlock: (path) => (isMapDoc(path) ? null : hiddenMapReason(mapIdOfPath(path), 'This image')),
   // Inside a map that is still hidden: released as a map of its own (parent null), with everything on it.
   releaseAs: (path, d) => {

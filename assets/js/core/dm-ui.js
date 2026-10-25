@@ -11,7 +11,7 @@ import { store } from './store.js';
 import { saveNow, saveSoon } from './saving.js';
 import {
   isDm, isHidden, onDm, dmConfigured, setupDm, unlockDm, dmNewHidden, setDmNewHidden, hideItem, releaseItem, describe,
-  isHideablePath, INBOX_DIR, dmBusy, releasePlan,
+  isHideablePath, INBOX_DIR, dmBusy, releasePlan, releaseChoices,
 } from './dm.js';
 
 const INBOX_KEY = 'sw:inbox'; // {seen: ISO time everything before is read, read: [id]}
@@ -209,16 +209,96 @@ function when(at) {
 /**
  * Ask the DM before releasing a hidden item (the switch and the DM Screen's Release). Resolves the options for
  * releaseItem, or null: canceled, or it can't be released on its own (a toast says why). An item that can only be
- * released in another form (a map inside a hidden map: as a map of its own) asks that question instead.
+ * released in another form (a map inside a hidden map: as a map of its own) asks that question instead. An item with
+ * choices (releaseChoices: a map's hidden places) asks with a checklist: those that would come along are ticked,
+ * those hidden on their own not; all the ticked ones go out with it under one notification ({also, keep, extra}).
  */
 export async function askRelease(path, name = describe(path).title) {
   const plan = releasePlan(path);
   if (plan.blocked) { toast(plan.blocked, { type: 'error', timeout: 7000 }); return null; }
-  const tail = 'Every player will see it and get a notification in their Inbox.';
-  if (plan.question) {
-    return (await confirmDialog(`${plan.question} ${tail}`, { title: plan.title || 'Release to the players?', okLabel: plan.okLabel || 'Release' })) ? { as: true } : null;
+  const title = (plan.question && plan.title) || 'Release to the players?';
+  const okLabel = (plan.question && plan.okLabel) || 'Release';
+  const as = plan.question ? { as: true } : {};
+  const ask = plan.question || `Release “${name}”?`;
+  const { items, one, many } = releaseChoices(path);
+  if (!items.length) {
+    return (await confirmDialog(`${ask} Every player will see it and get a notification in their Inbox.`, { title, okLabel })) ? as : null;
   }
-  return (await confirmDialog(`Release “${name}”? ${tail}`, { title: 'Release to the players?', okLabel: 'Release' })) ? {} : null;
+  const count = (k) => `${k} ${k === 1 ? one : many}`;
+  const picked = await pickToRelease({
+    title,
+    intro: `${ask} Every player will see it, with the ${many} you tick below, and get one notification in their Inbox for all of it.`,
+    heading: `Hidden ${many} on it`,
+    items: items.map((x) => ({ path: x.path, title: x.title, checked: x.along, note: x.along ? '' : 'hidden on its own' })),
+    okLabel: (k) => (k ? `${okLabel} with ${count(k)}` : okLabel),
+    footnote: `Unticked ${many} stay hidden; you can release them later.`,
+  });
+  if (!picked) return null;
+  return {
+    ...as,
+    also: items.filter((x) => !x.along && picked.has(x.path)).map((x) => x.path),
+    keep: items.filter((x) => x.along && !picked.has(x.path)).map((x) => x.path),
+    extra: picked.size ? count(picked.size) : '',
+  };
+}
+
+/** The toast after a release (askRelease's answer says what went with it). */
+export const releasedText = (name, how) => `Released “${name}”${how?.extra ? ` with ${how.extra}` : ''}. The players have been notified.`;
+
+/**
+ * A checklist of hidden items to release together (a map's release: its places; the map's ⋯ → Reveal hidden places).
+ * items: [{path, title, checked, note}]; okLabel(n) names the button for n ticked. A filter shows for long lists.
+ * -> Promise<Set of the ticked paths, or null when canceled>.
+ */
+export function pickToRelease({ title, intro, heading, items, okLabel, footnote = '' }) {
+  return new Promise((resolve) => {
+    const picked = new Set(items.filter((x) => x.checked).map((x) => x.path));
+    let result = null;
+    let m = null;
+    const count = h('span', { class: 'dm-rel-count muted ui text-xs', 'aria-live': 'polite' });
+    const sync = () => {
+      count.textContent = `${picked.size} of ${items.length} ticked`;
+      const btn = m?.el.querySelector('.modal-foot .btn-primary');
+      if (btn) btn.textContent = okLabel(picked.size);
+    };
+    const rows = items.map((x) => {
+      const box = h('input', {
+        type: 'checkbox', checked: picked.has(x.path),
+        onchange: (e) => { if (e.target.checked) picked.add(x.path); else picked.delete(x.path); sync(); },
+      });
+      return { x, box, row: h('li', null, h('label', { class: 'checkbox dm-rel-item' }, box,
+        h('span', null, x.title, x.note ? h('small', { class: 'muted' }, ` · ${x.note}`) : null))) };
+    });
+    const setAll = (on) => {
+      for (const r of rows) {
+        if (r.row.hidden) continue; // only what the filter shows
+        r.box.checked = on;
+        if (on) picked.add(r.x.path); else picked.delete(r.x.path);
+      }
+      sync();
+    };
+    const filter = items.length > 8 ? h('input', {
+      class: 'input dm-rel-filter', type: 'search', placeholder: 'Find…', 'aria-label': 'Find in the list',
+      oninput: (e) => { const q = e.target.value.trim().toLowerCase(); for (const r of rows) r.row.hidden = !!q && !r.x.title.toLowerCase().includes(q); },
+    }) : null;
+    m = openModal({
+      title,
+      className: 'dm-rel-modal',
+      body: h('div', { class: 'stack dm-rel' },
+        h('p', null, intro),
+        h('div', { class: 'dm-rel-head' },
+          h('strong', { class: 'ui text-sm' }, heading), count,
+          h('span', { class: 'dm-rel-all' },
+            h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: () => setAll(true) }, 'Tick all'),
+            h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: () => setAll(false) }, 'Untick all'))),
+        filter,
+        h('ul', { class: 'dm-rel-list', role: 'list' }, rows.map((r) => r.row)),
+        footnote ? h('p', { class: 'muted ui text-xs' }, footnote) : null),
+      actions: [{ label: 'Cancel', kind: 'ghost' }, { label: okLabel(picked.size), kind: 'primary', onClick: () => { result = picked; } }],
+      onClose: () => resolve(result),
+    });
+    sync();
+  });
 }
 
 /**
@@ -248,7 +328,7 @@ export function visibilityToggle(path, opts = {}) {
           if (!how) return;
           await releaseItem(p, how);
           saveSoon('DM release');
-          toast(`Released “${name}”. The players have been notified.`, { type: 'success' });
+          toast(releasedText(name, how), { type: 'success' });
         } else {
           const ask = confirmHide?.();
           if (ask && !(await confirmDialog(ask, { title: 'Hide from the players?', okLabel: 'Hide' }))) return;

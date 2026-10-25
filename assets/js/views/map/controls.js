@@ -314,6 +314,7 @@ export function createMenu(ctx) {
     const subs = ctx.subMaps();
     const editing = ctx.editing();
     const manage = !!ctx.canDesign?.(); // new maps, images, names, copies, deletions: the DM's (anyone while no DM is set up)
+    const hiddenN = ctx.hiddenPlaces?.() || 0; // DM mode: hidden places on this (visible) map
     panel.append(
       h('div', { class: 'map-menu-head' },
         h('strong', null, info.name),
@@ -322,6 +323,7 @@ export function createMenu(ctx) {
         item(editing ? 'check' : 'edit', editing ? 'Finish editing' : 'Edit map', ctx.toggleEdit, { hint: editing ? 'Back to the normal map' : 'Move, rename and re-rank every place', cls: 'map-menu-strong' }),
         item('filter', 'Filter places…', ctx.openFilter, { hint: 'By rank or location type' }),
         ctx.canDesign?.() ? item('compass', 'Design map…', ctx.designMap, { hint: 'Background, crop, compass, scale, border, pictures, fog' }) : null,
+        hiddenN ? item('eye', 'Reveal hidden places…', ctx.revealPlaces, { hint: `${hiddenN} hidden here: pick some, one notification for all` }) : null,
         ctx.hasDecor?.() ? item(ctx.decorOff() ? 'eye' : 'eye-off', ctx.decorOff() ? 'Show compass, scale and border' : 'Hide compass, scale and border', ctx.toggleDecor, { hint: 'On this device only' }) : null,
         h('hr', { class: 'map-menu-sep' }),
         h('p', { class: 'map-menu-label' }, info.isMain ? 'Sub-maps' : `Sub-maps of ${info.name}`),

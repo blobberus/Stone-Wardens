@@ -53,7 +53,7 @@ Envelope file names are random, so they say nothing about the item; its real pat
   document names them.
 - **Tabs** register what they can hide: `registerHideable({prefix, label, icon, order, accept(path), describe(path,
   data) -> {title, href}, companions?(path), releaseBlock?(path, data), releaseAs?(path, data), afterHide?(path),
-  afterRelease?(path)})` (quests, compendium library items, journal notes, Warden's Library documents, map places, the
+  afterRelease?(path), releaseChoices?(path, data), choiceNoun?})` (quests, compendium library items, journal notes, Warden's Library documents, map places, the
   main map, sub-maps, map pictures; `content/media/` images ride along with their item). `companions(path)` lists items
   hidden together with it (a map: its image and background image, fog, pictures, places and sub-maps); they are
   recorded in the envelope (`with`) and released with it, while anything that was already hidden on its own stays
@@ -64,7 +64,14 @@ Envelope file names are random, so they say nothing about the item; its real pat
   data}` when an item can only be released in another form (a map inside a hidden map: as a map of its own, `parent:
   null`): `releasePlan(path)` tells the UI, which asks that question instead of the usual one, and `releaseItem(path,
   {as: true})` writes `data` as the public document. `afterHide` / `afterRelease` run once it is done (the main map's
-  public marker). Both the switch and the DM Screen's Release go through `askRelease(path)` (dm-ui.js). `accept` also limits the safety net: journal folder metadata
+  public marker). Both the switch and the DM Screen's Release go through `askRelease(path)` (dm-ui.js).
+  `releaseChoices(path, data)` lists hidden items the DM picks from when releasing it (a map: its hidden places;
+  `choiceNoun: ['place', 'places']`): `releaseChoices(path)` in dm.js marks each `along` (hidden with it or added while
+  it was hidden: ticked) or not (hidden on its own: unticked), `askRelease` shows them as a checklist
+  (`pickToRelease`), and `releaseItem(path, {also, keep})` releases the ticked ones hidden on their own too (each in
+  the Released list) and leaves the unticked ones hidden; the players get one notification ("new map and 3 places").
+  `releaseTogether(paths, {title, label, href})` releases several items under one notification (the map's ⋯ →
+  Reveal hidden places…). `accept` also limits the safety net: journal folder metadata
   (`_chapter.json`) and library READMEs are never hidden. Tabs redraw their switches and marks on `onDmMode(fn)`
   (DM mode turned on or off).
 - **Saving** seals pending edits first (`store.save` waits for `layer.flush()`), and `store.isDirty()` counts them, so
@@ -94,6 +101,13 @@ hidden with it (and what was added to it while hidden), not what the DM had hidd
 still-hidden map (the main map or any other) can be released first: Release asks "Release it as a map of its own, not
 linked to that map?" and the players get it with `parent: null`, with its places, pictures, fog and sub-maps. A place,
 picture or fog of a hidden map still can't be released alone.
+
+**Revealing several places at once.** Releasing a map (any map, the main one too) asks with a checklist of its hidden
+places: those that would come along are ticked, those hidden on their own are not ("hidden on its own"). Untick a
+place to keep it hidden, tick one to bring it along; the map and every ticked place reach the players under one Inbox
+notification. On a map the players can already see, ⋯ → **Reveal hidden places…** (DM mode, when it has any) opens the
+same checklist: the ticked places are released together with one notification ("Brindle and Eastwatch · new map
+places", linking to the map; more than three names read "A, B and 4 more").
 
 Visibility follows the item: a hidden quest's or note's uploaded photos are hidden too (a visible one's are visible),
 and renaming or moving a note, a folder of notes or a library document keeps each file hidden or visible as it was.
