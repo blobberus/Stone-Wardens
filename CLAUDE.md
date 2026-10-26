@@ -97,8 +97,12 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   `promptDialog(title,{label,value}) -> Promise<string|null>`, `choiceDialog(msg, [{label,value,kind}]) -> value|null`, `pickFromList({title, items, render, search,
   multi}) -> Promise<item|item[]|null>`, `icon(name, size?)`, form helpers `field(label, control, hint?)`,
   `input(props)`, `textarea(props)`, `select(options, value, onchange)`, `checkbox(checked, onchange, label)`,
-  `markdownEditor({value, onInput, rows})` (textarea + [[link]] autocomplete + preview toggle; it grows with its text
-  and keeps the scroll around it, and after an edit scrolls only when the caret is out of sight, clear of the toolbar).
+  `markdownEditor({value, onInput, rows, live})` (textarea + [[link]] autocomplete + preview toggle; it grows with its
+  text and keeps the scroll around it, and after an edit scrolls only when the caret is out of sight, clear of the
+  toolbar). `live: true` (the journal) edits in `core/live-text.js` instead: a contenteditable box, one block per
+  source line, headings drawn at their size as you type ("#"s faded), with the textarea's value / selection /
+  setRangeText interface. Typing within a line is the browser's (spelling, autocorrect, IMEs) and read back; Enter,
+  joins, paste, cut and typing over lines are applied by it; own undo (Ctrl+Z / Ctrl+Y). `node tools/test_livetext.mjs`.
   NEVER use window.alert/confirm/prompt.
 - `store.js` (singleton `store`): `load()`, `list(dir, {recursive})` -> `[{path, data}]`, `get(path)`,
   `put(path, data)` (object -> JSON; string -> text), `remove(path)`, `putBinary(path, blob)`,
@@ -208,7 +212,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 ## Journal tab
 - Obsidian-style vault (docs/journal-model.md): left pane Files (tree, drag-move, context menu) | Search (`tag:`
   `path:` `file:` `"phrase"` `-word`) | Tags (nested); main pane = one journal-shaped page, Read/Edit (Ctrl+E),
-  quick switcher (Ctrl+O/K); right pane Properties, Outline, Backlinks (+ unlinked), Outgoing links.
+  quick switcher (Ctrl+O/K); right pane Properties, Outline, Backlinks (+ unlinked), Outgoing links. The editing view
+  is a live-text editor: `#` … `######` lines show at their title sizes while writing (as in reading view).
 - Per-device UI state in localStorage `sw:journal:*`. Other views link notes with `href('journal', first || '_', rest)`.
 
 ## Warden's Library tab
@@ -288,7 +293,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).
 - Rules engine: `node tools/test_engine.mjs` and `node tools/test_spells.mjs` (spell numbers, XP, spell filters; both must stay
-  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. Map design and fog: `node tools/test_mapdesign.mjs`. Map parents / maps of their own: `node tools/test_maptree.mjs`. Linked places: `node tools/test_twins.mjs`. Character printouts: `node tools/test_print.mjs`. Party view and live messages: `node tools/test_party.mjs`. DM crypto: `node tools/test_dm.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
+  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. Map design and fog: `node tools/test_mapdesign.mjs`. Map parents / maps of their own: `node tools/test_maptree.mjs`. Linked places: `node tools/test_twins.mjs`. Live editor text model: `node tools/test_livetext.mjs`. Character printouts: `node tools/test_print.mjs`. Party view and live messages: `node tools/test_party.mjs`. DM crypto: `node tools/test_dm.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
   the sheet doesn't show (11 known, intentional gaps).
 - Syntax: portable `node --check`. Markdown renderer can be exercised in Node by stubbing `DOMPurify.sanitize`.
 

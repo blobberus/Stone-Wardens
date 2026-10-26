@@ -17,6 +17,7 @@ const SAVE_MS = 400;
 const HL = 'jr-find';
 
 const SYNTAX = [
+  ['# Title', 'a title; ## and ### make smaller ones (up to ######)'],
   ['[[Note]]', 'link to a note (or any page on the site with the same name)'],
   ['[[Note#Heading|shown text]]', 'link to a heading, with your own label'],
   ['[[Folder/Note]]', 'a note by its folder path, when two share a name'],
@@ -205,7 +206,8 @@ export class NoteView {
     this.editor = markdownEditor({
       value: this.body,
       rows: 16,
-      placeholder: 'Write in Markdown. Type [[ to link a note, map:place, char:character…',
+      placeholder: 'Write in Markdown. Type [[ to link a note, map:place, char:character… Start a line with # for a title.',
+      live: true,
       onInput: (v) => { this.body = v; this.queueSave(); this.liveSoon(); },
     });
     this.editor.classList.add('jr-editor');
@@ -307,8 +309,9 @@ export class NoteView {
     ta.focus({ preventScroll: true });
     ta.setSelectionRange(pos, pos + (lines[line] || '').length);
     const lh = parseFloat(getComputedStyle(ta).lineHeight) || 27;
+    const y = ta.lineTop ? ta.lineTop(line) : ta.getBoundingClientRect().top + line * lh;
     const desk = this.host;
-    const top = ta.getBoundingClientRect().top - desk.getBoundingClientRect().top + desk.scrollTop + line * lh - 80;
+    const top = y - desk.getBoundingClientRect().top + desk.scrollTop - 80;
     desk.scrollTo({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' });
   }
 

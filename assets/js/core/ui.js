@@ -2,6 +2,7 @@
 import { h, clear } from './dom.js';
 import { suggestLinks } from './links.js';
 import { renderInto } from './markdown.js';
+import { liveText } from './live-text.js';
 
 // `body > #overlays`: rendered headings get slug ids, so a heading "Overlays" must not capture modals.
 const overlays = () => document.querySelector('body > #overlays') || document.body;
@@ -234,11 +235,15 @@ function caretRect(ta) {
 }
 
 /**
- * markdownEditor({value, onInput(value), rows, placeholder, preview:false, autosize:true})
+ * markdownEditor({value, onInput(value), rows, placeholder, preview:false, live:false})
  * Returns an element with .value getter/setter, .focus(), .textarea, .setPreview(bool).
+ * live: edit in a live-text.js box (headings shown at their size as you type) instead of a <textarea>; .textarea is
+ * then that box, which has the textarea's value / selection / setRangeText interface.
  */
-export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'Write in Markdown. [[ links to notes, map:places, char:characters…', preview = false } = {}) {
-  const ta = h('textarea', { class: 'textarea md-input', rows, placeholder, value, spellcheck: true });
+export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'Write in Markdown. [[ links to notes, map:places, char:characters…', preview = false, live = false } = {}) {
+  const ta = live
+    ? liveText({ value, placeholder, className: 'textarea md-input md-live' })
+    : h('textarea', { class: 'textarea md-input', rows, placeholder, value, spellcheck: true });
   const pv = h('div', { class: 'md-preview prose', hidden: true });
   const suggest = h('ul', { class: 'md-suggest', hidden: true, role: 'listbox' });
   const toggle = h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => setPreview(pv.hidden) }, 'Preview');
@@ -267,6 +272,7 @@ export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'W
   // Fit the box to its text. It is shrunk to be measured, which (in Safari and Firefox) clamps the scroll of the page
   // or modal around it and would throw the line being typed out of sight, so their scroll is put back.
   function autosize() {
+    if (live) return; // a block grows with its text
     const kept = [];
     for (let p = ta.parentElement; p; p = p.parentElement) if (p.scrollTop) kept.push([p, p.scrollTop]);
     ta.style.height = 'auto';
@@ -292,7 +298,7 @@ export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'W
       const top = Math.max(edge, winTop);
       const bottom = Math.min(edge + p.clientHeight, winBottom);
       if (box.top >= top && box.bottom <= bottom) continue; // the whole box is in sight here
-      caret ??= caretRect(ta);
+      caret ??= ta.caretRect ? ta.caretRect() : caretRect(ta);
       const pad = caret.height / 2;
       const lo = Math.max(top + pad, toolbar.getBoundingClientRect().bottom + 6);
       const hi = bottom - pad;
@@ -355,11 +361,11 @@ export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'W
     document.removeEventListener('pointerdown', outside, true);
   }
   // A press anywhere but the list or the textarea closes it (blur does too; this also covers a removed editor).
-  function outside(e) { if (!suggest.contains(e.target) && e.target !== ta) hideSuggest(); }
+  function outside(e) { if (!suggest.contains(e.target) && !ta.contains(e.target)) hideSuggest(); }
   function placeSuggest() {
     if (suggest.hidden) return;
     if (!ta.isConnected) { hideSuggest(); return; }
-    const caret = caretRect(ta);
+    const caret = ta.caretRect ? ta.caretRect() : caretRect(ta);
     const box = ta.getBoundingClientRect();
     // The caret scrolled out of its box (long note, scrolled modal): hide until it is back.
     if (caret.top + caret.height < box.top || caret.top > box.bottom) { suggest.style.visibility = 'hidden'; return; }

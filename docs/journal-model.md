@@ -41,6 +41,13 @@ content/journal/
   with `store.putBinary` and committed right away (`saveSoon`; with Save when that setting is off); photos over 1.5 MB are scaled to 2400 px on the long side (JPEG).
   Removing an uploaded photo deletes its file once no note lists it; renaming or moving a note keeps its images.
 
+## Editing view
+- The note's markdown is edited as plain text in `core/live-text.js` (markdownEditor `live: true`): one block per
+  source line, so a line starting `# ` … `###### ` shows at its title size and colour as you type (the `#`s stay,
+  faded; `#tag` without a space is a tag, and lines in fenced code are never titles). What is saved is exactly the
+  text typed. The toolbar, `[[` suggestions, Ctrl+B / Ctrl+I, Ctrl+Z / Ctrl+Y (its own history) and paste (plain
+  text) work as in the other editors; "Formatting help" lists the syntax.
+
 ## Routes (`#/journal…`)
 | Route | Shows |
 | --- | --- |
