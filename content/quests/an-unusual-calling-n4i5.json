@@ -1,0 +1,32 @@
+{
+  "id": "an-unusual-calling-n4i5",
+  "title": "An Unusual Calling...",
+  "type": "main",
+  "status": "active",
+  "parent": null,
+  "characters": [],
+  "objectives": [
+    {
+      "id": "o1",
+      "text": "Find out who you are",
+      "done": false
+    },
+    {
+      "id": "o2",
+      "text": "Find if there are fellow awakened souls",
+      "done": false
+    },
+    {
+      "id": "o3",
+      "text": "Find civilization to recoup and gather bearings",
+      "done": false
+    }
+  ],
+  "description": "You and your companions have woken up in an unfamiliar place. Your memories are fragmented. Yet an untraceable pull compels you to discover more about your past, and who you may be. ",
+  "rewards": "Unlock the next Main Quest.",
+  "image": null,
+  "created": "2026-10-26T01:19:03.708Z",
+  "updated": "2026-10-26T01:39:14.776Z",
+  "createdBy": "Blobberus",
+  "order": null
+}
