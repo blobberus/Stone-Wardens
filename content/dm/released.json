@@ -1,6 +1,14 @@
 {
   "items": [
     {
+      "path": "content/quests/an-unusual-calling-n4i5.json",
+      "title": "An Unusual Calling...",
+      "label": "Quest",
+      "href": "#/quests/an-unusual-calling-n4i5",
+      "at": "2026-10-26T01:39:46.360Z",
+      "by": "Blobberus"
+    },
+    {
       "path": "content/maps/map-aby5.json",
       "title": "Map",
       "label": "Map",
