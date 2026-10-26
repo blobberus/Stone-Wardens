@@ -97,7 +97,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   `promptDialog(title,{label,value}) -> Promise<string|null>`, `choiceDialog(msg, [{label,value,kind}]) -> value|null`, `pickFromList({title, items, render, search,
   multi}) -> Promise<item|item[]|null>`, `icon(name, size?)`, form helpers `field(label, control, hint?)`,
   `input(props)`, `textarea(props)`, `select(options, value, onchange)`, `checkbox(checked, onchange, label)`,
-  `markdownEditor({value, onInput, rows})` (textarea + [[link]] autocomplete + preview toggle).
+  `markdownEditor({value, onInput, rows})` (textarea + [[link]] autocomplete + preview toggle; it grows with its text
+  and keeps the scroll around it, and after an edit scrolls only when the caret is out of sight, clear of the toolbar).
   NEVER use window.alert/confirm/prompt.
 - `store.js` (singleton `store`): `load()`, `list(dir, {recursive})` -> `[{path, data}]`, `get(path)`,
   `put(path, data)` (object -> JSON; string -> text), `remove(path)`, `putBinary(path, blob)`,

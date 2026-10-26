@@ -36,8 +36,11 @@ const SYNTAX = [
 const syntaxHelp = () => h('dl', { class: 'jr-syntax-list' }, SYNTAX.map(([code, what]) => [h('dt', null, h('code', null, code)), h('dd', null, what)]));
 
 function autosize(ta) {
+  const desk = ta.closest('.jr-desk');
+  const keep = desk?.scrollTop; // shrinking the box to measure it would clamp the desk's scroll
   ta.style.height = 'auto';
   ta.style.height = `${ta.scrollHeight}px`;
+  if (desk) desk.scrollTop = keep;
 }
 
 export class NoteView {

@@ -247,10 +247,11 @@ export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'W
     const sel = ta.value.slice(s, e);
     ta.setRangeText(before + sel + after, s, e, 'end');
     if (!sel) ta.selectionStart = ta.selectionEnd = s + before.length;
-    ta.focus();
+    ta.focus({ preventScroll: true });
     fire();
   };
-  const tool = (label, title, fn) => h('button', { class: 'btn btn-ghost btn-sm', type: 'button', title, onclick: fn }, label);
+  // A press keeps the focus in the text: focusing it again would scroll the whole box into view.
+  const tool = (label, title, fn) => h('button', { class: 'btn btn-ghost btn-sm', type: 'button', title, onclick: fn, onmousedown: (e) => e.preventDefault() }, label);
   const toolbar = h('div', { class: 'md-toolbar' },
     tool(h('b', null, 'B'), 'Bold', wrap('**')),
     tool(h('i', null, 'I'), 'Italic', wrap('*')),
@@ -262,10 +263,46 @@ export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'W
     toggle);
   const el = h('div', { class: 'md-editor' }, toolbar, ta, pv);
 
-  function fire() { onInput?.(ta.value); autosize(); }
+  function fire() { onInput?.(ta.value); autosize(); revealSoon(); }
+  // Fit the box to its text. It is shrunk to be measured, which (in Safari and Firefox) clamps the scroll of the page
+  // or modal around it and would throw the line being typed out of sight, so their scroll is put back.
   function autosize() {
+    const kept = [];
+    for (let p = ta.parentElement; p; p = p.parentElement) if (p.scrollTop) kept.push([p, p.scrollTop]);
     ta.style.height = 'auto';
     ta.style.height = `${Math.max(ta.scrollHeight + 2, rows * 22)}px`;
+    for (const [p, top] of kept) p.scrollTop = top;
+  }
+  // After an edit (and the browser's own scroll to the caret, which ignores the sticky toolbar), scroll the boxes
+  // around the text just enough to bring the caret's line into sight if it is out of it: clear of their edges, the
+  // toolbar and an on-screen keyboard. A caret already in sight stays where it is.
+  let revealing = 0;
+  function revealSoon() { revealing ||= requestAnimationFrame(() => { revealing = 0; revealCaret(); }); }
+  function revealCaret() {
+    if (document.activeElement !== ta || ta.hidden) return;
+    const vv = window.visualViewport;
+    const winTop = vv ? vv.offsetTop : 0;
+    const winBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+    let caret = null;
+    for (let p = ta.parentElement; p; p = p.parentElement) {
+      const root = p === document.scrollingElement;
+      if (p.scrollHeight <= p.clientHeight || (!root && !/auto|scroll/.test(getComputedStyle(p).overflowY))) continue;
+      const edge = root ? 0 : p.getBoundingClientRect().top + p.clientTop;
+      const box = ta.getBoundingClientRect();
+      const top = Math.max(edge, winTop);
+      const bottom = Math.min(edge + p.clientHeight, winBottom);
+      if (box.top >= top && box.bottom <= bottom) continue; // the whole box is in sight here
+      caret ??= caretRect(ta);
+      const pad = caret.height / 2;
+      const lo = Math.max(top + pad, toolbar.getBoundingClientRect().bottom + 6);
+      const hi = bottom - pad;
+      if (hi - lo < caret.height) continue;
+      const by = caret.top < lo ? caret.top - lo : caret.top + caret.height > hi ? caret.top + caret.height - hi : 0;
+      if (!by) continue;
+      const before = p.scrollTop;
+      p.scrollTop = before + by;
+      caret = { ...caret, top: caret.top - (p.scrollTop - before) };
+    }
   }
   function setPreview(on) {
     if (on) hideSuggest();
