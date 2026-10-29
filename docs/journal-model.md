@@ -36,7 +36,8 @@ content/journal/
   Reading view shows them as a slideshow at the top of the page (previous / next, arrow keys, swipe, thumbnails);
   "Expand" or a tap on the photo opens a full-screen viewer to scroll through all of them (Esc closes). Editing view has
   a **Reference images** panel: Upload photos (or drop files on it), From site files (any image already in the repo,
-  e.g. uploaded through GitHub), captions, reorder, remove. The note menu has "Upload reference photos…" and "Add
+  e.g. uploaded through GitHub), captions, reorder (drag a photo: a mouse at once, a finger after holding it for a
+  moment, so a swipe still scrolls; or the arrow buttons), remove. The note menu has "Upload reference photos…" and "Add
   images from site files…" in reading view too. Uploads go to `content/media/journal/<note>-<name>-<id>.<ext>`, staged
   with `store.putBinary` and committed right away (`saveSoon`; with Save when that setting is off); photos over 1.5 MB are scaled to 2400 px on the long side (JPEG).
   Removing an uploaded photo deletes its file once no note lists it; renaming or moving a note keeps its images.

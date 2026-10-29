@@ -311,9 +311,124 @@ export function dropIfUnused(src, notes) {
 
 // ---------- editing panel ----------
 
+const HOLD_MS = 350; // a finger holds a photo this long before it can be dragged (a quicker swipe scrolls)
+const SLOP = 6;      // px a press moves before it is a drag
+const EDGE = 48;     // px from the top or bottom of the scrolling box where a drag scrolls it
+
 /**
- * Reference images while editing a note: thumbnails in order (move earlier / later, caption, remove), "Upload photos"
- * (also by dropping files on the panel) and "From site files".
+ * Drag the items of `grid` (its <li>s, picked up by `handleSel`) into a new order: the photo follows the pointer, the
+ * others make room, and onDrop(from, to) gets its old and new index (Esc, or a cancelled touch, puts it back).
+ * A mouse or pen drags at once; a finger holds the photo first. The click that ends a drag is swallowed.
+ */
+function dragSort(grid, handleSel, onDrop) {
+  let holding = false; // a finger held a photo: its moves drag rather than scroll
+  let swallow = false;
+  grid.addEventListener('touchmove', (e) => { if (holding) e.preventDefault(); }, { passive: false });
+  grid.addEventListener('contextmenu', (e) => { if (e.target.closest(handleSel)) e.preventDefault(); }); // long press
+  grid.addEventListener('click', (e) => { if (swallow) { swallow = false; e.preventDefault(); e.stopPropagation(); } }, true);
+  grid.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest(handleSel);
+    const li = handle?.closest('li');
+    if (!li || e.button !== 0 || !e.isPrimary || grid.children.length < 2) return;
+    const touch = e.pointerType === 'touch';
+    const start = { x: e.clientX, y: e.clientY };
+    let at = start, ready = !touch, ghost = null, from = -1, raf = 0;
+    const hold = touch ? setTimeout(() => { ready = holding = true; li.classList.add('is-held'); }, HOLD_MS) : 0;
+    const scroller = scrollBox(grid);
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const begin = () => {
+      const r = handle.getBoundingClientRect();
+      ghost = handle.cloneNode(true);
+      ghost.classList.add('jr-imgs-ghost');
+      ghost.setAttribute('aria-hidden', 'true');
+      Object.assign(ghost.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+      document.body.append(ghost);
+      from = [...grid.children].indexOf(li);
+      li.classList.replace('is-held', 'is-moving') || li.classList.add('is-moving');
+      document.documentElement.classList.add('is-img-sorting');
+      raf = requestAnimationFrame(edgeScroll);
+    };
+    // the item under the pointer by its layout box (not where an animation is drawing it), and the dragged one moves there
+    const place = () => {
+      ghost.style.transform = `translate(${at.x - start.x}px, ${at.y - start.y}px) scale(1.04)`;
+      const g = grid.getBoundingClientRect();
+      const x = at.x - g.left, y = at.y - g.top;
+      const kids = [...grid.children];
+      const over = kids.find((c) => c !== li && x >= c.offsetLeft && x < c.offsetLeft + c.offsetWidth && y >= c.offsetTop && y < c.offsetTop + c.offsetHeight);
+      if (over) slide(kids, () => grid.insertBefore(li, kids.indexOf(li) > kids.indexOf(over) ? over : over.nextSibling));
+    };
+    const slide = (kids, apply) => {
+      const was = new Map(kids.map((c) => [c, c.getBoundingClientRect()]));
+      apply();
+      if (reduce) return;
+      for (const c of kids) {
+        for (const a of c.getAnimations()) a.cancel();
+        const a = was.get(c), b = c.getBoundingClientRect();
+        if (a.left !== b.left || a.top !== b.top) c.animate([{ transform: `translate(${a.left - b.left}px, ${a.top - b.top}px)` }, { transform: 'none' }], { duration: 160, easing: 'ease-out' });
+      }
+    };
+    const edgeScroll = () => {
+      const top = scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top;
+      const bottom = scroller === document.scrollingElement ? innerHeight : scroller.getBoundingClientRect().bottom;
+      const d = at.y < top + EDGE ? at.y - top - EDGE : at.y > bottom - EDGE ? at.y - bottom + EDGE : 0;
+      if (d) {
+        const before = scroller.scrollTop;
+        scroller.scrollTop += Math.sign(d) * Math.ceil(Math.min(EDGE, Math.abs(d)) / 4);
+        if (scroller.scrollTop !== before) place();
+      }
+      raf = requestAnimationFrame(edgeScroll);
+    };
+    const move = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      at = { x: ev.clientX, y: ev.clientY };
+      if (!ghost) {
+        if (Math.hypot(at.x - start.x, at.y - start.y) <= SLOP) return;
+        if (!ready) { end(); return; } // a finger moved before it held: that is a scroll
+        begin();
+      }
+      place();
+    };
+    const end = (ev) => {
+      clearTimeout(hold);
+      holding = false;
+      li.classList.remove('is-held');
+      removeEventListener('pointermove', move);
+      removeEventListener('pointerup', up);
+      removeEventListener('pointercancel', cancel);
+      removeEventListener('keydown', esc, true);
+      if (!ghost) return;
+      cancelAnimationFrame(raf);
+      ghost.remove();
+      li.classList.remove('is-moving');
+      document.documentElement.classList.remove('is-img-sorting');
+      swallow = true;
+      setTimeout(() => { swallow = false; });
+      const to = [...grid.children].indexOf(li);
+      if (!ev) { li.remove(); grid.insertBefore(li, grid.children[from] || null); } // cancelled: back where it was
+      else if (to !== from) onDrop(from, to);
+    };
+    const up = (ev) => { if (ev.pointerId === e.pointerId) end(ev); };
+    const cancel = (ev) => { if (ev.pointerId === e.pointerId) end(); };
+    const esc = (ev) => { if (ev.key === 'Escape' && ghost) { ev.preventDefault(); ev.stopPropagation(); end(); } };
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', up);
+    addEventListener('pointercancel', cancel);
+    addEventListener('keydown', esc, true);
+  });
+}
+
+/** The box that scrolls `el` vertically (the page when nothing inside it does). */
+function scrollBox(el) {
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(p).overflowY) && p.scrollHeight > p.clientHeight) return p;
+  }
+  return document.scrollingElement;
+}
+
+/**
+ * Reference images while editing a note: thumbnails in order (drag one to move it, or move earlier / later; caption,
+ * remove), "Upload photos" (also by dropping files on the panel) and "From site files".
  * @param {{list:Array<{src, caption}>, slug:string, hidden?:()=>boolean, onChange:(list, removed?:string[])=>void}} o
  */
 export function imagesPanel({ list, slug, onChange, hidden = () => null }) {
@@ -338,7 +453,7 @@ export function imagesPanel({ list, slug, onChange, hidden = () => null }) {
       cap.addEventListener('change', () => { items[k].caption = cap.value.trim(); change(); });
       const move = (d) => { const j = k + d; if (j < 0 || j >= items.length) return; [items[k], items[j]] = [items[j], items[k]]; change(); };
       return h('li', { class: 'jr-imgs-item' },
-        h('button', { type: 'button', class: 'jr-imgs-thumb', title: 'View', onclick: () => openViewer(items, k) }, t),
+        h('button', { type: 'button', class: 'jr-imgs-thumb', title: 'View (drag to move)', onclick: () => openViewer(items, k) }, t),
         cap,
         h('div', { class: 'jr-imgs-tools' },
           h('button', { type: 'button', class: 'btn btn-icon btn-sm', 'aria-label': `Move photo ${k + 1} earlier`, disabled: k === 0, onclick: () => move(-1) }, icon('chevron-left')),
@@ -346,7 +461,7 @@ export function imagesPanel({ list, slug, onChange, hidden = () => null }) {
           h('button', { type: 'button', class: 'btn btn-icon btn-sm btn-danger', 'aria-label': `Remove photo ${k + 1}`, onclick: () => { const [gone] = items.splice(k, 1); change([gone.src]); } }, icon('trash'))));
     }));
     status.textContent = items.length
-      ? `${plural(items.length, 'photo')}, shown as a slideshow at the top of the note. Drop more photos here to add them.`
+      ? `${plural(items.length, 'photo')}, shown as a slideshow at the top of the note. Drag a photo to change the order; drop more photos here to add them.`
       : 'Add photos for this note (maps, handouts, sketches). They show as a slideshow at the top of the page. You can also drop them here.';
   }
   const panel = h('section', { class: 'jr-imgs', 'aria-label': 'Reference images' },
@@ -355,6 +470,7 @@ export function imagesPanel({ list, slug, onChange, hidden = () => null }) {
         h('button', { type: 'button', class: 'btn btn-sm', onclick: () => upload() }, icon('upload'), h('span', null, 'Upload photos')),
         h('button', { type: 'button', class: 'btn btn-sm btn-ghost', onclick: () => fromRepo() }, icon('folder'), h('span', null, 'From site files')))),
     grid, status);
+  dragSort(grid, '.jr-imgs-thumb', (from, to) => { const [it] = items.splice(from, 1); items.splice(to, 0, it); change(); });
   panel.addEventListener('dragover', (e) => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { e.preventDefault(); panel.classList.add('is-drop'); } });
   panel.addEventListener('dragleave', (e) => { if (!panel.contains(e.relatedTarget)) panel.classList.remove('is-drop'); });
   panel.addEventListener('drop', (e) => {

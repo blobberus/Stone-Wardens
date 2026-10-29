@@ -893,6 +893,7 @@ html.jr-viewer-open { overflow: hidden; }
 .jr-imgs-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .jr-imgs-title { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0; font: 600 1rem var(--font-ui); color: var(--ink); }
 .jr-imgs-grid {
+  position: relative; /* the items' offsetLeft / offsetTop, for dragging */
   display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3);
   margin: var(--space-3) 0 0; padding: 0; list-style: none;
 }
@@ -901,8 +902,19 @@ html.jr-viewer-open { overflow: hidden; }
 .jr-imgs-thumb {
   height: 100px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: var(--bg-sunk); overflow: hidden; cursor: zoom-in;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
-.jr-imgs-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.jr-imgs-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; }
+/* dragging a photo to a new place: held (a finger), the gap it leaves, and the photo following the pointer */
+.jr-imgs-item.is-held .jr-imgs-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
+.jr-imgs-item.is-moving .jr-imgs-thumb { border: 2px dashed var(--accent); background: var(--accent-soft); }
+.jr-imgs-item.is-moving .jr-imgs-thumb > * { visibility: hidden; }
+.jr-imgs-item.is-moving .jr-imgs-cap, .jr-imgs-item.is-moving .jr-imgs-tools { opacity: 0.35; }
+.jr-imgs-ghost {
+  position: fixed; z-index: var(--z-popover); margin: 0; pointer-events: none;
+  box-shadow: var(--shadow-lg); opacity: 0.95;
+}
+html.is-img-sorting, html.is-img-sorting * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
 .jr-imgs-missing { display: flex; height: 100%; align-items: center; justify-content: center; color: var(--ink-muted); font: 0.85rem var(--font-ui); }
 .jr-imgs-cap { width: 100%; }
 .jr-imgs-tools { display: flex; gap: var(--space-1); justify-content: flex-end; }
