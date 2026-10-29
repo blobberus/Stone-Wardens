@@ -56,7 +56,7 @@
 .ch-hpbar.is-low .ch-hpbar-fill { background: var(--danger); }
 .ch-hpbar-temp { display: block; height: 100%; background: var(--info); }
 
-/* Pips: solid = available, hollow = used. Exhaustion ("mark"): solid = marked. */
+/* Pips: solid = available (on the left), hollow = used (on the right). Exhaustion ("mark"): solid = marked. */
 .ch-pips { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .ch-pip {
   width: 18px; height: 18px; padding: 0; flex: none; cursor: pointer;

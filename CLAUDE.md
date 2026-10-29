@@ -272,6 +272,8 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   Attacks / Spells / Bonus actions),
   resources, inventory, currency, features (All | Smart tag view; compact rows, groups flow through two columns)
   -> details, notes. Tuned for the collapsed sidebar (container queries).
+- Pips (widgets.js `pips`): slots, hit dice and feature uses are solid while left, spent from the right (a click on a
+  solid pip spends one, on a hollow one gets one back); exhaustion marks fill from the left, clicked to a level.
 - Spells tab: casters line, one-line slot pips, then one spell per row in columns (prepare | name | time | range |
   hit/DC | effect | remove; the level headings label the columns; two lines below 640px of list width). Filter bar
   (4+ spells): level chips, Prepared, Favorites (while a listed spell is starred), name search, effect chips (Damage,

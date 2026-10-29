@@ -34,18 +34,23 @@ export function rerender(root, build) {
   }
 }
 
-/** Row of toggleable pips. Clicking pip i sets used to i (if it was used) or i+1. */
+/**
+ * Row of toggleable pips. 'used' (slots, hit dice, feature uses): what is left is solid on the left and what is spent
+ * hollow on the right; a click on a solid pip spends one (the last solid one empties), on a hollow one gets one back.
+ * 'mark' (exhaustion) fills from the left: clicking pip i sets the count to i (if it was marked) or i+1.
+ */
 export function pips({ max, used = 0, onChange, label = '', kind = 'used', fk }) {
   const n = Math.max(0, Number(max) || 0);
   const u = Math.min(n, Math.max(0, Number(used) || 0));
-  const wrap = h('span', { class: ['ch-pips', `ch-pips-${kind}`], role: 'group', 'aria-label': `${label} ${u} of ${n} ${kind === 'used' ? 'used' : 'marked'}` });
+  const spend = kind === 'used';
+  const wrap = h('span', { class: ['ch-pips', `ch-pips-${kind}`], role: 'group', 'aria-label': `${label} ${u} of ${n} ${spend ? 'used' : 'marked'}` });
   for (let i = 0; i < n; i++) {
-    const on = i < u;
+    const on = spend ? i >= n - u : i < u;
     wrap.append(h('button', {
       type: 'button', class: ['ch-pip', on && 'is-on'], 'aria-pressed': on ? 'true' : 'false',
       'data-fk': fk ? `${fk}:${i}` : null,
-      title: `${label} ${i + 1}`.trim(),
-      onclick: () => onChange?.(on ? i : i + 1),
+      title: spend ? `${label}: ${on ? 'get one back' : 'use one'}`.trim() : `${label} ${i + 1}`.trim(),
+      onclick: () => onChange?.(spend ? u + (on ? -1 : 1) : on ? i : i + 1),
     }));
   }
   return wrap;
