@@ -99,7 +99,9 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   `input(props)`, `textarea(props)`, `select(options, value, onchange)`, `checkbox(checked, onchange, label)`,
   `markdownEditor({value, onInput, rows, live})` (textarea + [[link]] autocomplete + preview toggle; it grows with its
   text and keeps the scroll around it, and after an edit scrolls only when the caret is out of sight, clear of the
-  toolbar). `live: true` (the journal) edits in `core/live-text.js` instead: a contenteditable box, one block per
+  toolbar). Brackets as in Obsidian: typing `[[` adds the closing `]]` (not before a word), `]` steps over them,
+  Backspace in an empty `[[]]` takes both, `[` wraps a selection (a textarea's edits go through execCommand so its
+  own undo keeps them). `live: true` (the journal) edits in `core/live-text.js` instead: a contenteditable box, one block per
   source line, headings drawn at their size as you type ("#"s faded), with the textarea's value / selection /
   setRangeText interface. Typing within a line is the browser's (spelling, autocorrect, IMEs) and read back; Enter,
   joins, paste, cut and typing over lines are applied by it; own undo (Ctrl+Z / Ctrl+Y). `node tools/test_livetext.mjs`.

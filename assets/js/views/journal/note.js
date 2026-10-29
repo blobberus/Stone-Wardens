@@ -18,7 +18,7 @@ const HL = 'jr-find';
 
 const SYNTAX = [
   ['# Title', 'a title; ## and ### make smaller ones (up to ######)'],
-  ['[[Note]]', 'link to a note (or any page on the site with the same name)'],
+  ['[[Note]]', 'link to a note (or any page on the site with the same name); typing [[ adds the ]]'],
   ['[[Note#Heading|shown text]]', 'link to a heading, with your own label'],
   ['[[Folder/Note]]', 'a note by its folder path, when two share a name'],
   ['[[map:Old Mill]]', 'a map location'],

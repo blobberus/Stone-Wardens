@@ -48,6 +48,9 @@ content/journal/
   faded; `#tag` without a space is a tag, and lines in fenced code are never titles). What is saved is exactly the
   text typed. The toolbar, `[[` suggestions, Ctrl+B / Ctrl+I, Ctrl+Z / Ctrl+Y (its own history) and paste (plain
   text) work as in the other editors; "Formatting help" lists the syntax.
+- Typing `[[` closes the link at once (`[[|]]`, as in Obsidian; not when a word follows the caret), so the name is
+  typed inside it; `]` steps over the closing brackets, Backspace in an empty `[[]]` removes the `]]` with the `[`,
+  and `[` with text selected wraps it (twice makes it a link). The same holds in every markdown editor.
 
 ## Routes (`#/journal…`)
 | Route | Shows |

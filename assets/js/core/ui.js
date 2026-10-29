@@ -324,6 +324,7 @@ export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'W
   let items = [];
   let active = 0;
   function context() {
+    if (ta.selectionStart !== ta.selectionEnd) return null;
     const upto = ta.value.slice(0, ta.selectionStart);
     const m = /\[\[([^\]\n|]*)$/.exec(upto);
     return m ? { query: m[1], start: ta.selectionStart - m[1].length } : null;
@@ -391,6 +392,34 @@ export function markdownEditor({ value = '', onInput, rows = 8, placeholder = 'W
     if (it.partial) updateSuggest();
   }
   ta.addEventListener('input', () => { fire(); updateSuggest(); });
+  // Brackets as in Obsidian: a second "[" closes the link ("[[|]]", unless a word follows), "]" steps over the closing
+  // brackets of a link being typed, Backspace in an empty "[[|]]" takes its "]]" too, and "[" wraps a selection.
+  ta.addEventListener('beforeinput', (e) => {
+    if (e.defaultPrevented || e.isComposing || !e.cancelable) return;
+    const { selectionStart: s, selectionEnd: end, value: v } = ta;
+    const before = v.slice(0, s), after = v.slice(end), sel = v.slice(s, end);
+    let edit = null; // [text, from, to, new selection start, end]
+    if (e.inputType === 'insertText' && e.data === '[') {
+      if (sel && !sel.includes('\n')) edit = [`[${sel}]`, s, end, s + 1, end + 1];
+      else if (!sel && before.endsWith('[') && !before.endsWith('[[') && !after.startsWith(']]') && /^($|[\s.,;:!?)}\]'"])/.test(after)) {
+        edit = [after.startsWith(']') ? '[]' : '[]]', s, s, s + 1, s + 1];
+      }
+    } else if (e.inputType === 'insertText' && e.data === ']') {
+      if (!sel && after.startsWith(']') && /\[\[[^[\]\n]*\]?$/.test(before)) edit = ['', s, s, s + 1, s + 1];
+    } else if (e.inputType === 'deleteContentBackward') {
+      if (!sel && before.endsWith('[[') && after.startsWith(']]')) edit = ['', s - 1, s + 2, s - 1, s - 1];
+    }
+    if (!edit) return;
+    e.preventDefault();
+    const [text, from, to, a, b] = edit;
+    if (text || from !== to) {
+      // a textarea's own undo keeps what execCommand types (and it sends the input event); live-text keeps its own
+      ta.setSelectionRange(from, to);
+      if (live || !document.execCommand(text ? 'insertText' : 'delete', false, text)) { ta.setRangeText(text, from, to); fire(); }
+    }
+    ta.setSelectionRange(a, b);
+    updateSuggest();
+  });
   ta.addEventListener('keydown', (e) => {
     if (!suggest.hidden && items.length) {
       if (e.key === 'ArrowDown') { active = (active + 1) % items.length; drawSuggest(); e.preventDefault(); return; }
