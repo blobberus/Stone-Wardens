@@ -127,11 +127,18 @@ const near = (a, b) => Math.abs(a - b) < 1e-6;
   const five = P.sigilPoints(['material:water', 'temporal:growth', 'mental:wisdom', 'material:air', 'mental:strength'], 1000);
   eq('sigil: Temporal first', five.map((p) => p.id), ['temporal:growth', 'mental:strength', 'mental:wisdom', 'material:water', 'material:air']);
   const d = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
-  check('sigil: a regular pentagon', [0, 1, 2, 3, 4].every((i) => near(d(five[i], five[(i + 1) % 5]), d(five[0], five[1]))));
+  const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const [top, m1, m2, b1, b2] = five;
+  check('sigil: a pyramid (apex on top, Mental halfway down its sides, Material the base)',
+    near(top.x, 500) && near(m1.y, m2.y) && near(b1.y, b2.y) && top.y < m1.y && m1.y < b1.y
+    && near(cross(top, m1, b1), 0) && near(cross(top, m2, b2), 0) && b1.x < m1.x && m2.x < b2.x && near(d(top, m1), d(m1, b1)));
   const tri = P.sigilPoints(['temporal:decay', 'mental:strength', 'mental:wisdom']);
-  check('sigil: an equilateral triangle', near(d(tri[0], tri[1]), d(tri[1], tri[2])) && near(d(tri[1], tri[2]), d(tri[2], tri[0])));
-  const rect = P.sigilPoints(['temporal:decay', 'mental:strength', 'mental:wisdom', 'material:fire']);
-  check('sigil: a rectangle', near(rect[0].y, rect[1].y) && near(rect[1].x, rect[2].x) && near(rect[2].y, rect[3].y) && near(rect[3].x, rect[0].x) && !near(d(rect[0], rect[1]), d(rect[1], rect[2])));
+  check('sigil: an equilateral triangle, apex up', near(d(tri[0], tri[1]), d(tri[1], tri[2])) && near(d(tri[1], tri[2]), d(tri[2], tri[0])) && tri[0].y < tri[1].y && near(tri[1].y, tri[2].y));
+  const dia = P.sigilPoints(['temporal:decay', 'mental:strength', 'mental:wisdom', 'material:fire']);
+  check('sigil: a diamond (Temporal top, Mental across, Material bottom)', near(dia[0].x, dia[3].x) && near(dia[1].y, dia[2].y) && dia[0].y < dia[1].y && dia[1].y < dia[3].y && near(dia[1].x + dia[2].x, 1000) && dia[3].id === 'material:fire');
+  const line = P.sigilPoints(['mental:wisdom', 'temporal:stasis']);
+  check('sigil: a vertical line, Temporal on top', near(line[0].x, line[1].x) && line[0].y < line[1].y && line[0].id === 'temporal:stasis');
+  eq('sigil: a dot in the middle', P.sigilPoints(['temporal:stasis']).map((p) => [p.x, p.y]), [[500, 500]]);
 }
 
 // export / import

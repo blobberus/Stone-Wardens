@@ -1,6 +1,7 @@
 /* =============================================================================
    Pantheon tab (views/pantheon): roster | diagram | panel (docs/pantheon-model.md).
    One pigment per polygon: Material = orpiment, Mental = lapis, Temporal = murrey; the selection is gold leaf.
+   The sigil's aspect letters are Cinzel Decorative (loaded in index.html for this alone).
    Under 1000px of width the roster goes under the diagram (the panel beside both); under 680px everything is one
    column (diagram, panel, roster).
    ============================================================================= */
@@ -11,6 +12,7 @@
   --pt-mental: var(--c-note);
   --pt-temporal: var(--c-example);
   --pt-select: var(--gold);
+  --pt-sigil-font: "Cinzel Decorative", var(--font-display);
 }
 .pt-head { margin-bottom: var(--space-4); }
 .pt-body {

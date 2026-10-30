@@ -220,8 +220,11 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   SVG `diagram.js` (Original shapes / Individual sigil, Major lines, export in plain colors), tab `index.js`: roster by
   rank | diagram (click points to build a combination) | panel (the being, Unassigned + Create, or why not a being) or
   the editor (rank guide, aspect selectors, Title, Domains, Description, Worship; one being per combination, a taken
-  one is explained, never overwritten; unsaved changes asked about and kept in `sw:pantheon:draft`). ⋯ imports JSON,
-  exports JSON / Markdown / SVG / PNG. Sidebar icon `i-pantheon`: the square, hexagon and square nested.
+  one is explained, never overwritten; unsaved changes asked about and kept in `sw:pantheon:draft`). Esc lets go of
+  the open being (Cancel in the editor). The sigil: tiers (Temporal on top), a diamond for a Lesser God, a pyramid for
+  an Angel, medallions with three letters in Cinzel Decorative, inside a seal with the rank and title on its arcs.
+  ⋯ imports JSON, exports JSON / Markdown / SVG / PNG (fonts embedded). Sidebar icon `i-pantheon`: the square,
+  hexagon and square nested.
 
 ## Journal tab
 - Obsidian-style vault (docs/journal-model.md): left pane Files (tree, drag-move, context menu) | Search (`tag:`

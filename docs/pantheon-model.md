@@ -37,11 +37,18 @@ The campaign's gods, built from the three-polygon pantheon in
   sight; the picked points show as a ring (Absolute), line (Major), triangle (Minor) or closed outline (Lesser, Angel:
   points sorted by angle round their centroid, `outline`), dashed when not a valid being. Clicking points builds a
   combination (`pick`: a second Temporal replaces the first, a third Mental / Material the earliest one; clicking one
-  again drops it); keyboard: Tab to a point, Enter / Space. **Major lines** draws the 24 Temporal–Mental lines,
-  assigned ones solid (clickable). **Individual sigil** draws the picked being alone as an exact dot, line, equilateral
-  triangle, rectangle or regular pentagon (`sigilPoints`), Temporal at the top. Under it: the picked aspects as chips
-  and the rank they make. Label size follows the drawing's width (about 13 px on screen). Per device:
-  `sw:pantheon:ui` {view, majorLines}.
+  again drops it); keyboard: Tab to a point, Enter / Space. **Esc** (not while typing) lets go of the open being and
+  the picked points (as Clear does); in the editor it is Cancel (asked first when there are changes). **Major lines**
+  draws the 24 Temporal–Mental lines, assigned ones solid (clickable). **Individual sigil** draws the picked being alone
+  in tiers, the inner polygons' points higher (`sigilPoints`): Temporal on top, Mental under it, Material lowest; a dot
+  (Absolute God, a sun of rays round it), a vertical line (Major), an equilateral triangle (Minor), a diamond (Lesser:
+  the Mental pair across, Material at the bottom) or a pyramid (Angel: the Minor triangle with the Mental pair halfway
+  down its sides and the Material pair as its base), tips on a dashed circle, gilt edges. Each aspect is a medallion
+  in its group's color with three letters in Cinzel Decorative (`Str`, `Equ`: its ornamented capital, then plain
+  ones; loaded in index.html for this alone). Round it a seal: beaded rim, double rings, ticks, a lozenge at each
+  side, the rank on the top arc and the being's title (or, unassigned, its aspects) on the bottom one, squeezed when
+  long. Under it: the picked aspects as chips and the rank they make. Label size follows the drawing's width (about
+  13 px on screen). Per device: `sw:pantheon:ui` {view, majorLines}.
 - Panel (right): the open being (rank badge, title, aspects, Temporal meaning, domains, description, worship, "In the
   chain": what it is made of, each with its being or "Unassigned" + Create, and the saved beings it is part of); an
   unassigned combination ("Create this Major God"); why picked points are not a being yet; or the rank table.
@@ -62,4 +69,6 @@ The campaign's gods, built from the three-polygon pantheon in
   summary: add the new ones (beings here keep their combinations) or replace the whole pantheon.
 - Export roster Markdown: the guide's template per being, grouped by rank (`rosterMarkdown`).
 - Export diagram (or sigil) SVG / PNG: the current view and selection in the light theme's colors, with a heading
-  ("The Pantheon" or "Sigil of …") and a two-line caption (rank and title, aspects); PNG 2000 × 2000.
+  ("The Pantheon" or "Sigil of …") and a two-line caption (rank and title, aspects); PNG 2000 × 2000. The fonts go
+  inside the file (`withFonts`: Google Fonts subsets of just the letters used, as data URLs), since an SVG opened
+  elsewhere or drawn into the PNG can't load the page's; offline the file only names them.

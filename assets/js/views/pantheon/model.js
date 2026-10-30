@@ -271,25 +271,25 @@ export function outline(points) {
   return points.slice().sort((a, b) => ang(a) - ang(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 /**
- * The individual sigil: the same aspects as an exact dot, line, equilateral triangle, rectangle or regular pentagon,
- * Temporal first from the top, clockwise. [{id, x, y}] on a W × W drawing.
+ * The individual sigil: the aspects in tiers, the inner polygons' points higher: Temporal at the top, Mental under
+ * it, Material lowest; in each tier the first in reading order on the left. Absolute God a dot in the middle, Major a
+ * vertical line, Minor an equilateral triangle, Lesser a diamond, Angel a pyramid (the Minor triangle with the Mental
+ * points halfway down its sides and the Material pair as its base). The tips lie on a circle of radius r round the
+ * centre. [{id, x, y}] on a W × W drawing, in reading order.
  */
-export function sigilPoints(aspects, W = 1000) {
+export function sigilPoints(aspects, W = 1000, r = 0.262 * W) {
   const list = ordered(aspects);
   const c = W / 2;
-  const n = list.length;
-  if (n === 1) return [{ id: list[0], x: c, y: c }];
-  if (n === 2) return [{ id: list[0], x: c - 0.26 * W, y: c }, { id: list[1], x: c + 0.26 * W, y: c }];
-  if (n === 4) {
-    const w = 0.26 * W, hh = 0.17 * W;
-    return [[-w, -hh], [w, -hh], [w, hh], [-w, hh]].map(([dx, dy], i) => ({ id: list[i], x: c + dx, y: c + dy }));
+  const k = Math.sqrt(3) / 2;
+  const at = (i, dx, dy) => ({ id: list[i], x: c + dx * r, y: c + dy * r });
+  switch (list.length) {
+    case 0: return [];
+    case 1: return [at(0, 0, 0)];
+    case 2: return [at(0, 0, -1), at(1, 0, 1)];
+    case 3: return [at(0, 0, -1), at(1, -k, 0.5), at(2, k, 0.5)];
+    case 4: return [at(0, 0, -1), at(1, -0.7, 0), at(2, 0.7, 0), at(3, 0, 1)];
+    default: return [at(0, 0, -1), at(1, -k / 2, -0.25), at(2, k / 2, -0.25), at(3, -k, 0.5), at(4, k, 0.5)];
   }
-  const r = (n === 3 ? 0.29 : 0.26) * W;
-  const dy = n === 3 ? 0.05 * W : 0.02 * W; // centre the shape's height in the box
-  return list.map((id, i) => {
-    const a = ((-90 + (i * 360) / n) * Math.PI) / 180;
-    return { id, x: c + r * Math.cos(a), y: c + dy + r * Math.sin(a) };
-  });
 }
 
 // ---------- export / import ----------

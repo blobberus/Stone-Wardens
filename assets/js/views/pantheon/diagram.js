@@ -2,29 +2,37 @@
 //   Original shapes (default): the Material square, Mental hexagon and Temporal square with all 14 aspects; the
 //     selection shows as a ring (Absolute God), a line (Major), a triangle (Minor) or a closed outline (Lesser, Angel),
 //     every other aspect still in sight. "Major lines" adds the 24 Temporal-Mental lines, assigned ones solid.
-//   Individual sigil (optional): the selection alone as an exact dot, line, triangle, rectangle or regular pentagon.
+//   Individual sigil (optional): the selection alone, in tiers (Temporal on top, then Mental, then Material): a dot,
+//     a line, a triangle, a diamond (Lesser God) or a pyramid (Angel), inside a seal: beaded rim, the rank on the top
+//     arc, the being's title (or its aspects) on the bottom one, each aspect a medallion with its three letters.
 // The same builder draws the screen (colors from CSS custom properties) and the SVG / PNG export (plain colors).
 import { GROUPS, NODES, MEANINGS, node, positions, outline, sigilPoints, rankOf, aspectNames, comboId, classify, ordered } from './model.js';
 
 const NS = 'http://www.w3.org/2000/svg';
+const XLINK = 'http://www.w3.org/1999/xlink';
 export const W = 1000;
 
 /** Colors on screen (custom properties from pantheon.css / tokens.css). */
 export const SCREEN = {
   bg: null, ink: 'var(--ink)', muted: 'var(--ink-muted)', faint: 'var(--border-strong)', halo: 'var(--surface)',
   material: 'var(--pt-material)', mental: 'var(--pt-mental)', temporal: 'var(--pt-temporal)', select: 'var(--pt-select)',
-  font: 'var(--font-ui)', display: 'var(--font-display)',
+  font: 'var(--font-ui)', display: 'var(--font-display)', sigil: 'var(--pt-sigil-font)',
 };
 /** Colors in an exported file (the light theme's). */
 export const PAPER = {
   bg: '#f6f2e9', ink: '#1f1a14', muted: '#554c40', faint: '#8f826b', halo: '#f6f2e9',
   material: '#925510', mental: '#2c5a8a', temporal: '#72405f', select: '#9c7419',
   font: '"Alegreya Sans", "Segoe UI", system-ui, sans-serif', display: 'Cinzel, "Times New Roman", serif',
+  sigil: '"Cinzel Decorative", Cinzel, "Times New Roman", serif',
 };
 
 function s(tag, attrs = {}, ...kids) {
   const el = document.createElementNS(NS, tag);
-  for (const [k, v] of Object.entries(attrs)) if (v != null && v !== false) el.setAttribute(k, v === true ? '' : String(v));
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === 'xlink:href') el.setAttributeNS(XLINK, k, String(v)); // older SVG readers want it beside href
+    else el.setAttribute(k, v === true ? '' : String(v));
+  }
   for (const k of kids.flat()) if (k != null && k !== false) el.append(k instanceof Node ? k : document.createTextNode(String(k)));
   return el;
 }
@@ -61,7 +69,7 @@ export function drawDiagram(o) {
   });
   if (P.bg) svg.append(s('rect', { x: 0, y: 0, width: W, height: W, fill: P.bg }));
   if (o.heading) svg.append(s('text', { x: 40, y: 64, style: css({ fill: P.ink, 'font-family': P.display, 'font-size': '34px', 'letter-spacing': '0.06em' }) }, o.heading));
-  if (o.view === 'sigil') drawSigil(svg, sel, c, P, size);
+  if (o.view === 'sigil') drawSigil(svg, sel, c, o, P, size);
   else drawOriginal(svg, sel, c, o, P, size);
   const lines = [].concat(o.caption || []).filter(Boolean);
   lines.forEach((t, i) => {
@@ -132,29 +140,108 @@ function drawOriginal(svg, sel, c, o, P, size) {
   }
 }
 
-function drawSigil(svg, sel, c, P, size) {
+function drawSigil(svg, sel, c, o, P, size) {
   if (!c.ok) {
     svg.append(s('text', { x: W / 2, y: W / 2, 'text-anchor': 'middle', style: css({ fill: P.muted, 'font-size': '30px' }) },
       sel.length ? 'Not a being yet: see the panel for what it needs.' : 'Choose a being, or pick its points, to draw its sigil.'));
     return;
   }
-  const ps = sigilPoints(sel, W);
-  const center = { x: ps.reduce((a, p) => a + p.x, 0) / ps.length, y: ps.reduce((a, p) => a + p.y, 0) / ps.length };
-  const shape = s('g', { class: `pt-sigil is-${c.rank}` });
-  if (ps.length === 1) shape.append(s('circle', { cx: ps[0].x, cy: ps[0].y, r: 70, style: css({ fill: P.select, 'fill-opacity': 0.18, stroke: P.select, 'stroke-width': 6 }) }));
-  else if (ps.length === 2) shape.append(s('line', { x1: ps[0].x, y1: ps[0].y, x2: ps[1].x, y2: ps[1].y, style: css({ stroke: P.select, 'stroke-width': 8, 'stroke-linecap': 'round' }) }));
-  else shape.append(s('polygon', { points: pts(ps), style: css({ fill: P.select, 'fill-opacity': 0.14, stroke: P.select, 'stroke-width': 6, 'stroke-linejoin': 'round' }) }));
-  svg.append(shape);
-  const big = Math.round(size * 1.15);
-  for (const p of ps) {
-    const n = node(p.id);
-    const from = ps.length === 1 ? { x: p.x, y: p.y + 1 } : ps.length === 2 ? { x: W / 2, y: p.y } : center;
-    const lab = labelAt(p, from, big, ps.length === 1 ? 90 : 30);
-    svg.append(s('g', { class: `pt-node pt-${n.group} is-on`, 'data-aspect': p.id },
-      s('circle', { cx: p.x, cy: p.y, r: 18, style: css({ fill: P[n.group], stroke: P.halo, 'stroke-width': 4 }) }),
-      s('text', { x: lab.x.toFixed(1), y: lab.y.toFixed(1), 'text-anchor': lab.anchor, style: css({ fill: P[n.group], 'font-size': `${big}px`, 'font-weight': 700, stroke: P.halo, 'stroke-width': `${big / 4}px`, 'stroke-linejoin': 'round', 'paint-order': 'stroke' }) }, n.name)));
+  const C = W / 2;
+  const gold = P.select;
+  const fs = Math.round(Math.max(26, size * 1.1)); // the aspects' letters, bigger in the drawing's units as it shrinks
+  const mr = Math.round(fs * 1.65); // their medallions
+  const lfs = Math.round(Math.max(24, size * 0.95)); // the legends on the ring
+  const r = Math.min(262, SEAL.in - 12 - mr); // the circle the tips lie on, medallions clear of the ring
+  const ps = sigilPoints(sel, W, r);
+  const n = ps.length;
+  const who = o.occupants?.get(c.id);
+  const ring = (rad, width) => s('circle', { cx: C, cy: C, r: rad, style: css({ fill: 'none', stroke: gold, 'stroke-width': width }) });
+  // legend arcs: over the top left to right (letters stand outwards), under the bottom left to right (inwards)
+  const arc = (rad, top) => `M ${C - rad} ${C} A ${rad} ${rad} 0 0 ${top ? 1 : 0} ${C + rad} ${C}`;
+  const topR = SEAL.band - lfs * 0.35, bottomR = SEAL.band + lfs * 0.35;
+  svg.append(s('defs', {},
+    s('radialGradient', { id: 'pt-sigil-glow' },
+      s('stop', { offset: '0%', style: css({ 'stop-color': gold, 'stop-opacity': 0.24 }) }),
+      s('stop', { offset: '65%', style: css({ 'stop-color': gold, 'stop-opacity': 0.07 }) }),
+      s('stop', { offset: '100%', style: css({ 'stop-color': gold, 'stop-opacity': 0 }) })),
+    s('path', { id: 'pt-sigil-top', d: arc(topR, true) }),
+    s('path', { id: 'pt-sigil-bottom', d: arc(bottomR, false) })));
+  // the seal: a beaded rim, the legend band between two double rings, a lozenge at each side, ticks inside
+  const seal = s('g', { class: 'pt-seal' },
+    s('circle', { cx: C, cy: C, r: SEAL.in, style: css({ fill: 'url(#pt-sigil-glow)' }) }),
+    ring(SEAL.out, 3), ring(SEAL.out - 6, 1.2), ring(SEAL.in + 6, 1.2), ring(SEAL.in, 3));
+  for (let i = 0; i < 90; i++) {
+    const a = (i * 4 * Math.PI) / 180;
+    seal.append(s('circle', { cx: (C + SEAL.beads * Math.cos(a)).toFixed(1), cy: (C + SEAL.beads * Math.sin(a)).toFixed(1), r: 2.6, style: css({ fill: gold }) }));
   }
-  svg.append(s('text', { x: W / 2, y: 130, 'text-anchor': 'middle', style: css({ fill: P.ink, 'font-family': P.display, 'font-size': '36px', 'letter-spacing': '0.08em' }) }, rankOf(c.rank).label));
+  for (let i = 0; i < 72; i++) {
+    const a = (i * 5 * Math.PI) / 180;
+    const r0 = SEAL.in - (i % 3 ? 7 : 12);
+    seal.append(s('line', {
+      x1: (C + r0 * Math.cos(a)).toFixed(1), y1: (C + r0 * Math.sin(a)).toFixed(1),
+      x2: (C + (SEAL.in - 2) * Math.cos(a)).toFixed(1), y2: (C + (SEAL.in - 2) * Math.sin(a)).toFixed(1),
+      style: css({ stroke: gold, 'stroke-width': i % 3 ? 1 : 1.8, 'stroke-opacity': 0.75 }),
+    }));
+  }
+  for (const x of [C - SEAL.band, C + SEAL.band]) {
+    seal.append(s('polygon', { points: `${x},${C - 15} ${x + 7},${C} ${x},${C + 15} ${x - 7},${C}`, style: css({ fill: gold }) }),
+      s('circle', { cx: x, cy: C - 25, r: 3, style: css({ fill: gold }) }), s('circle', { cx: x, cy: C + 25, r: 3, style: css({ fill: gold }) }));
+  }
+  svg.append(seal,
+    legend('pt-sigil-top', rankOf(c.rank).label, topR, lfs, P),
+    legend('pt-sigil-bottom', who?.title || aspectNames(c.aspects, ' · '), bottomR, lfs, P));
+  // the shape: a sun for an Absolute God, else gilt edges with a fine line inlaid on the circle of the tips
+  const art = s('g', { class: `pt-sigil is-${c.rank}` });
+  const big = Math.round(mr * 1.6); // an Absolute God's one medallion
+  if (n === 1) {
+    const at = (rad, a) => `${(C + rad * Math.cos(a)).toFixed(1)},${(C + rad * Math.sin(a)).toFixed(1)}`;
+    for (let i = 0; i < 24; i++) {
+      const a = ((i * 15 - 90) * Math.PI) / 180;
+      const half = ((i % 2 ? 2.5 : 4) * Math.PI) / 180;
+      const tip = i % 2 ? big + (SEAL.in - big) * 0.6 : SEAL.in - 14;
+      art.append(s('polygon', { points: [at(big + 10, a - half), at(tip, a), at(big + 10, a + half)].join(' '), style: css({ fill: gold, 'fill-opacity': i % 2 ? 0.45 : 0.8 }) }));
+    }
+  } else {
+    art.append(s('circle', { cx: C, cy: C, r, style: css({ fill: 'none', stroke: gold, 'stroke-width': 1.5, 'stroke-dasharray': '2 7', 'stroke-linecap': 'round', 'stroke-opacity': 0.8 }) }));
+    const [tag, at] = n === 2 ? ['line', { x1: ps[0].x, y1: ps[0].y, x2: ps[1].x, y2: ps[1].y }] : ['polygon', { points: pts(outline(ps)) }];
+    const join = { 'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
+    art.append(s(tag, { ...at, style: css({ fill: n > 2 ? gold : null, 'fill-opacity': n > 2 ? 0.12 : null, stroke: gold, 'stroke-width': 11, ...join }) }),
+      s(tag, { ...at, style: css({ fill: 'none', stroke: P.halo, 'stroke-width': 3, ...join }) }));
+    // a Major God's line carries a lozenge halfway; the Mental tier crosses a diamond or a pyramid (the Minor God's
+    // triangle stands on it)
+    if (n === 2) art.append(s('polygon', { points: `${C},${C - 22} ${C + 12},${C} ${C},${C + 22} ${C - 12},${C}`, style: css({ fill: gold, stroke: P.halo, 'stroke-width': 2.5 }) }));
+    if (n >= 4) art.append(s('line', { x1: ps[1].x, y1: ps[1].y, x2: ps[2].x, y2: ps[2].y, style: css({ stroke: gold, 'stroke-width': 4, 'stroke-linecap': 'round' }) }));
+  }
+  svg.append(art);
+  // each aspect a medallion with its three letters
+  for (const p of ps) {
+    const nd = node(p.id);
+    const col = P[nd.group];
+    const rad = n === 1 ? big : mr;
+    const f = n === 1 ? Math.round(fs * 1.55) : fs;
+    svg.append(s('g', { class: `pt-node pt-${nd.group} is-on`, 'data-aspect': p.id },
+      s('title', {}, `${nd.name} · ${GROUPS.find((x) => x.id === nd.group).label}`),
+      s('circle', { cx: p.x.toFixed(1), cy: p.y.toFixed(1), r: rad + 7, style: css({ fill: P.halo, stroke: gold, 'stroke-width': 1.5 }) }),
+      s('circle', { cx: p.x.toFixed(1), cy: p.y.toFixed(1), r: rad, style: css({ fill: col, 'fill-opacity': 0.1, stroke: col, 'stroke-width': 4.5 }) }),
+      s('circle', { cx: p.x.toFixed(1), cy: p.y.toFixed(1), r: rad - 7, style: css({ fill: 'none', stroke: col, 'stroke-width': 1.2, 'stroke-opacity': 0.6 }) }),
+      s('text', { x: p.x.toFixed(1), y: (p.y + f * 0.35).toFixed(1), 'text-anchor': 'middle', style: css({ fill: col, 'font-family': P.sigil, 'font-size': `${f}px`, 'font-weight': 700 }) }, abbr3(nd))));
+  }
+}
+
+// The seal round a sigil (radii on the drawing, from its centre): beads, the outer double ring, the legend band's
+// middle, the inner double ring.
+const SEAL = { beads: 386, out: 374, band: 346, in: 318 };
+/** Three letters in Cinzel Decorative: its capital is the ornamented one, its small letters plain capitals ("Str"). */
+const abbr3 = (n) => n.abbr[0] + n.abbr.slice(1).toLowerCase();
+
+/** A legend in capitals along one of the seal's arcs, squeezed when it would run past the side lozenges. */
+function legend(id, text, rad, fs, P) {
+  let t = String(text).toUpperCase();
+  if (t.length > 60) t = `${t.slice(0, 58).trim()}…`;
+  const room = rad * 2.2; // about 126° of the arc
+  const tight = t.length * fs * 0.86 > room; // Cinzel's capitals with the letter spacing, about 0.86 em each
+  return s('text', { 'text-anchor': 'middle', style: css({ fill: P.ink, 'font-family': P.display, 'font-size': `${fs}px`, 'font-weight': 700, 'letter-spacing': '0.12em' }) },
+    s('textPath', { href: `#${id}`, 'xlink:href': `#${id}`, startOffset: '50%', ...(tight ? { textLength: Math.round(room), lengthAdjust: 'spacingAndGlyphs' } : {}) }, t));
 }
 
 /** A small rank symbol (dot, line, triangle, rectangle, pentagon) in currentColor, for lists and badges. */
@@ -172,10 +259,36 @@ export function rankGlyph(rank, px = 16) {
   return svg;
 }
 
-/** An exported file's text: the diagram (or sigil) in plain colors, with a heading and a caption. */
-export function svgText(o) {
+/** An exported file's text: the diagram (or sigil) in plain colors, with a heading, a caption and its fonts. */
+export async function svgText(o) {
   const svg = drawDiagram({ ...o, palette: PAPER, interactive: false, labelSize: 24 });
-  return `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(svg)}\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n${await withFonts(new XMLSerializer().serializeToString(svg), svg.textContent)}\n`;
+}
+
+// The page's web fonts, put inside an exported file (an SVG opened elsewhere, or drawn into the PNG, can't load
+// them): only the letters it uses, from Google Fonts as on the page. Without a connection the file just names them.
+const FONT_CSS = 'https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Cinzel:wght@400;700&family=Cinzel+Decorative:wght@700';
+async function withFonts(text, letters) {
+  try {
+    const opts = { signal: AbortSignal.timeout?.(10000) };
+    const used = [...new Set(`${letters} `.replace(/\s+/g, ' '))].join('');
+    const res = await fetch(`${FONT_CSS}&text=${encodeURIComponent(used)}`, opts);
+    if (!res.ok) return text;
+    let sheet = await res.text();
+    for (const url of new Set(sheet.match(/https:\/\/fonts\.gstatic\.com\/[^)'"\s]+/g) || [])) {
+      const blob = await (await fetch(url, opts)).blob();
+      const data = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result);
+        fr.onerror = () => reject(fr.error);
+        fr.readAsDataURL(blob);
+      });
+      sheet = sheet.split(url).join(data);
+    }
+    return text.replace(/^<svg\b[^>]*>/, (open) => `${open}<style><![CDATA[\n${sheet}]]></style>`);
+  } catch {
+    return text;
+  }
 }
 
 /** The same drawing as a PNG (px × px). */

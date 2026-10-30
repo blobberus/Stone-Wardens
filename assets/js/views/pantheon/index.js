@@ -37,7 +37,7 @@ const S = {
   ui: loadUi(),
   ed: null, // the editor (openEditor)
   restored: false, // an editor draft came back from localStorage: the first show opens it
-  labelSize: 24, queued: false,
+  labelSize: 24, queued: false, visible: false,
 };
 
 function loadUi() {
@@ -221,8 +221,8 @@ function drawStage() {
       onclick: () => { setUi({ majorLines: !S.ui.majorLines }); drawStage(); },
     }, rankGlyph('major'), `Major lines · ${assigned} of 24 assigned`),
     h('button', {
-      class: 'btn btn-sm btn-ghost', type: 'button', disabled: !!S.ed || !S.sel.length, title: 'Clear the picked points',
-      onclick: () => { S.sel = []; setFile(null); render(); },
+      class: 'btn btn-sm btn-ghost', type: 'button', disabled: !!S.ed || !S.sel.length, title: 'Clear the picked points (Esc)',
+      onclick: deselect,
     }, icon('close'), 'Clear'));
   // what is picked: chips (a click drops one) and the rank they make
   const c = M.classify(aspects);
@@ -267,6 +267,12 @@ function followSelection() {
   const c = M.classify(S.sel);
   const o = c.ok ? M.occupants(allBeings()).get(c.id) : null;
   setFile(o ? o.file : null);
+  render();
+}
+/** Let go of the open being and the picked points (Clear, Esc). */
+function deselect() {
+  S.sel = [];
+  setFile(null);
   render();
 }
 function setFile(file) {
@@ -338,7 +344,7 @@ function invalidView(c) {
     aspectChips(S.sel),
     h('p', { class: 'pt-reason' }, c.reason),
     h('p', { class: 'muted ui text-sm' }, 'Absolute God: 1 Temporal · Major: + 1 Mental · Minor: + 2 Mental · Lesser: + 1 Material · Angel: + 2 Material. Click a picked point again to drop it.'),
-    h('div', { class: 'row' }, h('button', { class: 'btn btn-sm', type: 'button', onclick: () => { S.sel = []; setFile(null); render(); } }, icon('close'), 'Clear')));
+    h('div', { class: 'row' }, h('button', { class: 'btn btn-sm', type: 'button', onclick: deselect }, icon('close'), 'Clear')));
 }
 
 function comboView(c, all, occ) {
@@ -674,7 +680,7 @@ async function exportPicture(kind) {
   if (sigil && !c.ok) { toast('Open a being, or pick a valid combination, to export its sigil.'); return; }
   const o = c.ok ? M.occupants(allBeings()).get(c.id) : null;
   const caption = c.ok ? [`${rankLabel(c.rank)}${o ? ` · ${o.title}` : ' · unassigned'}`, M.aspectNames(c.aspects)] : [];
-  const text = svgText({
+  const text = await svgText({
     view: S.ui.view, selection: aspects, occupants: M.occupants(allBeings()), majorLines: !sigil && S.ui.majorLines,
     heading: sigil ? `Sigil${o ? ` of ${o.title}` : ''}` : 'The Pantheon', caption,
   });
@@ -787,6 +793,19 @@ function restoreDraft() {
   toast(`Your unsaved ${S.ed.file ? 'changes to a being are' : 'new being is'} back in the editor.`, { timeout: 6000 });
 }
 
+// ---------- keys ----------
+
+const isTyping = (t) => !!t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+/** Esc (not while typing, a dialog or a menu takes it first): out of the editor (asked first when it has changes), else
+ * the open being or picked points are let go. */
+function onKey(e) {
+  if (e.key !== 'Escape' || !S.visible || e.defaultPrevented || isTyping(e.target) || document.querySelector('.modal-backdrop')) return;
+  if (S.ed) { e.preventDefault(); cancelEditor(); return; }
+  if (!S.sel.length && !S.file) return;
+  e.preventDefault();
+  deselect();
+}
+
 // ---------- view ----------
 
 export default {
@@ -797,9 +816,11 @@ export default {
     build(el);
     store.on(onStoreEvent);
     onDmMode(() => onStoreEvent({ type: 'load' }));
+    document.addEventListener('keydown', onKey);
     restoreDraft();
   },
   show(route) {
+    S.visible = true;
     const [file = null] = route?.parts || [];
     if (S.restored) { // back after a reload with an unsaved editor: show it, wherever the address pointed
       S.restored = false;
@@ -823,6 +844,7 @@ export default {
     if (!S.file) document.title = 'Pantheon · The Stone Wardens';
   },
   hide() {
+    S.visible = false;
     keepDraft.flush?.();
   },
 };
