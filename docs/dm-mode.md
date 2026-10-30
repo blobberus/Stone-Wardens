@@ -83,13 +83,14 @@ Envelope file names are random, so they say nothing about the item; its real pat
 | Tab | Create (starts at the DM's default) | On the item | Lock mark |
 |---|---|---|---|
 | Quests | New quest dialog | quest page and editor | quest log |
+| Pantheon | Add custom being editor (a hidden one may wait on a shown being's combination: revealing it replaces that being, after "Reveal and replace?") | the being's panel and editor | roster |
 | Compendium | new entry / custom copy editor | entry page actions (Status: "Hidden from the players") | lists, search, recent |
 | Journal | New note dialog (quick "+" notes follow the default) | under the note's title | file tree |
 | Warden's Library | Add documents dialog | reader actions | shelf cards and table |
 | Map | New location panel, Add a sub-map (DM Screen: New map), Duplicate this map (map pictures follow "New: hidden") | place panel, under the badges; any map under its name plate, the main map too (with everything on it); a picture in Edit map → Pictures | pin with a dashed gold edge; lock beside a map's name (plate, Maps list, the main map too); dashed gold outline on a picture |
 
-The DM Screen's Create buttons open those forms (`#/quests?new=1`, `#/map?new=1` = the new-map dialog over the main
-map, `#/compendium?new=1`, `#/journal/new`, `#/wardens-library?upload=1`). A new hidden map is released with the
+The DM Screen's Create buttons open those forms (`#/quests?new=1`, `#/pantheon?new=1`, `#/map?new=1` = the new-map
+dialog over the main map, `#/compendium?new=1`, `#/journal/new`, `#/wardens-library?upload=1`). A new hidden map is released with the
 switch under its name plate or from Hidden from players (its places, pictures, fog and sub-maps come along).
 
 **Hiding the main map.** The switch under the main map's name plate (or "Hide an existing item…", or Hide again in

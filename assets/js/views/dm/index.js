@@ -104,6 +104,7 @@ function render() {
           h('span', { class: 'muted ui text-sm' }, 'The default of the switch in every “create” form while DM mode is on (also in the menu, under the DM button).')),
         h('div', { class: 'dm-create-btns' },
           h('a', { class: 'btn', href: '#/quests?new=1' }, icon('quests'), 'New quest'),
+          h('a', { class: 'btn', href: '#/pantheon?new=1' }, icon('pantheon'), 'New god'),
           h('a', { class: 'btn', href: '#/map?new=1' }, icon('map'), 'New map'),
           h('a', { class: 'btn', href: '#/compendium?new=1' }, icon('compendium'), 'New compendium entry'),
           h('a', { class: 'btn', href: '#/journal/new' }, icon('journal'), 'New journal note'),

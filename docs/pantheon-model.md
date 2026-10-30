@@ -22,12 +22,21 @@ The campaign's gods, built from the three-polygon pantheon in
   aspects change). `{id, aspects, rank, title, domains: [..], description, worship, by, created, updated}`: the guide's
   six characteristics + combination id, rank and id always recomputed from the aspects on read and write
   (`normalizeBeing`, `beingDoc`). Description and Worship are Markdown (rendered with `[[links]]`), Domains a list.
-- One being per combination: the editor refuses a taken one (it explains and offers to open the being there). Two
-  files with the same aspects can still arrive (two devices at once, or one hidden by the DM): both are listed, the
-  later flagged (`roster` `twin`), and the earliest made holds the combination (`occupants`).
-- Anyone can add, edit and delete beings. DM mode: a new being can be made hidden (`hiddenChoice`), an existing one
-  hidden / released with `visibilityToggle` (`registerHideable` prefix `content/pantheon/`); hidden ones show a lock.
-- Links: `[[pantheon:Title]]` (or the title alone, or aspect names joined with `+`) opens a being (`findBeing`).
+- One being per combination the players see: the editor refuses one taken by a shown being (it explains and offers
+  to open the being there). Two files with the same aspects can still arrive (two devices at once): both are listed,
+  the later flagged (`roster` `twin`, a warning only when both are shown or both hidden), and the earliest made holds
+  the combination (`occupants`).
+- Anyone can add, edit and delete beings. DM mode: a new being can be made hidden (`hiddenChoice`; DM Screen →
+  Create → New god = `#/pantheon?new=1`), an existing one hidden / released with `visibilityToggle`
+  (`registerHideable` prefix `content/pantheon/`); hidden ones show a lock.
+- **Reveal and replace** (DM): a hidden being may sit on a combination the players already see (the editor says so;
+  saving a visible new one on a taken combination offers "Save hidden"). Its page says revealing it replaces the shown
+  one, and the shown one's page names the hidden one waiting. Revealing it (its switch or the DM Screen's Release)
+  first asks "Reveal and replace?" naming the being that will be deleted (`releaseAs`); on Reveal and replace it is
+  released and the shown being on that combination is deleted (`afterRelease`), with one Inbox notification.
+- Links: `[[pantheon:Title]]` (or the title alone, or aspect names joined with `+`) opens a being (`findBeing`); the
+  `[[` autocomplete offers beings by title. A being's page ends with **Linked from**: the notes, quests, places, maps,
+  characters, library entries and other beings that link to it (`linkedFrom`: their `[[…]]` that resolve to it).
 
 ## The tab
 - Roster (left): beings by rank with `saved / possible` per rank, "N custom entries saved · 688 possible
@@ -41,7 +50,9 @@ The campaign's gods, built from the three-polygon pantheon in
   the picked points (as Clear does); in the editor it is Cancel (asked first when there are changes). **Major lines**
   draws the 24 Temporal–Mental lines, assigned ones solid (clickable). **Individual sigil** draws the picked being alone
   in tiers, the inner polygons' points higher (`sigilPoints`): Temporal on top, Mental under it, Material lowest; a dot
-  (Absolute God, a sun of rays round it), a vertical line (Major), an equilateral triangle (Minor), a diamond (Lesser:
+  (Absolute God, a sun of rays round it), a vertical line (Major: inside a double mandorla in a glory of rays, a compass
+  star at its middle), an equilateral triangle (Minor: rays shed from its sides, an inner triangle and the star at its
+  heart), a diamond (Lesser:
   the Mental pair across, Material at the bottom) or a pyramid (Angel: the Minor triangle with the Mental pair halfway
   down its sides and the Material pair as its base), tips on a dashed circle, gilt edges. Each aspect is a medallion
   in its group's color with three letters in Cinzel Decorative (`Str`, `Equ`: its ornamented capital, then plain

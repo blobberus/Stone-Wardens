@@ -190,26 +190,59 @@ function drawSigil(svg, sel, c, o, P, size) {
   svg.append(seal,
     legend('pt-sigil-top', rankOf(c.rank).label, topR, lfs, P),
     legend('pt-sigil-bottom', who?.title || aspectNames(c.aspects, ' · '), bottomR, lfs, P));
-  // the shape: a sun for an Absolute God, else gilt edges with a fine line inlaid on the circle of the tips
+  // the shape: gilt edges with a fine line inlaid, on the circle of the tips. An Absolute God is a sun; a Major God's
+  // line runs through a mandorla in a glory of rays, a Minor God's triangle sheds rays from its sides, each with a
+  // star at its heart; the Mental tier crosses a diamond or a pyramid (the Minor God's triangle stands on it).
   const art = s('g', { class: `pt-sigil is-${c.rank}` });
   const big = Math.round(mr * 1.6); // an Absolute God's one medallion
-  if (n === 1) {
-    const at = (rad, a) => `${(C + rad * Math.cos(a)).toFixed(1)},${(C + rad * Math.sin(a)).toFixed(1)}`;
-    for (let i = 0; i < 24; i++) {
-      const a = ((i * 15 - 90) * Math.PI) / 180;
-      const half = ((i % 2 ? 2.5 : 4) * Math.PI) / 180;
-      const tip = i % 2 ? big + (SEAL.in - big) * 0.6 : SEAL.in - 14;
-      art.append(s('polygon', { points: [at(big + 10, a - half), at(tip, a), at(big + 10, a + half)].join(' '), style: css({ fill: gold, 'fill-opacity': i % 2 ? 0.45 : 0.8 }) }));
+  const at = (rad, a) => `${(C + rad * Math.cos(a)).toFixed(1)},${(C + rad * Math.sin(a)).toFixed(1)}`;
+  const join = { 'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
+  /** Tapering rays round the centre, from just outside base(angle) out to `long`; every other one shorter, fainter. */
+  const rays = (count, base, long, wide, narrow) => {
+    for (let i = 0; i < count; i++) {
+      const a = (((i * 360) / count - 90) * Math.PI) / 180;
+      const b = base(a) + 3;
+      const tip = i % 2 ? b + (long - b) * 0.62 : long;
+      if (tip - b < 16) continue; // behind a medallion
+      const half = (i % 2 ? narrow : wide) / b;
+      art.append(s('polygon', { points: [at(b, a - half), at(tip, a), at(b, a + half)].join(' '), style: css({ fill: gold, 'fill-opacity': i % 2 ? 0.45 : 0.8 }) }));
     }
-  } else {
+  };
+  /** A compass star (four long points, four short) in a gilt roundel at the centre. */
+  const star = (R) => {
+    const p = [];
+    for (let i = 0; i < 16; i++) p.push(at(i % 2 ? R * 0.36 : i % 4 ? R * 0.66 : R, ((i * 22.5 - 90) * Math.PI) / 180));
+    art.append(s('circle', { cx: C, cy: C, r: R * 1.4, style: css({ fill: P.halo, stroke: gold, 'stroke-width': 2.5 }) }),
+      s('circle', { cx: C, cy: C, r: R * 1.4 - 5, style: css({ fill: gold, 'fill-opacity': 0.12, stroke: gold, 'stroke-width': 1, 'stroke-opacity': 0.7 }) }),
+      s('polygon', { points: p.join(' '), style: css({ fill: gold, stroke: P.halo, 'stroke-width': 1.5, 'stroke-linejoin': 'round' }) }));
+  };
+  if (n === 1) rays(24, () => big + 7, SEAL.in - 14, 6.5, 4);
+  else {
     art.append(s('circle', { cx: C, cy: C, r, style: css({ fill: 'none', stroke: gold, 'stroke-width': 1.5, 'stroke-dasharray': '2 7', 'stroke-linecap': 'round', 'stroke-opacity': 0.8 }) }));
-    const [tag, at] = n === 2 ? ['line', { x1: ps[0].x, y1: ps[0].y, x2: ps[1].x, y2: ps[1].y }] : ['polygon', { points: pts(outline(ps)) }];
-    const join = { 'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
-    art.append(s(tag, { ...at, style: css({ fill: n > 2 ? gold : null, 'fill-opacity': n > 2 ? 0.12 : null, stroke: gold, 'stroke-width': 11, ...join }) }),
-      s(tag, { ...at, style: css({ fill: 'none', stroke: P.halo, 'stroke-width': 3, ...join }) }));
-    // a Major God's line carries a lozenge halfway; the Mental tier crosses a diamond or a pyramid (the Minor God's
-    // triangle stands on it)
-    if (n === 2) art.append(s('polygon', { points: `${C},${C - 22} ${C + 12},${C} ${C},${C + 22} ${C - 12},${C}`, style: css({ fill: gold, stroke: P.halo, 'stroke-width': 2.5 }) }));
+    if (n === 2) {
+      // the mandorla: two arcs from tip to tip, w either side of the line at its middle (circles of radius R, d off centre)
+      const w = 0.46 * r;
+      const R = (r * r + w * w) / (2 * w), d = R - w;
+      const mandorla = (half) => {
+        const q = ((r * r + half * half) / (2 * half)).toFixed(1);
+        return `M ${C} ${C - r} A ${q} ${q} 0 0 1 ${C} ${C + r} A ${q} ${q} 0 0 1 ${C} ${C - r} Z`;
+      };
+      rays(40, (a) => Math.sqrt(R * R - d * d * Math.sin(a) ** 2) - d * Math.abs(Math.cos(a)), 0.97 * r, 5.5, 3.5);
+      art.append(s('path', { d: mandorla(w), style: css({ fill: P.halo }) }),
+        s('path', { d: mandorla(w), style: css({ fill: gold, 'fill-opacity': 0.14, stroke: gold, 'stroke-width': 5, ...join }) }),
+        s('path', { d: mandorla(0.32 * r), style: css({ fill: 'none', stroke: gold, 'stroke-width': 1.5, 'stroke-opacity': 0.8 }) }));
+    }
+    if (n === 3) {
+      // the triangle's sides are r / 2 from the centre, facing down, upper left and upper right
+      const normals = [90, -30, 210].map((x) => (x * Math.PI) / 180);
+      rays(36, (a) => r / 2 / Math.max(...normals.map((m) => Math.cos(a - m))), 0.97 * r, 6, 4);
+      art.append(s('polygon', { points: pts(ps), style: css({ fill: P.halo }) }));
+    }
+    const [tag, line] = n === 2 ? ['line', { x1: ps[0].x, y1: ps[0].y, x2: ps[1].x, y2: ps[1].y }] : ['polygon', { points: pts(outline(ps)) }];
+    art.append(s(tag, { ...line, style: css({ fill: n > 2 ? gold : null, 'fill-opacity': n > 2 ? 0.12 : null, stroke: gold, 'stroke-width': 11, ...join }) }),
+      s(tag, { ...line, style: css({ fill: 'none', stroke: P.halo, 'stroke-width': 3, ...join }) }));
+    if (n === 3) art.append(s('polygon', { points: pts(ps.map((p) => ({ x: C + (p.x - C) * 0.56, y: C + (p.y - C) * 0.56 }))), style: css({ fill: 'none', stroke: gold, 'stroke-width': 1.6, 'stroke-opacity': 0.85, ...join }) }));
+    if (n <= 3) star(0.13 * r);
     if (n >= 4) art.append(s('line', { x1: ps[1].x, y1: ps[1].y, x2: ps[2].x, y2: ps[2].y, style: css({ stroke: gold, 'stroke-width': 4, 'stroke-linecap': 'round' }) }));
   }
   svg.append(art);

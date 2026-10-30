@@ -8,18 +8,20 @@
 //     the editor (rank guide, aspect selectors, the four writing fields; Save entry). One being per combination: a
 //     taken combination is explained, never overwritten. Unsaved editor changes are asked about before leaving them
 //     and kept on this device (localStorage) until saved or discarded.
-// Each being is content/pantheon/<file>.json (anyone may add and edit; DM mode can hide one). [[pantheon:Title]]
-// links here. ⋯ exports the pantheon (JSON v4), the roster (Markdown) and the diagram (SVG / PNG), and imports JSON.
+// Each being is content/pantheon/<file>.json (anyone may add and edit; DM mode can hide one). A hidden being may share
+// a combination with one the players see: revealing it replaces that one, after the DM confirms. [[pantheon:Title]]
+// links here; a being lists what links to it. ⋯ exports the pantheon (JSON v4), the roster (Markdown) and the diagram
+// (SVG / PNG), and imports JSON.
 import { h, mount } from '../../core/dom.js';
 import { icon, toast, openModal, confirmDialog, choiceDialog, field, input, textarea, markdownEditor } from '../../core/ui.js';
 import { store } from '../../core/store.js';
 import { navigate, href, current } from '../../core/router.js';
-import { registerLinkType, matchNames } from '../../core/links.js';
-import { renderInto } from '../../core/markdown.js';
+import { registerLinkType, matchNames, resolveLink } from '../../core/links.js';
+import { renderInto, extractLinks } from '../../core/markdown.js';
 import { getSetting } from '../../core/settings.js';
 import { saveSoon, saveHint } from '../../core/saving.js';
 import { uid, debounce, fmtDate } from '../../core/util.js';
-import { registerHideable, onDmMode } from '../../core/dm.js';
+import { registerHideable, onDmMode, isDm, isHidden, describe } from '../../core/dm.js';
 import { visibilityToggle, hiddenChoice, hiddenMark } from '../../core/dm-ui.js';
 import { openMenu } from '../journal/menu.js';
 import * as M from './model.js';
@@ -62,9 +64,30 @@ const aRank = (rank) => `${/^[AEIOU]/.test(rankLabel(rank)) ? 'an' : 'a'} ${rank
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const playerName = () => getSetting('playerName') || '';
 
+/** Do the players see this being? (Not while the DM hides it.) */
+const isShown = (b) => !isHidden(pathOf(b.file));
+/** The other beings the players see on b's combination. */
+const shownOn = (b, all = allBeings()) => (b.invalid ? [] : all.filter((x) => x.file !== b.file && !x.invalid && x.id === b.id && isShown(x)));
+const quoted = (list) => list.map((x) => `“${x.title || 'Untitled being'}”`).join(' and ');
+
 registerHideable({
   prefix: `${M.PANTHEON_DIR}/`, label: 'Being', icon: 'pantheon', order: 40, accept: isBeingPath,
   describe: (path, data) => ({ title: M.normalizeBeing(data, fileOf(path)).title || 'Untitled being', href: href(VIEW, fileOf(path)) }),
+  // revealing a hidden being on a combination the players see replaces the being there, once the DM agrees
+  releaseAs(path, data) {
+    const b = M.normalizeBeing(data, fileOf(path));
+    const old = shownOn(b);
+    if (!old.length) return null;
+    const one = old.length === 1;
+    return {
+      title: 'Reveal and replace?', okLabel: 'Reveal and replace', data,
+      question: `Revealing “${b.title || 'Untitled being'}” replaces ${quoted(old)}, the ${rankLabel(b.rank)} the players see now for ${M.aspectNames(b.aspects)}. ${one ? 'It is' : 'They are'} deleted, with ${one ? 'its' : 'their'} domains, description and worship.`,
+    };
+  },
+  afterRelease(path) {
+    const data = store.get(path);
+    if (data) for (const x of shownOn(M.normalizeBeing(data, fileOf(path)))) store.remove(pathOf(x.file));
+  },
 });
 
 registerLinkType('pantheon', {
@@ -161,6 +184,8 @@ function renderRoster() {
   const q = S.q.trim().toLowerCase();
   const passes = (b) => !q || b.title.toLowerCase().includes(q) || b.domains.some((d) => d.toLowerCase().includes(q)) || M.aspectNames(b.aspects).toLowerCase().includes(q);
   const saved = all.filter((b) => !b.invalid).length;
+  // two beings players (or only the DM) see on one combination; a hidden one waiting to replace a shown one is no clash
+  const clashes = (b) => b.twin && all.some((x) => x.file !== b.file && !x.invalid && x.id === b.id && isShown(x) === isShown(b));
   S.countEl.textContent = `${plural(saved, 'custom entry', 'custom entries')} saved · ${M.POSSIBLE} possible combinations`;
   if (!all.length) {
     mount(S.rosterEl, h('div', { class: 'pt-roster-empty' },
@@ -186,7 +211,7 @@ function renderRoster() {
       },
       h('span', { class: 'pt-item-title' }, b.title || 'Untitled being'),
       hiddenMark(pathOf(b.file)),
-      b.twin ? h('span', { class: 'pt-item-warn', title: 'Another being has the same aspects' }, icon('warning')) : null,
+      clashes(b) ? h('span', { class: 'pt-item-warn', title: 'Another being has the same aspects' }, icon('warning')) : null,
       h('span', { class: 'pt-item-asp' }, M.aspectAbbrs(b.aspects) || '—'))))) : h('p', { class: 'pt-rank-empty' }, 'None yet.'));
   });
   mount(S.rosterEl, sections, q && !shown ? h('p', { class: 'muted ui text-sm pt-none' }, `Nothing matches “${S.q.trim()}”.`) : null);
@@ -360,7 +385,10 @@ function comboView(c, all, occ) {
 
 function beingView(b, all, occ) {
   const path = pathOf(b.file);
-  const twins = all.filter((x) => x.file !== b.file && !x.invalid && !b.invalid && x.id === b.id);
+  const same = all.filter((x) => x.file !== b.file && !x.invalid && !b.invalid && x.id === b.id);
+  const waiting = isDm() ? same.filter((x) => isShown(x) !== isShown(b)) : []; // a hidden replacement and the shown one
+  const twins = same.filter((x) => !waiting.includes(x));
+  const names = (list) => list.map((t, i) => [i ? ' and ' : '', h('a', { href: href(VIEW, t.file) }, t.title || 'Untitled being')]);
   const copyLink = async () => {
     const text = `[[pantheon:${b.title}]]`;
     try { await navigator.clipboard.writeText(text); toast(`Copied ${text}`); } catch { toast(text, { timeout: 8000 }); }
@@ -375,9 +403,12 @@ function beingView(b, all, occ) {
       visibilityToggle(path, { label: 'this being' }),
       h('button', { class: 'btn btn-sm btn-ghost btn-danger pt-delete', type: 'button', onclick: () => deleteBeing(b) }, icon('trash'), 'Delete')),
     b.invalid ? h('p', { class: 'pt-reason' }, `These aspects don’t make a being: ${b.invalid} Edit it to choose valid ones.`) : null,
-    twins.length ? h('p', { class: 'pt-reason' }, 'Another being has the same aspects: ',
-      twins.map((t, i) => [i ? ', ' : '', h('a', { href: href(VIEW, t.file) }, t.title || 'Untitled being')]),
+    twins.length ? h('p', { class: 'pt-reason' }, 'Another being has the same aspects: ', names(twins),
       '. Each combination holds one being: change the aspects of one of them, or delete one.') : null,
+    waiting.length && !isShown(b) ? h('p', { class: 'pt-reason is-note' }, 'The players see ', names(waiting),
+      ` on these aspects. Revealing this being replaces ${waiting.length === 1 ? 'it' : 'them'} (you are asked first).`) : null,
+    waiting.length && isShown(b) ? h('p', { class: 'pt-reason is-note' }, names(waiting),
+      ` (hidden) ${waiting.length === 1 ? 'waits' : 'wait'} on these aspects: revealing ${waiting.length === 1 ? 'it' : 'one'} replaces this being.`) : null,
     meaningOf(b.aspects),
     h('h3', { class: 'pt-h' }, 'Domains'),
     b.domains.length ? h('ul', { class: 'pt-domains', role: 'list' }, b.domains.map((d) => h('li', { class: 'chip pt-domain' }, d))) : h('p', { class: 'muted pt-empty-field' }, 'No domains yet.'),
@@ -386,7 +417,41 @@ function beingView(b, all, occ) {
     h('h3', { class: 'pt-h' }, 'Worship'),
     prose(b.worship, 'Nothing about worship yet: followers, practices, offerings, holy days, temples, taboos, rites.'),
     b.invalid ? null : chainView(b.aspects, all, occ),
+    h('h3', { class: 'pt-h' }, 'Linked from'),
+    linkedFromView(b),
     h('p', { class: 'pt-meta muted ui text-xs' }, [b.by ? `Added by ${b.by}` : null, b.updated ? `changed ${fmtDate(b.updated)}` : null].filter(Boolean).join(' · ')));
+}
+
+// Where a being is linked from: [[pantheon:Title]] (or its bare title, when no note has it) in notes, quests, places,
+// maps, characters, library entries and other beings.
+const LINK_DIRS = [['content/journal', true], ['content/quests'], ['content/locations'], ['content/maps'], ['content/characters'], ['content/library', true], [M.PANTHEON_DIR]];
+const textOf = (v) => (typeof v === 'string' ? v : Array.isArray(v) ? v.map(textOf).join('\n') : v && typeof v === 'object' ? Object.values(v).map(textOf).join('\n') : '');
+function linkedFrom(b) {
+  const want = href(VIEW, b.file);
+  const title = b.title.toLowerCase();
+  const out = [];
+  for (const [dir, recursive = false] of LINK_DIRS) {
+    for (const d of store.list(dir, { recursive })) {
+      if (d.path === pathOf(b.file) || (dir === 'content/journal' && !d.path.endsWith('.md'))) continue;
+      const text = textOf(d.data);
+      if (!text.includes('[[')) continue;
+      const hit = extractLinks(text).some((l) => (l.prefix === VIEW || (!l.prefix && l.target.toLowerCase() === title)) && resolveLink(l.raw).href === want);
+      if (!hit) continue;
+      if (dir === 'content/characters') {
+        const id = d.path.split('/').pop().replace(/\.json$/i, '');
+        out.push({ title: d.data?.name || id, label: 'Character', icon: 'characters', href: href('characters', id) });
+      } else out.push(describe(d.path, d.data));
+    }
+  }
+  return out.sort((x, y) => x.label.localeCompare(y.label) || x.title.localeCompare(y.title));
+}
+function linkedFromView(b) {
+  const list = linkedFrom(b);
+  if (!list.length) return h('p', { class: 'muted pt-empty-field' }, `Nothing links here yet. Copy link, then paste [[pantheon:${b.title || '…'}]] into a note, a quest, a place or another being.`);
+  return h('ul', { class: 'pt-chain-list pt-linked', role: 'list' }, list.map((x) => h('li', { class: 'pt-chain-row' },
+    h('span', { class: 'pt-chain-sym' }, icon(x.icon)),
+    x.href ? h('a', { class: 'pt-chain-name', href: x.href }, x.title) : h('span', { class: 'pt-chain-name' }, x.title),
+    h('span', { class: 'pt-chain-asp' }, x.label))));
 }
 
 /** The beings this combination is made of (lower ranks) and the saved ones it is part of (higher ranks). */
@@ -417,6 +482,8 @@ function chainView(aspects, all, occ) {
 
 // ---------- the editor ----------
 
+/** Will the editor's being be hidden from the players (DM mode: a hidden one, or a new one made hidden)? */
+const edHidden = (ed) => isDm() && (ed.file ? isHidden(pathOf(ed.file)) : !!ed.vis.hidden);
 const snap = (ed) => JSON.stringify([M.slotAspects(ed.slots, ed.guide).sort(), ed.title.trim(), M.parseDomains(ed.domains), ed.description, ed.worship]);
 const isDirty = () => !!S.ed && snap(S.ed) !== S.ed.base;
 // only an editor with unsaved changes is kept (an untouched one has nothing to bring back)
@@ -455,6 +522,7 @@ async function addBeing(preset = null) {
     const c = M.classify(S.sel);
     start = c.ok && !M.occupants(allBeings()).has(c.id) ? c.aspects : [];
   }
+  S.sel = M.ordered(start); // else the address change below reopens the being on the old points
   if (S.file) setFile(null);
   openEditor(null, start);
 }
@@ -510,7 +578,7 @@ function editorView() {
   ed.el = h('form', { class: 'pt-editor', onsubmit: (e) => { e.preventDefault(); saveEditor(); } },
     h('header', { class: 'pt-ed-head' },
       h('h2', { class: 'pt-panel-title' }, ed.file ? `Edit “${existing?.title || ed.title || 'Untitled being'}”` : 'New being'),
-      ed.file ? visibilityToggle(pathOf(ed.file), { label: 'this being' }) : hiddenChoice(ed.vis)),
+      ed.file ? visibilityToggle(pathOf(ed.file), { label: 'this being', onChange: () => drawAspects() }) : visChoice(ed)),
     ed.aspectsEl,
     field('Title', title),
     field('Domains', domains, 'Your own portfolios (they need not be cleric domains). One per line, in the order you want them shown.'),
@@ -525,6 +593,13 @@ function editorView() {
   return ed.el;
 }
 
+/** A new being's hidden / visible switch (DM mode); the note on a taken combination follows it. */
+function visChoice(ed) {
+  const el = hiddenChoice(ed.vis);
+  el?.addEventListener('click', () => queueMicrotask(drawAspects));
+  return el;
+}
+
 /** The rank guide, the aspect selectors it shows and the rank the chosen points make (read-only). */
 function drawAspects() {
   const ed = S.ed;
@@ -533,8 +608,12 @@ function drawAspects() {
   const aspects = M.slotAspects(ed.slots, ed.guide);
   const c = M.classify(aspects);
   const missing = shown.filter((s) => !ed.slots[s.key]).map((s) => s.label);
-  const occ = c.ok ? M.occupants(allBeings()).get(c.id) : null;
-  const taken = occ && occ.file !== ed.file ? occ : null;
+  const others = c.ok ? allBeings().filter((b) => !b.invalid && b.id === c.id && b.file !== ed.file) : [];
+  const seen = others.filter(isShown);
+  const hide = edHidden(ed);
+  const taken = !hide && seen[0];
+  const replaces = hide && seen.length ? seen : null; // a hidden one waits there: revealing it replaces them
+  const waits = !hide && !seen.length && others.length ? others : null; // DM: hidden ones wait on this combination
   const guide = h('div', { class: 'pt-guide', role: 'radiogroup', 'aria-label': 'Rank to build' },
     M.RANKS.map((r) => h('button', {
       class: ['pt-guide-btn', ed.guide === r.id && 'is-on'], type: 'button', role: 'radio', 'aria-checked': String(ed.guide === r.id),
@@ -561,7 +640,9 @@ function drawAspects() {
       h('span', { class: 'field-hint' }, 'A guide to which aspects to choose; the rank itself always follows the aspects. You can also click points on the diagram.')),
     h('div', { class: 'pt-slots' }, selects),
     outcome,
-    taken ? h('p', { class: 'pt-reason' }, `${M.aspectNames(c.aspects)} is already “${taken.title}”. Choose other aspects, or open that being: Save will ask.`) : null,
+    taken ? h('p', { class: 'pt-reason' }, `${M.aspectNames(c.aspects)} is already “${taken.title}”. Choose other aspects, or open that being: Save will ask.${isDm() && !ed.file ? ' Or make this one hidden: revealing it later replaces “' + taken.title + '”.' : ''}`) : null,
+    replaces ? h('p', { class: 'pt-reason is-note' }, `The players see ${quoted(replaces)} on ${M.aspectNames(c.aspects)}. This being is hidden: revealing it replaces ${replaces.length === 1 ? 'it' : 'them'} (you are asked first).`) : null,
+    waits ? h('p', { class: 'pt-reason is-note' }, `${quoted(waits)} (hidden) ${waits.length === 1 ? 'waits' : 'wait'} on ${M.aspectNames(c.aspects)}: revealing ${waits.length === 1 ? 'it' : 'one'} would replace this being.`) : null,
     meaningOf(aspects));
 }
 
@@ -582,22 +663,27 @@ async function saveEditor() {
   const title = ed.title.trim();
   if (!title) { toast('Give the being a title to save it.', { type: 'error' }); ed.titleEl?.focus(); return false; }
   const all = allBeings();
-  const taken = all.find((b) => !b.invalid && b.id === c.id && b.file !== ed.file);
+  // a hidden being (DM mode) may wait on a combination the players see; else it must be free of shown ones
+  const taken = edHidden(ed) ? null : all.find((b) => !b.invalid && b.id === c.id && b.file !== ed.file && isShown(b));
   if (taken) {
+    const canHide = isDm() && !ed.file;
     const choice = await choiceDialog(h('div', { class: 'stack' },
       h('p', null, `${M.aspectNames(c.aspects)} is already “${taken.title}”, ${aRank(c.rank)}.`),
-      h('p', { class: 'muted' }, 'Each combination holds one being, so nothing was overwritten. Choose other aspects, or open the being that is there (the changes made here are then dropped).')), [
+      h('p', { class: 'muted' }, 'Each combination holds one being, so nothing was overwritten. Choose other aspects, or open the being that is there (the changes made here are then dropped).'),
+      canHide ? h('p', null, `Or save this one hidden: only you see it, and revealing it later replaces “${taken.title}” (you are asked first).`) : null), [
       { label: 'Keep editing', value: null, kind: 'ghost' },
-      { label: `Open “${taken.title}”`, value: 'open', kind: 'primary' },
+      { label: `Open “${taken.title}”`, value: 'open', kind: canHide ? 'ghost' : 'primary' },
+      ...(canHide ? [{ label: 'Save hidden', value: 'hide', kind: 'primary' }] : []),
     ], { title: 'That combination is taken' });
-    if (choice === 'open') {
+    if (choice === 'hide') ed.vis.hidden = true;
+    else if (choice === 'open') {
       S.ed = null;
       dropDraft();
       S.sel = taken.aspects;
       setFile(taken.file);
       render();
-    }
-    return false;
+      return false;
+    } else return false;
   }
   const isNew = !ed.file;
   const file = ed.file || uid(title);
@@ -618,7 +704,8 @@ async function saveEditor() {
   S.sel = c.aspects;
   setFile(file);
   render();
-  toast(`Saved “${title}”, ${rankLabel(c.rank)}. ${saveHint()}`.trim(), { type: 'success' });
+  const waitsFor = isHidden(pathOf(file)) ? shownOn(M.normalizeBeing(doc, file)) : [];
+  toast(`Saved “${title}”, ${rankLabel(c.rank)}.${waitsFor.length ? ` Hidden: revealing it replaces ${quoted(waitsFor)}.` : ''} ${saveHint()}`.trim(), { type: 'success' });
   return true;
 }
 
@@ -822,6 +909,7 @@ export default {
   show(route) {
     S.visible = true;
     const [file = null] = route?.parts || [];
+    if (!file && route?.query?.new) { navigate(href(VIEW), { replace: true }); queueMicrotask(() => addBeing([])); return; } // DM Screen "New god"
     if (S.restored) { // back after a reload with an unsaved editor: show it, wherever the address pointed
       S.restored = false;
       if (S.ed) { if (file !== S.file) setFile(S.file); render(); return; }

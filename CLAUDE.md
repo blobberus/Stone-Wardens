@@ -193,7 +193,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   a checklist in the release question, `pickToRelease`; `releaseItem(p, {also, keep})`, one notification for all;
   ⋯ → Reveal hidden places… on a visible map: `releaseTogether`); anything added to a hidden map is hidden. DM Screen tab (views/dm, menu only in DM mode): hidden
   list + Release, released log + Hide again + × (`forgetReleased`: off the list only, the item stays public; optionally
-  its Inbox notification too), hide an existing item, Create buttons (New quest, New map…), New-items-hidden default; a second tab **Party**
+  its Inbox notification too), hide an existing item, Create buttons (New quest, New god, New map…), New-items-hidden default; a second tab **Party**
   (`#/dm/party`, views/dm/party.js + pure party-model.js, docs/dm-party.md): every character on one screen (cards scale
   to fit the view, up to six at a glance in a DM Screen pane) with HP, AC, passive Perception, abilities, conditions
   and a private note each (sealed in `content/dm/party.json`, `dm.js readSealed/writeSealed`), live (core/live.js) with
@@ -220,9 +220,12 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   SVG `diagram.js` (Original shapes / Individual sigil, Major lines, export in plain colors), tab `index.js`: roster by
   rank | diagram (click points to build a combination) | panel (the being, Unassigned + Create, or why not a being) or
   the editor (rank guide, aspect selectors, Title, Domains, Description, Worship; one being per combination, a taken
-  one is explained, never overwritten; unsaved changes asked about and kept in `sw:pantheon:draft`). Esc lets go of
-  the open being (Cancel in the editor). The sigil: tiers (Temporal on top), a diamond for a Lesser God, a pyramid for
-  an Angel, medallions with three letters in Cinzel Decorative, inside a seal with the rank and title on its arcs.
+  one is explained, never overwritten; unsaved changes asked about and kept in `sw:pantheon:draft`). DM mode: a hidden
+  being may wait on a shown one's combination; revealing it asks "Reveal and replace?", then deletes the shown one
+  (`releaseAs` / `afterRelease`). A being's page lists what links to it (Linked from). Esc lets go of the open being
+  (Cancel in the editor). The sigil: tiers (Temporal on top), a mandorla in a glory for a Major God, a radiant
+  triangle for a Minor, a diamond for a Lesser God, a pyramid for an Angel, medallions with three letters in Cinzel
+  Decorative, inside a seal with the rank and title on its arcs.
   ⋯ imports JSON, exports JSON / Markdown / SVG / PNG (fonts embedded). Sidebar icon `i-pantheon`: the square,
   hexagon and square nested.
 
