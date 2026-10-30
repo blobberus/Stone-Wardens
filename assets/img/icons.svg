@@ -14,6 +14,7 @@
 <symbol id="i-compendium" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 19V5.5A1.5 1.5 0 0 1 7 4h11.5v13.5H7a1.5 1.5 0 0 0 0 3h11.5"/><path d="M10 4v6.5l1.75-1.25 1.75 1.25V4"/></g></symbol>
 <symbol id="i-library" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 4.5H8V20H4.5zM9.5 7H13v13H9.5z"/><path d="M14.4 7.6l3.3-.9 3.6 13.3-3.3.9z"/><path d="M4.5 8H8M9.5 10.5H13"/></g></symbol>
 <symbol id="i-quests" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20.5V3.5"/><path d="M6 4.5h12l-3 4 3 4H6"/><path d="M4 20.5h4"/></g></symbol>
+<symbol id="i-pantheon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.25 3.25h17.5v17.5H3.25z"/><path d="M18.6 12l-3.3 5.72H8.7L5.4 12l3.3-5.72h6.6z"/><path d="M9.4 9.4h5.2v5.2H9.4z"/></g></symbol>
 <symbol id="i-settings" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/></g></symbol>
 
 <!-- ===================== Actions ===================== -->

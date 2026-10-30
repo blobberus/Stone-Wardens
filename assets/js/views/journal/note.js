@@ -25,6 +25,7 @@ const SYNTAX = [
   ['[[char:Mira#hp]]', 'a character sheet, or a spot on it'],
   ['[[spell:Fireball]]', 'compendium entries: weapon: armor: gear: item: spell: feat: species: class: background:'],
   ['[[doc:Handout]]', 'a document in the Warden’s Library'],
+  ['[[pantheon:The Tempered Mind]]', 'a god or angel of the pantheon'],
   ['[[folder:Sessions]]', 'a folder page (old [[chapter:…]] links still work)'],
   ['![[Note]]', 'embed another note (or ![[image.png]])'],
   ['#tag', 'tag the note; #quest/open nests'],

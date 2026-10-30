@@ -3,7 +3,7 @@
 Password-gated D&D 5e (**2024 rules / SRD 5.2**) campaign site on GitHub Pages for repo
 `blobberus/Stone-Wardens`. The original brief is `The Stone Wardens - A Fallen Firmament Campaign(1).md`.
 Sidebar, in order: **Combat Ring** (crossed swords; opens the sister battle-table site `../Combat-Ring/` in a new tab,
-main.js `combatRingLink`), then the tabs (main.js `VIEW_IDS`): **Map**, **Quests**, **Characters**, **Journal**, **Warden's Library** (renders
+main.js `combatRingLink`), then the tabs (main.js `VIEW_IDS`): **Map**, **Quests**, **Characters**, **Journal**, **Pantheon**, **Warden's Library** (renders
 PDFs/DOCX from `wardens-library/`), **Compendium** (SRD + custom library), **DM Screen** (DM mode only); at the
 bottom **Inbox** and **Settings** (DM login lives in Settings → DM mode). The sidebar title opens the landing page.
 
@@ -31,7 +31,7 @@ assets/img/           icons.svg (sprite, <symbol id="i-NAME">), placeholder-map.
                       + -backdrop.webp (landing page; made from References/StoneWardensPoster1.png, keep that original)
 assets/js/main.js     boot: gate -> store.load -> register views -> router.start
 assets/js/core/       shared infrastructure (see contracts below) — views must not reimplement these
-assets/js/views/<v>/  one folder per tab: map, characters, journal, quests, compendium, wardens-library, settings;
+assets/js/views/<v>/  one folder per tab: map, characters, journal, quests, pantheon, compendium, wardens-library, settings;
                       home = landing page (no tab)
 srd/                  generated SRD 5.2 JSON (tools/build_srd.py) + srd/stubs/*.json; read-only at runtime
 content/              ALL user data, written by the site through the GitHub API
@@ -43,6 +43,7 @@ content/              ALL user data, written by the site through the GitHub API
   map-pictures/<id>.json (+ media/map-pictures/)  fog/<mapId>.json   pictures on maps, fog of war; docs/map-design.md
                                 (sample: starfall-vale-p94a "Starfall Vale" + 2 places, safe to delete)
   quests/<id>.json  media/quests/<file>   quest log (docs/quests-model.md)
+  pantheon/<id>.json            the pantheon's gods and angels, one being each (docs/pantheon-model.md)
   dm/vault.json  dm/hidden/<rid>.json|.bin  dm/released.json  inbox/<stamp>.json   DM mode (docs/dm-mode.md)
   dm/party.json                 the DM's party view notes (sealed, never released; docs/dm-party.md)
   journal/<folder…>/<note>.md   nested folders; optional _chapter.json in any folder = folder metadata
@@ -119,7 +120,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   suggest(q) -> [{label, value}]})`. `resolveLink(raw)`; un-prefixed `[[X]]` -> journal note, else first exact
   name match across types, else unresolved (click offers to create note).
   Prefixes: `map:` locations and sub-maps (place id > map id > place name > map name; `[[map:Map#Place]]`), `char:` characters (`[[char:Name#hp]]` anchors a sheet section/stat),
-  `note:` journal, `folder:` journal folder (legacy `chapter:`), `doc:` warden's library, `quest:` quests, compendium kinds: `weapon: armor: gear: item: spell: feat:
+  `note:` journal, `folder:` journal folder (legacy `chapter:`), `doc:` warden's library, `quest:` quests, `pantheon:` beings, compendium kinds: `weapon: armor: gear: item: spell: feat:
   ability: species: class: subclass: background:`.
 - `markdown.js`: Obsidian-flavored: `[[wikilinks|alias]]`, `[[x#heading]]`, `![[embed]]` (notes/images),
   `> [!type]± title` callouts, `==highlight==`, `%%comment%%`, `#tags`, task lists, tables, GFM autolinks,
@@ -139,7 +140,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   imports the ids in `VIEW_IDS` (a failed import shows an error tab instead of breaking the app). Views register
   their link types at import time and re-render from `store.on` events.
 - Routes: `#/map[/loc/<id>]`, `#/map/m/<mapId>[/loc/<id>]` (sub-maps), `#/characters[/<id>[/<section>]]`, `#/journal[/_|/<folder…>[/<note>]][?h=|q=|tag=|folder]`,
-  `#/journal/new?title=`, `#/quests[/<id>[/edit]]`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`,
+  `#/journal/new?title=`, `#/quests[/<id>[/edit]]`, `#/pantheon[/<file>]`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`,
   `#/dm` (DM Screen), `#/dm/party` (its Party page). `#/quests?new=1`, `#/map?new=1`, `#/compendium?new=1`, `#/wardens-library?upload=1` open the create forms.
 
 ## Map tab
@@ -210,6 +211,17 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   (`char:` sheet, `note:` NPC note = tagged #npc or in an npc/people folder, any other prefix) or plain names, shown as
   chips that open their page; the editor suggests party members, NPCs, notes, other pages; objectives get `[[`
   autocomplete (`wikiSuggest`).
+
+## Pantheon tab
+- The gods from `References/pantheon-diagram-and-custom-gods-guide.md` (docs/pantheon-model.md): 14 aspects on three
+  nested polygons (Material square, Mental hexagon, Temporal square); a being = one Temporal + 0–2 Mental + 0–2 Material,
+  and that recipe is its rank (Absolute God, Major, Minor, Lesser, Angel; 688 possible). Pure model `model.js`
+  (`classify`, `catalog`, `pick`, `constituents`, `parseImport` v4 / v3, `rosterMarkdown`; `node tools/test_pantheon.mjs`),
+  SVG `diagram.js` (Original shapes / Individual sigil, Major lines, export in plain colors), tab `index.js`: roster by
+  rank | diagram (click points to build a combination) | panel (the being, Unassigned + Create, or why not a being) or
+  the editor (rank guide, aspect selectors, Title, Domains, Description, Worship; one being per combination, a taken
+  one is explained, never overwritten; unsaved changes asked about and kept in `sw:pantheon:draft`). ⋯ imports JSON,
+  exports JSON / Markdown / SVG / PNG. Sidebar icon `i-pantheon`: the square, hexagon and square nested.
 
 ## Journal tab
 - Obsidian-style vault (docs/journal-model.md): left pane Files (tree, drag-move, context menu) | Search (`tag:`
@@ -297,7 +309,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 ## Testing
 - Local: `python -m http.server 8000` in repo root, open `http://localhost:8000/?sandbox` (IndexedDB backend).
 - Rules engine: `node tools/test_engine.mjs` and `node tools/test_spells.mjs` (spell numbers, XP, spell filters; both must stay
-  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. Map design and fog: `node tools/test_mapdesign.mjs`. Map parents / maps of their own: `node tools/test_maptree.mjs`. Linked places: `node tools/test_twins.mjs`. Live editor text model: `node tools/test_livetext.mjs`. Character printouts: `node tools/test_print.mjs`. Party view and live messages: `node tools/test_party.mjs`. DM crypto: `node tools/test_dm.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
+  green; add cases when changing engine*.js). Sheet style: `node tools/test_style.mjs` (sanitising, presets, contrast). Quests: `node tools/test_quests.mjs`. Map design and fog: `node tools/test_mapdesign.mjs`. Map parents / maps of their own: `node tools/test_maptree.mjs`. Linked places: `node tools/test_twins.mjs`. Pantheon model: `node tools/test_pantheon.mjs`. Live editor text model: `node tools/test_livetext.mjs`. Character printouts: `node tools/test_print.mjs`. Party view and live messages: `node tools/test_party.mjs`. DM crypto: `node tools/test_dm.mjs`. `node tools/audit_spells.mjs` lists spells whose text implies numbers
   the sheet doesn't show (11 known, intentional gaps).
 - Syntax: portable `node --check`. Markdown renderer can be exercised in Node by stubbing `DOMPurify.sanitize`.
 

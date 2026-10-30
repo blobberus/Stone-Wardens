@@ -6,7 +6,7 @@ import { icon } from '../../core/ui.js';
 import { allViews, href } from '../../core/router.js';
 
 const SEEN_KEY = 'sw:home:seen'; // localStorage, per device: set once the landing page has been shown here
-const LINKS = ['quests', 'characters', 'journal', 'wardens-library', 'compendium']; // under "Open the map", sidebar order, 3 + 2
+const LINKS = ['quests', 'characters', 'journal', 'pantheon', 'wardens-library', 'compendium']; // under "Open the map", sidebar order, 3 + 3
 const POSTER = 'assets/img/stone-wardens-poster'; // -960/-1600/-2560.webp, made from References/StoneWardensPoster1.png
 const WIDTHS = [960, 1600, 2560];
 

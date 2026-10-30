@@ -70,7 +70,8 @@
   width: min(100cqw - 2 * var(--space-4), 440px);
   margin-top: var(--space-4);
 }
-/* Two rows, 3 + 2 (the empty .home-break item ends the first), so no button is ever left alone on a row */
+/* Two rows, 3 + 3 (the empty .home-break item ends the first), so no button is ever left alone on a row;
+   on narrow screens three rows of two, the same width */
 .home-links {
   display: flex;
   flex-wrap: wrap;
@@ -78,6 +79,11 @@
   gap: var(--space-2);
 }
 .home-break { flex-basis: 100%; height: 0; margin-top: calc(var(--space-2) * -1); }
+@container home (max-width: 560px) {
+  .home-links { display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); justify-content: center; }
+  .home-links .btn { width: 100%; justify-content: center; }
+  .home-break { display: none; }
+}
 .home-start .btn { box-shadow: var(--shadow); }
 .home-start .btn:not(.btn-primary),
 .home-start .btn:not(.btn-primary):hover { border-color: var(--border-float); }

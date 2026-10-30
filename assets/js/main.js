@@ -15,7 +15,7 @@ import { configureLive, followCommits } from './core/live.js';
 
 // Sidebar order (DM Screen shown only in DM mode), under the Combat Ring link. core/dm-ui.js puts the Inbox at the bottom,
 // right above Settings.
-const VIEW_IDS = ['map', 'quests', 'characters', 'journal', 'wardens-library', 'compendium', 'dm', 'settings'];
+const VIEW_IDS = ['map', 'quests', 'characters', 'journal', 'pantheon', 'wardens-library', 'compendium', 'dm', 'settings'];
 const COMBAT_RING = 'https://blobberus.github.io/Combat-Ring/'; // used off Pages (localhost); on Pages it is ../Combat-Ring/
 const isLocalhost = ['localhost', '127.0.0.1', ''].includes(location.hostname);
 
