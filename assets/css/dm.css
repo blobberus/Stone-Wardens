@@ -40,6 +40,8 @@ a.dm-note-link:hover { background: var(--surface-2); }
 .dm-note-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 4px; font: 400 var(--text-sm) / 1.4 var(--font-ui); }
 .dm-note.is-unread .dm-note-text strong { color: var(--ink); }
 .dm-note-when { flex-basis: 100%; font-size: var(--text-xs); }
+.dm-inbox-modal .modal-foot .btn:first-child { margin-right: auto; } /* Clear all, apart from Mark all read and Close */
+.dm-inbox-cleared .btn { margin-left: 4px; vertical-align: baseline; }
 
 /* The hidden / visible switch on an item, and in create forms */
 .dm-vis { gap: 6px; font-weight: 700; }

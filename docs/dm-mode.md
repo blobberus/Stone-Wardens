@@ -129,6 +129,7 @@ a copy of a hidden map starts hidden unless the DM switches it to visible.
   its Inbox notification goes too (`notificationsOf(path)`). An item deleted since can only be taken off the list. Both lists have category chips (All, Quests, Compendium entries,
   Journal notes, Library documents, Map places, Images, with counts) to show one kind at a time.
 - **Inbox** (navigation): notifications of the last 14 days, unread badge; read state per device (`sw:inbox`), "Mark
-  all read".
+  all read". "Clear all" empties the list on this device only (`cleared`: the newest one's time; the files stay for
+  the others, and later releases show as usual), with Undo while the Inbox is open.
 - DM mode stays on in the browser tab (sessionStorage) or, with "Keep DM mode on this device", on the device
   (localStorage) until **Lock DM mode** (DM Screen) or "Lock the site on this device" (Settings).

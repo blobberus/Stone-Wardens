@@ -4,7 +4,7 @@
 //   visibilityToggle()   the noticeable "Hidden from players" / "Visible to players" switch on an item (DM mode only)
 //   hiddenChoice()       the same switch inside a "create" form, before the item exists
 //   hiddenMark()         a small lock beside a hidden item in a list (DM mode only)
-// Inbox: notifications of released items (content/inbox/), shown for 14 days; read state is per device.
+// Inbox: notifications of released items (content/inbox/), shown for 14 days; read and cleared state is per device.
 import { h, $, mount } from './dom.js';
 import { icon, toast, openModal, confirmDialog } from './ui.js';
 import { store } from './store.js';
@@ -14,7 +14,7 @@ import {
   isHideablePath, INBOX_DIR, dmBusy, releasePlan, releaseChoices,
 } from './dm.js';
 
-const INBOX_KEY = 'sw:inbox'; // {seen: ISO time everything before is read, read: [id]}
+const INBOX_KEY = 'sw:inbox'; // {seen: ISO time everything before is read, read: [id], cleared: ISO time everything before is off the list}
 const INBOX_DAYS = 14;
 
 // ---------- log in / set up ----------
@@ -132,16 +132,20 @@ export function wireDmShell() {
 // ---------- inbox ----------
 
 function inboxState() {
-  try { const v = JSON.parse(localStorage.getItem(INBOX_KEY) || '{}'); return { seen: v.seen || '', read: Array.isArray(v.read) ? v.read : [] }; } catch { return { seen: '', read: [] }; }
+  try {
+    const v = JSON.parse(localStorage.getItem(INBOX_KEY) || '{}');
+    return { seen: v.seen || '', read: Array.isArray(v.read) ? v.read : [], cleared: v.cleared || '' };
+  } catch { return { seen: '', read: [], cleared: '' }; }
 }
 function setInboxState(v) { try { localStorage.setItem(INBOX_KEY, JSON.stringify(v)); } catch { /* private mode */ } }
 
-/** Notifications of the last INBOX_DAYS days, newest first, with unread flags. */
+/** Notifications of the last INBOX_DAYS days not cleared on this device, newest first, with unread flags. */
 export function notifications() {
   const cutoff = Date.now() - INBOX_DAYS * 864e5;
   const st = inboxState();
   const read = new Set(st.read);
   return store.list(INBOX_DIR).map((x) => x.data).filter((n) => n && n.id && Date.parse(n.at) >= cutoff)
+    .filter((n) => !(st.cleared && n.at <= st.cleared))
     .sort((a, b) => String(b.at).localeCompare(String(a.at)))
     .map((n) => ({ ...n, unread: !(st.seen && n.at <= st.seen) && !read.has(n.id) }));
 }
@@ -150,7 +154,14 @@ function markRead(id) {
   const st = inboxState();
   if (!st.read.includes(id)) setInboxState({ ...st, read: [...st.read, id].slice(-200) });
 }
-function markAllRead() { setInboxState({ seen: new Date().toISOString(), read: [] }); }
+function markAllRead() { setInboxState({ ...inboxState(), seen: new Date().toISOString(), read: [] }); }
+// Clear the list on this device: up to the newest one shown (its time is the DM's clock, as later ones will be).
+// The shared files stay, for the other players. Returns the state before, for Undo.
+function clearAll(shown) {
+  const st = inboxState();
+  if (shown.length) setInboxState({ ...st, cleared: shown[0].at });
+  return st;
+}
 
 function wireInbox(sb) {
   const tabs = $('.sb-tabs-bottom', sb);
@@ -174,8 +185,12 @@ function wireInbox(sb) {
 
 function openInbox(refresh) {
   const list = h('div', { class: 'dm-inbox' });
+  let before = null; // the state before Clear all, while Undo is offered
   const draw = () => {
     const all = notifications();
+    const [clearBtn, readBtn] = m.el.querySelectorAll('.modal-foot .btn');
+    clearBtn.disabled = !all.length;
+    readBtn.disabled = !all.some((n) => n.unread);
     mount(list, all.length ? h('ul', { class: 'dm-inbox-list', role: 'list' }, all.map((n) => h('li', { class: ['dm-note', n.unread && 'is-unread'] },
       h(n.href ? 'a' : 'div', {
         class: 'dm-note-link', href: n.href || null,
@@ -187,12 +202,20 @@ function openInbox(refresh) {
         h('span', { class: 'muted' }, ` · new ${String(n.label || 'entry').toLowerCase()}`),
         h('span', { class: 'dm-note-when muted' }, when(n.at))),
       n.unread ? h('span', { class: 'sr-only' }, ' (unread)') : null))))
+      : before ? h('p', { class: 'muted ui text-sm dm-inbox-cleared' },
+        'Cleared on this device. The items stay on the site, and new releases will show up here. ',
+        h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: () => { setInboxState(before); before = null; refresh(); draw(); } }, 'Undo'))
       : h('p', { class: 'muted ui text-sm' }, 'Nothing new. When the DM releases a quest, a document or anything else, it shows up here with a link to it.'));
   };
   const m = openModal({
     title: 'Inbox',
     body: list,
-    actions: [{ label: 'Mark all read', kind: 'ghost', onClick: () => { markAllRead(); refresh(); draw(); return false; } }, { label: 'Close', kind: 'primary' }],
+    className: 'dm-inbox-modal',
+    actions: [
+      { label: 'Clear all', kind: 'ghost', onClick: () => { before = clearAll(notifications()); refresh(); draw(); return false; } },
+      { label: 'Mark all read', kind: 'ghost', onClick: () => { markAllRead(); refresh(); draw(); return false; } },
+      { label: 'Close', kind: 'primary' },
+    ],
   });
   draw();
 }

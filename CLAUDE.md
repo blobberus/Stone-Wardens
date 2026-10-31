@@ -198,7 +198,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   to fit the view, up to six at a glance in a DM Screen pane) with HP, AC, passive Perception, abilities, conditions
   and a private note each (sealed in `content/dm/party.json`, `dm.js readSealed/writeSealed`), live (core/live.js) with
   GitHub checked every 5-20 s as a fallback; a card opens the sheet. Release posts
-  `content/inbox/<stamp>.json`; Inbox in the navigation. In DM mode commit messages carry no names. Crypto tests:
+  `content/inbox/<stamp>.json`; Inbox in the navigation (Mark all read, Clear all: per device, `sw:inbox`). In DM mode commit messages carry no names. Crypto tests:
   `node tools/test_dm.mjs`.
 
 ## Quests tab
