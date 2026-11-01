@@ -2,7 +2,7 @@
 // features, resources, inventory, currency, proficiencies, details and notes.
 // Every tick/pip/value change re-derives instantly and persists a local draft (debounced).
 import { h, mount } from '../../core/dom.js';
-import { icon, toast, openModal, confirmDialog, select, numberInput, markdownEditor, field, input, checkbox } from '../../core/ui.js';
+import { icon, toast, openModal, confirmDialog, select, numberInput, markdownEditor, field, input, checkbox, isTouch } from '../../core/ui.js';
 import { href, navigate } from '../../core/router.js';
 import { clone } from '../../core/util.js';
 import {
@@ -37,7 +37,7 @@ import { abilityName } from './data.js';
 // Print (PDF downloads), the Paper Companion view, the header's vision words and hover descriptions
 import { printButton } from './print.js';
 import { companionBody } from './companion.js';
-import { visionOf, NORMAL_SIGHT, NORMAL_SIGHT_NOTE } from './print-model.js';
+import { visionOf, NORMAL_SIGHT, NORMAL_SIGHT_NOTE, plain } from './print-model.js';
 import { hoverTip } from './widgets.js';
 
 const S = {
@@ -448,7 +448,7 @@ function trackers(c, s) {
     group('Conditions', { 'data-stat': 'conditions', class: 'ch-trk ch-trk-conds' },
       c.conditions.map((id) => {
         const info = conds.find((x) => x.id === id);
-        return chip(info?.name || prettify(id), { title: info ? info.description.slice(0, 300) : null, className: 'ch-cond', onRemove: () => mutate((x) => { x.conditions = x.conditions.filter((y) => y !== id); }) });
+        return chip(info?.name || prettify(id), { title: info ? plain(info.description, 300) : null, className: 'ch-cond', onRemove: () => mutate((x) => { x.conditions = x.conditions.filter((y) => y !== id); }) });
       }),
       select([{ value: '', label: '+' }, ...conds.filter((x) => !c.conditions.includes(x.id)).map((x) => ({ value: x.id, label: x.name }))], '',
         (v) => v && mutate((x) => { x.conditions = [...x.conditions, v]; }), { class: 'select input-sm ch-cond-plus', 'aria-label': 'Add a condition', title: 'Add a condition', 'data-fk': 'cond-add' }))));
@@ -505,7 +505,7 @@ function profTitle(level, info) {
 function abilities(c, s) {
   const saves = s.proficiencyInfo?.saves || {};
   return section('abilities', 'Abilities & saving throws', {
-    iconName: 'd20', attrs: accentAttrs(c), className: 'ch-sec-abils', sub: 'Click to roll.',
+    iconName: 'd20', attrs: accentAttrs(c), className: 'ch-sec-abils', sub: isTouch() ? 'Tap to roll.' : 'Click to roll.',
     actions: [h('a', { class: 'btn btn-ghost btn-sm', href: editHref('abilities') }, icon('edit'), 'Scores'),
       h('a', { class: 'btn btn-ghost btn-sm', href: editHref('proficiencies'), title: 'Saving throw proficiencies are changed in Edit all' }, icon('edit'), 'Saves')],
   },
@@ -719,7 +719,7 @@ function favoritesTab(c, s) {
       spellHead(lvl === 0 ? 'Cantrips' : `Level ${lvl}`, slotText(lvl, c, s)),
       h('ul', { class: 'ch-spell-list', role: 'list' }, spellList.filter((r) => r.level === lvl).sort((a, b) => a.name.localeCompare(b.name))
         .map((r) => spellItem(r, s, { from: spellFrom, fk: '-fav', stat: `fav-spell-${r.favKey}` }))))))) : null,
-    skillsList.length ? group('Skills', 'click to roll', h('div', { class: 'ch-fav-skills' }, skillsList.map((sk) => {
+    skillsList.length ? group('Skills', isTouch() ? 'tap to roll' : 'click to roll', h('div', { class: 'ch-fav-skills' }, skillsList.map((sk) => {
       const x = s.skills[sk.id];
       return h('button', { class: ['ch-spell-chip', 'ch-fav-skill', (x.prof || x.expertise) && 'is-prof'], type: 'button', title: `Roll ${sk.name}`, 'data-fk': `fav-roll-${sk.id}`, onclick: () => rollToast(sk.name, x.bonus) },
         h('span', null, sk.name), h('span', { class: 'num' }, fmt(x.bonus)));
@@ -759,12 +759,12 @@ function attacks(c, s) {
       return h('tr', { 'data-stat': a.uid || (a.unarmed ? 'unarmed' : null), class: a.proficient === false ? 'is-unproficient' : null },
         h('td', { class: 'cell-name' }, a.uid && favs.has(a.uid) ? favMark() : null,
           entry ? h('button', { class: 'ch-link-btn', type: 'button', onclick: () => entryInfo(entry, { item }) }, a.name) : a.name,
-          a.properties?.length ? h('div', { class: 'ch-props' }, a.properties.map((p, pi) => h('span', { class: 'ch-prop', title: propertyInfo(p)?.description?.slice(0, 300) || null }, a.propertyNames?.[pi] || prettify(p)))) : null),
+          a.properties?.length ? h('div', { class: 'ch-props' }, a.properties.map((p, pi) => h('span', { class: 'ch-prop', title: plain(propertyInfo(p)?.description, 300) || null }, a.propertyNames?.[pi] || prettify(p)))) : null),
         h('td', { class: 'num' }, h('button', { class: 'ch-link-btn num ch-bonus', type: 'button', onclick: () => rollToast(`${a.name} to hit`, a.bonus) },
           h('span', { class: 'sr-only' }, `Roll to hit with ${a.name} `), adjustedValue(s, `attack:${a.uid || (a.unarmed ? 'unarmed' : '')}`, typeof a.bonus === 'number' ? fmt(a.bonus) : String(a.bonus ?? '')))),
         h('td', null, adjustedValue(s, `damage:${a.uid || (a.unarmed ? 'unarmed' : '')}`, a.damage || ''), a.damageType ? ` ${prettify(a.damageType)}` : '', a.versatile ? h('div', { class: 'cell-muted text-xs ui' }, `Two-handed: ${a.versatile}`) : null),
         h('td', { class: 'cell-muted' }, range),
-        h('td', null, m ? h('span', { class: 'badge badge-accent', title: m.description || '' }, m.name || prettify(m.id)) : h('span', { class: 'faint' }, '—')),
+        h('td', null, m ? h('span', { class: 'badge badge-accent', title: plain(m.description) || null }, m.name || prettify(m.id)) : h('span', { class: 'faint' }, '—')),
         h('td', { class: ['cell-muted', a.proficient === false && 'danger-text'] }, notesText));
     })))) : null,
   !rows.some((a) => a.uid) ? h('p', { class: 'muted ui text-sm' }, 'Add a weapon and tick “Equipped” in the inventory to list its attack here.') : null);

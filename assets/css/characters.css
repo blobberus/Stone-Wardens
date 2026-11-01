@@ -16,9 +16,9 @@
   text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--link) 35%, transparent);
   text-underline-offset: 0.2em; text-decoration-thickness: 1px;
 }
-.ch-link-btn:hover { color: var(--link-hover); text-decoration-color: currentColor; }
+@media (hover: hover) { .ch-link-btn:hover { color: var(--link-hover); text-decoration-color: currentColor; } }
 .ch-bonus { font-weight: 700; color: var(--ink); text-decoration: none; }
-.ch-bonus:hover { color: var(--link); text-decoration: underline; }
+@media (hover: hover) { .ch-bonus:hover { color: var(--link); text-decoration: underline; } }
 .ch-w-num { width: 5.5em; flex: none; }
 .ch-chip-row { --row-gap: 6px; }
 .ch-mini-head {
@@ -63,7 +63,7 @@
   background: var(--ink); border: 2px solid var(--ink); border-radius: 50%;
   transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
-.ch-pip:hover { border-color: var(--focus); }
+@media (hover: hover) { .ch-pip:hover { border-color: var(--focus); } }
 .ch-pip.is-on { background: var(--surface); border-color: var(--border-strong); }
 .ch-pips-mark .ch-pip { background: var(--surface); border-color: var(--border-strong); }
 .ch-pips-mark .ch-pip.is-on { background: var(--danger); border-color: var(--danger); }
@@ -86,7 +86,7 @@
 /* Compact cards: six fit on a laptop screen (3 × 2 with the sidebar open, 4 + 2 with it collapsed) */
 .ch-grid { --grid-min: 280px; --grid-gap: var(--space-3); }
 .ch-card { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); }
-a.ch-card:hover { background: var(--surface); }
+@media (hover: hover) { a.ch-card:hover { background: var(--surface); } }
 .ch-card-top { display: flex; gap: var(--space-3); align-items: center; min-width: 0; }
 .ch-card-top > .ch-portrait { width: 46px; height: 46px; }
 .ch-card-top .ch-crest { font-size: var(--text-md); }
@@ -186,7 +186,8 @@ a.ch-card:hover { background: var(--surface); }
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); box-shadow: var(--shadow);
   opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 120ms var(--ease), visibility 0s linear 120ms;
 }
-.ch-tip-wrap:hover > .ch-tip, .ch-tip-wrap:has(> :focus-visible) > .ch-tip { opacity: 1; visibility: visible; transition: opacity 120ms var(--ease) 300ms, visibility 0s linear 300ms; }
+.ch-tip-wrap:has(> :focus-visible) > .ch-tip { opacity: 1; visibility: visible; transition: opacity 120ms var(--ease) 300ms, visibility 0s linear 300ms; }
+@media (hover: hover) { .ch-tip-wrap:hover > .ch-tip { opacity: 1; visibility: visible; transition: opacity 120ms var(--ease) 300ms, visibility 0s linear 300ms; } }
 .ch-tip-wrap.is-menu-open > .ch-tip { display: none; }
 .ch-name { margin: 0; font: 600 var(--text-xl) / 1.15 var(--font-display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
 .ch-line { margin: 0; font: 400 var(--text-sm) / 1.35 var(--font-body); }
@@ -215,7 +216,7 @@ a.ch-card:hover { background: var(--surface); }
 }
 .ch-nav:not(.is-stuck) .ch-nav-who { max-width: 0; padding: 0; } /* takes no room from the chips while hidden */
 .ch-nav.is-stuck .ch-nav-who { flex-shrink: 0; opacity: 1; visibility: visible; transition: opacity var(--dur) var(--ease), visibility 0s; }
-.ch-nav-who:hover .ch-nav-name { text-decoration: underline; text-underline-offset: 0.2em; }
+@media (hover: hover) { .ch-nav-who:hover .ch-nav-name { text-decoration: underline; text-underline-offset: 0.2em; } }
 .ch-nav-player { font: 400 var(--text-sm) / 1.3 var(--font-ui); color: var(--ink-muted); }
 /* Paper Companion: its name before the chips */
 .ch-nav-mode { flex: none; display: inline-flex; align-items: center; gap: 5px; font: 700 var(--text-sm) / 1 var(--font-ui); color: var(--ink); white-space: nowrap; }
@@ -236,7 +237,7 @@ a.ch-card:hover { background: var(--surface); }
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
 }
 button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease); }
-button.ch-stat:hover { border-color: var(--border-strong); background: var(--surface-2); }
+@media (hover: hover) { button.ch-stat:hover { border-color: var(--border-strong); background: var(--surface-2); } }
 .ch-stat-label { display: inline-flex; align-items: center; gap: 4px; font: 500 var(--text-xs) / 1.15 var(--font-ui); color: var(--ink-muted); }
 .ch-stat-label .icon { width: 15px; height: 15px; }
 .ch-stat-value { font: 700 1.3125rem / 1.15 var(--font-body); }
@@ -357,9 +358,10 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 /* Heroic Inspiration: a big gold star, outlined when you don't have it, filled when you do (no tinted backdrop) */
 .btn-icon.ch-insp { align-self: flex-start; width: 38px; height: 38px; margin: -2px 0; color: var(--gold); }
 .btn-icon.ch-insp .icon { width: 30px; height: 30px; }
-.btn-icon.ch-insp:hover { color: var(--gold); --icon-fill: color-mix(in srgb, var(--gold) 30%, transparent); }
-.btn-icon.ch-insp.is-active, .btn-icon.ch-insp.is-active:hover { background: none; color: var(--gold); --icon-fill: var(--gold); }
-.btn-icon.ch-insp.is-active:hover .icon { filter: brightness(1.08); }
+@media (hover: hover) { .btn-icon.ch-insp:hover { color: var(--gold); --icon-fill: color-mix(in srgb, var(--gold) 30%, transparent); } }
+.btn-icon.ch-insp.is-active { background: none; color: var(--gold); --icon-fill: var(--gold); }
+@media (hover: hover) { .btn-icon.ch-insp.is-active:hover { background: none; color: var(--gold); --icon-fill: var(--gold); } }
+@media (hover: hover) { .btn-icon.ch-insp.is-active:hover .icon { filter: brightness(1.08); } }
 
 /* ---------- sheet: two-column body ------------------------------------------ */
 .ch-layout { display: grid; grid-template-columns: minmax(270px, 330px) minmax(0, 1fr); gap: var(--space-3); align-items: start; }
@@ -388,7 +390,7 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
   font: inherit; color: inherit; background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer;
 }
 .ch-fold .icon { width: 16px; height: 16px; flex: none; color: var(--ink-muted); }
-.ch-fold:hover { background: var(--surface-2); }
+@media (hover: hover) { .ch-fold:hover { background: var(--surface-2); } }
 .ch-fold:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ch-sec-profs.is-folded > .ch-sec-body { display: none; }
 .ch-sec-profs.is-folded > .ch-sec-head { border-bottom: 0; }
@@ -409,7 +411,7 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
   font: 700 var(--text-sm) / 1 var(--font-ui); color: var(--ink-muted); background: none; border: 0;
   transition: color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
-.ch-tab:hover { color: var(--ink); box-shadow: inset 0 -2px 0 var(--border-strong); }
+@media (hover: hover) { .ch-tab:hover { color: var(--ink); box-shadow: inset 0 -2px 0 var(--border-strong); } }
 .ch-tab.is-active { color: var(--ink); box-shadow: inset 0 -3px 0 var(--accent); }
 .ch-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; border-radius: var(--radius-sm); }
 .ch-tabs-panel[hidden] { display: none; }
@@ -469,7 +471,7 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
   font: inherit; color: var(--ink); background: var(--surface); border: 0; cursor: pointer;
   transition: background-color var(--dur) var(--ease);
 }
-.ch-abil-check:hover { background: var(--surface-2); }
+@media (hover: hover) { .ch-abil-check:hover { background: var(--surface-2); } }
 /* name band on its own line, then modifier and score side by side */
 .ch-abil-name {
   flex: 0 0 calc(100% + var(--space-1) * 2); margin: 0 calc(var(--space-1) * -1) 3px; padding: 1px 6px;
@@ -486,7 +488,7 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
   font: 500 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink); background: var(--surface-2);
   border: 0; border-top: 1px solid var(--rule); cursor: pointer; transition: background-color var(--dur) var(--ease);
 }
-.ch-abil-save:hover { background: var(--surface-3); }
+@media (hover: hover) { .ch-abil-save:hover { background: var(--surface-3); } }
 .ch-abil-save-label { color: var(--ink-muted); }
 .ch-abil-save-val { font-weight: 700; }
 .ch-abil-check:focus-visible, .ch-abil-save:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
@@ -512,7 +514,7 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
 .ch-skl { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
 .ch-skl-row { min-height: 27px; padding: 1px 4px; border-bottom: 1px solid var(--rule); }
 .ch-skl-row:last-child { border-bottom: 0; }
-.ch-skl-row:hover { background: var(--surface-2); }
+@media (hover: hover) { .ch-skl-row:hover { background: var(--surface-2); } }
 .ch-skl-ab { font: 500 var(--text-xs) / 1 var(--font-ui); color: var(--ink-muted); }
 .ch-skl-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 var(--text-sm) / 1.25 var(--font-ui); }
 .ch-skl-row.is-prof .ch-skl-name { font-weight: 700; }
@@ -522,7 +524,7 @@ button.ch-stat:hover { border-color: var(--border-strong); background: var(--sur
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); cursor: pointer;
   transition: border-color var(--dur) var(--ease);
 }
-.ch-skl-bonus:hover { border-color: var(--link); }
+@media (hover: hover) { .ch-skl-bonus:hover { border-color: var(--link); } }
 .ch-skl-bonus:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 /* Debuffed values (sheet.adjust): their own color (never the highlight), a dotted underline, a hover/focus card */
@@ -591,7 +593,7 @@ details.ch-feat > summary::before {
   transform: rotate(-90deg); transition: transform var(--dur) var(--ease);
 }
 details.ch-feat[open] > summary::before { transform: none; }
-details.ch-feat > summary:hover { background: var(--surface-2); }
+@media (hover: hover) { details.ch-feat > summary:hover { background: var(--surface-2); } }
 .ch-feat-name { font: 700 var(--text-md) / 1.3 var(--font-body); }
 .ch-feat-pick { font: 400 var(--text-sm) / 1.3 var(--font-ui); color: var(--ink-muted); }
 .ch-feat-body { padding: 0 4px var(--space-3) 26px; }
@@ -666,7 +668,7 @@ details.ch-feat > summary:hover { background: var(--surface-2); }
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer;
   transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
 }
-button.ch-optcard:hover, div.ch-optcard:hover { border-color: var(--border-strong); }
+@media (hover: hover) { button.ch-optcard:hover, div.ch-optcard:hover { border-color: var(--border-strong); } }
 .ch-optcard.is-selected { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
 .ch-optcard.is-blocked { opacity: 0.62; cursor: not-allowed; }
 div.ch-optcard { cursor: default; }
@@ -691,7 +693,7 @@ div.ch-optcard { cursor: default; }
 .ch-seg { display: inline-flex; align-self: flex-start; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
 .ch-seg-btn { height: var(--control-h-sm); padding: 0 12px; font: 500 var(--text-sm) / 1 var(--font-ui); color: var(--ink-muted); background: var(--surface); border: 0; cursor: pointer; }
 .ch-seg-btn + .ch-seg-btn { border-left: 1px solid var(--border-strong); }
-.ch-seg-btn:hover { background: var(--surface-2); color: var(--ink); }
+@media (hover: hover) { .ch-seg-btn:hover { background: var(--surface-2); color: var(--ink); } }
 .ch-seg-btn.is-active { background: var(--ink); color: var(--bg); }
 
 /* ---------- ability scores --------------------------------------------------- */
@@ -712,7 +714,7 @@ div.ch-optcard { cursor: default; }
   font: 500 var(--text-sm) / 1.25 var(--font-ui); color: var(--ink-muted); text-align: left;
   background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer;
 }
-.ch-step:hover { background: var(--surface-2); color: var(--ink); }
+@media (hover: hover) { .ch-step:hover { background: var(--surface-2); color: var(--ink); } }
 .ch-step.is-active { color: var(--ink); background: var(--surface); border-color: var(--border); box-shadow: inset 3px 0 0 var(--accent); }
 .ch-step.is-past { color: var(--ink); }
 .ch-step-n {
@@ -796,7 +798,7 @@ div.ch-optcard { cursor: default; }
   width: 26px; height: 26px; padding: 0; flex: none; cursor: pointer;
   background: var(--sw); border: 1px solid var(--border-strong); border-radius: 50%;
 }
-.ch-swatch:hover { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--border-strong); }
+@media (hover: hover) { .ch-swatch:hover { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--border-strong); } }
 .ch-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
 .ch-swatch:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 
@@ -857,7 +859,7 @@ div.ch-optcard { cursor: default; }
 .ch-fav-row { display: flex; align-items: center; gap: var(--space-2); }
 .ch-fav-btn .icon { width: 18px; height: 18px; color: var(--gold); }
 .ch-fav-btn.is-active { border-color: var(--gold); --icon-fill: var(--gold); }
-.ch-fav-btn:not(.is-active):hover .icon { --icon-fill: color-mix(in srgb, var(--gold) 30%, transparent); }
+@media (hover: hover) { .ch-fav-btn:not(.is-active):hover .icon { --icon-fill: color-mix(in srgb, var(--gold) 30%, transparent); } }
 .ch-fav-mark { display: inline-flex; flex: none; margin-right: 4px; vertical-align: -0.15em; color: var(--gold); --icon-fill: var(--gold); }
 .ch-fav-mark .icon { width: 14px; height: 14px; }
 .ch-tab-star { display: inline-flex; margin-right: 5px; vertical-align: -0.2em; color: var(--gold); --icon-fill: var(--gold); }
@@ -884,8 +886,9 @@ div.ch-optcard { cursor: default; }
 }
 .ch-spell-star .icon { width: 15px; height: 15px; }
 .ch-spell-star.is-active { --icon-fill: var(--gold); }
-.ch-spell-star:not(.is-active):hover { --icon-fill: color-mix(in srgb, var(--gold) 30%, transparent); }
-.ch-spell:hover .ch-spell-star, .ch-spell-star:focus-visible { opacity: 1; pointer-events: auto; }
+@media (hover: hover) { .ch-spell-star:not(.is-active):hover { --icon-fill: color-mix(in srgb, var(--gold) 30%, transparent); } }
+.ch-spell-star:focus-visible { opacity: 1; pointer-events: auto; }
+@media (hover: hover) { .ch-spell:hover .ch-spell-star { opacity: 1; pointer-events: auto; } }
 .ch-spell-star:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 @media (hover: none) { .ch-spell-star { display: none; } }
 .ch-sf-star { display: inline-flex; color: var(--gold); --icon-fill: var(--gold); }
@@ -895,7 +898,7 @@ button.ch-skl-name {
   display: block; min-width: 0; padding: 0; margin: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer;
   text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 0.2em;
 }
-button.ch-skl-name:hover { color: var(--link); text-decoration-color: currentColor; }
+@media (hover: hover) { button.ch-skl-name:hover { color: var(--link); text-decoration-color: currentColor; } }
 button.ch-skl-name:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-radius: var(--radius-sm); }
 .ch-skill-info .ch-dl { margin: 0; }
 
@@ -911,7 +914,7 @@ button.ch-skl-name:focus-visible { outline: 2px solid var(--focus); outline-offs
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
   transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
 }
-.ch-xp-meter:hover { border-color: var(--border-strong); background: var(--surface-2); }
+@media (hover: hover) { .ch-xp-meter:hover { border-color: var(--border-strong); background: var(--surface-2); } }
 .ch-xp-meter:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ch-xp-top { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; font: 400 var(--text-sm) / 1.2 var(--font-ui); }
 .ch-xp-label { font-weight: 700; color: var(--ink-muted); }
@@ -991,7 +994,7 @@ button.ch-skl-name:focus-visible { outline: 2px solid var(--focus); outline-offs
   background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
 }
 button.ch-spell-chip { cursor: pointer; transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease); }
-button.ch-spell-chip:hover { border-color: var(--border-strong); background: var(--surface-3); }
+@media (hover: hover) { button.ch-spell-chip:hover { border-color: var(--border-strong); background: var(--surface-3); } }
 button.ch-spell-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ch-spell-chip .num { font-weight: 700; }
 .ch-spell-chip-label { font-size: var(--text-xs); font-weight: 400; color: var(--ink-muted); }
@@ -1120,7 +1123,7 @@ button.ch-spell-chip:focus-visible { outline: 2px solid var(--focus); outline-of
   height: 22px; padding: 0 8px; font: 500 var(--text-xs) / 1 var(--font-ui); color: var(--ink-muted); cursor: pointer;
   background: transparent; border: 1px solid var(--border); border-radius: var(--radius-pill);
 }
-.ch-feat-tag:hover { color: var(--ink); border-color: var(--border-strong); }
+@media (hover: hover) { .ch-feat-tag:hover { color: var(--ink); border-color: var(--border-strong); } }
 
 /* Smart view: tag chips with counts, the character's related numbers, then the features */
 .ch-smart { display: flex; flex-direction: column; gap: var(--space-3); }
@@ -1234,7 +1237,7 @@ button.ch-spell-chip:focus-visible { outline: 2px solid var(--focus); outline-of
   font: inherit; color: var(--ink); text-align: left; background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer;
 }
 .ch-pc-head.is-static { margin-left: 0; padding-left: 0; cursor: default; }
-button.ch-pc-head:hover { background: var(--surface-2); }
+@media (hover: hover) { button.ch-pc-head:hover { background: var(--surface-2); } }
 button.ch-pc-head:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
 .ch-pc-head > .icon { width: 14px; height: 14px; flex: none; color: var(--ink-muted); transition: transform var(--dur) var(--ease); }
 .ch-pc-row.is-open > .ch-pc-line > .ch-pc-head > .icon { transform: rotate(90deg); }
@@ -1284,3 +1287,81 @@ button.ch-pc-head:focus-visible { outline: 2px solid var(--focus); outline-offse
 .ch-pc-picks { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
 .ch-pc-featrow .ch-fav-mark { flex: none; }
 .ch-pc-feat-none { margin: var(--space-2) 0 0; }
+
+/* ---------- touch screens (iPad, phones: pointer: coarse) ---------- */
+/* Finger-sized controls in the same layout: pips 24px, roll buttons, rows and chips 34-44px, death save boxes 24px
+   (the header strip grows to 80px for them), the header's small buttons 32-36px; name links reach a little above and
+   below their text. Hover styles are mouse-only (@media (hover: hover) above), so presses show instead. A tap on a
+   label with a description (a condition's rules, exhaustion, a weapon property) shows it (index.js tapTips). */
+@media (pointer: coarse) {
+  .ch-pips, .ch-sec-trackers .ch-pips, .ch-slot-row .ch-pips, .ch-res .ch-pips, .ch-pc-slots .ch-pips { gap: 8px; }
+  .ch-pip, .ch-sec-trackers .ch-pip, .ch-slot-row .ch-pip, .ch-res .ch-pip, .ch-pc-slots .ch-pip { width: 24px; height: 24px; }
+  .ch-pip:active { transform: scale(0.85); }
+  .ch-link-btn, .ch-bonus { padding-block: 6px; margin-block: -6px; }
+
+  /* header */
+  .ch-head { --ch-strip-h: 80px; }
+  .ch-dsbox .ch-ds { gap: 6px; }
+  .ch-dsbox .ch-ds .checkbox { width: 24px; height: 24px; }
+  .ch-ds-mini { gap: 4px 8px; }
+  .ch-head-pic { gap: 6px; }
+  .ch-pic-btn { height: 32px; }
+  .ch-head-actions .btn-sm, .ch-trk-toggle { height: 36px; }
+  .ch-fold { min-height: 36px; padding: 4px 6px; }
+
+  /* sections, tabs */
+  .ch-page[data-mode="sheet"] .ch-sec-head { min-height: 44px; }
+  .ch-page[data-mode="sheet"] .ch-sec-head .btn-sm { height: 36px; }
+  .ch-tab { height: 44px; }
+  @container ch-tabs (min-width: 520px) {
+    .ch-tabs-panel > .ch-sec > .ch-sec-head:not(:has(.ch-sec-sub)) { height: 44px; }
+  }
+
+  /* abilities, skills */
+  .ch-abil-save { min-height: 38px; }
+  .ch-skl-row { min-height: 40px; }
+  .ch-skl-bonus { height: 34px; min-width: 3.6em; }
+  button.ch-skl-name { align-self: stretch; } /* the whole name cell opens the skill's menu */
+
+  /* hit dice & conditions */
+  .ch-trk-ctl { min-height: 44px; }
+  .ch-sec-trackers .chip, .ch-hp-foot .chip { height: 36px; padding: 0 12px; }
+  .ch-cond-plus { width: 44px; height: 36px; }
+  .btn-icon.ch-insp { width: 44px; height: 44px; margin: -4px 0; }
+
+  /* spells */
+  .ch-spell-levels { --sp-cols: 24px minmax(10rem, 1.4fr) 4.5rem 4.75rem 6.75rem minmax(7.5rem, 1fr) 36px; }
+  .ch-spell { min-height: 44px; }
+  .ch-spell-lock, .ch-spell-dot { width: 24px; height: 24px; }
+  .ch-spell-chip { height: 34px; padding: 0 9px; }
+  .ch-spell-dmg { height: auto; min-height: 34px; }
+  .ch-spell > .ch-row-x { width: 36px; height: 36px; }
+  @container ch-spells (max-width: 639px) {
+    .ch-spell { grid-template-columns: 24px minmax(0, 1fr) 36px; }
+    .ch-spell > .ch-spell-id { min-height: 34px; }
+  }
+  .ch-sf-chip { height: 34px; padding: 0 12px; }
+  .ch-sf-q { min-height: 36px; }
+
+  /* resources, features */
+  .ch-res { padding: 8px 0; }
+  details.ch-feat > summary { min-height: 44px; }
+  [data-sec="features"] details.ch-feat > summary { min-height: 40px; padding: 4px; }
+  .ch-feat-tag { height: 32px; padding: 0 12px; }
+  .ch-feat-views .ch-seg-btn { height: 36px; }
+  .ch-smart-tag, .ch-pc-tags .ch-smart-tag { height: 36px; }
+  .ch-aspect-chips .chip { height: 32px; }
+
+  /* Paper Companion */
+  .ch-pc-line { min-height: 44px; }
+  .ch-pc-head { padding-block: 8px; }
+
+  /* builder, Edit all */
+  .ch-step { min-height: 44px; }
+  .ch-swatch { width: 34px; height: 34px; }
+  .ch-opt-chip { min-height: 36px; }
+
+  /* presses */
+  :is(.ch-skl-bonus, .ch-abil-check, .ch-abil-save, button.ch-stat, button.ch-spell-chip, .ch-tab, .ch-fold, button.ch-pc-head, .ch-xp-meter, .ch-step):active,
+  details.ch-feat > summary:active { background: var(--surface-3); }
+}

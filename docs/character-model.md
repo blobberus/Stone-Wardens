@@ -321,8 +321,8 @@ and `levelUpPlan` of the latest class + open choices; Advantages → every sourc
 view and tag are remembered per device in localStorage `sw:characters:features`.
 
 ## Printouts & Paper Companion — `print-model.js` (pure), `print-pdf.js`, `print.js`, `companion.js`
-Two small buttons under the portrait (sheet.js `picButtons`), each with a description on hover / keyboard focus
-(widgets.js `hoverTip`, `.ch-tip`):
+Two small buttons under the portrait (sheet.js `picButtons`), each with a description on mouse hover / keyboard focus
+(widgets.js `hoverTip`, `.ch-tip`; touch screens show the labels only):
 - **Print** opens a popover (print.js) with the two printouts, each as **PDF** or **Grayscale**; the file downloads at
   once (`<Name> - Major points.pdf`, `<Name> - Character sheet (grayscale).pdf`). Everything runs in the browser: jsPDF
   (`vendor/jspdf/jspdf.umd.min.js`, global `jspdf`) loads on first use; standard PDF fonts (Times headings, Helvetica
@@ -359,3 +359,16 @@ Two small buttons under the portrait (sheet.js `picButtons`), each with a descri
 The header's Vision cell reads "Normal (2 mi)" for normal sight (`NORMAL_SIGHT` in print-model.js: outdoors on a clear
 day, until something blocks the view; the cell's tooltip says more).
 
+## Touch screens (iPad, phones)
+The sheet keeps its layout on a touch screen (`pointer: coarse`; characters.css "touch screens") and only grows what is
+tapped: pips 24px with 8px between, death save boxes 24px (the header strip grows from 64 to 80px), roll buttons and
+skill rows 34–40px, section, tab and feature rows 40–44px, spell chips 34px, the small header buttons 32–36px, name links
+reaching a little above and below their text. Hover styles are mouse-only; presses show (`:active`). Other touch
+behavior:
+- A tap on a debuffed value (`.ch-adj`) toggles its card (widgets.js), as hover and focus do with a mouse.
+- A tap on a label that has a description shows it in a card (core/ui.js `tapTips('.ch-page')`, set in index.js): a
+  condition's rules, Exhaustion's penalties, hit dice left, a weapon property or mastery, vision. Controls keep their
+  own tap. Condition, property and mastery titles are plain text (print-model.js `plain`).
+- The spell row's hover star is hidden (`hover: none`); star a spell from its menu. "Click to roll" reads "Tap to roll".
+- Dialogs (skill, entry, rests, level up, the Add item / Add spells picker) don't open the on-screen keyboard; "+ XP"
+  still focuses its amount on purpose.

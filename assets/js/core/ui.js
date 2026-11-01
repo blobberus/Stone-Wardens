@@ -7,6 +7,9 @@ import { liveText } from './live-text.js';
 // `body > #overlays`: rendered headings get slug ids, so a heading "Overlays" must not capture modals.
 const overlays = () => document.querySelector('body > #overlays') || document.body;
 
+/** A touch screen (iPad, phone) is the main pointer. */
+export const isTouch = () => matchMedia('(pointer: coarse)').matches;
+
 export function icon(name, size) {
   const svg = h('svg', { class: 'icon', 'aria-hidden': 'true', ...(size ? { width: size, height: size } : {}) });
   // UI icons are `i-<name>`; map-marker glyphs are `mk-<name>` and are passed through as-is.
@@ -69,9 +72,18 @@ export function openModal({ title, body, actions = [], wide = false, onClose, be
     }, a.label))));
   }
   backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) dismiss(); });
+  if (isTouch()) box.querySelectorAll('[autofocus][type="search"]').forEach((el) => el.removeAttribute('autofocus')); // see below
   overlays().append(backdrop);
   modalStack.push(api);
-  queueMicrotask(() => (box.querySelector('[autofocus], input, textarea, select') || box.querySelector('.modal-foot .btn-primary'))?.focus());
+  queueMicrotask(() => {
+    // Touch screens: only a field marked autofocus (a name prompt, not a search box) takes the focus, so the on-screen
+    // keyboard doesn't open over every dialog; else the primary button or the dialog itself.
+    const touch = isTouch();
+    const first = touch ? box.querySelector('[autofocus]:not([type="search"])') : box.querySelector('[autofocus], input, textarea, select');
+    const target = first || box.querySelector('.modal-foot .btn-primary:not(:disabled)') || (touch ? box : null);
+    if (target === box) box.tabIndex = -1;
+    target?.focus();
+  });
   return api;
 }
 
@@ -174,6 +186,54 @@ export function pickFromList({ title = 'Choose', items = [], render = (x) => x.n
     });
     draw();
   });
+}
+
+// ---------- tap tips (touch screens show no title tooltips) ----------
+
+const TIP_SCOPES = new Set();
+const TIP_SKIP = 'a[href], button, input, select, textarea, label, summary, [role="button"], [role="tab"], [role="menuitem"], [contenteditable]';
+const tip = { el: null, target: null, again: false };
+
+/**
+ * On a touch screen, a tap on a non-interactive element with a `title` inside `scope` (a selector) shows the title in
+ * a small card beside it (`.tap-tip`); a tap on it again, anywhere else, a scroll or Esc closes it. Controls keep
+ * their own tap; mouse and keyboard keep the browser's tooltip.
+ */
+export function tapTips(scope) {
+  const first = !TIP_SCOPES.size;
+  TIP_SCOPES.add(scope);
+  if (!first) return;
+  const hide = () => { tip.target = null; if (tip.el) tip.el.hidden = true; };
+  document.addEventListener('pointerdown', (e) => {
+    tip.again = !!tip.target && tip.target.contains(e.target);
+    if (tip.target && !tip.again) hide();
+  }, true);
+  document.addEventListener('pointerup', (e) => {
+    if (e.pointerType !== 'touch') return;
+    if (tip.again) { tip.again = false; hide(); return; }
+    const t = e.target instanceof Element ? e.target.closest('[title]') : null;
+    if (!t || !t.title.trim() || e.target.closest(TIP_SKIP) || ![...TIP_SCOPES].some((s) => t.closest(s))) return;
+    showTip(t);
+  }, true);
+  window.addEventListener('scroll', hide, { capture: true, passive: true });
+  window.addEventListener('resize', hide, { passive: true });
+  window.addEventListener('hashchange', hide);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+}
+
+function showTip(t) {
+  if (!tip.el || !tip.el.isConnected) tip.el = overlays().appendChild(h('div', { class: 'tap-tip', role: 'status', hidden: true }));
+  const card = tip.el;
+  card.textContent = t.title;
+  card.hidden = false;
+  tip.target = t;
+  const r = t.getBoundingClientRect();
+  const pad = 8;
+  let top = r.bottom + 6;
+  if (top + card.offsetHeight > window.innerHeight - pad) top = Math.max(pad, r.top - card.offsetHeight - 6);
+  const left = Math.min(Math.max(pad, r.left + r.width / 2 - card.offsetWidth / 2), window.innerWidth - card.offsetWidth - pad);
+  card.style.top = `${Math.round(top)}px`;
+  card.style.left = `${Math.round(Math.max(pad, left))}px`;
 }
 
 // ---------- form controls ----------

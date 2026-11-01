@@ -3,6 +3,7 @@
 import { h } from '../../core/dom.js';
 import { registerLinkType, matchNames } from '../../core/links.js';
 import { href } from '../../core/router.js';
+import { tapTips } from '../../core/ui.js';
 import { store } from '../../core/store.js';
 import { fmtMod } from '../../core/util.js';
 import {
@@ -20,6 +21,9 @@ let root = null;
 let host = null;
 let mode = null; // 'roster' | 'new' | 'sheet' | 'edit'
 let currentId = null;
+
+// Touch screens: a tap on a label with a description (a condition's rules, exhaustion, a weapon property…) shows it
+tapTips('.ch-page');
 
 function isVisible() { return !!host && !host.hidden && host.isConnected; }
 

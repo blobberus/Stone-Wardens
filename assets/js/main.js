@@ -6,7 +6,7 @@ import { fetchVault, openVault, saveAuth, loadAuth, clearAuth } from './core/vau
 import { registerView, start, allViews, onRoute } from './core/router.js';
 import { applyTheme, getSetting, setSetting } from './core/settings.js';
 import { h, $, clear } from './core/dom.js';
-import { icon, toast, choiceDialog } from './core/ui.js';
+import { icon, toast, choiceDialog, tapTips } from './core/ui.js';
 import { preloadAll } from './core/compendium.js';
 import { setSaveHandler } from './core/saving.js';
 import { restoreDm } from './core/dm.js';
@@ -20,6 +20,9 @@ const COMBAT_RING = 'https://blobberus.github.io/Combat-Ring/'; // used off Page
 const isLocalhost = ['localhost', '127.0.0.1', ''].includes(location.hostname);
 
 applyTheme();
+// iOS Safari shows :active (the press feedback touch screens get instead of hover) only once something listens for touches
+document.addEventListener('touchstart', () => {}, { passive: true });
+tapTips('.modal'); // touch screens: a tap on a label with a description in a dialog shows it (titles never show there)
 boot();
 
 async function boot() {

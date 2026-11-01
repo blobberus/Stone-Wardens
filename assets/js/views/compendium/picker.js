@@ -2,7 +2,7 @@
 // Modal chooser: kind tabs, search, quick filters, compact rows with key stats, a live preview (renderEntry)
 // and "+ Create custom…" which chains into openEntryEditor and returns the new entry.
 import { h } from '../../core/dom.js';
-import { openModal, icon, select } from '../../core/ui.js';
+import { openModal, icon, select, isTouch } from '../../core/ui.js';
 import { preloadAll } from '../../core/compendium.js';
 import {
   rulesReady, listEntries, filtersFor, applyFilters, searchText, statLine, kindLabel, kindOne, isKind,
@@ -98,7 +98,7 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
       if (!tabs) return;
       tabs.replaceChildren(...kindList.map((k) => h('button', {
         type: 'button', role: 'tab', class: ['tab', k === active && 'is-active'], 'aria-selected': String(k === active),
-        onclick: () => { if (k === active) return; active = k; cursor = 0; drawTabs(); drawFilters(); run(); updateCreate(); q.focus(); },
+        onclick: () => { if (k === active) return; active = k; cursor = 0; drawTabs(); drawFilters(); run(); updateCreate(); if (!isTouch()) q.focus(); }, // no on-screen keyboard for a tab
       }, kindLabel(k), h('span', { class: 'badge num' }, String(lists.get(k)?.length ?? '…')))));
     }
     function drawFilters() {
@@ -248,7 +248,7 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
     async function createCustom() {
       const name = q.value.trim();
       const saved = await openEntryEditor(active, name ? { name } : null);
-      if (!saved) { q.focus(); return; }
+      if (!saved) { if (!isTouch()) q.focus(); return; }
       result = multi ? [...chosen.values(), saved] : saved;
       m.close();
     }

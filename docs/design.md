@@ -32,7 +32,7 @@ Google Fonts: Cinzel 500–700, Alegreya 400/500/700 + italics, Alegreya Sans 40
 
 ## Space and shape
 `--space-1..8` = 4 8 12 16 24 32 48 64. Card padding 16, gaps 16, section gaps 32. Controls 36 (`--control-h`) / 30
-(`--control-h-sm`); 40–48 on phones (base.css does it). Radii: `--radius` 6 (cards, inputs), `--radius-sm` 4 (buttons,
+(`--control-h-sm`) with a mouse, 44 / 36 on touch screens (tokens.css; buttons 40+ on phones, base.css). Radii: `--radius` 6 (cards, inputs), `--radius-sm` 4 (buttons,
 badges), `--radius-lg` 8 (modals), `--radius-pill` (tags, chips). Use a 1px border **or** a shadow, never both;
 `--shadow`/`--shadow-lg` only on things that float (menus, popovers, toasts, modals, drawers, map controls).
 
@@ -65,6 +65,21 @@ badges), `--radius-lg` 8 (modals), `--radius-pill` (tags, chips). Use a 1px bord
 - Emblem: `<svg viewBox="0 0 48 48"><use href="assets/img/icons.svg#i-emblem"/></svg>`. It takes `color` and
   `--emblem-star` (both set inside `.gate-mark` and `.sb-mark`).
 
+## Touch screens (iPad, phones)
+`@media (pointer: coarse)`; JS `isTouch()` (ui.js). Phones also get the 759px layout; an iPad gets the desktop layout.
+- Targets: about 44px for main controls, at least 34–36px in dense rows (pips and checkboxes 24px with 6–8px between).
+  tokens.css raises `--control-h` / `--control-h-sm`; base.css "Touch" grows checkboxes, chips and tabs; views
+  grow their own fixed sizes in a `pointer: coarse` block. The mouse layout doesn't change.
+- Hover only with a mouse: wrap each `:hover` rule in `@media (hover: hover) { … }` where it stands (a tap would leave
+  it stuck on iOS). Whatever hover reveals must show or be reachable on `hover: none`. Touch gets an `:active` press
+  instead (main.js listens for `touchstart` so iOS Safari applies it).
+- No action only on hover, right-click, double-click or a key: give it a visible control. Information only in a
+  `title` never shows on touch: `tapTips(scope)` (ui.js, `.tap-tip`) shows it when a non-interactive element with a
+  title is tapped (on for `.modal` and `.ch-page`). Keep titles plain text, not markdown.
+- Dialogs don't open the keyboard: on touch, openModal focuses only an `[autofocus]` field that isn't a search box
+  (else the enabled primary button, else the dialog). Text inputs are at least 16px (no zoom on focus). Controls
+  have `touch-action: manipulation` (base.css), so quick taps never zoom.
+
 ## Icons
 `assets/img/icons.svg`: `i-*` are 24px outline icons (16–20px in use, currentColor); `mk-*` are filled marker glyphs drawn
 at 12–18px inside an 18–26px map mark. One plain icon where it helps a label. Never put icons in tinted squares or circles
@@ -74,7 +89,8 @@ at 12–18px inside an 18–26px map mark. One plain icon where it helps a label
 ## Do / Don't
 - Do show real campaign data at its real size (names, levels, HP, dates). Print zeros as zeros and missing values as "—".
 - Do use one primary action per view, where the job is done. Keep color on meaning (status, selection, rubric).
-- Do keep visible focus on everything and a hover state on every row and control. Motion is feedback only.
+- Do keep visible focus on everything and a hover state on every row and control (mouse only, see Touch screens).
+  Motion is feedback only.
 - Don't use gradients, glows, glass/blur, text shadows, shadows on resting cards, emoji, lorem, or `alert/confirm/prompt`.
 - Don't put icons in tinted circles or give categories rainbow colors (use the pin pigments). Don't put accent on every
   button or on headings outside prose. No Cinzel below 20px, no tracked uppercase labels, no decorative 01/02 numbering.

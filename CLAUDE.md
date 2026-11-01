@@ -345,3 +345,9 @@ no PDF thumbnails (no pdf.js); stub entries marked `verify:true` need checking a
   .empty-state .prose` (rendered markdown) `.callout`.
 - Each view owns `assets/css/<view>.css`, classes prefixed by view (`.map-`, `.ch-`, `.jr-`, `.cp-`, `.wl-`).
 - Design direction: medieval manuscript but highly readable (D&D wiki clarity). See `docs/design.md`.
+- Touch screens (iPad, phones; docs/design.md "Touch screens"): `pointer: coarse` raises `--control-h` 36 -> 44 and
+  `--control-h-sm` 30 -> 36; views grow their fixed sizes in a `@media (pointer: coarse)` block without changing the
+  mouse layout. Wrap `:hover` rules in `@media (hover: hover) { … }` in place (no stuck highlight after a tap); touch
+  gets `:active`. Nothing only on hover / right-click / double-click. `title` text shows on touch only via
+  ui.js `tapTips(scope)` (on for `.modal`, `.ch-page`); `isTouch()` for JS. openModal on touch focuses only an
+  `[autofocus]` non-search field, so the keyboard doesn't cover dialogs.
