@@ -217,7 +217,9 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   nested polygons (Material square, Mental hexagon, Temporal square); a being = one Temporal + 0–2 Mental + 0–2 Material,
   and that recipe is its rank (Absolute God, Major, Minor, Lesser, Angel; 688 possible). Pure model `model.js`
   (`classify`, `catalog`, `pick`, `constituents`, `parseImport` v4 / v3, `rosterMarkdown`; `node tools/test_pantheon.mjs`),
-  SVG `diagram.js` (Original shapes / Individual sigil, Major lines, export in plain colors), tab `index.js`: roster by
+  SVG `diagram.js` (Original shapes = a magic circle: rune-inscribed bands, a great circle, a helm-of-awe stave at the
+  heart, each aspect a medallion with its rune or alchemical sign, all strokes, no fonts; Individual sigil; Major
+  lines; export in plain colors), tab `index.js`: roster by
   rank | diagram (click points to build a combination) | panel (the being, Unassigned + Create, or why not a being) or
   the editor (rank guide, aspect selectors, Title, Domains, Description, Worship; one being per combination, a taken
   one is explained, never overwritten; unsaved changes asked about and kept in `sw:pantheon:draft`). DM mode: a hidden

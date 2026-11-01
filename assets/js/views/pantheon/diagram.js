@@ -1,7 +1,10 @@
 // The pantheon diagram (docs/pantheon-model.md "Diagram"): one SVG drawn from model.js geometry.
-//   Original shapes (default): the Material square, Mental hexagon and Temporal square with all 14 aspects; the
-//     selection shows as a ring (Absolute God), a line (Major), a triangle (Minor) or a closed outline (Lesser, Angel),
-//     every other aspect still in sight. "Major lines" adds the 24 Temporal-Mental lines, assigned ones solid.
+//   Original shapes (default): a magic circle. The Material square, Mental hexagon and Temporal square are carved
+//     bands inscribed in runes, inside a great circle through the Material corners, a gilt star at the heart; each of
+//     the 14 aspects is a medallion with its rune (Futhark for Temporal and Mental, the alchemists' signs for
+//     Material). The selection shows in gold as a radiant ring (Absolute God), a line (Major), a triangle (Minor) or a
+//     closed outline (Lesser, Angel), every other aspect still in sight. "Major lines" adds the 24 Temporal-Mental
+//     lines, assigned ones solid.
 //   Individual sigil (optional): the selection alone, in tiers (Temporal on top, then Mental, then Material): a dot,
 //     a line, a triangle, a diamond (Lesser God) or a pyramid (Angel), inside a seal: beaded rim, the rank on the top
 //     arc, the being's title (or its aspects) on the bottom one, each aspect a medallion with its three letters.
@@ -38,7 +41,7 @@ function s(tag, attrs = {}, ...kids) {
 }
 const css = (o) => Object.entries(o).filter(([, v]) => v != null).map(([k, v]) => `${k}:${v}`).join(';');
 const pts = (list) => list.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-const R = { material: 15, mental: 13, temporal: 12 }; // aspect dot radius
+const R = { material: 18, mental: 16, temporal: 15 }; // aspect medallion radius
 
 /** A label just outside its point, away from `from` (the centre). */
 function labelAt(p, from, size, gap) {
@@ -69,9 +72,9 @@ export function drawDiagram(o) {
   });
   if (P.bg) svg.append(s('rect', { x: 0, y: 0, width: W, height: W, fill: P.bg }));
   if (o.heading) svg.append(s('text', { x: 40, y: 64, style: css({ fill: P.ink, 'font-family': P.display, 'font-size': '34px', 'letter-spacing': '0.06em' }) }, o.heading));
-  if (o.view === 'sigil') drawSigil(svg, sel, c, o, P, size);
-  else drawOriginal(svg, sel, c, o, P, size);
   const lines = [].concat(o.caption || []).filter(Boolean);
+  if (o.view === 'sigil') drawSigil(svg, sel, c, o, P, size);
+  else drawOriginal(lines.length ? svg.appendChild(s('g', { transform: 'translate(50 8) scale(0.9)' })) : svg, sel, c, o, P, size); // the great circle clear of a caption
   lines.forEach((t, i) => {
     svg.append(s('text', { x: W / 2, y: W - 30 - (lines.length - 1 - i) * 36, 'text-anchor': 'middle', style: css({ fill: i ? P.muted : P.ink, 'font-size': '26px', 'font-weight': i ? 400 : 700 }) }, t));
   });
@@ -81,10 +84,38 @@ export function drawDiagram(o) {
 function drawOriginal(svg, sel, c, o, P, size) {
   const pos = positions(W);
   const center = { x: W / 2, y: W / 2 };
-  // the three source polygons, lighter than any selection
+  const C = W / 2;
+  const gold = P.select;
+  const round = { 'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
+  const d = decoration();
+  // the magic circle, lighter than any selection: a glow from the heart, the circles the inner shapes stand in, the
+  // stave at the heart, the great circle (beads, double ring, inscription, a lozenge at each quarter)
+  svg.append(s('defs', {},
+    s('radialGradient', { id: 'pt-circle-glow' },
+      s('stop', { offset: '0%', style: css({ 'stop-color': gold, 'stop-opacity': 0.2 }) }),
+      s('stop', { offset: '55%', style: css({ 'stop-color': gold, 'stop-opacity': 0.06 }) }),
+      s('stop', { offset: '100%', style: css({ 'stop-color': gold, 'stop-opacity': 0 }) }))));
+  const deco = s('g', { class: 'pt-deco' },
+    s('circle', { cx: C, cy: C, r: GREAT, style: css({ fill: 'url(#pt-circle-glow)' }) }),
+    ...GROUPS.slice(1).map((g) => s('circle', { cx: C, cy: C, r: g.radius * W, style: css({ fill: 'none', stroke: gold, 'stroke-width': 1.4, 'stroke-dasharray': '1.5 6', 'stroke-opacity': 0.6, ...round }) })),
+    s('path', { d: d.stave, style: css({ fill: 'none', stroke: gold, 'stroke-width': 2.4, 'stroke-opacity': 0.85, ...round }) }),
+    s('circle', { cx: C, cy: C, r: 24, style: css({ fill: P.halo, stroke: gold, 'stroke-width': 2.2 }) }),
+    s('circle', { cx: C, cy: C, r: 19, style: css({ fill: gold, 'fill-opacity': 0.1, stroke: gold, 'stroke-width': 1, 'stroke-opacity': 0.7 }) }),
+    s('path', { d: d.spark, style: css({ fill: gold }) }),
+    s('path', { d: d.beads, style: css({ fill: 'none', stroke: gold, 'stroke-width': 3.2, 'stroke-opacity': 0.7, ...round }) }),
+    ...[GREAT - 9, GREAT + 9].map((r, i) => s('circle', { cx: C, cy: C, r, style: css({ fill: 'none', stroke: gold, 'stroke-width': i ? 2.2 : 1.3, 'stroke-opacity': 0.8 }) })),
+    s('path', { d: d.great, style: css({ fill: 'none', stroke: gold, 'stroke-width': 1.2, 'stroke-opacity': 0.75, ...round }) }),
+    s('path', { d: d.lozenges, style: css({ fill: gold, 'fill-opacity': 0.85 }) }));
+  svg.append(deco);
+  // the three shapes: carved bands, two lines with runes between, the aspects' medallions at the corners
   for (const g of GROUPS) {
-    const ring = g.points.map((p) => pos.get(`${g.id}:${p}`));
-    svg.append(s('polygon', { class: `pt-shape pt-shape-${g.id}`, points: pts(ring), style: css({ fill: 'none', stroke: P[g.id], 'stroke-width': 3, 'stroke-opacity': 0.42, 'stroke-linejoin': 'round' }) }));
+    const b = d.bands[g.id];
+    svg.append(s('g', { class: `pt-shape pt-shape-${g.id}` },
+      s('path', { d: `M${pts(b.outer)}Z M${pts(b.inner)}Z`, 'fill-rule': 'evenodd', style: css({ fill: P[g.id], 'fill-opacity': 0.07, stroke: 'none' }) }),
+      s('polygon', { points: pts(b.outer), style: css({ fill: 'none', stroke: P[g.id], 'stroke-width': 2.4, 'stroke-opacity': 0.7, 'stroke-linejoin': 'round' }) }),
+      s('polygon', { points: pts(b.inner), style: css({ fill: 'none', stroke: P[g.id], 'stroke-width': 1.2, 'stroke-opacity': 0.6, 'stroke-linejoin': 'round' }) }),
+      s('path', { d: b.runes, style: css({ fill: 'none', stroke: P[g.id], 'stroke-width': b.h * 0.12, 'stroke-opacity': 0.75, ...round }) }),
+      s('path', { d: b.marks, style: css({ fill: P.halo, stroke: P[g.id], 'stroke-width': 1.6, 'stroke-linejoin': 'round' }) })));
   }
   // every possible Major God: Temporal to Mental
   if (o.majorLines) {
@@ -103,41 +134,216 @@ function drawOriginal(svg, sel, c, o, P, size) {
     }
     svg.append(lines);
   }
-  // the selection's connections
+  // the selection's connections: gilt (a glow, the gold, a fine line inlaid), dashed grey when not a being
   if (sel.length) {
     const ps = sel.map((id) => ({ id, ...pos.get(id) }));
-    const stroke = c.ok ? P.select : P.muted;
+    const stroke = c.ok ? gold : P.muted;
     const dash = c.ok ? null : '10 8';
     const shape = s('g', { class: ['pt-sel', c.ok ? `is-${c.rank}` : 'is-invalid'].join(' ') });
+    const gilt = (tag, at, fill) => [
+      c.ok ? s(tag, { ...at, style: css({ fill: 'none', stroke: gold, 'stroke-width': 18, 'stroke-opacity': 0.18, ...round }) }) : null,
+      s(tag, { ...at, style: css({ fill: fill ? gold : 'none', 'fill-opacity': c.ok ? 0.13 : 0.05, stroke, 'stroke-width': 7, 'stroke-dasharray': dash, ...round }) }),
+      c.ok ? s(tag, { ...at, style: css({ fill: 'none', stroke: P.halo, 'stroke-width': 1.8, ...round }) }) : null,
+    ];
     if (ps.length === 1) {
-      shape.append(s('circle', { cx: ps[0].x, cy: ps[0].y, r: 34, style: css({ fill: P.select, 'fill-opacity': c.ok ? 0.16 : 0.06, stroke, 'stroke-width': 4, 'stroke-dasharray': dash }) }));
+      const { x, y } = ps[0];
+      shape.append(...gilt('circle', { cx: x, cy: y, r: 36 }, true));
+      if (c.ok) shape.append(s('path', { d: d.rays(x, y), style: css({ fill: 'none', stroke: gold, 'stroke-width': 3, ...round }) }));
     } else if (ps.length === 2) {
-      shape.append(s('line', { x1: ps[0].x, y1: ps[0].y, x2: ps[1].x, y2: ps[1].y, style: css({ stroke, 'stroke-width': 7, 'stroke-linecap': 'round', 'stroke-dasharray': dash }) }));
+      shape.append(...gilt('line', { x1: ps[0].x, y1: ps[0].y, x2: ps[1].x, y2: ps[1].y }));
     } else {
-      shape.append(s('polygon', { points: pts(outline(ps)), style: css({ fill: P.select, 'fill-opacity': c.ok ? 0.14 : 0.05, stroke, 'stroke-width': 5, 'stroke-linejoin': 'round', 'stroke-dasharray': dash }) }));
+      shape.append(...gilt('polygon', { points: pts(outline(ps)) }, true));
     }
     svg.append(shape);
   }
-  // the 14 aspects, labelled
+  // the 14 aspects: medallions with their runes, labelled; a picked one turns to its pigment in a gold ring
   for (const n of NODES) {
     const p = pos.get(n.id);
     const on = sel.includes(n.id);
     const r = R[n.group];
-    const lab = labelAt(p, center, size, r + (on ? 14 : 9));
+    const col = P[n.group];
+    const lab = labelAt(p, center, size, r + (on ? 16 : 11));
     const g = s('g', {
       class: ['pt-node', `pt-${n.group}`, on && 'is-on'].filter(Boolean).join(' '), 'data-aspect': n.id,
       ...(o.interactive ? { role: 'button', tabindex: 0, 'aria-pressed': String(on), 'aria-label': `${n.name}, ${GROUPS.find((x) => x.id === n.group).label} aspect` } : {}),
     },
     s('title', {}, `${n.name} · ${GROUPS.find((x) => x.id === n.group).label}${MEANINGS[n.id] ? `: ${MEANINGS[n.id]}` : ''}`),
     o.interactive ? s('circle', { class: 'pt-hit', cx: p.x, cy: p.y, r: 32, style: css({ fill: 'transparent' }) }) : null,
-    on ? s('circle', { cx: p.x, cy: p.y, r: r + 8, style: css({ fill: 'none', stroke: c.ok ? P.select : P.muted, 'stroke-width': 4 }) }) : null,
-    s('circle', { class: 'pt-dot', cx: p.x, cy: p.y, r, style: css({ fill: P[n.group], stroke: P.halo, 'stroke-width': 3 }) }),
+    on ? s('circle', { cx: p.x, cy: p.y, r: r + 8, style: css({ fill: P.halo, stroke: c.ok ? gold : P.muted, 'stroke-width': 4 }) })
+      : s('circle', { cx: p.x, cy: p.y, r: r + 5, style: css({ fill: P.halo, stroke: col, 'stroke-width': 1.2, 'stroke-opacity': 0.6 }) }),
+    s('circle', { class: 'pt-dot', cx: p.x, cy: p.y, r, style: css({ fill: on ? col : P.halo, stroke: col, 'stroke-width': 3 }) }),
+    s('path', { class: 'pt-rune', d: runePath(ASPECT_RUNES[n.id], p.x, p.y, r * 1.08), style: css({ fill: 'none', stroke: on ? P.halo : col, 'stroke-width': 2.6, ...round }) }),
     s('text', {
       class: 'pt-label', x: lab.x.toFixed(1), y: lab.y.toFixed(1), 'text-anchor': lab.anchor,
       style: css({ fill: P[n.group], 'font-size': `${size}px`, 'font-weight': on ? 700 : 500, stroke: P.halo, 'stroke-width': `${Math.max(4, size / 4)}px`, 'stroke-linejoin': 'round', 'paint-order': 'stroke' }),
     }, n.name));
     svg.append(g);
   }
+}
+
+// ---------- the magic circle ----------
+
+const GREAT = GROUPS[0].radius * W; // the great circle, through the Material corners
+
+// Runes drawn as strokes, so an export needs no font: a cell one unit high (y from -0.5, the top, to 0.5). The
+// Temporal and Mental aspects carry Elder Futhark runes for what they mean (Hagalaz the hail for Decay, Berkano the
+// birch for Growth, Isa the ice for Stasis, Dagaz the day for Equilibrium; Uruz the aurochs for Strength, Raidho the
+// ride for Dexterity, Eihwaz the yew for Constitution, Ansuz the god for Wisdom, Sowilo the sun for Intelligence,
+// Wunjo joy for Charisma), the Material ones the alchemists' signs (Fire and Air rise, Water and Metal (earth's
+// sign) fall). The bands are inscribed in the Futhark, English spelled letter by letter (runesOf).
+const FUTHARK = {
+  f: [[[-0.2, 0.5], [-0.2, -0.5]], [[-0.2, -0.18], [0.2, -0.5]], [[-0.2, 0.12], [0.2, -0.2]]],
+  u: [[[-0.22, 0.5], [-0.22, -0.5], [0.22, -0.15], [0.22, 0.5]]],
+  'þ': [[[-0.2, -0.5], [-0.2, 0.5]], [[-0.2, -0.25], [0.18, 0], [-0.2, 0.25]]],
+  a: [[[-0.2, 0.5], [-0.2, -0.5]], [[-0.2, -0.5], [0.2, -0.2]], [[-0.2, -0.2], [0.2, 0.1]]],
+  r: [[[-0.22, 0.5], [-0.22, -0.5], [0.2, -0.25], [-0.22, 0], [0.22, 0.5]]],
+  k: [[[0.2, -0.45], [-0.2, 0], [0.2, 0.45]]],
+  g: [[[-0.25, -0.5], [0.25, 0.5]], [[0.25, -0.5], [-0.25, 0.5]]],
+  w: [[[-0.2, 0.5], [-0.2, -0.5], [0.2, -0.25], [-0.2, 0]]],
+  h: [[[-0.22, -0.5], [-0.22, 0.5]], [[0.22, -0.5], [0.22, 0.5]], [[-0.22, -0.15], [0.22, 0.15]]],
+  n: [[[0, -0.5], [0, 0.5]], [[-0.2, -0.15], [0.2, 0.15]]],
+  i: [[[0, -0.5], [0, 0.5]]],
+  j: [[[-0.02, -0.45], [-0.24, -0.2], [-0.02, 0.05]], [[0.02, -0.05], [0.24, 0.2], [0.02, 0.45]]],
+  'ï': [[[0, -0.5], [0, 0.5]], [[0, -0.5], [0.2, -0.3]], [[0, 0.5], [-0.2, 0.3]]],
+  p: [[[-0.2, -0.5], [-0.2, 0.5]], [[-0.2, -0.5], [0.12, -0.22], [0.24, -0.45]], [[-0.2, 0.5], [0.12, 0.22], [0.24, 0.45]]],
+  z: [[[0, -0.5], [0, 0.5]], [[-0.24, -0.5], [0, -0.15], [0.24, -0.5]]],
+  s: [[[0.2, -0.5], [-0.2, -0.1], [0.2, 0.1], [-0.2, 0.5]]],
+  t: [[[0, -0.5], [0, 0.5]], [[-0.24, -0.25], [0, -0.5], [0.24, -0.25]]],
+  b: [[[-0.22, -0.5], [-0.22, 0.5]], [[-0.22, -0.5], [0.18, -0.25], [-0.22, 0], [0.18, 0.25], [-0.22, 0.5]]],
+  e: [[[-0.22, 0.5], [-0.22, -0.5], [0, -0.2], [0.22, -0.5], [0.22, 0.5]]],
+  m: [[[-0.22, 0.5], [-0.22, -0.5], [0.22, -0.1]], [[0.22, 0.5], [0.22, -0.5], [-0.22, -0.1]]],
+  l: [[[-0.15, 0.5], [-0.15, -0.5], [0.2, -0.2]]],
+  'ŋ': [[[0, -0.3], [0.22, 0], [0, 0.3], [-0.22, 0], [0, -0.3]]],
+  o: [[[-0.25, 0.5], [0.2, -0.05], [0, -0.45], [-0.2, -0.05], [0.25, 0.5]]],
+  d: [[[-0.24, -0.45], [-0.24, 0.45], [0.24, -0.45], [0.24, 0.45], [-0.24, -0.45]]],
+};
+const RISE = [[0, -0.48], [0.42, 0.26], [-0.42, 0.26], [0, -0.48]];
+const FALL = RISE.map(([x, y]) => [x, -y]);
+const ASPECT_RUNES = {
+  'temporal:decay': FUTHARK.h, 'temporal:growth': FUTHARK.b, 'temporal:stasis': FUTHARK.i, 'temporal:equilibrium': FUTHARK.d,
+  'mental:strength': FUTHARK.u, 'mental:dexterity': FUTHARK.r, 'mental:constitution': FUTHARK['ï'],
+  'mental:wisdom': FUTHARK.a, 'mental:intelligence': FUTHARK.s, 'mental:charisma': FUTHARK.w,
+  'material:fire': [RISE], 'material:air': [RISE, [[-0.34, -0.04], [0.34, -0.04]]],
+  'material:water': [FALL], 'material:metal': [FALL, [[-0.34, 0.04], [0.34, 0.04]]],
+};
+const MARK = (y) => [[0, y - 0.07], [0.07, y], [0, y + 0.07], [-0.07, y], [0, y - 0.07]];
+const SPACE = { strokes: [MARK(0)], adv: 0.45 }; // between words
+const STOP = { strokes: [MARK(-0.22), MARK(0.22)], adv: 0.5 }; // between phrases
+const INSCRIPTIONS = {
+  great: 'the stone wardens·the pantheon of the fallen firmament·',
+  material: 'metal water fire air·the material forces of nature·',
+  mental: 'strength dexterity constitution wisdom intelligence charisma·the forces of the mind·',
+  temporal: 'decay growth stasis equilibrium·the divine forces of time·',
+};
+
+/** The strokes of a rune at (x, y), h high, as path data; t: the way its line runs, n: its top (unit vectors). */
+function runePath(strokes, x, y, h, t = { x: 1, y: 0 }, n = { x: 0, y: -1 }) {
+  return strokes.map((line) => line.map(([gx, gy], i) => `${i ? 'L' : 'M'}${(x + h * (gx * t.x - gy * n.x)).toFixed(1)} ${(y + h * (gx * t.y - gy * n.y)).toFixed(1)}`).join('')).join('');
+}
+
+/** English in the Futhark: [{strokes, adv (width in heights)}]. th = þ, ng = ŋ, c / q = k, v = w, x = ks, y = j. */
+function runesOf(text) {
+  const t = text.toLowerCase().replace(/th/g, 'þ').replace(/ng/g, 'ŋ').replace(/[cq]/g, 'k').replace(/v/g, 'w').replace(/x/g, 'ks').replace(/y/g, 'j');
+  return [...t].map((ch) => (FUTHARK[ch] ? { strokes: FUTHARK[ch], adv: ch === 'i' ? 0.3 : 0.6 } : ch === '·' ? STOP : ch === ' ' ? SPACE : null)).filter(Boolean);
+}
+
+/**
+ * Glyphs written along tracks [{len, at(distance) -> {x, y, t, n}}], h high, the text running on from one track to
+ * the next and round again; each track's run centred on it. One path.
+ */
+function inscribe(tracks, glyphs, h) {
+  const step = (g) => (g.adv + 0.22) * h;
+  let k = 0, out = '';
+  for (const tr of tracks) {
+    let used = 0, j = k;
+    while (used + step(glyphs[j % glyphs.length]) <= tr.len) used += step(glyphs[j++ % glyphs.length]);
+    let pos = (tr.len - used) / 2;
+    for (; k < j; k++) {
+      const g = glyphs[k % glyphs.length];
+      const p = tr.at(pos + step(g) / 2);
+      out += runePath(g.strokes, p.x, p.y, h, p.t, p.n);
+      pos += step(g);
+    }
+  }
+  return out;
+}
+
+let DECO = null;
+/** The magic circle's fixed strokes as path data, worked out once: the bands and their runes, beads, star, lozenges. */
+function decoration() {
+  if (DECO) return DECO;
+  const C = W / 2;
+  const rad = (deg) => (deg * Math.PI) / 180;
+  const at = (r, a) => ({ x: C + r * Math.cos(a), y: C + r * Math.sin(a) });
+  const xy = (p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+  const lineTrack = (a, b, skipA, skipB) => {
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const t = { x: (b.x - a.x) / len, y: (b.y - a.y) / len };
+    return { len: len - skipA - skipB, at: (d) => ({ x: a.x + t.x * (skipA + d), y: a.y + t.y * (skipA + d), t, n: { x: t.y, y: -t.x } }) };
+  };
+  /** A lozenge across a band at p (t: along the band), `across` from its middle to a tip. */
+  const lozenge = (p, t, across, along) => {
+    const q = (u, v) => xy({ x: p.x + t.x * u + t.y * v, y: p.y + t.y * u - t.x * v });
+    return `M${q(0, across)}L${q(along, 0)}L${q(0, -across)}L${q(-along, 0)}Z`;
+  };
+  const arcTrack = (r, a0, a1) => ({
+    len: r * (a1 - a0),
+    at: (d) => { const a = a0 + d / r; return { ...at(r, a), t: { x: -Math.sin(a), y: Math.cos(a) }, n: { x: Math.cos(a), y: Math.sin(a) } }; },
+  });
+  // the shapes' bands straddle their outlines, a lozenge at the middle of each side; the runes stop short of the
+  // medallions and the lozenges
+  const HALF = { material: 9, mental: 8, temporal: 7 };
+  const bands = {};
+  for (const g of GROUPS) {
+    const n = g.points.length, R0 = g.radius * W, k = HALF[g.id] / Math.cos(Math.PI / n);
+    const ring = (r) => g.points.map((_, i) => at(r, rad(g.rotation + (i * 360) / n)));
+    const mid = ring(R0);
+    const h = HALF[g.id] * 1.15;
+    const tracks = [];
+    let marks = '';
+    mid.forEach((a, i) => {
+      const b = mid[(i + 1) % n], m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      tracks.push(lineTrack(a, m, R[g.id] + 9, 10), lineTrack(m, b, 10, R[g.id] + 9));
+      marks += lozenge(m, tracks.at(-1).at(0).t, HALF[g.id] + 6, 5.5);
+    });
+    bands[g.id] = { outer: ring(R0 + k), inner: ring(R0 - k), h, marks, runes: inscribe(tracks, runesOf(INSCRIPTIONS[g.id]), h) };
+  }
+  // the great circle's inscription, broken by the Material medallions on its corners and a lozenge at each quarter
+  const spans = [];
+  for (let i = 0; i < 8; i++) {
+    const half = (j) => (j % 2 ? R.material + 12 : 13) / GREAT;
+    spans.push(arcTrack(GREAT, rad(-90 + i * 45) + half(i), rad(-45 + i * 45) - half(i + 1)));
+  }
+  const great = inscribe(spans, runesOf(INSCRIPTIONS.great), HALF.material * 1.15);
+  let beads = '';
+  for (let deg = 0; deg < 360; deg += 3) {
+    const off = (deg + 45) % 90; // 0 at the corners, where the medallions are
+    if (Math.min(off, 90 - off) > 6) beads += `M${xy(at(GREAT + 21, rad(deg)))}h0.01`;
+  }
+  let lozenges = '';
+  for (let i = 0; i < 4; i++) {
+    const a = rad(-90 + i * 90), side = { x: -Math.sin(a) * 6.5, y: Math.cos(a) * 6.5 }, mid = at(GREAT, a);
+    lozenges += `M${xy(at(GREAT - 16, a))}L${xy({ x: mid.x + side.x, y: mid.y + side.y })}L${xy(at(GREAT + 16, a))}L${xy({ x: mid.x - side.x, y: mid.y - side.y })}Z`;
+  }
+  // the heart: a stave of eight arms as on a helm of awe (tridents to the quarters, forks to the Temporal corners)
+  // round a compass star
+  const ARMS = {
+    quarter: [[[24, 0], [70, 0]], [[38, -6], [38, 6]], [[49, -6], [49, 6]], [[70, -10], [59, -10], [59, 10], [70, 10]]],
+    corner: [[[24, 0], [56, 0]], [[42, -6], [42, 6]], [[68, -9], [56, 0], [68, 9]]],
+  };
+  let stave = '';
+  for (let i = 0; i < 8; i++) {
+    const a = rad(-90 + i * 45), cos = Math.cos(a), sin = Math.sin(a);
+    for (const line of ARMS[i % 2 ? 'corner' : 'quarter']) stave += line.map(([u, v], j) => `${j ? 'L' : 'M'}${xy({ x: C + u * cos - v * sin, y: C + u * sin + v * cos })}`).join('');
+  }
+  const spark = `M${Array.from({ length: 16 }, (_, i) => xy(at(i % 2 ? 4 : i % 4 ? 8.5 : 14, rad(i * 22.5 - 90)))).join('L')}Z`;
+  /** An Absolute God's ring of rays round (x, y). */
+  const rays = (x, y) => Array.from({ length: 12 }, (_, i) => {
+    const a = rad(i * 30 - 90), r1 = i % 2 ? 50 : 56;
+    return `M${(x + 44 * Math.cos(a)).toFixed(1)} ${(y + 44 * Math.sin(a)).toFixed(1)}L${(x + r1 * Math.cos(a)).toFixed(1)} ${(y + r1 * Math.sin(a)).toFixed(1)}`;
+  }).join('');
+  DECO = { bands, great, beads, lozenges, stave, spark, rays };
+  return DECO;
 }
 
 function drawSigil(svg, sel, c, o, P, size) {

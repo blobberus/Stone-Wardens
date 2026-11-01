@@ -43,8 +43,19 @@ The campaign's gods, built from the three-polygon pantheon in
   combinations", search by title, domain or aspect. Empty: "Start with the guide's five examples" (Section 7, one per
   rank; ordinary beings to edit or delete).
 - Diagram (middle, `diagram.js drawDiagram`): **Original shapes** (default) keeps all three polygons and 14 points in
-  sight; the picked points show as a ring (Absolute), line (Major), triangle (Minor) or closed outline (Lesser, Angel:
-  points sorted by angle round their centroid, `outline`), dashed when not a valid being. Clicking points builds a
+  sight, drawn as a magic circle (`decoration`, worked out once): each polygon a carved band (two lines, a lozenge at
+  the middle of each side) inscribed in Elder Futhark runes (`runesOf` spells English letter by letter: "metal water
+  fire air · the material forces of nature", "… the forces of the mind", "… the divine forces of time"), inside a
+  great circle through the Material corners (double ring, beads, a lozenge at each quarter, "the stone wardens · the
+  pantheon of the fallen firmament"), dotted circles through the inner shapes' points, a helm-of-awe stave at the
+  heart, a gold glow. Runes and inscriptions are strokes, so exports need no font. Each aspect is a medallion with its
+  rune (`ASPECT_RUNES`): Temporal Hagalaz (Decay), Berkano (Growth), Isa (Stasis), Dagaz (Equilibrium); Mental Uruz
+  (Strength), Raidho (Dexterity), Eihwaz (Constitution), Ansuz (Wisdom), Sowilo (Intelligence), Wunjo (Charisma);
+  Material the alchemists' signs, Fire and Air (barred) rising, Water and Metal (barred, earth's sign) falling. The
+  picked points turn to their pigment in a gold ring and show in gilt (a glow, the gold, a fine line inlaid) as a
+  radiant ring (Absolute), line (Major), triangle (Minor) or closed outline (Lesser, Angel: points sorted by angle
+  round their centroid, `outline`), dashed grey when not a valid being. An export with a caption draws the circle at
+  90% so the caption fits under it. Clicking points builds a
   combination (`pick`: a second Temporal replaces the first, a third Mental / Material the earliest one; clicking one
   again drops it); keyboard: Tab to a point, Enter / Space. **Esc** (not while typing) lets go of the open being and
   the picked points (as Clear does); in the editor it is Cancel (asked first when there are changes). **Major lines**
