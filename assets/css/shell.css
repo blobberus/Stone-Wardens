@@ -41,7 +41,7 @@ body:has(> .app:not([hidden])) { overflow: hidden; }
   flex-direction: column;
   width: var(--sidebar-w);
   height: 100%;
-  overflow: hidden;
+  overflow: hidden auto; /* scrolls when the screen is too short for it (a landscape iPad mini with the sheet hint) */
   background: var(--bg);
   border-right: 1px solid var(--border);
   transition: width 180ms var(--ease);
@@ -175,6 +175,12 @@ a.sb-title { padding-block: 8px; border-radius: var(--radius-sm); text-decoratio
   .sidebar.is-collapsed .sb-footer { padding: 10px 8px 12px; align-items: center; }
   .sidebar.is-collapsed .sb-status { justify-content: center; padding-inline: 0; }
   .sidebar.is-collapsed .sb-save { padding: 0; font-size: 0.8125rem; }
+}
+/* Touch screens (iPad): 44px tabs and Save, in the full sidebar and the rail (the rail's 60px = 44 + 2 × 8) */
+@media (min-width: 760px) and (pointer: coarse) {
+  .sb-tab, .sb-save { height: 44px; }
+  .sidebar.is-collapsed .sb-tabs { padding-inline: 8px; }
+  .sidebar.is-collapsed .sb-tab { width: 44px; }
 }
 
 /* Phone: the sidebar folds into a top bar; the toggle opens it as a full-screen sheet.

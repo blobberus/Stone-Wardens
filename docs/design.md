@@ -55,7 +55,8 @@ badges), `--radius-lg` 8 (modals), `--radius-pill` (tags, chips). Use a 1px bord
   icons are drawn by CSS, so don't insert one. `.prose.has-initial` gives an illuminated first letter (chapter openers only).
 
 ## Shell (shell.css)
-- Desktop: the toggle sets `.is-collapsed` (60px icon rail; give every `.sb-tab` a `title`). Below 760px the sidebar is a
+- Desktop: the toggle sets `.is-collapsed` (60px icon rail; give every `.sb-tab` a `title`); the sidebar scrolls when the
+  window is too short for it. Touch tablets get 44px tabs. Below 760px the sidebar is a
   52px top bar and the toggle sets **`.is-open`** instead (full-screen sheet; close it on navigation).
 - `.sb-status[data-state=clean|dirty|saving|error|sandbox]`. Map view: `padding:0; overflow:hidden`; other views scroll.
 - View header: `<header class="view-head"><h1 class="view-title">Journal</h1><div class="view-actions">…</div>
