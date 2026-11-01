@@ -166,7 +166,7 @@
     "pp": 0
   },
   "hp": {
-    "current": 13,
+    "current": 9,
     "temp": 0
   },
   "hitDiceUsed": {},
@@ -246,5 +246,5 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-22T04:25:57.154Z",
-  "updated": "2026-10-23T19:08:48.535Z"
+  "updated": "2026-11-01T18:57:07.985Z"
 }
