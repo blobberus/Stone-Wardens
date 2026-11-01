@@ -231,9 +231,9 @@ async function flush(it) {
 async function flushAll() { await Promise.all([...S.items.values()].map((it) => flush(it))); }
 
 /** Decrypted bytes of a hidden binary (or the text of a hidden doc). */
-async function plainBytes(it) {
+async function plainBytes(it, { onProgress = null } = {}) {
   if (!it.bin) return new TextEncoder().encode(it.text ?? '');
-  const blob = await store.fileBlob(it.bin);
+  const blob = await store.fileBlob(it.bin, { onProgress });
   if (!blob) return null;
   return openBytes(S.key, new Uint8Array(await blob.arrayBuffer()));
 }
@@ -258,12 +258,14 @@ const layer = {
   },
   text(p) { return S.items.get(p)?.text ?? null; },
   version(p) { return S.items.get(p)?.ver ?? 0; },
-  async blob(p) {
+  async blob(p, opts = {}) {
     const it = S.items.get(p);
     if (!it) return null;
-    const bytes = await plainBytes(it);
+    const bytes = await plainBytes(it, opts);
     return bytes ? new Blob([bytes], { type: it.mime || mimeOf(p) }) : null;
   },
+  /** The sealed file holding a hidden binary (null for a hidden document: it lives in its envelope). */
+  source: (p) => S.items.get(p)?.bin || null,
   put(p, text, data) {
     let it = S.items.get(p);
     if (!it) { it = newItem(p); S.items.set(p, it); }

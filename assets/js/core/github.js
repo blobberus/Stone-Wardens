@@ -7,13 +7,30 @@ export class GitHubError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
+/** A response body read chunk by chunk, reporting the bytes received so far. */
+async function readAll(reader, onProgress) {
+  const parts = [];
+  let n = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    parts.push(value);
+    n += value.length;
+    try { onProgress(n); } catch { /* a display error must not break the download */ }
+  }
+  const out = new Uint8Array(n);
+  let at = 0;
+  for (const p of parts) { out.set(p, at); at += p.length; }
+  return out;
+}
+
 export class GitHubBackend {
   constructor({ token, owner, repo, branch = 'main' }) {
     Object.assign(this, { token, owner, repo, branch });
     this.mode = 'github';
   }
 
-  async request(method, path, body, { accept = 'application/vnd.github+json', as = 'json' } = {}) {
+  async request(method, path, body, { accept = 'application/vnd.github+json', as = 'json', onProgress = null } = {}) {
     const res = await fetch(`${API}/repos/${this.owner}/${this.repo}${path}`, {
       method,
       cache: 'no-store',
@@ -32,7 +49,7 @@ export class GitHubBackend {
       if (res.status === 403 && res.headers.get('x-ratelimit-remaining') === '0') msg = 'GitHub rate limit reached — try again in a few minutes.';
       throw new GitHubError(res.status, msg);
     }
-    if (as === 'bytes') return new Uint8Array(await res.arrayBuffer());
+    if (as === 'bytes') return onProgress && res.body?.getReader ? readAll(res.body.getReader(), onProgress) : new Uint8Array(await res.arrayBuffer());
     if (as === 'none' || res.status === 204) return null;
     return res.json();
   }
@@ -77,8 +94,9 @@ export class GitHubBackend {
     return { head, files };
   }
 
-  readBytes(sha) {
-    return this.request('GET', `/git/blobs/${sha}`, null, { accept: 'application/vnd.github.raw+json', as: 'bytes' });
+  /** onProgress(bytes so far) as a big file arrives (the map shows how far its image has got). */
+  readBytes(sha, onProgress = null) {
+    return this.request('GET', `/git/blobs/${sha}`, null, { accept: 'application/vnd.github.raw+json', as: 'bytes', onProgress });
   }
 
   async createBlob(bytes) {

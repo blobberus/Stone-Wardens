@@ -843,6 +843,8 @@
   pointer-events: none;
 }
 .map-root.is-loading-image .map-loading { display: flex; }
+.map-loading-pct { margin-left: calc(var(--space-1) - var(--space-2)); font-variant-numeric: tabular-nums; }
+.map-loading-pct:empty { display: none; }
 
 /* ---------- Top left: search + the "Maps" collection button on one row, the current map's name under it ---------- */
 .map-tools-left { flex-direction: column; }

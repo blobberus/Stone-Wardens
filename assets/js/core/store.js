@@ -19,6 +19,8 @@ const TEXT_EXT = new Set(['json', 'md', 'markdown', 'txt', 'csv', 'yml', 'yaml']
 export const isTextPath = (p) => TEXT_EXT.has(extOf(p));
 const PRELOAD = 'content/';
 const MAX_CACHE_BYTES = 25 * 1024 * 1024;
+const STREAM_OVER = 256 * 1024; // files this big are read in chunks, so their progress can be shown
+const FIRST_MAX = 16; // files remembered to fetch first at the next load (firstNextTime)
 const AUTO_GAP_MS = 15000; // auto-commits from one device at least this far apart (GitHub write limits)
 const AUTO_PAUSE_MS = 120000; // no auto-commits for this long after GitHub answers "rate limit"
 
@@ -62,6 +64,7 @@ class Store {
     this.layer = null;
     this.headCommit = null; // the commit this mirror was last brought up to (live.js announces it after a save)
     this.checking = null; // a pullIfChanged in flight (callers share it)
+    this.reading = new Map(); // sha -> {promise, listeners}: blobs being read (callers asking meanwhile share them)
   }
 
   /** Does the DM layer handle this path? (Never its own files under content/dm/ or the inbox.) */
@@ -118,9 +121,12 @@ class Store {
 
   // ---------- loading ----------
 
-  async load() {
+  /** onListing(files): the repo's listing as soon as it arrives, before the documents load (main.js preloads code). */
+  async load({ onListing = null } = {}) {
     const { head, files } = await this.backend.tree();
     this.headCommit = head?.commit || null;
+    this.fetchFirst(files);
+    try { onListing?.(files); } catch (e) { console.warn('[store] onListing failed', e); }
     await this.applyRemote(files, new Set(), false);
     for (const [p, d] of Object.entries(this.drafts)) {
       if (d.bin) continue;
@@ -133,12 +139,50 @@ class Store {
     this.emit({ type: 'load' });
   }
 
-  async readBlob(sha, size = 0) {
-    const hit = await blobCache.get(sha);
-    if (hit) return hit;
-    const bytes = await this.backend.readBytes(sha);
-    if (size < MAX_CACHE_BYTES) blobCache.set(sha, bytes);
-    return bytes;
+  /**
+   * A blob's bytes: from this device's cache, else downloaded once (callers asking meanwhile share the download).
+   * onProgress(bytes so far, size) while a big one downloads.
+   */
+  readBlob(sha, size = 0, onProgress = null) {
+    let job = this.reading.get(sha);
+    if (!job) {
+      const listeners = new Set();
+      const report = size > STREAM_OVER ? (n) => { for (const fn of listeners) fn(n, size); } : null;
+      const promise = (async () => {
+        const hit = await blobCache.get(sha);
+        if (hit) return hit;
+        const bytes = await this.backend.readBytes(sha, report);
+        if (size < MAX_CACHE_BYTES) blobCache.set(sha, bytes);
+        return bytes;
+      })().finally(() => this.reading.delete(sha));
+      job = { promise, listeners };
+      this.reading.set(sha, job);
+    }
+    if (onProgress) job.listeners.add(onProgress);
+    return job.promise;
+  }
+
+  /**
+   * Files a tab will want as soon as it opens (the map's image and pictures), remembered on this device: the next
+   * load starts downloading them, one at a time in this order, as soon as it has the repo's listing, so they arrive
+   * while the documents, the tabs and DM mode are still loading. Paths as the tab knows them (sourceOf).
+   */
+  firstNextTime(paths) {
+    const list = [...new Set(paths.map((p) => this.sourceOf(p)).filter(Boolean))].slice(0, FIRST_MAX);
+    try { localStorage.setItem(`sw:first:${this.scope}`, JSON.stringify(list)); } catch { /* private mode */ }
+  }
+
+  fetchFirst(files) {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(`sw:first:${this.scope}`) || '[]'); } catch { /* none */ }
+    const byPath = new Map(files.map((f) => [f.path, f]));
+    const wanted = (Array.isArray(list) ? list : []).map((p) => byPath.get(p)).filter(Boolean);
+    (async () => { for (const f of wanted) await this.readBlob(f.sha, f.size).catch(() => {}); })();
+  }
+
+  /** The repo file holding a file's bytes: the path itself, or a hidden file's sealed copy (DM mode). */
+  sourceOf(path) {
+    return this.layer?.has(path) ? this.layer.source(path) : path;
   }
 
   async loadDoc(path, sha) {
@@ -168,7 +212,7 @@ class Store {
       return !doc || doc.baseSha !== f.sha || force.has(f.path);
     });
     this.remote = next;
-    await pool(toLoad, 8, (f) => this.loadDoc(f.path, f.sha));
+    await pool(toLoad, 16, (f) => this.loadDoc(f.path, f.sha)); // a new device reads every doc (GitHub allows 100 at once)
     changed.push(...toLoad.map((f) => f.path));
     if (notify && changed.length) this.emit({ type: 'pulled', paths: changed });
     return changed;
@@ -240,8 +284,9 @@ class Store {
     return [...out.values()];
   }
 
-  async fileBlob(path) {
-    if (this.layer?.has(path)) return this.layer.blob(path);
+  /** onProgress(bytes so far, size) while a big file downloads. */
+  async fileBlob(path, { onProgress = null } = {}) {
+    if (this.layer?.has(path)) return this.layer.blob(path, { onProgress });
     const d = this.drafts[path];
     let bytes;
     if (d?.bin) bytes = await binDrafts.get(`${this.scope}:${path}`);
@@ -249,19 +294,19 @@ class Store {
     else {
       const r = this.remote.get(path);
       if (!r) return null;
-      bytes = await this.readBlob(r.sha, r.size);
+      bytes = await this.readBlob(r.sha, r.size, onProgress);
     }
     return bytes ? new Blob([bytes], { type: mimeOf(path) }) : null;
   }
 
-  async fileUrl(path) {
+  async fileUrl(path, { onProgress = null } = {}) {
     const d = this.drafts[path];
     const key = this.layer?.has(path) ? `dm:${path}:${this.layer.version(path)}` : d ? `draft:${path}:${d.ts}` : this.remote.get(path)?.sha;
     if (!key) return null;
     if (!this.urls.has(key)) {
-      const blob = await this.fileBlob(path);
+      const blob = await this.fileBlob(path, { onProgress });
       if (!blob) return null;
-      this.urls.set(key, URL.createObjectURL(blob));
+      if (!this.urls.has(key)) this.urls.set(key, URL.createObjectURL(blob)); // another caller may have shared the download
     }
     return this.urls.get(key);
   }

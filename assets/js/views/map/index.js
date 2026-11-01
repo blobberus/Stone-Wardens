@@ -4,7 +4,8 @@
 // move when the image bounds change.
 // Performance: the image is drawn as pre-rendered canvas tiles (raster.js), zoom is continuous and eased
 // (zoom.js), pins keep a stable z-index (pins.js), and the 4 hierarchy ranks live in their own panes
-// whose opacity follows the zoom, so a zoom frame costs a transform per pin plus 4 opacity writes.
+// whose opacity follows the zoom, so a zoom frame costs a transform per pin plus 4 opacity writes. Loading: the
+// places show before the image has downloaded (applyConfig), and the device fetches it first next time (noteFirstFiles).
 // Design (design.js, decor.js): background, crop, compass, scale bar / ruler and border per map; pictures laid on a
 // map (pictures.js); fog of war (fog.js, fogview.js) that hides the places under it from the players. The DM edits
 // them in the Design / Pictures / Fog tabs of Edit map (designpanel.js). docs/map-design.md.
@@ -82,7 +83,7 @@ const S = {
   pendingMove: null, // a place just moved to another map: dragged to its spot once that map shows it
   ready: false, visible: false, pendingRoute: null, wantNewMap: false, staleMentions: false,
   dirty: { locs: false, types: false, config: false, journal: false, fog: false, pics: false }, syncQueued: false,
-  ctxClosedAt: 0, resizeRaf: 0, emptyKey: '', loadTimer: 0,
+  ctxClosedAt: 0, resizeRaf: 0, emptyKey: '', loadTimer: 0, loadPct: null, imageLoading: false, firstNoted: false,
   design: null, designDraft: null, view: null, imageUrl: '', cropping: false, designTab: null, pick: null,
 };
 let drawer, search, legend, menu, crumbs, collection, editor, zoomer, banner, emptyCard, addBtn, labelsBtn, measureBtn, ctxMenu = null;
@@ -127,6 +128,7 @@ function mountView(el) {
   L = window.L;
   el.classList.add('map-view');
   S.root = h('div', { class: ['map-root', labelsOn() && 'map-labels'] });
+  S.loadPct = h('span', { class: 'map-loading-pct', 'aria-hidden': 'true' }); // how much of the image has downloaded
   el.append(S.root);
   if (!L) {
     S.root.append(h('div', { class: 'empty-state map-fail' },
@@ -329,7 +331,7 @@ function mountView(el) {
       h('div', { class: 'map-tool' }, addBtn), legend.el, h('div', { class: 'map-tool' }, labelsBtn), h('div', { class: 'map-tool', hidden: true }, measureBtn), menu.el),
     banner,
     emptyCard,
-    h('div', { class: 'map-loading', role: 'status' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), 'Unrolling the map…'),
+    h('div', { class: 'map-loading', role: 'status' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), 'Unrolling the map…', S.loadPct),
     h('div', { class: 'map-zoom', role: 'group', 'aria-label': 'Zoom' },
       h('button', { class: 'map-zoom-btn', type: 'button', 'aria-label': 'Zoom in', title: 'Zoom in', onclick: () => zoomStep(1) }, icon('plus')),
       h('button', { class: 'map-zoom-btn', type: 'button', 'aria-label': 'Zoom out', title: 'Zoom out', onclick: () => zoomStep(-1) }, icon('minus')),
@@ -447,6 +449,20 @@ function measure(url) {
   });
 }
 
+/**
+ * The home map's image and pictures, as this device's files to fetch first next time (store.firstNextTime): the
+ * map a plain #/map opens, whichever map this visit opened. Once per visit, after the first map has its image.
+ */
+function noteFirstFiles() {
+  if (S.firstNoted) return;
+  S.firstNoted = true;
+  const home = data.homeMapId();
+  if (!home) return;
+  const image = data.readMapConfig(home).image;
+  const files = [image, ...data.picturesOn(home).map((p) => p.src)].filter((p) => typeof p === 'string' && p.startsWith('content/'));
+  store.firstNextTime(files);
+}
+
 /** Make id the active map: markers, image, view, controls. */
 async function loadMap(id) {
   const m = data.mapById(id) || data.mapById(data.MAIN_MAP) || data.mainMap(); // mainMap: hidden from this viewer
@@ -465,13 +481,17 @@ async function loadMap(id) {
   fogV.clear();
   S.designDraft = null;
   S.cropping = false;
-  await applyConfig({ initial: true });
-  pictures.sync();
+  const { arrived } = await applyConfig({ initial: true }); // the places show while the image downloads
   syncMarkers();
   search.refresh();
   editor.mapChanged();
   menu.pop.refresh();
   updateEmpty();
+  // The pictures once the image is in, so they don't share the connection with it
+  arrived.then(() => {
+    if (S.mapId === m.id) pictures.sync();
+    noteFirstFiles();
+  });
 }
 
 async function switchMap(id) {
@@ -492,22 +512,49 @@ async function switchMap(id) {
   return true;
 }
 
+/** The "Unrolling the map…" note, only once loading takes more than a moment; pct: how much has downloaded. */
+function showLoading(on, pct = null) {
+  if (S.loadPct) S.loadPct.textContent = pct == null ? '' : `${pct}%`;
+  if (!on) {
+    clearTimeout(S.loadTimer);
+    S.loadTimer = 0;
+    S.root.classList.remove('is-loading-image');
+  } else if (!S.loadTimer && !S.root.classList.contains('is-loading-image')) {
+    S.loadTimer = setTimeout(() => { S.loadTimer = 0; S.root.classList.add('is-loading-image'); }, 150);
+  }
+}
+
+/** The URL of a map's image file, its download counted in the loading note; missing: the placeholder (said once). */
+async function imageFileUrl(cfg, token) {
+  showLoading(true);
+  const onProgress = (n, size) => { if (token === S.cfgToken && size > 0) showLoading(true, Math.min(99, Math.floor((100 * n) / size))); };
+  const url = await store.fileUrl(cfg.image, { onProgress }).catch(() => null);
+  if (token === S.cfgToken && S.loadPct) S.loadPct.textContent = '';
+  if (url) return url;
+  if (token === S.cfgToken) toast(`The image of “${cfg.name}” (${cfg.image}) is missing, so the placeholder is shown.`, { type: 'error' });
+  cfg.isPlaceholder = true;
+  if (!(cfg.width > 0 && cfg.height > 0)) Object.assign(cfg, await data.placeholderSize());
+  return data.PLACEHOLDER_IMAGE;
+}
+
+/**
+ * Show the current map's config: size, design, image, view. -> {arrived}: a promise, resolved once the image is
+ * in. On a map's first showing (initial) whose size is known, it doesn't wait for the image: the view, places and
+ * design show at once, and the image (downloading, counted in the loading note) is drawn when it arrives.
+ */
 async function applyConfig({ initial = false } = {}) {
   const token = ++S.cfgToken;
   const mapId = S.mapId;
   const cfg = await data.effectiveConfig(mapId);
   let url = cfg.image;
+  let arriving = null;
   if (url.startsWith('content/')) {
-    url = await store.fileUrl(url).catch(() => null);
-    if (!url) {
-      if (token === S.cfgToken) toast(`The image of “${cfg.name}” (${cfg.image}) is missing, so the placeholder is shown.`, { type: 'error' });
-      url = data.PLACEHOLDER_IMAGE;
-      cfg.isPlaceholder = true;
-      if (!(cfg.width > 0 && cfg.height > 0)) Object.assign(cfg, await data.placeholderSize());
-    }
+    const job = imageFileUrl(cfg, token);
+    if (initial && cfg.width > 0 && cfg.height > 0) { arriving = job; url = ''; } else url = await job;
   }
   if (!(cfg.width > 0 && cfg.height > 0)) Object.assign(cfg, (await measure(url)) || data.DEFAULT_SIZE);
-  if (token !== S.cfgToken || !S.map || mapId !== S.mapId) return;
+  const stale = () => token !== S.cfgToken || !S.map || mapId !== S.mapId;
+  if (stale()) return { arrived: Promise.resolve() };
 
   const resized = cfg.width !== S.size.w || cfg.height !== S.size.h;
   S.info = cfg;
@@ -529,6 +576,15 @@ async function applyConfig({ initial = false } = {}) {
   decor.update();
   fogV.sync({ animate: !initial });
   updateMeasureBtn();
+  if (!arriving) return { arrived: Promise.resolve() };
+  return {
+    arrived: arriving.then((u) => {
+      if (stale()) return;
+      S.imageUrl = u;
+      setImage(u, cfg);
+      S.root.classList.toggle('is-placeholder', cfg.isPlaceholder);
+    }),
+  };
 }
 
 /** The part of the image shown (the design's crop, or all of it; all of it while the crop is being adjusted). */
@@ -556,16 +612,24 @@ function refreshDesign() {
   updateMeasureBtn();
 }
 
-/** Show the map image as pre-rendered tiles (falls back to a plain <img> overlay), clipped to the crop. */
+/**
+ * Show the map image as pre-rendered tiles (falls back to a plain <img> overlay), clipped to the crop. url '': the
+ * image is still downloading (the old one goes; applyConfig draws the new one when it arrives).
+ */
 function setImage(url, cfg) {
   const crop = S.cropping ? null : design().crop;
   const key = `${url}\u0000${cfg.width}x${cfg.height}\u0000${crop ? [crop.x, crop.y, crop.w, crop.h].join(',') : ''}`;
-  if (key === S.imageKey) return;
+  if (key === S.imageKey) {
+    if (url && !S.imageLoading) showLoading(false); // nothing new to draw (imageFileUrl may have started the note)
+    return;
+  }
   S.imageKey = key;
   if (S.image) { S.image.remove(); S.image = null; }
-  const done = () => { clearTimeout(S.loadTimer); S.root.classList.remove('is-loading-image'); };
-  clearTimeout(S.loadTimer);
-  S.loadTimer = setTimeout(() => S.root.classList.add('is-loading-image'), 150); // only for slow images
+  S.imageLoading = false;
+  if (!url) return;
+  const done = () => { if (S.imageKey === key) { S.imageLoading = false; showLoading(false); } };
+  S.imageLoading = true;
+  showLoading(true); // only for slow images
   const svg = cfg.isPlaceholder || /\.svg$/i.test(cfg.image);
   loadImageSource(url, { width: cfg.width, height: cfg.height, svg }).then((src) => {
     if (S.imageKey !== key || !S.map) return;

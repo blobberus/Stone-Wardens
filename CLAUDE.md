@@ -10,7 +10,8 @@ bottom **Inbox** and **Settings** (DM login lives in Settings → DM mode). The 
 ## Hard rules
 - **No build step.** Plain HTML/CSS + native ES modules. No npm deps at runtime; libs are vendored in `vendor/`
   (leaflet 1.9.4, marked 18, dompurify 3, js-yaml 5 [`load`/`dump`], mammoth 1.13 browser build = global `mammoth`,
-  jspdf 4.2.1 UMD = global `jspdf`, loaded on first print by characters/print.js).
+  loaded on the first Word document by wardens-library/reader.js, jspdf 4.2.1 UMD = global `jspdf`, loaded on first
+  print by characters/print.js). index.html loads only leaflet up front.
 - All paths relative (site is served from `/Stone-Wardens/`). Never use absolute `/` URLs.
 - Windows box: Git Bash cannot write inside `Documents` (Controlled Folder Access). Use the Write/Edit tools or
   PowerShell for writes in the repo; scratch work goes to the session scratchpad.
@@ -59,7 +60,12 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
 ## Data flow
 - Auth: `vault.json` decrypted with password (PBKDF2-SHA256 600k -> AES-256-GCM) gives a fine-grained PAT
   (Contents R/W on this repo only). Kept in sessionStorage (localStorage if "remember device").
-- Reads: GitHub git-trees API (one recursive call) + blobs by sha, cached in IndexedDB by sha.
+- Reads: GitHub git-trees API (one recursive call) + blobs by sha, cached in IndexedDB by sha (`store.readBlob`: one
+  download per blob, shared by callers meanwhile; big ones stream for `onProgress`). `store.load({onListing})`: the
+  listing, then `fetchFirst` starts the files this device fetches first (`firstNextTime`: the map's home image and
+  pictures, docs/map-model.md "Rendering and performance"), `onListing` lets main.js `preloadViews` (a modulepreload
+  per `assets/js/views/` module: fetched, not run, while the docs load 16 at a time); the tabs are imported after
+  the load, since they read the store as they are imported.
 - Writes: Git Data API batch commit (tree with base_tree -> commit -> update ref; retry on non-fast-forward).
   Conflict check: if remote sha != the sha we loaded, user chooses overwrite/keep theirs.
   `store.pullIfChanged()` pulls only after `backend.headChanged(store.headCommit)` (conditional GET of the ref; a 304
@@ -109,7 +115,9 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   NEVER use window.alert/confirm/prompt.
 - `store.js` (singleton `store`): `load()`, `list(dir, {recursive})` -> `[{path, data}]`, `get(path)`,
   `put(path, data)` (object -> JSON; string -> text), `remove(path)`, `putBinary(path, blob)`,
-  `fileUrl(path) -> Promise<objectURL>`, `fileBlob(path)`, `files(prefix)` -> `[{path,size,sha}]` (any type),
+  `fileUrl(path, {onProgress}?) -> Promise<objectURL>`, `fileBlob(path, {onProgress}?)` (onProgress(bytes, size)
+  while a big file downloads), `files(prefix)` -> `[{path,size,sha}]` (any type), `firstNextTime(paths)`,
+  `sourceOf(path)` (the repo file holding the bytes: a hidden file's sealed `.bin`),
   `on(fn) -> unsubscribe` (events `{type:'put'|'remove'|'load'|'saved'|'pulled', path?}`),
   `isDirty(path?)`, `dirtyPaths()`, `save(message?)`, `pull()`, `mode` ('github'|'sandbox').
 - `router.js`: hash routes `#/<view>/<...parts>?query`. `registerView({id, title, icon, order, mount(el),

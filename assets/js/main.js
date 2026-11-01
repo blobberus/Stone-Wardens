@@ -145,7 +145,7 @@ async function enter(backend, scope) {
   const loading = h('div', { class: 'app-loading' }, h('p', null, 'Unrolling the maps…'));
   viewsEl.append(loading);
   try {
-    await store.load();
+    await store.load({ onListing: preloadViews });
   } catch (e) {
     loading.remove();
     app.hidden = true;
@@ -161,6 +161,17 @@ async function enter(backend, scope) {
   await restoreDm(); // DM mode stays on in this tab (or on this device) until locked
   start(viewsEl, { defaultView: 'map' });
   if (store.mode === 'sandbox') toast('Sandbox mode: changes stay in this browser only.', { timeout: 6000 });
+}
+
+/**
+ * The tabs' code downloads while the documents load: every module under assets/js/views/ is imported at start
+ * (loadViews), and the repo listing names them all, so each gets a modulepreload (fetched and parsed, not run: the
+ * tabs read the store as they are imported, so they must not run before it has loaded). Not in the sandbox (no listing).
+ */
+function preloadViews(files) {
+  for (const f of files) {
+    if (f.path.startsWith('assets/js/views/') && f.path.endsWith('.js')) document.head.append(h('link', { rel: 'modulepreload', href: f.path }));
+  }
 }
 
 async function loadViews() {

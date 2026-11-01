@@ -182,6 +182,15 @@ sub-maps as "Name (map)". `![[map:Sub-map]]` embeds a short summary of the map.
 
 ## Rendering and performance
 
+- Loading: a map whose size is known (`width` / `height` in its doc) shows its view, places, design and fog at once;
+  its image follows when it has downloaded ("Unrolling the map… 40%" counts the download: `store.fileUrl(path,
+  {onProgress})`), then its pictures, so they don't share the connection with it (`applyConfig` -> `{arrived}`).
+  Without a size it waits for the image to measure it. The old image goes as soon as another map opens.
+- The first map image and pictures to arrive: once a visit, the home map's image and pictures (`noteFirstFiles`)
+  become this device's files to fetch first (`store.firstNextTime`; hidden ones as their sealed `.bin`). The next load
+  starts downloading them, one at a time, as soon as it has the repo listing, while the documents, the tabs' code and
+  DM mode are still loading. Every file is downloaded once (callers asking meanwhile share it) and kept on the device
+  (IndexedDB, by sha), so an unchanged image never downloads again.
 - The map image is decoded (raster) or rasterised (SVG) once into a pyramid (full, ½, ¼ … ≥ 512 px; full level capped at
   64 MP desktop / 16 MP on phones and tablets, decoded straight to that size) and drawn as 257 px CPU canvas tiles by an `L.GridLayer` (1 px overlap hides
   seams). SVG maps draw tiles straight from the vector when zoomed past the raster level, so they stay sharp.
