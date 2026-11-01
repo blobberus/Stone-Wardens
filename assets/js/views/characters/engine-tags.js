@@ -44,7 +44,7 @@ const NEGATIVE = /\bcan't (?:cast|maintain|speak|take)\b|\bcannot (?:cast|speak)
 const MOD_TAGS = { ac: 'defense', saves: 'defense', hpMax: 'defense', hpPerLevel: 'defense', resistances: 'defense', attack: 'attack', damage: 'attack', spellDc: 'magic', spellAttack: 'magic', speed: 'movement', skills: 'skills', checks: 'skills', senses: 'senses', initiative: 'defense', abilities: 'leveling' };
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const text = (f) => `${f?.name || ''}. ${String(f?.description || '').replace(/\*\*|__/g, '').split(/(?<=[.!?])\s+|\n+/).filter((s) => !NEGATIVE.test(s)).join(' ')}`;
+const text = (f) => `${f?.name || ''}. ${String(f?.description || '').replace(/\*\*|__/g, '').replace(/([.!?])\s+/g, '$1\n').split(/\n+/).filter((s) => !NEGATIVE.test(s)).join(' ')}`; // sentence breaks without a regex lookbehind (Safari before 16.4 can't parse one)
 
 /** Manual tags (ids or labels, any case) -> known tag ids, in TAGS order. */
 export function normalizeTags(tags) {
@@ -93,7 +93,7 @@ export function tagFeatures(features, { records = new Map() } = {}) {
   return { tagged, byTag, counts: Object.fromEntries(TAG_IDS.map((t) => [t, byTag[t].length])) };
 }
 
-const sentencesOf = (s) => String(s || '').replace(/\*\*|__/g, '').split(/(?<=[.!?])\s+|\n+/).map((x) => x.trim()).filter(Boolean);
+const sentencesOf = (s) => String(s || '').replace(/\*\*|__/g, '').replace(/([.!?])\s+/g, '$1\n').split(/\n+/).map((x) => x.trim()).filter(Boolean);
 
 /**
  * Every source of Advantage / Disadvantage the sheet knows about:

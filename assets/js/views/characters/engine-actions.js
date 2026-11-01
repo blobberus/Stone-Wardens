@@ -2,7 +2,7 @@
 // Pure ES module: no DOM; Node-testable (tools/test_spells.mjs). The sheet's "Bonus actions" tab draws the result.
 
 const num = (v, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
-const sentences = (text) => String(text || '').split(/(?<=[.!?])\s+|\n+/).map((s) => s.trim()).filter(Boolean);
+const sentences = (text) => String(text || '').replace(/([.!?])\s+/g, '$1\n').split(/\n+/).map((s) => s.trim()).filter(Boolean); // sentence breaks without a regex lookbehind (Safari before 16.4 can't parse one)
 const stripMd = (s) => String(s || '').replace(/\*\*|__|\*|_/g, '').replace(/\[\[([^\]|]+)\|?([^\]]*)\]\]/g, (m, a, b) => b || a).trim();
 
 // Sentences that only mention Bonus Actions (riders, restrictions), not grant one.

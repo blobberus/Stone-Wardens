@@ -351,3 +351,5 @@ no PDF thumbnails (no pdf.js); stub entries marked `verify:true` need checking a
   gets `:active`. Nothing only on hover / right-click / double-click. `title` text shows on touch only via
   ui.js `tapTips(scope)` (on for `.modal`, `.ch-page`); `isTouch()` for JS. openModal on touch focuses only an
   `[autofocus]` non-search field, so the keyboard doesn't cover dialogs.
+- Browser floor: Safari 16 / iPadOS 16 (container queries; `color-mix` from 16.2). No newer syntax in modules (e.g. regex
+  lookbehind `(?<=…)` needs 16.4): a parse error makes the whole tab fail to load. Guard newer APIs (`typeof X`).

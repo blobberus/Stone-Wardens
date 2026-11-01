@@ -16,7 +16,7 @@ export const CANTRIP_LEVELS = [5, 11, 17];
 
 const num = (v, d = 0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
 const cap = (s) => String(s || '').replace(/\b\w/g, (c) => c.toUpperCase());
-const sentences = (text) => String(text || '').split(/(?<=[.!?])\s+|\n+/).filter(Boolean);
+const sentences = (text) => String(text || '').replace(/([.!?])\s+/g, '$1\n').split(/\n+/).filter(Boolean); // sentence breaks without a regex lookbehind (Safari before 16.4 can't parse one)
 
 /** "2d10 + 3" -> {count:2, sides:10, bonus:3}; null if it isn't dice. */
 export function parseDice(expr) {

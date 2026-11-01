@@ -178,7 +178,7 @@ const WORD_COUNT = { once: 1, one: 1, twice: 2, two: 2, three: 3, four: 4 };
 export function parseUses(text) {
   const src = String(text || '').replace(/\*\*/g, '');
   if (!src) return null;
-  const sentences = src.split(/(?<=[.;!?])\s+|\n+/);
+  const sentences = src.replace(/([.;!?])\s+/g, '$1\n').split(/\n+/); // sentence breaks without a regex lookbehind (Safari before 16.4 can't parse one)
   for (const s of sentences) {
     if (!/Long Rest|Short Rest/i.test(s)) continue;
     const recharge = /Short or Long Rest|Short Rest/i.test(s) && !/until you finish a Long Rest/i.test(s) ? 'short' : 'long';
