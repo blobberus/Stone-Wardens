@@ -749,23 +749,28 @@ function attacks(c, s) {
     actions: [h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => addItems(['weapon']) }, icon('plus'), 'Weapon')],
   },
   rows.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'table table-dense ch-attacks' },
-    h('thead', null, h('tr', null, h('th', null, 'Attack'), h('th', { class: 'num' }, 'Hit'), h('th', null, 'Damage'), h('th', null, 'Range'), h('th', null, 'Mastery'), h('th', null, 'Notes'))),
+    h('thead', null, h('tr', null, h('th', null, 'Attack'), h('th', { class: 'num' }, 'Hit'), h('th', null, 'Damage'), h('th', { class: 'ch-atk-col' }, 'Range'), h('th', { class: 'ch-atk-col' }, 'Mastery'), h('th', { class: 'ch-atk-col' }, 'Notes'))),
     h('tbody', null, rows.map((a) => {
       const item = a.uid ? c.inventory.find((i) => i.uid === a.uid) : null;
       const entry = item ? findEntry(item.kind, item.ref) : null;
       const m = a.mastery && typeof a.mastery === 'object' ? a.mastery : a.mastery ? masteryInfo(a.mastery) : null;
       const range = typeof a.range === 'object' && a.range ? `${a.range.normal}${a.range.long ? `/${a.range.long}` : ''} ft` : a.range || '';
       const notesText = Array.isArray(a.notes) ? a.notes.join(' · ') : a.notes || '';
+      const masteryTitle = m ? plain(m.description) || null : null;
+      // a narrow window (iPad portrait, phones) drops the last three columns and lists them under the name
+      const more = [range ? h('span', null, range) : null, m ? h('span', { title: masteryTitle }, `Mastery: ${m.name || prettify(m.id)}`) : null,
+        notesText ? h('span', { class: a.proficient === false ? 'danger-text' : null }, notesText) : null].filter(Boolean);
       return h('tr', { 'data-stat': a.uid || (a.unarmed ? 'unarmed' : null), class: a.proficient === false ? 'is-unproficient' : null },
         h('td', { class: 'cell-name' }, a.uid && favs.has(a.uid) ? favMark() : null,
           entry ? h('button', { class: 'ch-link-btn', type: 'button', onclick: () => entryInfo(entry, { item }) }, a.name) : a.name,
-          a.properties?.length ? h('div', { class: 'ch-props' }, a.properties.map((p, pi) => h('span', { class: 'ch-prop', title: plain(propertyInfo(p)?.description, 300) || null }, a.propertyNames?.[pi] || prettify(p)))) : null),
+          a.properties?.length ? h('div', { class: 'ch-props' }, a.properties.map((p, pi) => h('span', { class: 'ch-prop', title: plain(propertyInfo(p)?.description, 300) || null }, a.propertyNames?.[pi] || prettify(p)))) : null,
+          more.length ? h('div', { class: 'ch-atk-more' }, more) : null),
         h('td', { class: 'num' }, h('button', { class: 'ch-link-btn num ch-bonus', type: 'button', onclick: () => rollToast(`${a.name} to hit`, a.bonus) },
           h('span', { class: 'sr-only' }, `Roll to hit with ${a.name} `), adjustedValue(s, `attack:${a.uid || (a.unarmed ? 'unarmed' : '')}`, typeof a.bonus === 'number' ? fmt(a.bonus) : String(a.bonus ?? '')))),
         h('td', null, adjustedValue(s, `damage:${a.uid || (a.unarmed ? 'unarmed' : '')}`, a.damage || ''), a.damageType ? ` ${prettify(a.damageType)}` : '', a.versatile ? h('div', { class: 'cell-muted text-xs ui' }, `Two-handed: ${a.versatile}`) : null),
-        h('td', { class: 'cell-muted' }, range),
-        h('td', null, m ? h('span', { class: 'badge badge-accent', title: plain(m.description) || null }, m.name || prettify(m.id)) : h('span', { class: 'faint' }, '—')),
-        h('td', { class: ['cell-muted', a.proficient === false && 'danger-text'] }, notesText));
+        h('td', { class: 'cell-muted ch-atk-col' }, range),
+        h('td', { class: 'ch-atk-col' }, m ? h('span', { class: 'badge badge-accent', title: masteryTitle }, m.name || prettify(m.id)) : h('span', { class: 'faint' }, '—')),
+        h('td', { class: ['cell-muted', 'ch-atk-col', a.proficient === false && 'danger-text'] }, notesText));
     })))) : null,
   !rows.some((a) => a.uid) ? h('p', { class: 'muted ui text-sm' }, 'Add a weapon and tick “Equipped” in the inventory to list its attack here.') : null);
 }
@@ -1614,6 +1619,11 @@ function inventory(c, s) {
   const carried = Number(enc.carried ?? c.inventory.reduce((n, i) => n + itemWeight(i), 0)) || 0;
   const cap = Number(enc.capacity) || 0;
   const over = cap && carried > cap;
+  const canAttune = (it) => {
+    const resolved = (s.items || []).find((x) => x.uid === it.uid);
+    return !!(resolved?.requiresAttunement || findEntry(it.kind, it.ref)?.attunement || it.custom?.attunement || it.attuned);
+  };
+  const attuneCol = c.inventory.some(canAttune); // no column of empty cells
   return section('inventory', 'Inventory', {
     iconName: 'backpack',
     actions: [
@@ -1625,21 +1635,21 @@ function inventory(c, s) {
     cap ? h('span', { class: ['ch-weightbar', over && 'is-over'] }, h('span', { style: { width: `${Math.min(100, Math.round((carried / cap) * 100))}%` } })) : null,
     h('span', { class: attuned > 3 ? 'danger-text' : 'muted' }, `Attuned ${attuned}/3`)),
   c.inventory.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'table table-dense ch-inv' },
-    h('thead', null, h('tr', null, h('th', { class: 'center', title: 'Equipped' }, 'Equip'), h('th', { class: 'center', title: 'Attuned' }, 'Attune'), h('th', null, 'Item'), h('th', { class: 'num' }, 'Qty'), h('th', { class: 'num' }, 'Weight'), h('th', { class: 'cell-actions' }, h('span', { class: 'sr-only' }, 'Actions')))),
+    h('thead', null, h('tr', null, h('th', { class: 'center', title: 'Equipped' }, 'Equip'), attuneCol ? h('th', { class: 'center', title: 'Attuned' }, 'Attune') : null, h('th', null, 'Item'), h('th', { class: 'num' }, 'Qty'), h('th', { class: 'num ch-inv-wt' }, 'Weight'), h('th', { class: 'cell-actions' }, h('span', { class: 'sr-only' }, 'Actions')))),
     h('tbody', null, favoritesFirst(c.inventory, (it) => favs.has(it.uid)).map((it) => {
       const e = findEntry(it.kind, it.ref);
-      const resolved = (s.items || []).find((x) => x.uid === it.uid);
-      const canAttune = !!(resolved?.requiresAttunement || e?.attunement || it.custom?.attunement || it.attuned);
+      const weight = itemWeight(it);
       const canEquip = ['weapon', 'armor', 'magic-item'].includes(it.kind) || !!it.equipped;
       return h('tr', { 'data-stat': it.uid, class: it.equipped ? 'is-equipped' : null },
         h('td', { class: 'center' }, canEquip ? h('input', { type: 'checkbox', class: 'checkbox', checked: !!it.equipped, 'aria-label': `Equip ${it.name}`, 'data-fk': `eq-${it.uid}`, onchange: (ev) => mutate((y) => { const t = y.inventory.find((x) => x.uid === it.uid); if (t) t.equipped = ev.target.checked; }) }) : null),
-        h('td', { class: 'center' }, canAttune ? h('input', { type: 'checkbox', class: 'checkbox', checked: !!it.attuned, 'aria-label': `Attune ${it.name}`, 'data-fk': `at-${it.uid}`, onchange: (ev) => mutate((y) => { const t = y.inventory.find((x) => x.uid === it.uid); if (t) t.attuned = ev.target.checked; }) }) : null),
+        attuneCol ? h('td', { class: 'center' }, canAttune(it) ? h('input', { type: 'checkbox', class: 'checkbox', checked: !!it.attuned, 'aria-label': `Attune ${it.name}`, 'data-fk': `at-${it.uid}`, onchange: (ev) => mutate((y) => { const t = y.inventory.find((x) => x.uid === it.uid); if (t) t.attuned = ev.target.checked; }) }) : null) : null,
         h('td', { class: 'cell-name' }, favs.has(it.uid) ? favMark() : null,
           e ? h('button', { class: 'ch-link-btn', type: 'button', onclick: () => entryInfo(e, { item: it }) }, it.name || e.name) : (it.name || prettify(it.ref)),
-          h('span', { class: 'ch-inv-kind' }, [e ? entryKindLabel(e) : prettify(it.kind), e?.origin === 'custom' ? 'custom' : ''].filter(Boolean).join(' · ')),
+          h('span', { class: 'ch-inv-kind' }, [e ? entryKindLabel(e) : prettify(it.kind), e?.origin === 'custom' ? 'custom' : ''].filter(Boolean).join(' · '),
+            weight ? h('span', { class: 'ch-inv-wt-in' }, ` · ${round(weight)} lb`) : null),
           it.notes ? h('div', { class: 'ch-inv-notes' }, mdInline(it.notes)) : null),
         h('td', { class: 'num' }, numberInput(it.qty, (v) => mutate((y) => { const t = y.inventory.find((x) => x.uid === it.uid); if (t) t.qty = Math.max(0, v ?? 0); }), { class: 'input input-sm ch-w-num', min: 0, 'aria-label': `Quantity of ${it.name}`, 'data-fk': `qty-${it.uid}` })),
-        h('td', { class: 'num cell-muted' }, itemWeight(it) ? `${round(itemWeight(it))} lb` : '—'),
+        h('td', { class: 'num cell-muted ch-inv-wt' }, weight ? `${round(weight)} lb` : '—'),
         h('td', { class: 'cell-actions' },
           h('button', { class: 'btn-icon btn-sm', type: 'button', 'aria-label': `Edit ${it.name}`, title: 'Edit', onclick: () => editItem(it) }, icon('edit')),
           h('button', { class: 'btn-icon btn-sm', type: 'button', 'aria-label': `Remove ${it.name}`, title: 'Remove', onclick: () => removeItem(it) }, icon('trash'))));

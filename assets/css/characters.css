@@ -552,6 +552,14 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
 
 /* Attacks */
 .ch-attacks td { vertical-align: middle; }
+/* A narrow actions window (iPad portrait beside the skills, phones): Range, Mastery and Notes move to a line under
+   the name (.ch-atk-more), so the table fits without sideways scrolling */
+.ch-atk-more { display: none; }
+@container ch-tabs (max-width: 520px) {
+  .ch-attacks .ch-atk-col { display: none; }
+  .ch-atk-more { display: flex; flex-wrap: wrap; gap: 2px 8px; margin-top: 2px; font: 400 var(--text-xs) / 1.3 var(--font-ui); color: var(--ink-muted); }
+  .ch-attacks :is(td, th) { padding-inline: 8px; }
+}
 .ch-attacks tr.is-unproficient .cell-name { font-weight: 400; }
 .ch-props { display: flex; flex-wrap: wrap; gap: 2px 8px; margin-top: 2px; }
 .ch-prop { font: 400 var(--text-xs) / 1.3 var(--font-ui); color: var(--ink-muted); }
@@ -614,6 +622,16 @@ details.ch-feat[open] > summary::before { transform: none; }
 .ch-weightbar > span { position: absolute; inset: 0 auto 0 0; background: var(--ink-muted); }
 .ch-weightbar.is-over > span { background: var(--danger); }
 .ch-inv td { vertical-align: middle; }
+/* A narrow section: the weight joins the kind line (.ch-inv-wt-in) and the cells tighten, so the edit and remove
+   buttons stay in sight */
+[data-sec="inventory"] > .ch-sec-body { container: ch-inv / inline-size; }
+.ch-inv-wt-in { display: none; }
+@container ch-inv (max-width: 520px) {
+  .ch-inv .ch-inv-wt { display: none; }
+  .ch-inv-wt-in { display: inline; }
+  .ch-inv :is(td, th) { padding-inline: 6px; }
+  .ch-inv .ch-w-num { width: 4.2em; }
+}
 .ch-inv tr.is-equipped .cell-name { color: var(--ink); }
 .ch-inv-kind { display: block; font: 400 var(--text-xs) / 1.3 var(--font-ui); color: var(--ink-muted); }
 .ch-inv-notes { font: 400 var(--text-xs) / 1.4 var(--font-ui); color: var(--ink-muted); }

@@ -372,3 +372,7 @@ behavior:
 - The spell row's hover star is hidden (`hover: none`); star a spell from its menu. "Click to roll" reads "Tap to roll".
 - Dialogs (skill, entry, rests, level up, the Add item / Add spells picker) don't open the on-screen keyboard; "+ XP"
   still focuses its amount on purpose.
+
+Narrow tables (any pointer; iPad portrait beside the skills, phones): below 520px the Attacks table drops Range, Mastery
+and Notes to a line under the name (`.ch-atk-more`), and the Inventory moves each item's weight into its kind line
+(`.ch-inv-wt-in`, container `ch-inv`); the Attune column shows only when an item can be attuned. Nothing scrolls sideways.
