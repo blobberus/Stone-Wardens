@@ -147,12 +147,13 @@ export class SidePane {
     const rows = J.outgoing(note, body);
     const el = rows.length
       ? h('ul', { class: 'jr-outgoing', role: 'list' }, rows.map((r) => h('li', null, h('a', {
-        class: ['jr-out', !r.exists && 'is-unresolved'], href: r.href || '#',
-        title: r.exists ? r.title : `Not written yet. Click to create “${r.target}”.`,
+        class: ['jr-out', !r.exists && 'is-unresolved'], href: (!r.closed && r.href) || '#',
+        'data-why': r.closed?.why, 'data-start': r.closed?.start, // not revealed yet (or nothing): main.js says so
+        title: r.exists ? r.title : r.closed ? r.closed.why : `Not written yet. Click to create “${r.target}”.`,
       },
-      icon(r.exists ? (KIND_ICON[r.kind] || 'compendium') : 'plus'),
+      icon(r.exists ? (KIND_ICON[r.kind] || 'compendium') : r.closed?.unrevealed ? 'eye-off' : 'plus'),
       h('span', { class: 'jr-out-label' }, r.label),
-      h('span', { class: 'jr-out-kind' }, r.exists ? `${KIND_LABEL[r.kind] || r.kind}${r.embed ? ' · embed' : ''}` : 'unwritten')))))
+      h('span', { class: 'jr-out-kind' }, r.exists ? `${KIND_LABEL[r.kind] || r.kind}${r.embed ? ' · embed' : ''}` : r.closed?.unrevealed ? 'not revealed' : r.closed ? 'missing' : 'unwritten')))))
       : h('p', { class: 'jr-hint' }, 'This note does not link anywhere yet.');
     return sec('outgoing', 'Outgoing links', el, { count: rows.length || null });
   }

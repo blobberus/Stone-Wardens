@@ -346,6 +346,8 @@ export function releasedItems() {
   const log = store.get(RELEASED_PATH);
   return (Array.isArray(log?.items) ? log.items : []).filter((x) => x && x.path).sort((a, b) => String(b.at).localeCompare(String(a.at)));
 }
+/** Is this item on the released log? (A released journal note's links to nothing say "not revealed yet".) */
+export const isReleased = (path) => !!path && releasedItems().some((x) => x.path === path);
 function setReleased(list) {
   store.put(RELEASED_PATH, { items: list.slice(0, RELEASED_KEEP) });
 }

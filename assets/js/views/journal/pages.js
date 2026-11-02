@@ -107,7 +107,7 @@ export function renderFolder(host, f, ctx) {
   let desc = null;
   if (f.description) {
     desc = h('div', { class: 'jr-folder-desc' });
-    J.withNote(null, () => renderInto(desc, f.description));
+    J.withNote(null, () => renderInto(desc, f.description, { startNotes: true })); // a folder's description is the players' own
   }
   const tools = h('div', { class: 'row jr-page-actions' },
     btn('New note here', () => ctx.newNote({ folder: f }), { ic: 'file-plus', kind: 'primary' }),

@@ -117,6 +117,27 @@ Whatever is added to a hidden map (a place, a picture, its fog, a new image, a s
 moved onto a hidden map is hidden; a hidden place moved off it onto a visible map stays hidden (released on its own);
 a copy of a hidden map starts hidden unless the DM switches it to visible.
 
+## Links to what the players can't see yet
+
+A visible page (a released quest, a place, a note…) may link to one that is still hidden: `[[map:Old Mill]]`,
+`[[Archmage Velin]]`. A player's browser can't tell a hidden page from one that doesn't exist (hidden items are
+sealed and their file names are random), so while a DM is set up and DM mode is off, **a link that leads nowhere
+the player can see says “Old Mill” hasn't been revealed yet** in a toast and stays on the page (links.js
+`linkClosed`; the link keeps `href="#"` and carries the notice in `data-why`, which main.js shows on a click).
+It is drawn like an unresolved link (dashed, muted); an embed of it reads "Not revealed yet."
+
+- An un-prefixed link (`[[Archmage Velin]]`, which would otherwise start a note) says the same, with a **Start a
+  note** button in the toast. In a player's own journal note it still starts the note right away, as in Obsidian;
+  in a note the DM released (on the released log, `isReleased`) it says "not revealed yet" like everywhere else.
+- Kinds the DM can't hide (`char:`, `canHide: false`) and every link when no DM is set up or in DM mode: a link that
+  leads nowhere says "There's nothing called “X” to open." instead of leaving the page.
+- The same goes for the journal's Outgoing links ("not revealed") and a quest's relevant characters (a chip for
+  `note:Archmage Velin`; a plain name still starts a note).
+- **In DM mode** such a link works for the DM and is marked: gold dashes and a small eye-off mark after it, and its
+  tooltip says the players see "not revealed yet". Link types return the item's `path` from `resolve`, so
+  `resolveLink` knows it is hidden (`hidden`).
+- A place under the fog is not hidden: a link to it still opens it (docs/map-design.md).
+
 ## DM Screen, Inbox, staying logged in
 
 - **DM Screen** (sidebar, below the Inbox; the tab exists only in DM mode) has two pages under its tabs: **Hidden &
@@ -128,7 +149,9 @@ a copy of a hidden map starts hidden unless the DM switches it to visible.
   entry out of `released.json` and leaves the item where it is, public; ticked (the default, shown when there is one)
   its Inbox notification goes too (`notificationsOf(path)`). An item deleted since can only be taken off the list. Both lists have category chips (All, Quests, Compendium entries,
   Journal notes, Library documents, Map places, Images, with counts) to show one kind at a time.
-- **Inbox** (navigation): notifications of the last 14 days, unread badge; read state per device (`sw:inbox`), "Mark
+- **Inbox** (navigation): notifications of the last 14 days, unread badge; read state per device (`sw:inbox`), a
+  notification whose item the player can't see any more (hidden again, or deleted) says "isn't revealed at the
+  moment" instead of opening an empty page, "Mark
   all read". "Clear all" empties the list on this device only (`cleared`: the newest one's time; the files stay for
   the others, and later releases show as usual), with Undo while the Inbox is open.
 - DM mode stays on in the browser tab (sessionStorage) or, with "Keep DM mode on this device", on the device

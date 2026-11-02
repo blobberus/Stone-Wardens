@@ -7,10 +7,10 @@
 import { store } from '../../core/store.js';
 import { slugify, nameKey, stripExt } from '../../core/util.js';
 import { parseFrontmatter, stringifyFrontmatter, extractLinks, extractTags } from '../../core/markdown.js';
-import { registerLinkType, parseLink, resolveLink, matchNames } from '../../core/links.js';
+import { registerLinkType, parseLink, resolveLink, matchNames, linkClosed } from '../../core/links.js';
 import { href } from '../../core/router.js';
 import { getSetting } from '../../core/settings.js';
-import { isHidden } from '../../core/dm.js';
+import { isHidden, isReleased } from '../../core/dm.js';
 import { plainText, plainLines, sectionOf, escapeRe, snippet, fold } from './text.js';
 
 export const ROOT = 'content/journal';
@@ -622,6 +622,12 @@ export function unlinkedMentions(note, linked = backlinks(note)) {
 }
 
 /** Links going out of a note, one row per target: [{raw, label, href, exists, kind, embed, count}]. */
+/**
+ * Does an un-prefixed link to nothing in this note start a note? Yes in the players' own notes; in a note the DM
+ * released it says the page hasn't been revealed yet (links.js linkClosed), like links everywhere else.
+ */
+export const startsNotes = (note) => !note || !isReleased(note.path);
+
 export function outgoing(note, body = note.body) {
   const list = body === note.body ? note.links : extractLinks(body);
   const rows = new Map();
@@ -635,7 +641,7 @@ export function outgoing(note, body = note.body) {
       if (row) { row.count += 1; continue; }
       rows.set(key, {
         raw: l.raw, label: l.alias || l.target, target: l.target, href: r.href, exists: !!r.exists,
-        kind: r.kind || l.prefix || 'note', embed: l.embed, count: 1, title: r.title,
+        kind: r.kind || l.prefix || 'note', embed: l.embed, count: 1, title: r.title, closed: linkClosed(r, { startNotes: startsNotes(note) }),
       });
     }
   });
@@ -727,7 +733,7 @@ registerLinkType('note', {
   resolve(target, anchor) {
     const n = target ? findNote(target) : contextNote;
     if (!n) return null;
-    return { href: noteHref(n, anchor), title: anchor ? `${n.title} › ${anchor}` : n.title, exists: true };
+    return { href: noteHref(n, anchor), title: anchor ? `${n.title} › ${anchor}` : n.title, exists: true, path: n.path };
   },
   suggest(q) {
     return matchNames(index().notes, q, (n) => n.title, 8).map((n) => ({ label: n.title, value: n.title }));

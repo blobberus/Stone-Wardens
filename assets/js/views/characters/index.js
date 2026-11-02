@@ -110,6 +110,7 @@ function summaryMarkdown(c) {
 registerLinkType('char', {
   label: 'Character',
   order: 30,
+  canHide: false, // characters are never hidden: a char: link that fails is missing, not unrevealed
   resolve(target, anchor) {
     const c = findCharacter(target);
     if (!c) return null;

@@ -124,9 +124,13 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   show(route), hide?(), menu?})` — mount once (lazy), views stay mounted (map is never re-created); `menu: false` =
   a route without a sidebar tab (main.js `buildSidebar` skips it).
   `navigate(href)`, `href(view, ...parts)`, `current()` -> `{view, parts, query}`.
-- `links.js`: `registerLinkType(prefix, {label, resolve(target, anchor) -> {href,title,exists}|null,
-  suggest(q) -> [{label, value}]})`. `resolveLink(raw)`; un-prefixed `[[X]]` -> journal note, else first exact
-  name match across types, else unresolved (click offers to create note).
+- `links.js`: `registerLinkType(prefix, {label, resolve(target, anchor) -> {href,title,exists,path?}|null,
+  suggest(q) -> [{label, value}], canHide?})` (path: the item's file, so `hidden` is known in DM mode; `canHide:
+  false` for kinds the DM can't hide, `char:`). `resolveLink(raw)`; un-prefixed `[[X]]` -> journal note, else first
+  exact name match across types, else unresolved (click offers to create note). `linkClosed(r, {startNotes})`: a
+  link players can't open "hasn't been revealed yet" (they can't tell hidden from missing), rendered `href="#"`
+  + `data-why` (+ `data-start`), shown by main.js on a click; `renderInto(el, src, {startNotes})` keeps a player's
+  own journal note starting notes. docs/dm-mode.md "Links to what the players can't see yet".
   Prefixes: `map:` locations and sub-maps (place id > map id > place name > map name; `[[map:Map#Place]]`), `char:` characters (`[[char:Name#hp]]` anchors a sheet section/stat),
   `note:` journal, `folder:` journal folder (legacy `chapter:`), `doc:` warden's library, `quest:` quests, `pantheon:` beings, compendium kinds: `weapon: armor: gear: item: spell: feat:
   ability: species: class: subclass: background:`.

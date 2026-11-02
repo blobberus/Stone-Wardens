@@ -55,7 +55,8 @@ minor quest". Edit (`#/quests/<id>/edit`) changes everything in place.
 - **Relevant characters** are chips that open what they name. An entry is either a link body picked from the
   suggestions (`char:Mira` a party member's sheet, `note:Old Grim` a journal note, `map:Old Mill`, `doc:…`, `quest:…`,
   compendium kinds) or a plain name, which opens a party member's sheet of that name, else any page of that exact name
-  (an NPC note first), else "start a note" for it (dashed chip), like an unresolved `[[link]]`.
+  (an NPC note first), else "start a note" for it (dashed chip), like an unresolved `[[link]]`. A link body the
+  players can't open (a hidden NPC note) says it hasn't been revealed yet (docs/dm-mode.md).
 - **NPC notes** are journal notes tagged `#npc` (or `#npc/…`) or kept in a folder whose name has npc, people, cast or
   characters in it. They get a person icon and come right after the party members in the suggestions.
 - **Suggestions** while typing a character: party members, NPC notes, other notes, then any other page; `map:`,

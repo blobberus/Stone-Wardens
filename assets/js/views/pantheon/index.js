@@ -95,7 +95,7 @@ registerLinkType('pantheon', {
   order: 47,
   resolve(target) {
     const b = M.findBeing(allBeings(), target);
-    return b ? { href: href(VIEW, b.file), title: `${rankLabel(b.rank)}: ${b.title}`, exists: true } : null;
+    return b ? { href: href(VIEW, b.file), title: `${rankLabel(b.rank)}: ${b.title}`, exists: true, path: pathOf(b.file) } : null;
   },
   suggest(term) {
     return matchNames(allBeings().filter((b) => b.title), term, (b) => b.title, 8).map((b) => ({ label: `${b.title} · ${rankLabel(b.rank)}`, value: b.title }));

@@ -164,7 +164,7 @@ export class NoteView {
     if (imgs.length) el.append(slideshow(imgs, { start: Math.min(this.galIndex || 0, imgs.length - 1), onIndex: (i) => { this.galIndex = i; } }));
     if (this.body.trim()) {
       const prose = h('div', { class: 'jr-prose' });
-      J.withNote(note, () => renderInto(prose, this.body, { onTaskToggle: () => {} }));
+      J.withNote(note, () => renderInto(prose, this.body, { onTaskToggle: () => {}, startNotes: J.startsNotes(note) }));
       // A leading "# Title" that repeats the page title would show the name twice.
       const first = prose.firstElementChild;
       const same = (a) => String(a || '').trim().toLowerCase();

@@ -44,7 +44,7 @@ for (const kind of LINK_KINDS) {
       const e = findEntry(kind, target);
       if (!e) return null;
       const line = statLine(e);
-      return { href: href('compendium', kind, e.id), title: `${e.name} · ${line || kindOne(kind)}`, exists: true };
+      return { href: href('compendium', kind, e.id), title: `${e.name} · ${line || kindOne(kind)}`, exists: true, path: e.origin === 'custom' ? e.path : null };
     },
     suggest(q) {
       return matchNames(cached(kind), q, (e) => e.name, 8).map((e) => ({

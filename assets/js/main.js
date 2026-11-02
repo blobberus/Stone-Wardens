@@ -3,7 +3,7 @@ import { store } from './core/store.js';
 import { GitHubBackend } from './core/github.js';
 import { SandboxBackend } from './core/sandbox.js';
 import { fetchVault, openVault, saveAuth, loadAuth, clearAuth } from './core/vault.js';
-import { registerView, start, allViews, onRoute } from './core/router.js';
+import { registerView, start, allViews, onRoute, navigate } from './core/router.js';
 import { applyTheme, getSetting, setSetting } from './core/settings.js';
 import { h, $, clear } from './core/dom.js';
 import { icon, toast, choiceDialog, tapTips } from './core/ui.js';
@@ -23,6 +23,17 @@ applyTheme();
 // iOS Safari shows :active (the press feedback touch screens get instead of hover) only once something listens for touches
 document.addEventListener('touchstart', () => {}, { passive: true });
 tapTips('.modal'); // touch screens: a tap on a label with a description in a dialog shows it (titles never show there)
+// A link that can't be opened (links.js linkClosed: a page the DM hasn't revealed yet, or nothing) says why in a toast
+// instead of following its "#"; data-start offers to start a note of that name anyway.
+document.addEventListener('click', (e) => {
+  const a = e.target instanceof Element ? e.target.closest('[data-why]') : null;
+  if (!a || e.button) return;
+  e.preventDefault();
+  const start = a.dataset.start;
+  toast(start ? h('span', null, a.dataset.why, ' ',
+    h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: () => navigate(start) }, 'Start a note')) : a.dataset.why,
+  { timeout: start ? 6000 : 3500 });
+}, true); // capture: a panel that stops clicks can't let the "#" through
 boot();
 
 async function boot() {

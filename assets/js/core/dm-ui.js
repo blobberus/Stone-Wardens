@@ -150,6 +150,9 @@ export function notifications() {
     .map((n) => ({ ...n, unread: !(st.seen && n.at <= st.seen) && !read.has(n.id) }));
 }
 
+/** A released item the players can't see any more (hidden again, or deleted; library files are binaries, not docs). */
+const gone = (n) => !!n.path && !isDm() && !store.has(n.path) && !store.files(n.path).some((f) => f.path === n.path);
+
 function markRead(id) {
   const st = inboxState();
   if (!st.read.includes(id)) setInboxState({ ...st, read: [...st.read, id].slice(-200) });
@@ -194,6 +197,7 @@ function openInbox(refresh) {
     mount(list, all.length ? h('ul', { class: 'dm-inbox-list', role: 'list' }, all.map((n) => h('li', { class: ['dm-note', n.unread && 'is-unread'] },
       h(n.href ? 'a' : 'div', {
         class: 'dm-note-link', href: n.href || null,
+        'data-why': n.href && gone(n) ? `“${n.title || 'That item'}” isn't revealed at the moment.` : null, // main.js says it
         onclick: () => { markRead(n.id); refresh(); m.close(); },
       },
       h('span', { class: 'dm-note-dot', 'aria-hidden': 'true' }),

@@ -1,14 +1,16 @@
 // Cross-site link registry. Views register a resolver per prefix so [[map:Old Mill]],
 // [[char:Thorin#hp]], [[weapon:Longsword]] etc. become real hyperlinks anywhere markdown is rendered.
 import { href } from './router.js';
+import { isDm, isHidden, dmConfigured } from './dm.js';
 
 const types = new Map(); // prefix -> {label, resolve, suggest, order}
 
 /**
  * registerLinkType('map', {
  *   label: 'Map location',
- *   resolve(target, anchor) -> {href, title, exists} | null,
- *   suggest(query) -> [{label, value}]   // value is the text after the prefix
+ *   resolve(target, anchor) -> {href, title, exists, path?} | null,   // path: the item's file, so a hidden one is known
+ *   suggest(query) -> [{label, value}],  // value is the text after the prefix
+ *   canHide: false,                      // the DM can't hide this kind (char:), so a link that fails is just missing
  * })
  */
 export function registerLinkType(prefix, def) {
@@ -33,30 +35,50 @@ export function parseLink(raw) {
 }
 
 /**
- * Resolve a wikilink body. Returns {href, title, exists, kind, label}.
+ * Resolve a wikilink body. Returns {href, title, exists, kind, label, prefixed, hidden}.
  * Un-prefixed links: journal note first, then an exact name match in any other type.
+ * hidden: it opens an item hidden from the players (only known in DM mode).
  */
 export function resolveLink(raw) {
   const p = parseLink(raw);
   const label = p.alias || (p.anchor && !p.target ? p.anchor : p.target + (p.anchor ? ` › ${p.anchor}` : ''));
+  const prefixed = !!p.prefix;
   const attempt = (type) => {
     try { return type.resolve(p.target, p.anchor); } catch (e) { console.error(e); return null; }
   };
+  const found = (r, kind) => ({ ...r, kind, label, prefixed, hidden: !!r.exists && isHidden(r.path) });
   if (p.prefix) {
     const r = attempt(types.get(p.prefix));
-    if (r) return { ...r, kind: p.prefix, label };
-    return { href: null, title: `${p.prefix}: ${p.target}`, exists: false, kind: p.prefix, label, parsed: p };
+    if (r) return found(r, p.prefix);
+    return { href: null, title: `${p.prefix}: ${p.target}`, exists: false, kind: p.prefix, label, prefixed, parsed: p };
   }
   const note = types.get('note');
   const r = note && attempt(note);
-  if (r?.exists) return { ...r, kind: 'note', label };
+  if (r?.exists) return found(r, 'note');
   for (const t of linkTypes()) {
     if (t.prefix === 'note') continue;
     const x = attempt(t);
-    if (x?.exists) return { ...x, kind: t.prefix, label };
+    if (x?.exists) return found(x, t.prefix);
   }
   // Unresolved: behaves like Obsidian (clicking offers to create the note).
-  return { href: href('journal', 'new') + `?title=${encodeURIComponent(p.target)}`, title: `Create note “${p.target}”`, exists: false, kind: 'note', label, parsed: p };
+  return { href: href('journal', 'new') + `?title=${encodeURIComponent(p.target)}`, title: `Create note “${p.target}”`, exists: false, kind: 'note', label, prefixed, parsed: p };
+}
+
+/**
+ * Why a resolved link can't be opened, or null when it can. -> null | {why, unrevealed?, start?}
+ * Players can't tell a hidden page from a missing one (hidden items are sealed, docs/dm-mode.md), so while a DM is set
+ * up and DM mode is off, a link that leads nowhere they can see "hasn't been revealed yet". An un-prefixed one still
+ * starts a note where opts.startNotes (a player's own journal note); elsewhere it says so too, with start (the
+ * new-note route) to start one anyway. Otherwise a prefixed link that leads nowhere is missing.
+ */
+export function linkClosed(r, { startNotes = false } = {}) {
+  if (!r || r.exists) return null;
+  const secret = dmConfigured() && !isDm() && types.get(r.kind)?.canHide !== false;
+  if (secret && (r.prefixed || !startNotes)) {
+    return { why: `“${r.label}” hasn't been revealed yet.`, unrevealed: true, start: r.prefixed ? null : r.href };
+  }
+  if (r.href) return null; // starts the note; doc: searches the library
+  return { why: `There's nothing called “${r.label}” to open.` };
 }
 
 /** Suggestions for the [[ autocomplete. Returns [{label, insert, kind}]. */

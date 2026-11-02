@@ -707,6 +707,7 @@ registerLinkType('doc', {
       href: docHref(d.path) + (anchor ? `?at=${encodeURIComponent(anchor)}` : ''),
       title: `${d.name} (${d.type.label}${d.shelf ? `, ${shelfLabel(d.shelf)}` : ''})`,
       exists: true,
+      path: d.path,
     };
   },
   suggest(q) {

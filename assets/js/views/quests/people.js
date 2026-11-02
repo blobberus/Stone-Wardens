@@ -5,7 +5,7 @@
 // [[link]]). NPC notes are journal notes tagged #npc (or #npc/…) or kept in a folder named like npc / people / cast.
 import { h, clear } from '../../core/dom.js';
 import { icon } from '../../core/ui.js';
-import { parseLink, resolveLink, suggestLinks, linkTypes, matchNames } from '../../core/links.js';
+import { parseLink, resolveLink, suggestLinks, linkTypes, matchNames, linkClosed } from '../../core/links.js';
 import { index as journalIndex, findNote } from '../journal/data.js';
 
 const NPC_TAG = /^npcs?(\/|$)/i;
@@ -53,13 +53,15 @@ export function newEntries(current, vals) {
 /** A relevant character as a chip: a link to its page (onRemove: an editor chip with a remove button instead). */
 export function characterChip(entry, { onRemove } = {}) {
   const r = resolveCharacter(entry);
-  const cls = ['chip', 'qs-char', r.kind === 'char' && r.exists && 'is-pc', r.npc && 'is-npc', !r.exists && 'is-missing'];
-  const title = r.exists ? `${r.info.label}: ${r.title}` : r.href ? `No page for “${r.label}” yet. Click to start a journal note.` : `Not found: ${r.title}`;
+  const closed = linkClosed(r, { startNotes: true }); // a page the players can't see yet (a plain name starts a note)
+  const cls = ['chip', 'qs-char', r.kind === 'char' && r.exists && 'is-pc', r.npc && 'is-npc', !r.exists && 'is-missing', closed?.unrevealed && 'is-unrevealed'];
+  const title = r.exists ? `${r.info.label}: ${r.title}` : closed ? closed.why : `No page for “${r.label}” yet. Click to start a journal note.`;
   const glyph = icon(r.exists ? r.info.icon : 'tag');
   if (onRemove) {
-    return h('span', { class: cls, title: r.exists ? `Opens ${r.info.label.toLowerCase()}: ${r.title}` : `“${r.label}” has no page yet` }, glyph, r.label,
+    return h('span', { class: cls, title: r.exists ? `Opens ${r.info.label.toLowerCase()}: ${r.title}` : closed ? closed.why : `“${r.label}” has no page yet` }, glyph, r.label,
       h('button', { class: 'chip-x', type: 'button', 'aria-label': `Remove ${r.label}`, title: 'Remove', onclick: onRemove }, icon('close')));
   }
+  if (closed) return h('a', { class: cls, href: '#', 'data-why': closed.why, title }, glyph, r.label); // main.js says why
   return r.href ? h('a', { class: cls, href: r.href, title }, glyph, r.label) : h('span', { class: cls, title }, glyph, r.label);
 }
 

@@ -2,7 +2,7 @@
 import { Marked } from '../../../vendor/marked/marked.esm.js';
 import DOMPurify from '../../../vendor/dompurify/purify.es.mjs';
 import { load as yamlLoad, dump as yamlDump } from '../../../vendor/js-yaml/js-yaml.mjs';
-import { resolveLink, parseLink, linkTypes } from './links.js';
+import { resolveLink, parseLink, linkTypes, linkClosed } from './links.js';
 import { escapeHtml, slugify, extOf, baseName } from './util.js';
 import { store } from './store.js';
 
@@ -16,6 +16,14 @@ const TAG_RE = /^#([\p{L}\p{N}_/-]*[\p{L}_/-][\p{L}\p{N}_/-]*)/u;
 
 // ---------- marked extensions ----------
 
+let linkOpts = {}; // renderMarkdown's {startNotes} while it parses (marked is synchronous)
+
+/**
+ * A link that can't be opened (links.js linkClosed: not revealed yet, or missing) keeps href="#" and carries its
+ * notice in data-why (+ data-start: start a note anyway); main.js shows it on a click instead of following it.
+ */
+const closedAttrs = (c) => ` data-why="${escapeHtml(c.why)}"${c.start ? ` data-start="${escapeHtml(c.start)}"` : ''}`;
+
 const wikilink = {
   name: 'wikilink',
   level: 'inline',
@@ -26,8 +34,15 @@ const wikilink = {
   },
   renderer(t) {
     const r = resolveLink(t.body);
-    const cls = ['wikilink', r.exists ? '' : 'is-unresolved'].filter(Boolean).join(' ');
-    return `<a class="${cls}" href="${escapeHtml(r.href || '#')}" data-kind="${escapeHtml(r.kind || '')}" title="${escapeHtml(r.title || '')}">${escapeHtml(r.label)}</a>`;
+    const closed = linkClosed(r, linkOpts);
+    if (closed) {
+      const cls = ['wikilink', 'is-unresolved', closed.unrevealed && 'is-unrevealed'].filter(Boolean).join(' ');
+      return `<a class="${cls}" href="#" data-kind="${escapeHtml(r.kind || '')}"${closedAttrs(closed)} title="${closed.unrevealed ? 'Not revealed yet' : 'Nothing to open'}">${escapeHtml(r.label)}</a>`;
+    }
+    // DM mode: a link to a hidden item works for the DM and is marked, since the players get "not revealed yet"
+    const cls = ['wikilink', r.exists ? '' : 'is-unresolved', r.hidden ? 'is-dm-hidden' : ''].filter(Boolean).join(' ');
+    const title = r.hidden ? `${r.title} · hidden from the players (they see “not revealed yet”)` : r.title;
+    return `<a class="${cls}" href="${escapeHtml(r.href || '#')}" data-kind="${escapeHtml(r.kind || '')}" title="${escapeHtml(title || '')}">${escapeHtml(r.label)}</a>`;
   },
 };
 
@@ -194,11 +209,18 @@ export function toggleTask(src, index, checked) {
   return src;
 }
 
-/** Markdown -> sanitized HTML string. Frontmatter is stripped. */
-export function renderMarkdown(src) {
+/**
+ * Markdown -> sanitized HTML string. Frontmatter is stripped.
+ * opts.startNotes: an un-prefixed link to nothing starts a note even for players (a player's own journal note);
+ * elsewhere it says it hasn't been revealed yet (links.js linkClosed).
+ */
+export function renderMarkdown(src, opts = {}) {
   const { body } = parseFrontmatter(String(src ?? ''));
   const pre = outsideCode(body, (part) => part.replace(/%%[\s\S]*?%%/g, ''));
-  const html = md.parse(pre);
+  const was = linkOpts;
+  linkOpts = { startNotes: !!opts.startNotes };
+  let html;
+  try { html = md.parse(pre); } finally { linkOpts = was; }
   return DOMPurify.sanitize(html, { ADD_ATTR: ['target'], ADD_TAGS: ['input'] });
 }
 
@@ -215,12 +237,12 @@ function findFile(name) {
 
 /**
  * Render markdown into an element and wire embeds, foldable callouts and task checkboxes.
- * opts: {onTaskToggle(index, checked), depth}
+ * opts: {onTaskToggle(index, checked), depth, startNotes (renderMarkdown)}
  */
 export function renderInto(el, src, opts = {}) {
   const depth = opts.depth || 0;
   el.classList.add('prose');
-  el.innerHTML = renderMarkdown(src);
+  el.innerHTML = renderMarkdown(src, opts);
 
   el.querySelectorAll('.callout.is-collapsible > .callout-title').forEach((t) => {
     t.setAttribute('role', 'button');
@@ -250,13 +272,18 @@ export function renderInto(el, src, opts = {}) {
     const type = linkTypes().find((t) => t.prefix === (p.prefix || res.kind));
     let content = null;
     try { content = type?.embed?.(p.target, p.anchor); } catch (e) { console.error(e); }
+    const closed = linkClosed(res, opts);
     const title = document.createElement('a');
     title.className = 'embed-title';
-    title.href = res.href || '#';
+    title.href = (!closed && res.href) || '#';
     title.textContent = res.label;
+    if (closed) {
+      title.dataset.why = closed.why;
+      if (closed.start) title.dataset.start = closed.start;
+    }
     const body = document.createElement('div');
     body.className = 'embed-body';
-    if (!content) body.textContent = res.exists ? '' : 'Not found.';
+    if (!content) body.textContent = res.exists ? '' : closed?.unrevealed ? 'Not revealed yet.' : 'Not found.';
     else if (depth >= 2) body.textContent = '…';
     else if (content instanceof Node) body.append(content);
     else renderInto(body, content.markdown ?? String(content), { depth: depth + 1 });

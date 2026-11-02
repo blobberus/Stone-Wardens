@@ -662,6 +662,13 @@ button.chip, a.chip { cursor: pointer; transition: background-color var(--dur) v
   text-decoration-style: dashed; text-decoration-color: var(--ink-faint);
 }
 @media (hover: hover) { :is(.prose, .md-preview) a.wikilink.is-unresolved:hover { color: var(--ink); text-decoration-color: var(--ink-muted); } }
+/* DM mode: a link to an item hidden from the players (they get "not revealed yet"): gold dashes and the hidden mark */
+:is(.prose, .md-preview) a.wikilink.is-dm-hidden { text-decoration-style: dashed; text-decoration-color: var(--gold); }
+:is(.prose, .md-preview) a.wikilink.is-dm-hidden::after {
+  content: ""; display: inline-block; width: 0.8em; height: 0.8em; margin-left: 0.2em; vertical-align: -0.05em;
+  background: var(--gold);
+  -webkit-mask: var(--mask-eye-off) center / contain no-repeat; mask: var(--mask-eye-off) center / contain no-repeat;
+}
 :is(.prose, .md-preview) a.external::after {
   content: ""; display: inline-block; width: 0.7em; height: 0.7em; margin-left: 0.15em; vertical-align: 0.05em;
   background: currentColor; opacity: 0.8;
@@ -799,6 +806,7 @@ button.chip, a.chip { cursor: pointer; transition: background-color var(--dur) v
 :root {
   --mask-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
   --mask-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E");
+  --mask-eye-off: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.9 5.8A9.7 9.7 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.7 3.4M6.6 7.1C3.9 8.9 2.5 12 2.5 12S6 18.5 12 18.5c1.6 0 3-.4 4.2-1M9.9 9.9a3 3 0 0 0 4.2 4.2M3.5 3.5l17 17'/%3E%3C/svg%3E");
   --mask-external: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 4.5h5.5V10M19.5 4.5L11 13M17 13.5V19a1 1 0 0 1-1 1H5.5a1 1 0 0 1-1-1V8.5a1 1 0 0 1 1-1H11'/%3E%3C/svg%3E");
   --mask-pen: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6.5 17.5C8 10 13 5.5 20 4c-1.5 7-6 12-13.5 13.5zM4.5 19.5L13 11'/%3E%3C/svg%3E");
   --mask-clipboard: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 4.5h6v3H9zM9 6H6.5a1 1 0 0 0-1 1v12.5a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1H15M9 12h6M9 16h4'/%3E%3C/svg%3E");

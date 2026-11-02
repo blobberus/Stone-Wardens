@@ -61,7 +61,7 @@ content/journal/
 | `#/journal/<folder…>` | a folder page (also what `[[folder:X]]` / `[[chapter:X]]` open); `?folder` forces the folder when a note has the same path |
 | `#/journal/<folder…>/<note>` | a note; `?h=<heading-slug>` scrolls to a heading |
 | `#/journal?q=…` / `?tag=…` | opens the Search pane with that query (`?tag=npc` = `tag:#npc`); the open note stays |
-| `#/journal/new?title=…` | "New note" dialog (unresolved `[[links]]` point here) |
+| `#/journal/new?title=…` | "New note" dialog (unresolved `[[links]]` point here; for players, outside their own notes, they say the page hasn't been revealed yet: docs/dm-mode.md) |
 
 Resolution (`data.resolveRoute`): segments are joined with `/` (so the encoded form other views build,
 `href('journal', 'a', 'b/note')` -> `#/journal/a/b%2Fnote`, works too); a single segment is a top-level folder first,

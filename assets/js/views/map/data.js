@@ -1029,9 +1029,9 @@ registerLinkType('map', {
     const r = resolveTarget(target, anchor);
     if (r?.loc) {
       const where = r.loc.map === MAIN_MAP ? 'map' : `map of ${mapById(r.loc.map)?.name || 'a sub-map'}`;
-      return { href: locHref(r.loc), title: `${r.loc.name} · ${typeOf(r.loc.type).name} (${where})`, exists: true };
+      return { href: locHref(r.loc), title: `${r.loc.name} · ${typeOf(r.loc.type).name} (${where})`, exists: true, path: r.loc.path };
     }
-    if (r?.map) return { href: mapHref(r.map.id), title: `${r.map.name} (map, ${plural(locationsOn(r.map.id).length, 'place')})`, exists: true };
+    if (r?.map) return { href: mapHref(r.map.id), title: `${r.map.name} (map, ${plural(locationsOn(r.map.id).length, 'place')})`, exists: true, path: mapPath(r.map.id) };
     return null;
   },
   suggest(q) {

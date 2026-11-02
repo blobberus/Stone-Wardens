@@ -84,7 +84,7 @@ registerLinkType('quest', {
   order: 45,
   resolve(target) {
     const q = findQuest(allQuests(), target);
-    return q ? { href: href(VIEW, q.id), title: `${typeOf(q.type).label}: ${q.title}${q.status !== 'active' ? ` (${statusOf(q.status).label.toLowerCase()})` : ''}`, exists: true } : null;
+    return q ? { href: href(VIEW, q.id), title: `${typeOf(q.type).label}: ${q.title}${q.status !== 'active' ? ` (${statusOf(q.status).label.toLowerCase()})` : ''}`, exists: true, path: pathOf(q.id) } : null;
   },
   suggest(term) {
     return matchNames(allQuests(), term, (x) => x.title, 8).map((x) => ({ label: `${x.title} · ${typeOf(x.type).label}`, value: x.title }));
