@@ -246,5 +246,9 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-22T04:25:57.154Z",
-  "updated": "2026-11-01T18:57:07.985Z"
+  "updated": "2026-11-01T18:57:07.985Z",
+  "trashed": {
+    "at": "2026-11-05T22:04:28.098Z",
+    "by": "Blobberus"
+  }
 }
