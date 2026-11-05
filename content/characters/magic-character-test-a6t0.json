@@ -165,11 +165,7 @@
   "resourcesUsed": {
     "arcane-recovery": 0
   },
-  "conditions": [
-    "blinded",
-    "deafened",
-    "grappled"
-  ],
+  "conditions": [],
   "exhaustion": 0,
   "heroicInspiration": true,
   "xp": 0,
@@ -235,5 +231,5 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-10-23T02:18:59.684Z",
-  "updated": "2026-11-05T07:26:46.444Z"
+  "updated": "2026-11-05T07:26:52.132Z"
 }
