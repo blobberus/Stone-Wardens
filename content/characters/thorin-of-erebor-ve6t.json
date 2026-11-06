@@ -134,7 +134,7 @@
     }
   },
   "style": {
-    "accent": null,
+    "accent": "#1f1a14",
     "page": null,
     "panel": null,
     "border": null,
@@ -173,5 +173,5 @@
   },
   "createdBy": "Rohan",
   "created": "2026-11-06T02:48:16.859Z",
-  "updated": "2026-11-06T02:48:16.861Z"
+  "updated": "2026-11-06T02:53:01.909Z"
 }
