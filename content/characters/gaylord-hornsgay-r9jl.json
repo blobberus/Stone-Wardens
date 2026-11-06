@@ -4,7 +4,7 @@
   "player": "Blobberus",
   "portrait": "content/characters/portraits/gaylord-hornsgay-hrjzo4.jpg",
   "species": {
-    "id": null,
+    "id": "fire-genasi",
     "subspecies": null,
     "size": null
   },
@@ -152,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:48:28.025Z",
+  "updated": "2026-11-06T02:48:47.342Z",
   "levelOrder": [
     "paladin"
   ]
