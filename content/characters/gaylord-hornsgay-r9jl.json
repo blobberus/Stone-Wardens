@@ -113,9 +113,9 @@
     }
   },
   "style": {
-    "accent": "#5c4a36",
-    "page": null,
-    "panel": null,
+    "accent": "#6e3a5c",
+    "page": "#93e3fd",
+    "panel": "#ffcc02",
     "border": null,
     "borderStyle": null,
     "borderWidth": null,
@@ -152,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:47:34.159Z",
+  "updated": "2026-11-06T02:47:50.806Z",
   "levelOrder": [
     "paladin"
   ]
