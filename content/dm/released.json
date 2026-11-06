@@ -1,14 +1,6 @@
 {
   "items": [
     {
-      "path": "content/journal/regions/southern-caspana-2.md",
-      "title": "Southern Caspana",
-      "label": "Journal note",
-      "href": "#/journal/regions/southern-caspana-2",
-      "at": "2026-11-06T02:08:36.503Z",
-      "by": "Blobberus"
-    },
-    {
       "path": "content/quests/an-unusual-calling-n4i5.json",
       "title": "An Unusual Calling...",
       "label": "Quest",
