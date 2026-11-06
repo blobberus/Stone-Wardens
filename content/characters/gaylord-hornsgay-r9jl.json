@@ -133,7 +133,7 @@
     "weight": "",
     "eyes": "",
     "hair": "",
-    "skin": "",
+    "skin": "Brown",
     "location": "",
     "groups": "",
     "religion": "",
@@ -152,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:39:37.965Z",
+  "updated": "2026-11-06T02:40:08.912Z",
   "levelOrder": [
     "paladin"
   ]
