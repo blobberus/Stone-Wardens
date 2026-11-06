@@ -22,14 +22,14 @@
       ]
     }
   ],
-  "abilityMethod": "pointbuy",
+  "abilityMethod": "standard",
   "baseAbilities": {
-    "str": 14,
-    "dex": 10,
-    "con": 8,
-    "int": 12,
-    "wis": 13,
-    "cha": 15
+    "str": 15,
+    "dex": 12,
+    "con": 13,
+    "int": 8,
+    "wis": 10,
+    "cha": 14
   },
   "choices": {
     "class-skills@paladin:1": [
@@ -152,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:36:44.287Z",
+  "updated": "2026-11-06T02:36:55.467Z",
   "levelOrder": [
     "paladin"
   ]
