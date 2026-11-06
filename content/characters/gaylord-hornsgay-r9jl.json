@@ -26,9 +26,9 @@
   "baseAbilities": {
     "str": 15,
     "dex": 12,
-    "con": 13,
+    "con": 10,
     "int": 8,
-    "wis": 10,
+    "wis": 13,
     "cha": 14
   },
   "choices": {
@@ -152,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:36:55.467Z",
+  "updated": "2026-11-06T02:38:03.916Z",
   "levelOrder": [
     "paladin"
   ]
