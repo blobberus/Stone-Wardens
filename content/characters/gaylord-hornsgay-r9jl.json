@@ -121,7 +121,7 @@
     "borderWidth": 2,
     "corners": "square",
     "headingFont": null,
-    "textFont": null
+    "textFont": "hand"
   },
   "details": {
     "alignment": "chaotic-neutral",
@@ -152,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:48:21.534Z",
+  "updated": "2026-11-06T02:48:28.025Z",
   "levelOrder": [
     "paladin"
   ]
