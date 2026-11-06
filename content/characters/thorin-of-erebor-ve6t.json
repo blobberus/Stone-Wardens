@@ -1,0 +1,177 @@
+{
+  "id": "thorin-of-erebor-ve6t",
+  "name": "Thorin of Erebor",
+  "player": "Rohan",
+  "portrait": "content/characters/portraits/thorin-of-erebor-7m1cfl.webp",
+  "species": {
+    "id": "dwarf",
+    "subspecies": null,
+    "size": null
+  },
+  "background": {
+    "id": "noble",
+    "abilityBonuses": {
+      "str": 2,
+      "cha": 1
+    }
+  },
+  "classes": [
+    {
+      "id": "fighter",
+      "level": 1,
+      "subclass": null,
+      "hp": [
+        10
+      ]
+    }
+  ],
+  "abilityMethod": "standard",
+  "baseAbilities": {
+    "str": 15,
+    "dex": 14,
+    "con": 13,
+    "int": 8,
+    "wis": 12,
+    "cha": 10
+  },
+  "choices": {
+    "background:abilities": {
+      "str": 2,
+      "cha": 1
+    },
+    "background:tool": [
+      "dragonchess"
+    ],
+    "origin:languages": [
+      "dwarvish",
+      "elvish"
+    ],
+    "feat:skilled": [
+      "intimidation",
+      "survival",
+      "horn"
+    ],
+    "class-skills@fighter:1": [
+      "intimidation",
+      "survival"
+    ],
+    "fighter-fighting-style@fighter:1": "two-weapon-fighting",
+    "fighter-weapon-mastery@fighter:1": [
+      "greatsword",
+      "heavy-crossbow",
+      "mace"
+    ]
+  },
+  "skills": [
+    "intimidation",
+    "survival"
+  ],
+  "extraProficiencies": {
+    "skills": [],
+    "expertise": [],
+    "saves": [],
+    "armor": [],
+    "weapons": [],
+    "tools": [],
+    "languages": []
+  },
+  "feats": [],
+  "spells": [],
+  "slotsUsed": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "pactUsed": 0,
+  "inventory": [],
+  "currency": {
+    "cp": 0,
+    "sp": 0,
+    "ep": 0,
+    "gp": 0,
+    "pp": 0
+  },
+  "hp": {
+    "current": 12,
+    "temp": 0
+  },
+  "hitDiceUsed": {},
+  "deathSaves": {
+    "success": 0,
+    "fail": 0
+  },
+  "resourcesUsed": {},
+  "conditions": [],
+  "exhaustion": 0,
+  "heroicInspiration": false,
+  "xp": 0,
+  "abilities": [],
+  "favorites": {
+    "items": [],
+    "skills": [],
+    "features": [],
+    "spells": []
+  },
+  "overrides": {
+    "ac": null,
+    "speed": null,
+    "initiative": null,
+    "hpMax": null,
+    "profBonus": null,
+    "passivePerception": null,
+    "abilities": {},
+    "saves": {},
+    "skills": {},
+    "proficiency": {
+      "skills": {},
+      "saves": {}
+    }
+  },
+  "style": {
+    "accent": null,
+    "page": null,
+    "panel": null,
+    "border": null,
+    "borderStyle": null,
+    "borderWidth": null,
+    "corners": null,
+    "headingFont": null,
+    "textFont": null
+  },
+  "details": {
+    "alignment": "chaotic-good",
+    "pronouns": "",
+    "gender": "",
+    "sexuality": "",
+    "age": "",
+    "height": "",
+    "weight": "",
+    "eyes": "",
+    "hair": "",
+    "skin": "",
+    "location": "",
+    "groups": "",
+    "religion": "",
+    "appearance": "Rugged, beaten-down dwarf tired of the ages. His locks show some gray from his time in war, eyes gleaming with a spark of bright vengeance. He looks at you; you feel his deep blue-gray eyes stare into your soul and understand your joys, sorrows, and deepest, darkest desires. ",
+    "personalityTraits": "",
+    "socialTraits": "",
+    "mentalTraits": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "likes": "",
+    "dislikes": "",
+    "resistances": "",
+    "backstory": "",
+    "notes": ""
+  },
+  "createdBy": "Rohan",
+  "created": "2026-11-06T02:48:16.859Z",
+  "updated": "2026-11-06T02:48:16.861Z"
+}
