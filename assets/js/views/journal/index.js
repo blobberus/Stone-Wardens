@@ -8,6 +8,7 @@
 //   #/journal/_                  vault root folder page; #/journal/_/<note> a note in the root
 //   #/journal/<folder…>          folder page (also what [[folder:X]] / [[chapter:X]] open)
 //   #/journal/<folder…>/<note>   a note; ?h=<heading-slug> scrolls to a heading
+//   #/journal/recently-deleted   deleted notes and folders, to restore or delete for good (trash.js)
 // Keys: Ctrl+O / Ctrl+K quick switcher, Ctrl+E read/edit, Ctrl+Shift+F search, F2 rename.
 import { h } from '../../core/dom.js';
 import { icon, toast, confirmDialog } from '../../core/ui.js';
@@ -21,6 +22,7 @@ import { SearchPane, TagsPane } from './search.js';
 import { SidePane } from './side.js';
 import { NoteView } from './note.js';
 import { renderHome, renderFolder, renderMissing } from './pages.js';
+import { renderTrash, deletedToast } from './trash.js';
 import { newNoteDialog, pickFolder, confirmDeleteFolder, propertiesDialog, descriptionDialog, openSwitcher } from './dialogs.js';
 import { openMenu, closeMenu } from './menu.js';
 import { iconBtn } from './parts.js';
@@ -328,6 +330,7 @@ function renderTarget(t, r) {
     t.view = noteView;
     S.remember(t.note.path);
   } else if (t.kind === 'folder') renderFolder(desk, t.folder, ctx);
+  else if (t.kind === 'trash') renderTrash(desk, ctx);
   else if (t.kind === 'missing') renderMissing(desk, t, ctx);
   else renderHome(desk, ctx);
   root.dataset.mode = t.kind;
@@ -346,7 +349,7 @@ function refreshMain() {
 function syncPanes() {
   files.sync();
   files.setTarget(targetFolder());
-  files.setActive({ note: target?.kind === 'note' ? currentNote() : null, folder: target?.kind === 'folder' ? target.folder : null });
+  files.setActive({ note: target?.kind === 'note' ? currentNote() : null, folder: target?.kind === 'folder' ? target.folder : null, trash: target?.kind === 'trash' });
   search.markActive();
   side.render(target?.kind === 'note' ? { kind: 'note', note: currentNote() || target.note, view: noteView } : target);
 }
@@ -368,7 +371,7 @@ function refreshAll(paths = null) {
 }
 
 function onStore(e) {
-  if (!J.touchesJournal(e) || J.isSelfWrite() || e.type === 'saved' || e.type === 'load') return;
+  if (!(J.touchesJournal(e) || J.touchesTrash(e)) || J.isSelfWrite() || e.type === 'saved' || e.type === 'load') return;
   const paths = Array.isArray(e.paths) ? e.paths : e.path ? [e.path] : [];
   if (!visible) { stale = true; return; }
   paths.forEach((p) => changed.add(p));
@@ -403,6 +406,9 @@ function renderChrome(draft = null) {
     const tr = J.trail(f);
     tr.forEach((x, i) => items.push(i === tr.length - 1 ? here(x.title) : link(x.href, x.title)));
     title = f.isRoot ? 'Vault root' : f.title;
+  } else if (t.kind === 'trash') {
+    items.push(here(J.TRASH_TITLE));
+    title = J.TRASH_TITLE;
   } else if (t.kind === 'missing') {
     if (t.folder) J.trail(t.folder).forEach((f) => items.push(link(f.href, f.title)));
     items.push(here('Missing page'));
@@ -570,16 +576,17 @@ async function deleteItem(d) {
     if (!n) return;
     const refs = J.backlinks(n).length;
     const ok = await confirmDialog(
-      `Delete “${n.title}”? It is removed for the whole party${majorSaveOn() ? '' : ' when you save'}.${refs ? ` ${plural(refs, 'other note')} link${refs === 1 ? 's' : ''} here; those links will offer to recreate it.` : ''}`,
+      `Delete “${n.title}”? It is removed for the whole party${majorSaveOn() ? '' : ' when you save'} and goes to Recently deleted, where anyone can restore it until the folder is emptied.${refs ? ` ${plural(refs, 'other note')} link${refs === 1 ? 's' : ''} here; while it is gone, those links offer to start a new note.` : ''}`,
       { title: 'Delete note', okLabel: 'Delete note', danger: true },
     );
     if (!ok) return;
     const open = noteView && noteView.path === n.path;
-    if (open) { noteView.saver.cancel(); noteView.dirty = false; noteView.deleted = true; }
-    const f = J.folderOf(n);
-    J.deleteNote(J.noteByPath(n.path) || n);
+    if (open) { noteView.writeNow(); noteView.saver.cancel(); noteView.dirty = false; noteView.deleted = true; } // its last words go with it
+    const cur = J.noteByPath(n.path) || n;
+    const f = J.folderOf(cur);
+    const id = J.trashNote(cur);
     S.forget(n.path);
-    toast(`Deleted “${n.title}”.`);
+    deletedToast(`Moved “${n.title}” to Recently deleted.`, id, ctx, { reopen: open });
     saveSoon(`journal: delete “${n.title}”`);
     if (open) navigate(f.isRoot ? '#/journal' : (J.folderAt(f.path)?.href || '#/journal'), { replace: true });
     else refreshAll();
@@ -597,10 +604,17 @@ async function deleteItem(d) {
   if (mode === 'delete' && openPath && inside(openPath)) { noteView.saver.cancel(); noteView.dirty = false; noteView.deleted = true; }
   const parent = cur.parent;
   const count = cur.count;
-  const moved = J.deleteFolder(cur, mode);
-  toast(mode === 'keep' ? `Deleted “${cur.title}”; ${plural(count, 'note')} moved to ${J.folderLabel(parent)}.` : `Deleted “${cur.title}” and ${plural(count, 'note')}.`);
-  saveSoon(`journal: delete folder “${cur.title}”${mode === 'keep' ? '' : ` and ${plural(count, 'note')}`}`);
   const showsIt = target?.kind === 'folder' && J.isUnder(target.folder.path, cur.path);
+  let moved = new Map();
+  if (mode === 'keep') {
+    moved = J.deleteFolder(cur, 'keep');
+    toast(`Deleted “${cur.title}”; ${plural(count, 'note')} moved to ${J.folderLabel(parent)}.`);
+  } else {
+    const id = J.trashFolder(cur);
+    deletedToast(`Moved “${cur.title}”${count ? ` and ${plural(count, 'note')}` : ''} to Recently deleted.`, id, ctx,
+      { reopen: showsIt || !!(openPath && inside(openPath)) });
+  }
+  saveSoon(`journal: delete folder “${cur.title}”${mode === 'keep' ? '' : ` and ${plural(count, 'note')}`}`);
   if ((mode === 'delete' && openPath && inside(openPath)) || showsIt) {
     S.renamed(moved);
     navigate(J.folderAt(parent.path)?.href || '#/journal', { replace: true });

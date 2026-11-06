@@ -51,6 +51,7 @@ content/              ALL user data, written by the site through the GitHub API
                                 {title, description, order} (also keeps empty folders in git); root notes journal/*.md
                                 frontmatter `images:` = reference photos (slideshow; docs/journal-model.md)
   media/journal/<file>          uploaded reference photos of journal notes (journal/gallery.js)
+  journal-trash/<id>/…          journal Recently deleted: the note / folder at its vault path + _deleted.json
   library/<kind>/<id>.json   kinds: weapon armor gear magic-item spell feat ability species class subclass
                              background location-type
 wardens-library/      campaign documents (pdf/docx/md/txt/images) shown read-only in Warden's Library
@@ -152,7 +153,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   imports the ids in `VIEW_IDS` (a failed import shows an error tab instead of breaking the app). Views register
   their link types at import time and re-render from `store.on` events.
 - Routes: `#/map[/loc/<id>]`, `#/map/m/<mapId>[/loc/<id>]` (sub-maps), `#/characters[/<id>[/<section>]]`, `#/journal[/_|/<folder…>[/<note>]][?h=|q=|tag=|folder]`,
-  `#/journal/new?title=`, `#/quests[/<id>[/edit]]`, `#/pantheon[/<file>]`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`,
+  `#/journal/new?title=`, `#/journal/recently-deleted`, `#/quests[/<id>[/edit]]`, `#/pantheon[/<file>]`, `#/compendium[/<kind>[/<id>]]`, `#/wardens-library[/<path…>]`, `#/settings`,
   `#/dm` (DM Screen), `#/dm/party` (its Party page). `#/quests?new=1`, `#/map?new=1`, `#/compendium?new=1`, `#/wardens-library?upload=1` open the create forms.
 
 ## Map tab
@@ -248,6 +249,10 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   `path:` `file:` `"phrase"` `-word`) | Tags (nested); main pane = one journal-shaped page, Read/Edit (Ctrl+E),
   quick switcher (Ctrl+O/K); right pane Properties, Outline, Backlinks (+ unlinked), Outgoing links. The editing view
   is a live-text editor: `#` … `######` lines show at their title sizes while writing (as in reading view).
+- Recently deleted (`trash.js`, link at the foot of Files, drop target too; docs/journal-model.md): deleting a note or
+  folder moves it to `content/journal-trash/<id>/` at its vault path (toast with Undo); look inside, Restore (back where
+  it was: gone folders made again, a taken note name -> `name-2`, a taken folder name -> merged), delete forever, Empty
+  folder. Hidden notes stay sealed there and their record names nothing; a player's restore leaves them for the DM.
 - Per-device UI state in localStorage `sw:journal:*`. Other views link notes with `href('journal', first || '_', rest)`.
 
 ## Warden's Library tab

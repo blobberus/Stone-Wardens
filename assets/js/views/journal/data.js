@@ -5,7 +5,7 @@
 // Routes: #/journal/_/<note> (vault root), #/journal/<folder…>/<note>, #/journal/<folder…> (folder page),
 // #/journal/_ (root folder page). Registers the `note:`, `folder:` and legacy `chapter:` link types.
 import { store } from '../../core/store.js';
-import { slugify, nameKey, stripExt } from '../../core/util.js';
+import { slugify, nameKey, stripExt, uid } from '../../core/util.js';
 import { parseFrontmatter, stringifyFrontmatter, extractLinks, extractTags } from '../../core/markdown.js';
 import { registerLinkType, parseLink, resolveLink, matchNames, linkClosed } from '../../core/links.js';
 import { href } from '../../core/router.js';
@@ -17,8 +17,11 @@ export const ROOT = 'content/journal';
 export const ROOT_SEG = '_'; // route segment of the vault root ("Loose Leaves" in the old book)
 export const META = '_chapter.json'; // folder metadata (name kept from the chapter days; see docs/journal-model.md)
 export const VAULT_TITLE = 'Journal';
+export const TRASH = 'content/journal-trash'; // Recently deleted (outside the vault: see "recently deleted" below)
+export const TRASH_SEG = 'recently-deleted'; // #/journal/recently-deleted
+export const TRASH_TITLE = 'Recently deleted';
 const PRE = `${ROOT}/`;
-const RESERVED = new Set(['new', ROOT_SEG]); // top-level names the router uses
+const RESERVED = new Set(['new', ROOT_SEG, TRASH_SEG]); // top-level names the router uses
 const FM_ORDER = ['title', 'aliases', 'order', 'author', 'created', 'updated', 'tags'];
 
 // ---------- writes (tracked so the view can ignore its own echoes) ----------
@@ -188,6 +191,7 @@ export function resolveRoute(parts, query = {}) {
   let segs = parts.flatMap((p) => String(p).split('/')).filter(Boolean);
   const ix = index();
   if (!segs.length) return { kind: 'home' };
+  if (segs.length === 1 && segs[0] === TRASH_SEG) return { kind: 'trash' };
   const atRoot = segs[0] === ROOT_SEG;
   if (atRoot) segs = segs.slice(1);
   if (!segs.length) return { kind: 'folder', folder: ix.root };
@@ -390,11 +394,6 @@ export function renameNote(note, title, body = note.body) {
   return path;
 }
 
-export function deleteNote(note) {
-  keepFolder(folderOf(note));
-  remove(note.path);
-}
-
 /** Replace a note's frontmatter (title kept), body untouched. */
 export function setProperties(note, fm) {
   const next = { ...fm, title: note.title };
@@ -509,6 +508,228 @@ export function deleteFolder(f, mode = 'delete') {
   }
   if (store.has(f.metaPath)) remove(f.metaPath);
   return moved;
+}
+
+// ---------- recently deleted (content/journal-trash/<id>/…, restorable until emptied) ----------
+// A deleted note or folder moves to content/journal-trash/<id>/ under its own vault path
+// (…/<id>/sessions/old-mill.md; a folder with everything in it), so restoring puts it back where it was. Outside
+// content/journal/, the vault, links and search never see it. <id>/_deleted.json records {type, title, path,
+// parents: [{path, title}], at, by}. Hidden notes (DM mode) stay sealed in the trash, and the record of a hidden note
+// keeps only {type, at}: its name and place are worked out from its file, which only the DM can open.
+
+const TPRE = `${TRASH}/`;
+const TMETA = '_deleted.json';
+export const isTrashPath = (p) => String(p || '').startsWith(TPRE);
+export const touchesTrash = (e) => e.type === 'load' || isTrashPath(e.path) || (Array.isArray(e.paths) && e.paths.some(isTrashPath));
+export const TRASH_HREF = href('journal', TRASH_SEG);
+
+/** Documents under a prefix ([{path, data}]) and the other files there (attachments, paths only). */
+function filesUnder(pre) {
+  const docs = store.list(pre, { recursive: true });
+  const seen = new Set(docs.map((d) => d.path));
+  return { docs, bins: store.files(pre).map((f) => f.path).filter((p) => !seen.has(p)) };
+}
+
+/** Move a binary file (bytes copied, same visibility, then the original removed). */
+function moveBinary(from, dest) {
+  const hidden = isHidden(from);
+  return store.fileBlob(from).then((blob) => (blob ? store.putBinary(dest, blob, { hidden }).then(() => store.remove(from)) : null))
+    .catch((e) => console.warn('[journal] could not move', from, e));
+}
+
+function deletionRecord(type, title, path, parent) {
+  return { type, title, path, parents: trail(parent).map((x) => ({ path: x.path, title: x.title })), at: now(), by: getSetting('playerName') || '' };
+}
+
+/** Move a note to Recently deleted. Returns its trash id. */
+export function trashNote(note) {
+  const f = folderOf(note);
+  const id = uid(note.title);
+  const rel = note.path.slice(PRE.length);
+  const hidden = isHidden(note.path);
+  keepFolder(f);
+  put(`${TPRE}${id}/${rel}`, note.text, { hidden });
+  put(`${TPRE}${id}/${TMETA}`, hidden ? { type: 'note', at: now() } : deletionRecord('note', note.title, rel, f), { hidden: false });
+  remove(note.path);
+  return id;
+}
+
+/** Move a folder and everything in it to Recently deleted. Returns its trash id (null for the vault root). */
+export function trashFolder(f) {
+  if (f.isRoot) return null;
+  const id = uid(f.title);
+  const base = `${TPRE}${id}/`;
+  const { docs, bins } = filesUnder(`${PRE}${f.path}/`);
+  // A folder holding only hidden notes (and no metadata) is one the players never saw: its record names nothing either.
+  const secret = !f.meta && [...docs.map((d) => d.path), ...bins].every((p) => isHidden(p));
+  keepFolder(f.parent);
+  put(`${base}${TMETA}`, secret ? { type: 'folder', at: now() } : deletionRecord('folder', f.title, f.path, f.parent), { hidden: false });
+  if (!f.meta && !secret) put(`${base}${f.path}/${META}`, { title: f.title }, { hidden: false }); // keeps its name if it comes back empty
+  for (const { path, data } of docs) {
+    put(base + path.slice(PRE.length), data, { hidden: isHidden(path) });
+    remove(path);
+  }
+  for (const p of bins) moveBinary(p, base + p.slice(PRE.length));
+  return id;
+}
+
+const dirOf = (rel) => rel.split('/').slice(0, -1).join('/');
+function commonDir(rels) {
+  let segs = dirOf(rels[0]).split('/').filter(Boolean);
+  for (const r of rels.slice(1)) {
+    const s = r.split('/').slice(0, -1);
+    let i = 0;
+    while (i < segs.length && i < s.length && segs[i] === s[i]) i += 1;
+    segs = segs.slice(0, i);
+  }
+  return segs.join('/');
+}
+
+function trashedNote(path, rel, text) {
+  const { data: fm, body } = parseFrontmatter(text);
+  const slug = stripExt(rel.split('/').pop());
+  return { path, rel, slug, text, fm, body, title: String(fm.title ?? '').trim() || titleFromSlug(slug) };
+}
+
+function entryOf(id, docs, bins, meta) {
+  const base = `${TPRE}${id}/`;
+  const rels = [...docs.map((d) => d.path), ...bins].map((p) => p.slice(base.length));
+  if (!rels.length) return null; // only a record left (its files restored, or a hidden note the DM can open)
+  const notes = docs.filter((d) => /\.md$/i.test(d.path) && typeof d.data === 'string')
+    .map((d) => trashedNote(d.path, d.path.slice(base.length), d.data)).sort((a, b) => cmpText(a.rel, b.rel));
+  const m = meta || {};
+  let type = m.type === 'note' || m.type === 'folder' ? m.type : null;
+  let path = typeof m.path === 'string' && m.path ? m.path : null;
+  if (type === 'note' && !path && notes.length === 1) path = notes[0].rel; // a hidden note: its record names nothing
+  if (!type || !path) { // no full record (hidden files left behind when someone restored the rest): read the files
+    if (notes.length === 1 && rels.length === 1) { type = 'note'; path = notes[0].rel; }
+    else { type = 'folder'; path = commonDir(rels); }
+  }
+  const folderMeta = type === 'folder' ? docs.find((d) => d.path === `${base}${path}/${META}`)?.data : null;
+  const title = String(m.title || '').trim()
+    || (type === 'note' ? notes.find((n) => n.rel === path)?.title : String(folderMeta?.title || '').trim())
+    || titleFromSlug(stripExt(path.split('/').pop() || '')) || 'Untitled';
+  const paths = [...docs.map((d) => d.path), ...bins];
+  return {
+    id, type, title, path, parent: dirOf(path), parents: Array.isArray(m.parents) ? m.parents.filter((p) => p && typeof p.path === 'string') : [],
+    at: m.at ? String(m.at) : '', by: m.by ? String(m.by) : '', notes, docs, bins,
+    metaPath: meta ? `${base}${TMETA}` : null, hidden: paths.every((p) => isHidden(p)),
+  };
+}
+
+/** Recently deleted, newest first: [{id, type: 'note'|'folder', title, path, parent, parents, at, by, notes, docs, bins, metaPath, hidden}]. */
+export function trashEntries() {
+  const groups = new Map();
+  const group = (p) => {
+    const rest = p.slice(TPRE.length);
+    const cut = rest.indexOf('/');
+    if (cut <= 0) return null;
+    const id = rest.slice(0, cut);
+    if (!groups.has(id)) groups.set(id, { id, docs: [], bins: [], meta: null });
+    return { g: groups.get(id), name: rest.slice(cut + 1) };
+  };
+  const { docs, bins } = filesUnder(TPRE);
+  for (const d of docs) {
+    const x = group(d.path);
+    if (!x) continue;
+    if (x.name === TMETA) x.g.meta = isObj(d.data) ? d.data : {};
+    else x.g.docs.push(d);
+  }
+  for (const p of bins) group(p)?.g.bins.push(p);
+  return [...groups.values()].map((g) => entryOf(g.id, g.docs, g.bins, g.meta)).filter(Boolean)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)) || cmpText(a.title, b.title));
+}
+
+export const trashEntry = (id) => trashEntries().find((e) => e.id === id) || null;
+/** How many items Recently deleted holds (the Files pane's count; ids with a file this device can see). */
+export function trashCount() {
+  const ids = new Set();
+  const { docs, bins } = filesUnder(TPRE);
+  for (const p of [...docs.map((d) => d.path), ...bins]) {
+    const rest = p.slice(TPRE.length);
+    const cut = rest.indexOf('/');
+    if (cut > 0 && rest.slice(cut + 1) !== TMETA) ids.add(rest.slice(0, cut));
+  }
+  return ids.size;
+}
+/** Every note waiting in Recently deleted (their reference photos are kept until they are deleted for good). */
+export const trashedNotes = () => trashEntries().flatMap((e) => e.notes);
+
+/** Where an entry came from, for people: "Sessions › Arc one", or the journal itself. */
+export function trashFrom(e) {
+  if (!e.parent) return VAULT_TITLE;
+  const known = new Map(e.parents.map((p) => [p.path.toLowerCase(), p.title]));
+  const segs = e.parent.split('/');
+  return segs.map((s, i) => {
+    const p = segs.slice(0, i + 1).join('/');
+    return known.get(p.toLowerCase()) || folderAt(p)?.title || titleFromSlug(s);
+  }).join(' › ');
+}
+
+const fileExists = (p) => store.has(p) || store.files(p).some((f) => f.path === p);
+
+/** A free vault-relative path for a note coming back: its own, or "name-2"… when its folder has that name now. */
+function freeNotePath(rel) {
+  const dir = dirOf(rel);
+  const f = folderAt(dir); // fresh index: notes put back a moment ago count
+  const name = rel.split('/').pop();
+  const slug = stripExt(name);
+  if (!f) return rel; // a folder that isn't there holds nothing to clash with
+  const fresh = uniqueSlug(slug, takenIn(f));
+  return fresh === slug ? rel : `${dir ? `${dir}/` : ''}${fresh}${name.slice(slug.length)}`;
+}
+
+/** A free full path for an attachment coming back ("photo-2.png" when the name is taken). */
+function freeFilePath(p) {
+  if (!fileExists(p)) return p;
+  const dot = p.lastIndexOf('.');
+  const stem = dot > p.lastIndexOf('/') ? p.slice(0, dot) : p;
+  const ext = p.slice(stem.length);
+  let i = 2;
+  while (fileExists(`${stem}-${i}${ext}`)) i += 1;
+  return `${stem}-${i}${ext}`;
+}
+
+/**
+ * Put an entry back where it was: in its folder (made again, with its old name, if it is gone since), under its own
+ * name. A note whose name is taken there now comes back as "name-2" (both kept); a folder whose name is taken there
+ * now joins that folder (its notes keep their names unless one there already has it). Returns
+ * {type, path (the note's file or the folder's path), href, renamed, merged}.
+ */
+export function restoreEntry(e) {
+  const base = `${TPRE}${e.id}/`;
+  for (const p of e.parents) if (!folderAt(p.path) && p.title) put(metaPathOf(p.path), { title: p.title }); // folders deleted since
+  const isNote = e.type === 'note';
+  const dest = isNote && e.path ? freeNotePath(e.path) : e.path;
+  const merged = !isNote && !!e.path && !!folderAt(dest);
+  const target = (rel) => (e.path && (rel === e.path || rel.startsWith(`${e.path}/`)) ? dest + rel.slice(e.path.length) : rel);
+  for (const { path, data } of e.docs) {
+    let to = target(path.slice(base.length));
+    if (/\.md$/i.test(to)) to = freeNotePath(to);
+    else if (fileExists(PRE + to)) { remove(path); continue; } // folder metadata already there (a merge): theirs stays
+    put(PRE + to, data, { hidden: isHidden(path) });
+    remove(path);
+  }
+  for (const p of e.bins) moveBinary(p, freeFilePath(PRE + target(p.slice(base.length))));
+  if (e.metaPath && store.has(e.metaPath)) remove(e.metaPath);
+  return {
+    type: e.type, path: isNote ? PRE + dest : dest, renamed: dest !== e.path, merged,
+    href: isNote ? hrefForPath(PRE + dest) : folderHref(dest),
+  };
+}
+
+/** Delete an entry for good (its files; reference photos are the caller's: see trash.js). */
+export function purgeEntry(e) {
+  for (const { path } of e.docs) remove(path);
+  for (const p of e.bins) store.remove(p);
+  if (e.metaPath && store.has(e.metaPath)) remove(e.metaPath);
+}
+
+/** Empty Recently deleted (everything under it this device can see, stray records too). */
+export function emptyTrash() {
+  const { docs, bins } = filesUnder(TPRE);
+  for (const { path } of docs) remove(path);
+  for (const p of bins) store.remove(p);
 }
 
 // ---------- link rewriting (renames and moves) ----------

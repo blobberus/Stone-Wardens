@@ -76,14 +76,14 @@ export function pickFolder({ title = 'Move to…', allow = () => true } = {}) {
 export async function confirmDeleteFolder(f) {
   const where = f.parent && !f.parent.isRoot ? `“${f.parent.title}”` : 'the vault root';
   if (!f.count && !f.folders.length) {
-    const ok = await confirmDialog(`Delete the empty folder “${f.title}”?`, { title: 'Delete folder', okLabel: 'Delete folder', danger: true });
+    const ok = await confirmDialog(`Delete the empty folder “${f.title}”? It goes to Recently deleted, where it can be restored.`, { title: 'Delete folder', okLabel: 'Delete folder', danger: true });
     return ok ? 'delete' : null;
   }
   const subs = J.index().folderList.filter((x) => x !== f && J.isUnder(x.path, f.path)).length;
   return choiceDialog(
     h('div', { class: 'stack' },
       h('p', null, `“${f.title}” holds ${plural(f.count, 'note')}${subs ? ` in ${plural(subs + 1, 'folder')}` : ''}.`),
-      h('p', { class: 'muted' }, `Keep the notes to move everything up into ${where} and delete only the folder. Deleting everything removes the notes for the whole party once you save.`)),
+      h('p', { class: 'muted' }, `Keep the notes to move everything up into ${where} and delete only the folder. Deleting everything moves the folder and its notes to Recently deleted (for the whole party once you save), where anyone can restore them until the folder is emptied.`)),
     [
       { label: 'Cancel', value: null, kind: 'ghost' },
       { label: `Delete folder and ${plural(f.count, 'note')}`, value: 'delete', kind: 'danger' },

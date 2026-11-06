@@ -228,7 +228,7 @@ export class NoteView {
     if (value) this.fm.images = value; else delete this.fm.images;
     this.dirty = true;
     this.writeNow();
-    const others = J.index().notes.filter((n) => n.path !== this.path);
+    const others = [...J.index().notes.filter((n) => n.path !== this.path), ...J.trashedNotes()]; // a deleted note may come back
     for (const src of removed) if (!list.some((x) => x.src === src)) dropIfUnused(src, others);
     if (this.galIndex >= list.length) this.galIndex = Math.max(0, list.length - 1);
     this.ctx.sideLive?.(this);

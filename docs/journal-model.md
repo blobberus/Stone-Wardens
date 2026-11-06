@@ -3,7 +3,7 @@
 The Journal tab is an Obsidian-style vault: a folder tree of markdown notes under `content/journal/`. Code:
 `assets/js/views/journal/` (`data.js` model + link types, `query.js` search, `tree.js` Files pane, `search.js` Search and
 Tags panes, `side.js` right pane, `note.js` the open note, `pages.js` home / folder / missing pages, `dialogs.js`,
-`menu.js`, `state.js` per-device UI state, `text.js` helpers). Styles: `assets/css/journal.css` (`.jr-`).
+`menu.js`, `state.js` per-device UI state, `text.js` helpers, `trash.js` Recently deleted). Styles: `assets/css/journal.css` (`.jr-`).
 
 ## Files on disk
 ```
@@ -12,6 +12,9 @@ content/journal/
   <folder>/_chapter.json         optional folder metadata
   <folder>/<note>.md
   <folder>/<sub>/<note>.md       folders nest to any depth
+content/journal-trash/          Recently deleted (see below)
+  <id>/_deleted.json             what was deleted, from where, when, by whom
+  <id>/<folder…>/<note>.md       the deleted note or folder, at its own path in the vault
 ```
 - **Folders are directories.** A folder exists if it holds a note, a subfolder, or a `_chapter.json`.
 - **`_chapter.json`** = folder metadata `{title?, description?, order?}` (all optional; `order` is kept but no longer used
@@ -20,7 +23,7 @@ content/journal/
   folder: "New folder" writes `{title}`, and when the last note leaves a folder without metadata the view writes one so
   the folder stays (as in Obsidian). Without metadata the title is the directory name prettified (`arc-one` -> "Arc one").
 - **Names.** File and directory names are slugs of the title (`slugify`, max 60 chars), unique within their folder;
-  notes and subfolders share that namespace. Top-level folders cannot be called `new` or `_` (router words).
+  notes and subfolders share that namespace. Top-level folders cannot be called `new`, `_` or `recently-deleted` (router words).
   Renaming a note or folder renames the file / directory; moving moves the files as-is (content and `updated` untouched).
 - **Note frontmatter** (YAML, all optional): `title`, `aliases`, `author`, `created`, `updated` (ISO), `tags`, plus any
   custom keys (shown under Properties; editable as YAML from the right pane). `order` from the book days is preserved.
@@ -61,6 +64,7 @@ content/journal/
 | `#/journal/<folder…>` | a folder page (also what `[[folder:X]]` / `[[chapter:X]]` open); `?folder` forces the folder when a note has the same path |
 | `#/journal/<folder…>/<note>` | a note; `?h=<heading-slug>` scrolls to a heading |
 | `#/journal?q=…` / `?tag=…` | opens the Search pane with that query (`?tag=npc` = `tag:#npc`); the open note stays |
+| `#/journal/recently-deleted` | Recently deleted: deleted notes and folders, to look inside, restore, or delete for good |
 | `#/journal/new?title=…` | "New note" dialog (unresolved `[[links]]` point here; for players, outside their own notes, they say the page hasn't been revealed yet: docs/dm-mode.md) |
 
 Resolution (`data.resolveRoute`): segments are joined with `/` (so the encoded form other views build,
@@ -75,6 +79,29 @@ else a root note; two or more segments are a note first, else a folder. Other vi
   `[[chapter:X]]` is the legacy alias of `folder:` (old chapter links keep working).
 - Renaming a note offers to update `[[Old title]]` links; renaming a folder offers to update `[[folder:…]]`/`[[chapter:…]]`
   links. Path-style links (`[[folder/note]]`) to moved notes are updated automatically.
+
+## Recently deleted
+Deleting a note or a folder (the ⋯ menu, the Delete key in Files, or dropping it on **Recently deleted** at the foot of
+the Files pane) moves it to `content/journal-trash/<id>/`, under its own vault path (`<id>/sessions/old-mill.md`; a
+folder with everything in it, subfolders and attachments too). Outside `content/journal/`, the vault, links, search and
+other tabs never see it: links to a deleted note offer to start a new one, as before. The toast after a delete has
+**Undo**. `<id>/_deleted.json` = `{type: 'note'|'folder', title, path, parents: [{path, title}], at, by}` (`path` vault-relative,
+the note's file with `.md`). "Keep the notes" in a folder's delete question still moves its notes up and deletes only the
+folder (nothing goes to the trash).
+- **The page** (`#/journal/recently-deleted`, `trash.js`): newest first, each item with where it came from, when and by
+  whom; click one to look inside (a note rendered; a folder's notes listed), **Restore**, or delete it forever; **Empty
+  folder** deletes everything. Nothing is deleted on its own: items wait until someone empties the folder.
+- **Restore** puts an item back where it was: its folder is made again (with its old name, from `parents`) if it is gone
+  since. A note whose name is taken there now comes back as `name-2` (both kept); a folder whose name is taken there now
+  joins that folder (its notes keep their names unless one there already has it; that folder's metadata stays).
+- **Reference photos** stay in `content/media/journal/` while their note waits here (and count as used: removing one from
+  another note keeps the file); deleting the note forever deletes its uploads once no note lists them.
+- **DM mode**: a hidden note stays sealed in the trash (moved with `{hidden: true}`), so players never see it there; its
+  `_deleted.json` is only `{type, at}` (its name and place come from the sealed file, which only the DM can open). A
+  folder holding only hidden notes gets the same bare record. In a folder with both, the visible notes and the folder are
+  the players' to see and restore; the hidden ones stay behind when a player restores it, and the DM finds them on the
+  page (worked out from their paths: one note = a note, several = their folder), each restored still hidden. On the DM
+  Screen a hidden note waiting here is a "Deleted journal note" that can't be released before it is restored.
 
 ## UI state (localStorage, per device)
 `sw:journal:prefs` (pane tab and visibility, widths, sort, tag sort, right-pane sections) and

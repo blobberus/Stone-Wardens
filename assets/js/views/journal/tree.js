@@ -31,7 +31,13 @@ export class FileTree {
       iconBtn('collapse', 'Collapse all folders', () => { S.collapseAll(); this.render(); }));
     this.treeEl = h('div', { class: 'jr-tree', role: 'tree', 'aria-label': 'Notes and folders' });
     this.scroller = h('div', { class: 'jr-pane-scroll jr-tree-scroll' }, this.treeEl);
-    this.el = h('div', { class: 'jr-pane jr-files' }, bar, this.scroller);
+    // Recently deleted (trash.js), always at the foot of the pane; a note or folder dropped on it is deleted.
+    this.trashNum = h('span', { class: 'jr-row-count' });
+    this.trashLink = h('a', {
+      class: 'jr-trash-link', href: J.TRASH_HREF,
+      title: 'Deleted notes and folders wait here until someone empties the folder. Drop a note or folder here to delete it.',
+    }, icon('trash'), h('span', { class: 'jr-row-label' }, J.TRASH_TITLE), this.trashNum);
+    this.el = h('div', { class: 'jr-pane jr-files' }, bar, this.scroller, h('div', { class: 'jr-pane-foot' }, this.trashLink));
     this.wire();
   }
 
@@ -45,11 +51,19 @@ export class FileTree {
   }
 
   /** Re-render only if the vault changed since the last render. */
-  sync() { if (this.builtFor !== J.index()) this.render(); }
+  sync() { if (this.builtFor !== J.index()) this.render(); else this.renderTrash(); }
+
+  renderTrash() {
+    const n = J.trashCount();
+    this.trashNum.textContent = n ? String(n) : '';
+    this.trashNum.title = n ? plural(n, 'item') : '';
+    this.trashLink.classList.toggle('is-empty', !n);
+  }
 
   render() {
     const ix = J.index();
     this.builtFor = ix;
+    this.renderTrash();
     const keep = this.scroller.scrollTop;
     const focusKey = this.treeEl.contains(document.activeElement) ? document.activeElement.closest('.jr-row')?.dataset : null;
     this.count.textContent = plural(ix.notes.length, 'note');
@@ -110,9 +124,11 @@ export class FileTree {
   }
 
   /** Highlight the open note (or folder page) and expand its folders so it is visible. */
-  setActive({ note = null, folder = null } = {}) {
+  setActive({ note = null, folder = null, trash = false } = {}) {
     this.activeNote = note ? note.path : null;
     this.activeFolder = folder && !folder.isRoot ? folder.path : null;
+    this.trashLink.classList.toggle('is-active', trash);
+    if (trash) this.trashLink.setAttribute('aria-current', 'page'); else this.trashLink.removeAttribute('aria-current');
     const reveal = note ? note.folder : this.activeFolder ? this.activeFolder.split('/').slice(0, -1).join('/') : '';
     if (reveal && S.reveal(reveal)) this.render();
     else this.markActive(true);
@@ -343,6 +359,22 @@ export class FileTree {
       if (!ok) return;
       e.preventDefault();
       this.ctx.moveItem(d, dest);
+    });
+    const tl = this.trashLink;
+    tl.addEventListener('dragover', (e) => {
+      if (!this.drag) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      this.highlight(null);
+      tl.classList.add('is-drop');
+    });
+    tl.addEventListener('dragleave', () => tl.classList.remove('is-drop'));
+    tl.addEventListener('drop', (e) => {
+      if (!this.drag) return;
+      e.preventDefault();
+      const d = this.drag;
+      end();
+      this.ctx.deleteItem(d); // asks first, as the menu's Delete does
     });
     document.addEventListener('dragend', end);
   }
