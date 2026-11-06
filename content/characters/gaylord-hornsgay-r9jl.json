@@ -136,8 +136,8 @@
     "skin": "Brown",
     "location": "",
     "groups": "",
-    "religion": "",
-    "appearance": "",
+    "religion": "Not Mormon",
+    "appearance": "His eyes are like the ",
     "personalityTraits": "",
     "socialTraits": "",
     "mentalTraits": "",
@@ -152,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:42:02.113Z",
+  "updated": "2026-11-06T02:42:26.669Z",
   "levelOrder": [
     "paladin"
   ]
