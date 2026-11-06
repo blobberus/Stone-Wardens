@@ -24,10 +24,10 @@
   ],
   "abilityMethod": "standard",
   "baseAbilities": {
-    "str": 12,
+    "str": 14,
     "dex": 10,
     "con": 8,
-    "int": 14,
+    "int": 12,
     "wis": 13,
     "cha": 15
   },
@@ -152,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:36:09.509Z",
+  "updated": "2026-11-06T02:36:27.256Z",
   "levelOrder": [
     "paladin"
   ]
