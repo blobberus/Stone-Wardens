@@ -49,9 +49,7 @@
     "skills": [],
     "expertise": [],
     "saves": [],
-    "armor": [
-      "medium"
-    ],
+    "armor": [],
     "weapons": [],
     "tools": [],
     "languages": []
@@ -154,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:39:01.469Z",
+  "updated": "2026-11-06T02:39:37.965Z",
   "levelOrder": [
     "paladin"
   ]
