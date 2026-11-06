@@ -22,7 +22,7 @@
       ]
     }
   ],
-  "abilityMethod": "standard",
+  "abilityMethod": "pointbuy",
   "baseAbilities": {
     "str": 14,
     "dex": 10,
@@ -152,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:36:27.256Z",
+  "updated": "2026-11-06T02:36:44.287Z",
   "levelOrder": [
     "paladin"
   ]
