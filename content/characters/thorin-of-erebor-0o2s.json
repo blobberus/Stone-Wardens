@@ -1,6 +1,6 @@
 {
   "id": "thorin-of-erebor-0o2s",
-  "name": "Thorin of Erebor",
+  "name": "Thorin of Erebor --",
   "player": "Rohan",
   "portrait": "content/characters/portraits/thorin-of-erebor-dm6nuj.webp",
   "species": {
@@ -131,5 +131,5 @@
   },
   "createdBy": "Rohan",
   "created": "2026-11-06T02:30:41.733Z",
-  "updated": "2026-11-06T02:30:41.734Z"
+  "updated": "2026-11-06T02:45:04.990Z"
 }
