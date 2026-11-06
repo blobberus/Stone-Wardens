@@ -131,8 +131,8 @@
     "age": "",
     "height": "6’7”",
     "weight": "",
-    "eyes": "",
-    "hair": "",
+    "eyes": "Beautiful ",
+    "hair": "Flowing locks",
     "skin": "Brown",
     "location": "",
     "groups": "",
@@ -152,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:41:01.859Z",
+  "updated": "2026-11-06T02:41:22.424Z",
   "levelOrder": [
     "paladin"
   ]
