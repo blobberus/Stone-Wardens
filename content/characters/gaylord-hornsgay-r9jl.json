@@ -49,7 +49,10 @@
     "skills": [],
     "expertise": [],
     "saves": [],
-    "armor": [],
+    "armor": [
+      "heavy",
+      "shields"
+    ],
     "weapons": [],
     "tools": [],
     "languages": []
@@ -108,9 +111,7 @@
     "saves": {},
     "skills": {},
     "proficiency": {
-      "skills": {
-        "performance": "proficient"
-      },
+      "skills": {},
       "saves": {}
     }
   },
@@ -154,7 +155,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:38:36.696Z",
+  "updated": "2026-11-06T02:38:53.956Z",
   "levelOrder": [
     "paladin"
   ]
