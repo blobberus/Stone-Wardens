@@ -114,12 +114,12 @@
   },
   "style": {
     "accent": "#465266",
-    "page": "#93e3fd",
-    "panel": "#ffcc02",
-    "border": "#d357fe",
-    "borderStyle": null,
-    "borderWidth": null,
-    "corners": null,
+    "page": "#d6d3cc",
+    "panel": "#eeece7",
+    "border": "#9a958a",
+    "borderStyle": "ridge",
+    "borderWidth": 2,
+    "corners": "square",
     "headingFont": null,
     "textFont": null
   },
@@ -152,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:48:07.223Z",
+  "updated": "2026-11-06T02:48:21.534Z",
   "levelOrder": [
     "paladin"
   ]
