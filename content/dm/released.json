@@ -1,14 +1,6 @@
 {
   "items": [
     {
-      "path": "content/maps/map-aby5.json",
-      "title": "Map",
-      "label": "Map",
-      "href": "#/map/m/map-aby5",
-      "at": "2026-11-06T02:11:46.083Z",
-      "by": "Blobberus"
-    },
-    {
       "path": "content/journal/regions/southern-caspana-2.md",
       "title": "Southern Caspana",
       "label": "Journal note",
