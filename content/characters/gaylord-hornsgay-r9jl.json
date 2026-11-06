@@ -50,8 +50,7 @@
     "expertise": [],
     "saves": [],
     "armor": [
-      "heavy",
-      "shields"
+      "medium"
     ],
     "weapons": [],
     "tools": [],
@@ -155,7 +154,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-06T02:38:53.956Z",
+  "updated": "2026-11-06T02:39:01.469Z",
   "levelOrder": [
     "paladin"
   ]
