@@ -1,6 +1,14 @@
 {
   "items": [
     {
+      "path": "wardens-library/Stone-Wardens-Campaign-Pitch.pdf",
+      "title": "Stone Wardens Campaign Pitch",
+      "label": "Library document",
+      "href": "#/wardens-library/Stone-Wardens-Campaign-Pitch.pdf",
+      "at": "2026-11-07T23:38:51.809Z",
+      "by": "Blobberus"
+    },
+    {
       "path": "content/maps/map-aby5.json",
       "title": "Map",
       "label": "Map",
