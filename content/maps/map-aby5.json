@@ -1,0 +1,57 @@
+{
+  "id": "map-aby5",
+  "name": "Map",
+  "parent": null,
+  "image": "content/maps/map-aby5/southern-caspana.webp",
+  "width": 1690,
+  "height": 1482,
+  "createdBy": "",
+  "created": "2026-10-25T17:43:13.708Z",
+  "updated": "2026-10-25T17:44:51.031Z",
+  "design": {
+    "background": {
+      "kind": "theme",
+      "color": "#c9b98f",
+      "image": "",
+      "fit": "tile"
+    },
+    "crop": null,
+    "compass": {
+      "show": true,
+      "type": "rose",
+      "anchor": "screen",
+      "corner": "bl",
+      "size": 112,
+      "x": 0.1,
+      "y": 0.82,
+      "mapSize": 0.12,
+      "rotation": 0,
+      "color": "#1f1a14"
+    },
+    "scale": {
+      "show": true,
+      "ruler": true,
+      "unit": "miles",
+      "custom": "",
+      "perPx": 0.3994082840236686,
+      "style": "checkered",
+      "corner": "bl",
+      "pace": {
+        "on": false,
+        "per": 24,
+        "label": "days on foot"
+      }
+    },
+    "border": {
+      "show": true,
+      "type": "burnt",
+      "color": "#1f1a14",
+      "accent": "",
+      "width": 2.6,
+      "pad": 0,
+      "corners": "auto",
+      "mat": "paper",
+      "matColor": "#efe5cc"
+    }
+  }
+}
