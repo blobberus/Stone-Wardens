@@ -1,0 +1,220 @@
+{
+  "id": "baron-of-the-blighted-potato-ld35",
+  "name": "Baron of the Blighted Potato",
+  "player": "Mark",
+  "portrait": null,
+  "species": {
+    "id": "elf",
+    "subspecies": "elven-lineage-wood-elf",
+    "size": null
+  },
+  "background": {
+    "id": "acolyte",
+    "abilityBonuses": {
+      "cha": 2,
+      "wis": 1
+    }
+  },
+  "classes": [
+    {
+      "id": "bard",
+      "level": 1,
+      "subclass": null,
+      "hp": [
+        8
+      ]
+    }
+  ],
+  "abilityMethod": "standard",
+  "baseAbilities": {
+    "str": 10,
+    "dex": 14,
+    "con": 13,
+    "int": 8,
+    "wis": 12,
+    "cha": 15
+  },
+  "choices": {
+    "species:subspecies": "elven-lineage-wood-elf",
+    "species:elven-lineage/spellcasting-ability": "cha",
+    "species:keen-senses": [
+      "perception"
+    ],
+    "background:abilities": {
+      "cha": 2,
+      "wis": 1
+    },
+    "origin:languages": [
+      "elvish",
+      "thieves-cant"
+    ],
+    "feat:magic-initiate/1": [
+      "guidance",
+      "spare-the-dying"
+    ],
+    "feat:magic-initiate/2": [
+      "cure-wounds"
+    ],
+    "feat:magic-initiate/spellcasting-ability": "cha",
+    "class-skills@bard:1": [
+      "stealth",
+      "medicine",
+      "persuasion"
+    ],
+    "class-tools@bard:1": [
+      "flute",
+      "viol",
+      "horn"
+    ]
+  },
+  "skills": [
+    "stealth",
+    "medicine",
+    "persuasion"
+  ],
+  "extraProficiencies": {
+    "skills": [],
+    "expertise": [],
+    "saves": [],
+    "armor": [],
+    "weapons": [],
+    "tools": [],
+    "languages": []
+  },
+  "feats": [],
+  "spells": [
+    {
+      "id": "light",
+      "class": "bard",
+      "prepared": true,
+      "always": false
+    },
+    {
+      "id": "minor-illusion",
+      "class": "bard",
+      "prepared": true,
+      "always": false
+    },
+    {
+      "id": "disguise-self",
+      "class": "bard",
+      "prepared": true,
+      "always": false
+    },
+    {
+      "id": "dissonant-whispers",
+      "class": "bard",
+      "prepared": true,
+      "always": false
+    },
+    {
+      "id": "heroism",
+      "class": "bard",
+      "prepared": true,
+      "always": false
+    },
+    {
+      "id": "thunderwave",
+      "class": "bard",
+      "prepared": true,
+      "always": false
+    }
+  ],
+  "slotsUsed": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "pactUsed": 0,
+  "inventory": [],
+  "currency": {
+    "cp": 0,
+    "sp": 0,
+    "ep": 0,
+    "gp": 0,
+    "pp": 0
+  },
+  "hp": {
+    "current": 9,
+    "temp": 0
+  },
+  "hitDiceUsed": {},
+  "deathSaves": {
+    "success": 0,
+    "fail": 0
+  },
+  "resourcesUsed": {},
+  "conditions": [],
+  "exhaustion": 0,
+  "heroicInspiration": false,
+  "xp": 0,
+  "abilities": [],
+  "favorites": {
+    "items": [],
+    "skills": [],
+    "features": [],
+    "spells": []
+  },
+  "overrides": {
+    "ac": null,
+    "speed": null,
+    "initiative": null,
+    "hpMax": null,
+    "profBonus": null,
+    "passivePerception": null,
+    "abilities": {},
+    "saves": {},
+    "skills": {},
+    "proficiency": {
+      "skills": {},
+      "saves": {}
+    }
+  },
+  "style": {
+    "accent": null,
+    "page": null,
+    "panel": null,
+    "border": null,
+    "borderStyle": null,
+    "borderWidth": null,
+    "corners": null,
+    "headingFont": null,
+    "textFont": null
+  },
+  "details": {
+    "alignment": "chaotic-neutral",
+    "pronouns": "He/him",
+    "gender": "Male",
+    "sexuality": "Straight",
+    "age": "245",
+    "height": "5'8",
+    "weight": "150lbs",
+    "eyes": "green",
+    "hair": "dirty blond",
+    "skin": "pale",
+    "location": "",
+    "groups": "",
+    "religion": "Aetheist",
+    "appearance": "",
+    "personalityTraits": "",
+    "socialTraits": "",
+    "mentalTraits": "",
+    "ideals": "",
+    "bonds": "",
+    "flaws": "",
+    "likes": "",
+    "dislikes": "",
+    "resistances": "",
+    "backstory": "",
+    "notes": ""
+  },
+  "createdBy": "Mark",
+  "created": "2026-11-07T23:42:05.453Z",
+  "updated": "2026-11-07T23:42:05.456Z"
+}
