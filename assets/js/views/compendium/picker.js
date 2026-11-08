@@ -1,8 +1,9 @@
 // openPicker(kinds, {title, filter, multi}) -> Promise<entry|entry[]|null>
-// Modal chooser: kind tabs, search, quick filters, compact rows with key stats, a live preview (renderEntry)
-// and "+ Create custom…" which chains into openEntryEditor and returns the new entry.
+// Modal chooser: kind tabs, search, quick filters, compact rows with key stats and a Details button (the full entry in
+// a dialog on top), a live preview (renderEntry; hidden on phones) and "+ Create custom…" which chains into
+// openEntryEditor and returns the new entry.
 import { h } from '../../core/dom.js';
-import { openModal, icon, select, isTouch } from '../../core/ui.js';
+import { openModal, icon, select, isTouch, detailsButton } from '../../core/ui.js';
 import { preloadAll } from '../../core/compendium.js';
 import {
   rulesReady, listEntries, filtersFor, applyFilters, searchText, statLine, kindLabel, kindOne, isKind,
@@ -171,7 +172,14 @@ export async function openPicker(kinds, { title, filter, multi = false, selected
           e.origin === 'stub' ? h('span', { class: 'badge cp-mini', title: e.source || '' }, e.source || 'Stub') : null,
           e.legacy ? h('span', { class: 'badge cp-mini' }, '2014') : null,
           marks.map((x) => h('span', { class: ['badge', TONE[x.tone] ?? 'badge-warn', 'cp-mini'], title: x.title || null }, x.label))),
-        h('span', { class: 'muted' }, statLine(e))));
+        h('span', { class: 'muted' }, statLine(e))),
+      detailsButton({
+        name: e.name,
+        render: () => renderEntry(e),
+        pick: () => (multi
+          ? { label: chosen.has(keyOf(e)) ? 'Unselect' : 'Select', onPick: () => { toggle(e); setCursor(shown.indexOf(e), false); } }
+          : { label: confirmLabel || 'Choose', onPick: () => pick(e) }),
+      }));
     }
     function setCursor(i, scroll = true) {
       if (!shown.length) return;

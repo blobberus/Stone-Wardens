@@ -317,6 +317,12 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   Healing, each damage type present, Concentration, Ritual, Bonus action, Reaction); one choice per group, all combined. Pure helpers in engine-spells.js
   (`spellFxKeys`, `spellPasses`, `spellFilterOptions`, `shortCastingTime`, `shortRange`); the sheet only toggles
   `hidden` on rows (state per character for the session), so typing never repaints the sheet.
+- Details in choosers: every row of the compendium picker (Add spells, inventory, Edit all feats/spells) and of a
+  `pickFromList` with a `details(item)` option (choices.js spell / feat / weapon / tool picks, the ASI-or-feat feat
+  list, the builder's caster picks, Edit all weapon / tool proficiencies) ends in a "Details" button (ui.js
+  `detailsButton`): the full entry (`renderEntry`) in a dialog over the chooser, Back plus Select / Unselect (multi) or
+  Choose (single); its clicks never reach the row. Characters pass `...entryDetails(get)` (widgets.js; default
+  `row.entry`); choices.js `optionEntry(type)` finds the entry for options the engine lists without one.
 - Add spells picker (sheet.js `addSpells`): a limits box on top (`spellLimitsBox`, picker option `head`) shows the
   caster line's Cantrips / Prepared / Spellbook counts including the ticked spells; going over is allowed (red count +
   note, no notice dialog for a shown limit); a spellbook caster's spells past the prepared limit go in unprepared

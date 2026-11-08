@@ -15,7 +15,7 @@ import {
 } from './bridge.js';
 import { renderChoiceGroups, isAnswered, currentValue } from './choices.js';
 import { renderScores, setMethod } from './scores.js';
-import { rerender, portrait, portraitField, md, fmt, rollDie, loading, entryModal } from './widgets.js';
+import { rerender, portrait, portraitField, md, fmt, rollDie, loading, entryModal, entryDetails } from './widgets.js';
 
 const STEPS = [
   { id: 'identity', label: 'Name & portrait' },
@@ -466,6 +466,7 @@ function casterPicker(c, s, sc) {
       items, multi: true, selected: items.filter((e) => current.includes(e.id)),
       render: (e) => h('div', { class: 'picker-item-main' }, h('span', { class: 'picker-item-title' }, e.name), h('small', { class: 'muted' }, entrySubtitle(e))),
       search: (e) => `${e.name} ${e.school}`,
+      ...entryDetails((e) => e),
     });
     if (!res) return;
     mutate((x) => {

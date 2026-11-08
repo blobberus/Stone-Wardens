@@ -292,6 +292,11 @@ export function entryModal(entry, { title, actions = [] } = {}) {
   return openModal({ title: title || entry.name, wide: true, body: renderEntry(entry), actions: [...actions, { label: 'Close', kind: 'ghost' }] });
 }
 
+/** pickFromList options giving rows that carry a compendium entry (get(row), default row.entry) a Details button. */
+export function entryDetails(get = (o) => o?.entry) {
+  return { details: (o) => renderEntry(get(o)), hasDetails: (o) => !!get(o) };
+}
+
 export function chip(label, { onRemove, title, active, onClick, className } = {}) {
   const tag = onClick ? 'button' : 'span';
   return h(tag, { class: ['chip', active && 'is-active', className], type: onClick ? 'button' : null, title: title || null, onclick: onClick || null, 'aria-pressed': onClick ? String(!!active) : null },

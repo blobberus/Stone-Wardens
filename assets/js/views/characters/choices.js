@@ -9,7 +9,7 @@ import {
   storeChoice, choiceValue,
 } from './bridge.js';
 import { ABILITIES, ABILITY_IDS, abilityName, prettify, totalLevel } from './data.js';
-import { md, entryModal } from './widgets.js';
+import { md, entryModal, entryDetails } from './widgets.js';
 
 // ---------- value encoding (single place to adapt to the engine) ----------
 
@@ -377,6 +377,10 @@ function renderMultiPick(choice, value, count, options, ctx) {
   }));
 }
 
+// The compendium kind behind a choice's options, for Details on options the engine lists without their entry.
+const ENTRY_KIND = { spells: 'spell', feat: 'feat', 'asi-or-feat': 'feat', 'weapon-mastery': 'weapon', subclass: 'subclass', tools: 'gear' };
+const optionEntry = (type) => (o) => o?.entry || (ENTRY_KIND[type] && o?.id ? findEntry(ENTRY_KIND[type], o.id) : null);
+
 function renderPickerButton(choice, value, count, options, ctx) {
   const ids = readIds(value);
   const byId = new Map(options.map((o) => [o.id, o]));
@@ -390,6 +394,7 @@ function renderPickerButton(choice, value, count, options, ctx) {
       render: (o) => h('div', { class: 'picker-item-main' }, h('span', { class: 'picker-item-title' }, o.name, o.disabled ? ' (unavailable)' : ''), o.meta || o.reason ? h('small', { class: 'muted' }, [o.meta, o.reason].filter(Boolean).join(' · ')) : null),
       search: (o) => `${o.name} ${o.meta || ''}`,
       empty: 'No options match. Check the level, list or prerequisites.',
+      ...entryDetails(optionEntry(choice.type)),
     });
     if (res == null) return;
     const next = (Array.isArray(res) ? res : [res]).filter((o) => !o.disabled || ids.includes(o.id)).map((o) => o.id).slice(0, count);
@@ -511,6 +516,7 @@ function renderAsiOrFeat(choice, value, ctx) {
       title: 'Choose a feat', items: options,
       render: (o) => h('div', { class: 'picker-item-main' }, h('span', { class: 'picker-item-title' }, o.name), h('small', { class: o.disabled ? 'danger-text' : 'muted' }, [o.meta, o.reason].filter(Boolean).join(' · '))),
       search: (o) => `${o.name} ${o.meta}`,
+      ...entryDetails(optionEntry('feat')),
     });
     if (res) set({ feat: res.id, asi: {} }); // unmet prerequisites are flagged, not blocked (DM's call)
   }

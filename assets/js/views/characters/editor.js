@@ -14,7 +14,7 @@ import {
 } from './bridge.js';
 import { renderChoiceGroups, isAnswered, currentValue } from './choices.js';
 import { renderScores } from './scores.js';
-import { rerender, section, portraitField, md, fmt, chip, modifiersEditor, cleanModifiers, loading, entryModal } from './widgets.js';
+import { rerender, section, portraitField, md, fmt, chip, modifiersEditor, cleanModifiers, loading, entryModal, entryDetails } from './widgets.js';
 import { openLevelUp } from './levelup.js';
 import { deleteWithWarning } from './trash.js';
 // Save bars, highlight color, proficiency tables
@@ -469,8 +469,8 @@ function profOptions(kind) {
     case 'skills': case 'expertise': return skillList().map((x) => ({ id: x.id, name: x.name }));
     case 'saves': return ABILITIES.map((a) => ({ id: a.id, name: a.full }));
     case 'armor': return ['light', 'medium', 'heavy', 'shields'].map((id) => ({ id, name: profName('armor', id) }));
-    case 'weapons': return [...['simple', 'martial', 'improvised'].map((id) => ({ id, name: profName('weapons', id) })), ...cat('weapon').map((w) => ({ id: w.id, name: w.name }))];
-    case 'tools': return toolList().map((t) => ({ id: t.id, name: t.name, meta: prettify(t.category) }));
+    case 'weapons': return [...['simple', 'martial', 'improvised'].map((id) => ({ id, name: profName('weapons', id) })), ...cat('weapon').map((w) => ({ id: w.id, name: w.name, entry: w }))];
+    case 'tools': return toolList().map((t) => ({ id: t.id, name: t.name, meta: prettify(t.category), entry: t }));
     case 'languages': return languageList().map((l) => ({ id: l.id, name: l.name, meta: l.rare ? 'rare' : '' }));
     default: return [];
   }
@@ -487,7 +487,7 @@ function proficiencies({ c, s }) {
       const list = c.extraProficiencies[kind] || [];
       const add = async () => {
         const opts = profOptions(kind).filter((o) => !list.includes(o.id));
-        const res = await pickFromList({ title: `Add ${label.toLowerCase()}`, items: opts, multi: true, render: (o) => h('div', { class: 'picker-item-main' }, h('span', { class: 'picker-item-title' }, o.name), o.meta ? h('small', { class: 'muted' }, o.meta) : null), search: (o) => o.name });
+        const res = await pickFromList({ title: `Add ${label.toLowerCase()}`, items: opts, multi: true, render: (o) => h('div', { class: 'picker-item-main' }, h('span', { class: 'picker-item-title' }, o.name), o.meta ? h('small', { class: 'muted' }, o.meta) : null), search: (o) => o.name, ...entryDetails() });
         if (res?.length) mutate((x) => { x.extraProficiencies[kind] = [...new Set([...(x.extraProficiencies[kind] || []), ...res.map((o) => o.id)])]; });
       };
       return h('div', { class: 'ch-prof-edit' },

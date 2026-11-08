@@ -535,6 +535,10 @@ button.chip, a.chip { cursor: pointer; transition: background-color var(--dur) v
 .picker-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .picker-item-title { font-weight: 500; color: var(--ink); }
 .picker-empty { padding: var(--space-5); text-align: center; color: var(--ink-muted); font: 400 var(--text-sm) / 1.4 var(--font-ui); }
+/* A row's Details button (ui.js detailsButton): outlined so it reads as its own control on a hovered or ticked row */
+.btn.picker-details { flex: none; padding: 0 9px; color: var(--ink-muted); background: var(--surface); border-color: var(--border); }
+@media (hover: hover) { .btn.picker-details:hover { color: var(--ink); background: var(--surface); border-color: var(--ink-muted); } }
+.btn.picker-details:active { background: var(--surface-3); }
 
 /* ---------- Markdown editor ----------------------------------------------- */
 .md-editor {

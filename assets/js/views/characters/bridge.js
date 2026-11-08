@@ -417,6 +417,7 @@ export async function openPicker(kinds, opts = {}) {
     items, multi: !!opts.multi,
     render: (e) => h('div', { class: 'picker-item-main' }, h('span', { class: 'picker-item-title' }, e.name), h('small', { class: 'muted' }, entrySubtitle(e))),
     search: (e) => `${e.name} ${e.category || ''} ${e.school || ''} ${e.kind}`,
+    details: (e) => renderEntry(e),
   });
 }
 

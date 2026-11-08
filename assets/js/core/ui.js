@@ -135,13 +135,45 @@ export function promptDialog(title, { label = '', value = '', placeholder = '', 
 }
 
 /**
- * pickFromList({title, items, render(item) -> Node|string, search(item) -> string, multi, selected, empty})
+ * The "Details" button at the end of a chooser row (pickFromList, the compendium picker): opens render() in a dialog
+ * over the chooser, with Back and, when pick() returns {label, onPick}, that action (Select / Unselect / Choose).
+ * Its clicks never reach the row, so looking never picks; closing the dialog puts the focus back on the button.
+ */
+export function detailsButton({ name, render, pick = null }) {
+  const btn = h('button', {
+    type: 'button', class: 'btn btn-sm btn-ghost picker-details', 'aria-label': `Details: ${name}`, title: `Show everything about ${name}`,
+    onclick: (e) => {
+      e.stopPropagation();
+      let body;
+      try { body = render(); } catch (err) { console.error(err); body = null; }
+      const act = typeof pick === 'function' ? pick() : null;
+      openModal({
+        title: name, wide: true, className: 'modal-details',
+        body: body || h('p', { class: 'muted' }, 'There are no details to show for this one.'),
+        actions: [{ label: 'Back', kind: 'ghost' }, ...(act ? [{ label: act.label, kind: 'primary', onClick: act.onPick }] : [])],
+        onClose: () => { if (btn.isConnected && !isTouch()) btn.focus({ preventScroll: true }); },
+      });
+    },
+    ondblclick: (e) => e.stopPropagation(),
+  }, icon('info'), h('span', { class: 'picker-details-label' }, 'Details'));
+  return btn;
+}
+
+/**
+ * pickFromList({title, items, render(item) -> Node|string, search(item) -> string, multi, selected, empty,
+ *   details(item) -> Node, hasDetails(item) -> bool})
+ * With `details`, rows (those passing hasDetails, default all) get a Details button showing details(item) on top.
  * Resolves the chosen item (or array when multi), or null when dismissed.
  */
-export function pickFromList({ title = 'Choose', items = [], render = (x) => x.name, search = (x) => x.name, multi = false, selected = [], empty = 'Nothing matches.', extra = null } = {}) {
+export function pickFromList({ title = 'Choose', items = [], render = (x) => x.name, search = (x) => x.name, multi = false, selected = [], empty = 'Nothing matches.', extra = null, details = null, hasDetails = () => true } = {}) {
   return new Promise((resolve) => {
     let result = null;
     const chosen = new Set(selected);
+    const info = (it) => (typeof details === 'function' && hasDetails(it) ? detailsButton({
+      name: it?.name || title,
+      render: () => details(it),
+      pick: () => ({ label: !multi ? 'Choose' : chosen.has(it) ? 'Unselect' : 'Select', onPick: () => pick(it) }),
+    }) : null);
     const q = h('input', { class: 'input picker-search', type: 'search', placeholder: 'Search…', autofocus: true });
     const list = h('ul', { class: 'picker-list', role: 'listbox' });
     let active = 0;
@@ -157,7 +189,7 @@ export function pickFromList({ title = 'Choose', items = [], render = (x) => x.n
           class: ['picker-item', chosen.has(it) && 'is-selected', i === active && 'is-active'],
           role: 'option',
           onclick: () => pick(it),
-        }, multi ? h('span', { class: 'picker-check' }, chosen.has(it) ? '✓' : '') : null, render(it));
+        }, multi ? h('span', { class: 'picker-check' }, chosen.has(it) ? '✓' : '') : null, render(it), info(it));
         list.append(li);
       });
     };
