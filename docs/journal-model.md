@@ -142,8 +142,12 @@ months, dates), `board.js` (item dialogs' controls, the hover card), `ages.js` (
   YAML (then writes the note again), never as raw text. `[[` suggests events, sub-timelines and people
   (`[[Kings of Vael#Siege of Greywater]]`); such a link opens the board at the item with its card open (`?h=`).
   `![[Kings of Vael]]` embeds the introduction and the items in order; `![[Kings of Vael#Reign of Aldis]]` one item.
-  The right pane's Properties names the type ("Timeline · 7 events, 3 sub-timelines"); the Properties editor leaves
-  the board keys alone.
+  The ages a timeline shows (listed, or holding its dates) count as its items too, though they live in
+  content/calendar.json: an age's tags find those timelines and `[[Kings of Vael#After the Fallen Firmament]]`
+  opens its band; editing the ages re-indexes the timelines. The right pane's Properties names the type
+  ("Timeline · 7 events, 3 sub-timelines"); its Outline lists the items after the introduction's headings (events
+  and sub-timelines by date, people by generation; a click goes to the item). The Properties editor leaves the
+  board keys alone.
 - **The page.** The introduction (a text box while editing, a couple of paragraphs tall), then the toolbar and the
   board, in both modes. While editing, a Tags box under the title holds the note's own `tags:`.
 - **The world's calendar**, `content/calendar.json`, shared by every timeline and family tree:
