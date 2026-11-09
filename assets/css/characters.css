@@ -439,7 +439,7 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
 
 /* Actions window: one panel, a tab bar (Attacks · Spells · Bonus actions), each tab a section without its own chrome.
    The section's title is redundant with the tab (kept for screen readers); its actions (+ Weapon, + Spells) stay. */
-.ch-tabs { container: ch-tabs / inline-size; position: relative; scroll-margin-top: 64px; overflow: visible; }
+.ch-tabs { container: ch-tabs / inline-size; position: relative; scroll-margin-top: 28px; overflow: visible; }
 .ch-tabs-bar {
   display: flex; gap: 2px; padding: 0 var(--space-3); overflow-x: auto; scrollbar-width: none;
   border-bottom: 1px solid var(--rule);
@@ -472,7 +472,7 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
 @container ch-body (max-width: 680px) {
   .ch-body-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "l" "r"; }
 }
-.ch-sec { scroll-margin-top: 64px; }
+.ch-sec { scroll-margin-top: 28px; } /* + the view's 24 px scroll padding: just under the 39 px section bar (45 px on touch) */
 .ch-sec-head { flex-wrap: wrap; }
 .ch-sec-head > .icon { width: 18px; height: 18px; color: var(--ink-muted); }
 .ch-sec-title { margin: 0; font: 700 var(--text-md) / 1.3 var(--font-body); letter-spacing: 0; }
