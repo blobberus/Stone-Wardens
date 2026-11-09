@@ -324,7 +324,16 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
 }
 .ch-hp.is-down { border-color: var(--danger); box-shadow: inset 3px 0 0 var(--danger); }
-.ch-hp-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+/* the number wraps under the label rather than overflowing a narrow box */
+.ch-hp-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-2); }
+.ch-hp-top > .ch-hp-now { margin-left: auto; }
+/* Touch phones: the Death saves box (label beside its finger-sized boxes) leaves HP about 156 px, so the heart alone
+   labels it there ("Hit points" stays for screen readers) and "119 / 120" fits */
+@media (pointer: coarse) {
+  @container ch-head (max-width: 520px) {
+    .ch-head .ch-hp-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  }
+}
 .ch-hp-top .ch-fold { margin-left: -6px; }
 .ch-hp-top .ch-stat-label { color: var(--ink); font-weight: 700; font-size: var(--text-sm); }
 .ch-hp-top .ch-stat-label .icon { color: var(--danger); }

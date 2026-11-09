@@ -439,7 +439,7 @@ function hpWidget(c, s) {
       h('button', {
         class: 'ch-fold', type: 'button', 'aria-expanded': String(open), 'aria-controls': 'ch-hp-edit', 'data-fk': 'hp-fold',
         title: open ? 'Hide the HP controls' : 'Change hit points', onclick: () => toggleFold(hpKey),
-      }, icon(open ? 'chevron-down' : 'chevron-right'), h('span', { class: 'ch-stat-label' }, icon('heart'), 'Hit points')),
+      }, icon(open ? 'chevron-down' : 'chevron-right'), h('span', { class: 'ch-stat-label' }, icon('heart'), h('span', { class: 'ch-hp-word' }, 'Hit points'))),
       h('span', { class: 'ch-hp-now num', title: s.adjust?.hpMax ? null : 'Current + temporary' }, String(cur + temp), h('span', { class: 'ch-hp-max' }, ' / ', adjustedValue(s, 'hpMax', String(max))))),
     hpBar(cur, max, temp),
     temp ? h('div', { class: 'ch-hp-temp ui text-xs' }, `includes ${temp} temporary`) : null,
