@@ -224,6 +224,8 @@
 .ch-nav-chips .chip { flex: none; height: 28px; padding: 0 11px; }
 @media (pointer: coarse) { .ch-nav-chips .chip { height: 36px; padding: 0 13px; } } /* finger-sized on touch */
 .ch-nav-back { flex: none; margin-left: calc(var(--space-2) * -1); }
+.ch-nav .ch-nav-back { width: 30px; height: 30px; min-width: 30px; min-height: 30px; } /* as tall as the chips (phones made it 40 px, the bar 49) */
+@media (pointer: coarse) { .ch-nav .ch-nav-back { width: 36px; height: 36px; min-width: 36px; min-height: 36px; } }
 /* "Name · Player" fills the bar's empty right side once the header has scrolled away */
 .ch-nav-who {
   flex: 0 1 auto; min-width: 0; max-width: 45%; margin-left: auto; padding: 0 2px;
