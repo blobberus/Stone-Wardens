@@ -349,6 +349,17 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
   .ch-trk-line > .ch-trk { flex-direction: row; align-items: center; gap: 8px; }
   .ch-trk-line .ch-trk-ctl { min-height: 30px; }
 }
+/* One line under the scores (600-999 px): no heading row, the labels say what the line is (the heading stays for
+   screen readers); Hide ends the line. Phones keep the heading (Hide would cost the wrapping line its width). */
+@container ch-abilrow (min-width: 600px) and (max-width: 999px) {
+  .ch-sec-trackers:not([hidden]) { display: flex; align-items: center; }
+  .ch-sec-trackers > .ch-sec-head { display: contents; }
+  .ch-sec-trackers > .ch-sec-head > :not(.ch-trk-toggle) {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+  }
+  .ch-sec-trackers > .ch-sec-body { order: -1; flex: 1 1 auto; min-width: 0; }
+  .ch-sec-trackers .ch-trk-toggle { flex: none; margin-right: var(--space-2); }
+}
 .ch-trk { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ch-trk-label { font: 500 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink-muted); white-space: nowrap; }
 .ch-trk-ctl { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px 6px; min-height: 34px; }
