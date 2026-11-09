@@ -256,8 +256,9 @@ function header(c, s) {
           const line = [lvl ? `Level ${lvl}` : 'Level 0', [species, sub ? `(${sub})` : ''].filter(Boolean).join(' '), s.classLine, bg].filter(Boolean).join(' · ');
           return h('p', { class: 'ch-line', title: [line, meta].filter(Boolean).join(' · ') }, line, meta ? h('span', { class: 'ch-meta ui' }, ` · ${meta}`) : null);
         })(),
-        h('div', { class: 'ch-xp-row' }, xpMeter(c, { onOpen: () => xpWindow(), onAdd: () => xpWindow('amount') })),
+        // XP meter and actions share one row, wrapping as needed
         h('div', { class: 'ch-head-actions' },
+          xpMeter(c, { onOpen: () => xpWindow(), onAdd: () => xpWindow('amount') }),
           h('button', {
             class: ['btn', 'btn-sm', due || !lvl ? 'btn-primary' : null, due && 'ch-lu-due'], type: 'button', onclick: () => levelUp(), disabled: lvl >= 20, 'data-fk': 'lvl-up',
             title: lvl >= 20 ? 'Already level 20' : due ? `Your XP has reached level ${lvl + due}` : lvl ? 'Gain a level now (milestone — ignores XP)' : 'Choose a first class',

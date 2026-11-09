@@ -177,8 +177,7 @@
 .ch-line { margin: 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 var(--text-sm) / 1.35 var(--font-body); }
 .ch-meta { font-size: var(--text-xs); color: var(--ink-muted); }
 @container ch-head (max-width: 520px) { .ch-line { white-space: normal; } }
-.ch-head-text .ch-xp-row { margin-top: 2px; }
-.ch-head-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.ch-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
 .ch-head-actions .btn-sm { height: 28px; padding: 0 8px; }
 .ch-head-actions .ch-more-btn { width: 28px; padding: 0; }
 /* The header's More menu (widgets.js moreMenu): Copy link, Level down, … */
@@ -927,8 +926,6 @@ button.ch-skl-name:focus-visible { outline: 2px solid var(--focus); outline-offs
 
 /* ---------- xp & levels ---------- */
 /* Header meter (xp.js), Experience window, milestone / level-down dialogs (levelup.js) */
-.ch-xp-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-2); min-width: 0; }
-.ch-xp-row > .btn { flex: none; }
 .ch-xp { display: flex; flex: 0 1 auto; align-items: center; gap: var(--space-2); min-width: 0; }
 .ch-xp > .btn { flex: none; }
 .ch-xp-meter {
@@ -951,7 +948,7 @@ button.ch-skl-name:focus-visible { outline: 2px solid var(--focus); outline-offs
 /* In the sheet header the meter is one slim line, as tall as the action buttons: XP 0 / 300 ━━━ 300 to level 2 */
 .ch-head .ch-xp-meter {
   flex-direction: row; align-items: center; gap: 8px; height: 28px; padding: 0 9px;
-  flex: 0 1 340px; width: 340px; min-width: 210px; border-radius: var(--radius-sm);
+  flex: 0 1 290px; width: 290px; min-width: 200px; border-radius: var(--radius-sm);
 }
 .ch-head .ch-xp-top { display: contents; }
 .ch-head .ch-xpbar { order: 1; flex: 1 1 36px; min-width: 24px; height: 5px; }
