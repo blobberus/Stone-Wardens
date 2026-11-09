@@ -350,9 +350,9 @@ function toggleFold(key) {
 }
 
 /**
- * AC · Initiative · Speed · Proficiency at the right end of the first row (one line when wide, else 2 × 2), with
- * Vision under Speed and Darkvision under Proficiency: slim cells in room the header already has (characters.css),
- * so the header never grows for them. Normal vision shows how far normal sight reaches: "Normal (2 mi)".
+ * AC · Initiative · Speed · Proficiency in one row at the right end of the first row, with Vision inside the
+ * bottom of the Speed box and Darkvision inside the Proficiency box (characters.css), so the header never grows for
+ * them. Normal vision shows how far normal sight reaches: "Normal (2 mi)"; other speeds are in the Speed box's title.
  */
 function statGrid(s) {
   const speedSub = Object.entries(s.speed).filter(([k, v]) => k !== 'walk' && v).map(([k, v]) => `${prettify(k)} ${v}`).join(' · ');

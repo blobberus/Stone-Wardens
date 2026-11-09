@@ -134,14 +134,14 @@
 /* First row: identity | Hit points | Death saves | AC · Initiative · Speed · Proficiency (always one line of four);
    narrower, the combat boxes take their own line under the identity, still in that order.
    A size container: it follows the real width (icon rail or full sidebar). */
-.ch-head { container: ch-head / inline-size; margin-bottom: var(--space-3); --ch-strip-h: 54px; }
+.ch-head { container: ch-head / inline-size; margin-bottom: var(--space-3); --ch-strip-h: 58px; }
 .ch-head-grid {
   display: grid; gap: var(--space-2) var(--space-3); align-items: start;
   grid-template-columns: minmax(0, 1fr) minmax(170px, 210px) auto auto;
   grid-template-areas: "id hp ds stats" "act act act act";
 }
 .ch-head-grid > .ch-head-actions { grid-area: act; margin-top: 0; }
-.ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(64px, auto)); }
+.ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(78px, auto)); } /* 78: "Normal (2 mi)" fits the Speed box */
 .ch-head-id { grid-area: id; display: flex; gap: var(--space-3); align-items: flex-start; min-width: 0; }
 .ch-head-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
 .ch-head-grid > .ch-hp-col { grid-area: hp; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
@@ -246,9 +246,8 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
 .ch-page :is(.ch-stat-value, .ch-hp-now, .ch-abil-mod, .ch-abil-score, .ch-abil-save-val, .ch-skl-bonus) { font-variant-numeric: lining-nums tabular-nums; }
 .ch-stat-sub { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 var(--text-xs) / 1.15 var(--font-ui); color: var(--ink-muted); }
 .ch-stat-small .ch-stat-value { font-size: var(--text-lg); }
-/* Vision under Speed, Darkvision under Proficiency (sheet.js statGrid): slim 20px cells placed only where the header
-   already has room (2 × 2: 2 × 64 + 20 + gaps = the identity column's 162px), so it never gets taller. Each cell is
-   its own container and narrow ones show the icon instead of the word. */
+/* Vision in the Speed box, Darkvision in the Proficiency box (sheet.js statGrid; placed below). Each cell is its own
+   container and narrow ones show the icon instead of the word. */
 .ch-vis {
   container-type: inline-size; min-width: 0; height: 20px;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink-muted);
@@ -264,21 +263,18 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
   .ch-vis-in.is-long .ch-vis-label { display: none; }
   .ch-vis-in.is-long .icon { display: inline-block; }
 }
-/* Under the row of four: each cell under two boxes, so "Normal (2 mi)" fits */
-.ch-stats > .ch-vis-sight { grid-column: 1 / 3; }
-.ch-stats > .ch-vis-dark { grid-column: 3 / 5; }
-/* Phones: the stats are the header's last row, so the cells sit inside the bottom of the Speed and Proficiency boxes */
-@container ch-head (max-width: 640px) {
-  .ch-stats > .ch-vis { grid-row: 1; align-self: end; height: 18px; margin: 0 1px 3px; background: none; border: 0; }
-  .ch-stats > .ch-vis-sight { grid-column: 3; }
-  .ch-stats > .ch-vis-dark { grid-column: 4; }
-  .ch-stats > .ch-vis .ch-vis-in.is-long { gap: 0; padding: 0 2px; font-size: 0.6875rem; } /* "Normal (2 mi)" in the Speed box */
-  .ch-stats > .ch-vis .ch-vis-in.is-long .icon { display: none; }
-  .ch-stats > .ch-stat:is([data-stat="speed"], [data-stat="prof"]) { grid-row: 1; justify-content: flex-start; padding-top: 7px; }
-  .ch-stats > .ch-stat[data-stat="speed"] { grid-column: 3; } /* placed explicitly: the cells sharing their spots would push them down */
-  .ch-stats > .ch-stat[data-stat="prof"] { grid-column: 4; }
-  .ch-stats > .ch-stat[data-stat="speed"] .ch-stat-sub { display: none; } /* other speeds: in the box's tooltip */
-}
+/* The cells sit inside the bottom of the Speed and Proficiency boxes (a slim line each), so the row is never taller
+   for them */
+.ch-stats > .ch-vis { grid-row: 1; align-self: end; height: 16px; margin: 0 1px 3px; background: none; border: 0; }
+.ch-stats > .ch-vis-sight { grid-column: 3; }
+.ch-stats > .ch-vis-dark { grid-column: 4; }
+.ch-stats > .ch-vis .ch-vis-in { padding: 0 3px; }
+.ch-stats > .ch-vis .ch-vis-in.is-long { gap: 0; padding: 0 2px; font-size: 0.6875rem; } /* "Normal (2 mi)" in the Speed box */
+.ch-stats > .ch-vis .ch-vis-in.is-long .icon { display: none; }
+.ch-stats > .ch-stat:is([data-stat="speed"], [data-stat="prof"]) { grid-row: 1; justify-content: flex-start; padding-top: 3px; }
+.ch-stats > .ch-stat[data-stat="speed"] { grid-column: 3; } /* placed explicitly: the cells sharing their spots would push them down */
+.ch-stats > .ch-stat[data-stat="prof"] { grid-column: 4; }
+.ch-stats > .ch-stat[data-stat="speed"] .ch-stat-sub { display: none; } /* other speeds: in the box's tooltip */
 
 .ch-hp {
   display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 4px 10px 6px;
