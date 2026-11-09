@@ -148,8 +148,11 @@
 .ch-hp-col > .ch-hp { align-self: stretch; }
 .ch-head-grid > .ch-dsbox { grid-area: ds; }
 .ch-head-grid > .ch-stats { grid-area: stats; }
+/* Medium (iPad landscape beside the full sidebar): a 2 × 2 block, identity | Hit points + Death saves over
+   actions | the four stat boxes (as wide as HP + Death saves together) */
 @container ch-head (max-width: 1000px) {
-  .ch-head-grid { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "id id id" "act act act" "hp ds stats"; }
+  .ch-head-grid { grid-template-columns: minmax(0, 1fr) 240px auto; grid-template-areas: "id hp ds" "act stats stats"; }
+  .ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 .ch-head .ch-stat-label { white-space: nowrap; }
 @container ch-head (max-width: 640px) {
