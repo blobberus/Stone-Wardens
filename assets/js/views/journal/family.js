@@ -171,7 +171,8 @@ export function layoutFamily(people, unions, childOf, heightOf) {
     n.cx = n.ids.length ? bl + n.w / 2 : center;
   };
   let left = PAD;
-  for (const r of sorted.filter((n) => !claimed.has(n))) { measure(r); place(r, left); left += r.sw + BG; }
+  // separate families side by side in the order their first person was added (the first family stays at the left)
+  for (const r of sorted.filter((n) => !claimed.has(n)).sort((a, b) => a.first - b.first)) { measure(r); place(r, left); left += r.sw + BG; }
 
   // rows' heights from their tallest card
   const rowTop = [];
