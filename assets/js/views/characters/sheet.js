@@ -299,7 +299,8 @@ function moreItems(c) {
   ];
 }
 
-// Sticky section bar; once the name in the header scrolls away, "Name · Player" fills its empty right side.
+// Sticky section bar; once it sticks (the header, name included, has scrolled away), "Name · Player" fills its
+// empty right side.
 const NAV = { io: null, stuck: false, id: null };
 
 function nav(s) {
@@ -325,17 +326,25 @@ function nav(s) {
   return el;
 }
 
+/**
+ * The bar counts as stuck once it sits at its sticky top (CSS `top: var(--ch-stick)`): everything above it, the name
+ * included, has scrolled away by then. (Watching the name itself misfired: a one-line name within the bar's height
+ * of the view's top counted as hidden while nothing was stuck.)
+ */
 function watchNav(el) {
   NAV.io?.disconnect();
   NAV.io = null;
-  const name = S.root?.querySelector('.ch-name') || S.root?.querySelector('.ch-head');
-  if (!el.isConnected || !name || typeof IntersectionObserver !== 'function') return;
+  const view = S.root?.closest('.view');
+  if (!el.isConnected || !view || typeof IntersectionObserver !== 'function') return;
+  // where it sticks, from the view's top edge: its `top` (negative: it cancels the view's top padding) + that padding
+  const at = Math.max(0, Math.ceil((parseFloat(getComputedStyle(el).top) || 0) + (parseFloat(getComputedStyle(view).paddingTop) || 0)));
   NAV.io = new IntersectionObserver(([e]) => {
     if (!e) return;
-    NAV.stuck = !e.isIntersecting && e.boundingClientRect.top < (e.rootBounds ? e.rootBounds.top : 0);
+    const top = e.rootBounds ? e.rootBounds.top : 0;
+    NAV.stuck = e.intersectionRatio < 1 && e.boundingClientRect.top <= top + 1;
     el.classList.toggle('is-stuck', NAV.stuck);
-  }, { root: S.root.closest('.view'), rootMargin: `-${Math.ceil(el.offsetHeight)}px 0px 0px 0px` });
-  NAV.io.observe(name);
+  }, { root: view, rootMargin: `-${at + 1}px 0px 0px 0px`, threshold: [1] });
+  NAV.io.observe(el);
 }
 
 // ---------- header widgets: HP, stats 2 × 2, trackers ----------
