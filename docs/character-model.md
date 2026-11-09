@@ -246,7 +246,8 @@ levelDownPlan(char, rules, classId) -> {fromLevel, toLevel, removesClass, totalB
   // engine.js; `next` = levelDown() + running-total picks (Invocations, Weapon Mastery…) cut back to the new count
 ```
 Flow: the sheet header shows an XP meter (click → Experience window: add / subtract / set, history, XP table, "Level up
-(ignore XP)", "Level down…"). When an XP change crosses a threshold (`xpLevelsCrossed > 0`) the window closes and
+(ignore XP)", "Level down…"); Level down is also the first item of the header's More (⋯) menu, naming the class whose
+level it removes. When an XP change crosses a threshold (`xpLevelsCrossed > 0`) the window closes and
 `levelUpFlow` opens Level Up once per due level ("1 of 3"); canceling leaves "Level up · N due" on the header (it never
 re-triggers on load). A level taken while no level is due is a milestone: Level Up offers to raise XP to the new level's
 minimum. `openLevelDown` lists what goes and offers to remove now-uncastable spells and to reset XP.
@@ -321,9 +322,9 @@ and `levelUpPlan` of the latest class + open choices; Advantages → every sourc
 view and tag are remembered per device in localStorage `sw:characters:features`.
 
 ## Printouts & Paper Companion — `print-model.js` (pure), `print-pdf.js`, `print.js`, `companion.js`
-Both live in the sheet header: **Print…** in the More (⋯) menu at the end of the action row (sheet.js `moreItems`,
-widgets.js `moreMenu`), the **Companion** switch in the action row itself (sheet.js `companionButton`, described by
-its title):
+Both live in the sheet header's More (⋯) menu at the end of the action row (sheet.js `moreItems`, widgets.js
+`moreMenu`): **Print…** and **Paper Companion** (described in the menu). While the Companion shows, **Full sheet** sits
+in the action row itself (sheet.js `companionButton`) and replaces the menu item:
 - **Print…** opens a popover (print.js `openPrintMenu`, under the More button) with the two printouts, each as **PDF** or **Grayscale**; the file downloads at
   once (`<Name> - Major points.pdf`, `<Name> - Character sheet (grayscale).pdf`). Everything runs in the browser: jsPDF
   (`vendor/jspdf/jspdf.umd.min.js`, global `jspdf`) loads on first use; standard PDF fonts (Times headings, Helvetica
@@ -342,7 +343,7 @@ its title):
   - `printModel(char, sheet, lib, {kind, date, link})` builds the content (lib = names from bridge.js / data.js);
     `renderSheet(jsPDF, model, {portrait, accent, gray})` lays it out (features start beside the skills when there is
     room; tables and lists continue on new pages with their heads); `node tools/test_print.mjs`.
-- **Companion** switches the sheet to the **Paper Companion** view (device setting `chCompanion`, off by default;
+- **Paper Companion** switches the sheet to the **Paper Companion** view (device setting `chCompanion`, off by default;
   "Full sheet" switches back): only what changes in play, on one screen, to keep beside a printed Major points sheet.
   The header stays (HP with its controls open, setting `chPcHpOpen`; death saves; AC…); below it companion.js shows
   Hit dice & conditions and Currency | Spell slots (each level opens to its spells with prepared ticks) and Feature uses
