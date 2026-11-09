@@ -264,8 +264,9 @@ function header(c, s) {
           class: ['btn', 'btn-sm', due || !lvl ? 'btn-primary' : null, due && 'ch-lu-due'], type: 'button', onclick: () => levelUp(), disabled: lvl >= 20, 'data-fk': 'lvl-up',
           title: lvl >= 20 ? 'Already level 20' : due ? `Your XP has reached level ${lvl + due}` : lvl ? 'Gain a level now (milestone — ignores XP)' : 'Choose a first class',
         }, icon('level-up'), !lvl ? 'Choose a class' : due ? (due > 1 ? `Level up · ${due} due` : 'Level up available') : 'Level up'),
-        h('button', { class: 'btn btn-sm', type: 'button', onclick: shortRestDialog, title: 'Spend Hit Dice; recharge short-rest features' }, icon('clock'), 'Short rest'),
-        h('button', { class: 'btn btn-sm', type: 'button', onclick: longRestDialog, title: 'Regain HP, slots and features' }, icon('moon'), 'Long rest'),
+        // "Short" / "Long" on phones (characters.css hides " rest"); the full name stays the accessible label
+        h('button', { class: 'btn btn-sm', type: 'button', onclick: shortRestDialog, title: 'Short rest: spend Hit Dice; recharge short-rest features', 'aria-label': 'Short rest' }, icon('clock'), 'Short', h('span', { class: 'ch-rest-word' }, ' rest')),
+        h('button', { class: 'btn btn-sm', type: 'button', onclick: longRestDialog, title: 'Long rest: regain HP, slots and features', 'aria-label': 'Long rest' }, icon('moon'), 'Long', h('span', { class: 'ch-rest-word' }, ' rest')),
         h('a', { class: 'btn btn-sm', href: editHref(), title: 'Edit every field, choice and override' }, icon('edit'), 'Edit all'),
         companionButton(),
         moreMenu(() => moreItems(c), { label: 'More actions' })),

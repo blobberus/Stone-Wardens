@@ -187,6 +187,8 @@
 .ch-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
 .ch-head-actions .btn-sm { height: 28px; padding: 0 8px; }
 .ch-head-actions .ch-more-btn { width: 28px; padding: 0; }
+.ch-rest-word { white-space: pre; }
+@container ch-head (max-width: 520px) { .ch-rest-word { display: none; } } /* phones: "Short", "Long" */
 /* The header's More menu (widgets.js moreMenu): Copy link, Level down, … */
 .ch-menu {
   position: fixed; z-index: var(--z-popover); min-width: 220px; max-width: min(320px, calc(100vw - 16px)); padding: 4px;
