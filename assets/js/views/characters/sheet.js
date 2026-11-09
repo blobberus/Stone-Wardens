@@ -250,7 +250,7 @@ function header(c, s) {
     h('div', { class: 'ch-head-id' },
       h('div', { class: 'ch-head-pic' }, portrait(c, { size: 'sm' })),
       h('div', { class: 'ch-head-text' },
-        h('h1', { class: 'ch-name' }, c.name || 'Unnamed'),
+        h('h1', { class: 'ch-name', title: c.name || null }, c.name || 'Unnamed'),
         h('p', { class: 'ch-line' }, [lvl ? `Level ${lvl}` : 'Level 0', [species, sub ? `(${sub})` : ''].filter(Boolean).join(' '), s.classLine, bg].filter(Boolean).join(' · ')),
         meta ? h('p', { class: 'ch-meta ui' }, meta) : null,
         h('div', { class: 'ch-xp-row' }, xpMeter(c, { onOpen: () => xpWindow(), onAdd: () => xpWindow('amount') })),
