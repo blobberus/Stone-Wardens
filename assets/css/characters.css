@@ -179,11 +179,15 @@
   font: 600 var(--text-lg) / 1.2 var(--font-display); letter-spacing: 0.02em;
 }
 @container ch-head (max-width: 520px) {
-  .ch-name { white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .ch-name { white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 1.125rem; }
 }
 .ch-line { margin: 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 var(--text-sm) / 1.35 var(--font-body); }
 .ch-meta { font-size: var(--text-xs); color: var(--ink-muted); }
-@container ch-head (max-width: 520px) { .ch-line { white-space: normal; } }
+/* Phones: the line wraps to at most two lines; alignment and player stay in its tooltip (and under Details) */
+@container ch-head (max-width: 520px) {
+  .ch-line { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.3; }
+  .ch-line .ch-meta { display: none; }
+}
 .ch-head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
 .ch-head-actions .btn-sm { height: 28px; padding: 0 8px; }
 .ch-head-actions .ch-more-btn { width: 28px; padding: 0; }
