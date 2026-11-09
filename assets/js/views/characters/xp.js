@@ -18,8 +18,9 @@ export function xpMeter(char, { onOpen, onAdd } = {}) {
   const st = xpStatus(char, rules());
   if (st.level < 1 && !st.xp) return null;
   const due = st.due > 0;
+  // how many levels are due is on the Level up button beside the meter ("Level up · 2 due")
   const sub = st.level < 1 ? 'choose a class first'
-    : due ? `Level ${st.xpLevel} reached${st.due > 1 ? ` · ${st.due} due` : ''}`
+    : due ? `Level ${st.xpLevel} reached`
       : st.atMax ? 'maximum level' : `${n(st.toNext)} to level ${st.levelForNext}`;
   return h('div', { class: ['ch-xp', due && 'is-due'], 'data-stat': 'xp' },
     h('button', {
