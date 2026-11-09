@@ -282,6 +282,15 @@ export class TimelineBoard {
     return el;
   }
 
+  /** A sub-timeline's colour on the axis (for the mouse; its labelled bar is what keyboards and screen readers use). */
+  highlightEl(s) {
+    const el = h('button', { type: 'button', class: 'jr-tl-hl', tabindex: '-1', 'aria-hidden': 'true', style: `--item:${colorVar(s.color, 'lapis')}` });
+    hoverable(el, () => this.spanBody(s), { open: () => this.editSpan(s) });
+    el.addEventListener('pointerenter', () => this.washOn(s, true));
+    el.addEventListener('pointerleave', () => this.washOn(s, false));
+    return el;
+  }
+
   usedAges() {
     const used = new Set();
     const d = this.data;
@@ -362,6 +371,8 @@ export class TimelineBoard {
     for (const s of spans) put(h('div', { class: 'jr-tl-wash', style: `--item:${colorVar(s.item.color, 'lapis')}`, 'data-span': s.item.id || '' }), s.x1, 0, Math.max(4, s.x2 - s.x1), height);
     put(h('div', { class: 'jr-tl-axis', 'aria-hidden': 'true' }), 0, axisMid - 1, width, 2);
     for (const a of this.ageGeom(pts)) put(this.ageEl(a.age, true), a.x1, axisY, a.x2 - a.x1, H.axisH);
+    // each sub-timeline also colours the axis itself over its stretch (thin strips stacked above the line)
+    for (const s of spans) put(this.highlightEl(s.item), s.x1, axisY - 5 - Math.min(s.lane, 3) * 5, Math.max(4, s.x2 - s.x1), 5);
     for (const p of evs) {
       const bottom = axisY - H.stem + 6 - p.lane * step;
       put(h('div', { class: 'jr-tl-stem', 'aria-hidden': 'true' }), p.x, bottom, 2, axisMid - bottom);
@@ -499,6 +510,7 @@ export class TimelineBoard {
     for (const s of geo.spans) put(h('div', { class: 'jr-tl-wash', style: `--item:${colorVar(s.item.color, 'lapis')}`, 'data-span': s.item.id || '' }), 0, s.y1 ?? s.x1, width, Math.max(4, s.x2 - s.x1));
     put(h('div', { class: 'jr-tl-axis is-vertical', 'aria-hidden': 'true' }), axisMid - 1, 0, 2, height);
     for (const a of this.ageGeom(pts)) put(this.ageEl(a.age, false), axisX, a.x1, V.axisH, a.x2 - a.x1);
+    for (const s of geo.spans) put(this.highlightEl(s.item), axisX - 5 - Math.min(s.lane, 3) * 5, s.x1, 5, Math.max(4, s.x2 - s.x1));
     for (const p of evs) {
       put(h('div', { class: 'jr-tl-stem is-vertical', 'aria-hidden': 'true' }), axisMid, p.y, geo.cardX - axisMid, 2);
       put(h('div', { class: 'jr-tl-dot', 'aria-hidden': 'true', style: `--item:${p.color}` }), axisMid - 5, p.y - 4);

@@ -161,6 +161,11 @@
 @media (hover: hover) { .jr-tl-span:hover { background: color-mix(in srgb, var(--item) 44%, var(--surface)); } }
 .jr-tl-span.is-carded { border-color: var(--item); }
 
+/* a sub-timeline's colour on the axis itself */
+.jr-tl-hl { z-index: 2; padding: 0; background: var(--item); border: 0; border-radius: 1px; opacity: 0.85; cursor: pointer; }
+@media (hover: hover) { .jr-tl-hl:hover { opacity: 1; box-shadow: 0 0 0 1px var(--surface), 0 0 0 2px var(--item); } }
+.jr-tl-hl.is-carded { opacity: 1; }
+
 /* markers: a diamond on the axis */
 .jr-tl-marker { z-index: 4; display: grid; place-items: center; width: 18px; height: 18px; padding: 0; background: none; border: 0; cursor: pointer; }
 .jr-tl-diamond { width: 11px; height: 11px; background: var(--item); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--item); transform: rotate(45deg); }
