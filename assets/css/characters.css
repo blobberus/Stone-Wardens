@@ -163,7 +163,7 @@
 .ch-head .ch-hp:not(.is-open), .ch-head .ch-dsbox, .ch-head .ch-stat { min-height: var(--ch-strip-h); }
 .ch-head .ch-hp:not(.is-open) { justify-content: center; }
 /* The portrait alone (Print is in the More menu, the Paper Companion switch in the action row) */
-.ch-head-pic { display: flex; flex: none; width: 64px; }
+.ch-head-pic { display: flex; flex: none; width: 52px; }
 /* The Paper Companion switch (sheet.js companionButton) */
 .ch-comp-btn.is-active { border-color: var(--ink-muted); background: var(--surface-3); }
 .ch-name { margin: 0; font: 600 var(--text-xl) / 1.15 var(--font-display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
@@ -846,8 +846,8 @@ div.ch-optcard { cursor: default; }
 }
 @media (max-width: 760px) {
   .ch-portrait-lg { width: 76px; height: 76px; }
-  .ch-head-pic { width: 52px; }
-  .ch-head-pic > .ch-portrait { width: 52px; height: 52px; }
+  .ch-head-pic { width: 44px; }
+  .ch-head-pic > .ch-portrait { width: 44px; height: 44px; }
   .ch-builder { grid-template-columns: minmax(0, 1fr); }
   .ch-steps { position: static; }
   .ch-steps ol { flex-direction: row; overflow-x: auto; scrollbar-width: none; gap: 4px; }

@@ -248,7 +248,7 @@ function header(c, s) {
   // The hit dice & conditions panel sits beside the ability scores (trackers()).
   return h('header', { class: 'ch-head' }, h('div', { class: 'ch-head-grid' },
     h('div', { class: 'ch-head-id' },
-      h('div', { class: 'ch-head-pic' }, portrait(c, { size: 'md' })),
+      h('div', { class: 'ch-head-pic' }, portrait(c, { size: 'sm' })),
       h('div', { class: 'ch-head-text' },
         h('h1', { class: 'ch-name' }, c.name || 'Unnamed'),
         h('p', { class: 'ch-line' }, [lvl ? `Level ${lvl}` : 'Level 0', [species, sub ? `(${sub})` : ''].filter(Boolean).join(' '), s.classLine, bg].filter(Boolean).join(' · ')),
