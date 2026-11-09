@@ -500,6 +500,12 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
 .ch-sec-abils { container-type: inline-size; }
 .ch-abils { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-2); }
 @container (max-width: 380px) { .ch-abils { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.ch-title-more { white-space: pre; }
+/* Narrow phones: "Abilities", no roll hint, so Scores and Saves share the title's row (the words stay for screen readers) */
+@container (max-width: 380px) {
+  .ch-sec-abils .ch-title-more { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  .ch-sec-abils > .ch-sec-head > .ch-sec-sub { display: none; }
+}
 /* Narrow six-across boxes: STR, DEX… on the band and "● +2" for the save (full words stay for screen readers) */
 .ch-ab-short { display: none; }
 @container (min-width: 381px) and (max-width: 660px) {

@@ -547,7 +547,8 @@ function profTitle(level, info) {
 
 function abilities(c, s) {
   const saves = s.proficiencyInfo?.saves || {};
-  return section('abilities', 'Abilities & saving throws', {
+  // " & saving throws" is hidden on narrow phones (characters.css), kept for screen readers, so the head is one row
+  return section('abilities', ['Abilities', h('span', { class: 'ch-title-more' }, ' & saving throws')], {
     iconName: 'd20', attrs: accentAttrs(c), className: 'ch-sec-abils', sub: isTouch() ? 'Tap to roll.' : 'Click to roll.',
     actions: [h('a', { class: 'btn btn-ghost btn-sm', href: editHref('abilities') }, icon('edit'), 'Scores'),
       h('a', { class: 'btn btn-ghost btn-sm', href: editHref('proficiencies'), title: 'Saving throw proficiencies are changed in Edit all' }, icon('edit'), 'Saves')],
