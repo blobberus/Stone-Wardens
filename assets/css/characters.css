@@ -162,10 +162,6 @@
 /* The folded HP box, the death saves and the four stat boxes share one height */
 .ch-head .ch-hp:not(.is-open), .ch-head .ch-dsbox, .ch-head .ch-stat { min-height: var(--ch-strip-h); }
 .ch-head .ch-hp:not(.is-open) { justify-content: center; }
-/* Tight identity column: secondary actions (Level down) keep only their icon (the label stays for screen readers) */
-@container ch-head ((min-width: 1001px) and (max-width: 1440px)) or (max-width: 640px) {
-  .ch-head-actions .ch-act-lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-}
 /* Portrait with Print and the Paper Companion switch under it (sheet.js picButtons): portrait-wide buttons in the
    identity column's height, so the header never grows for them (words; icons on phones, where the portrait is
    smaller); each describes itself on hover / focus (.ch-tip). */

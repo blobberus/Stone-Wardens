@@ -290,7 +290,7 @@ export function hoverTip(control, text) {
 
 let menuOpen = null;
 /**
- * A "More" button (⋯) that opens a short menu of actions under it. items: [{label, hint?, icon?, onSelect(anchor),
+ * A "More" button (⋯) that opens a short menu of actions under it. items: [{label, hint?, icon? (name or node), onSelect(anchor),
  * disabled?, fk?}] or a function returning them (read each time it opens). Arrow keys / Home / End move, Enter or a
  * click runs an item, Esc / Tab / a click elsewhere / scrolling closes it (Esc puts the focus back on the button).
  */
@@ -309,7 +309,7 @@ function openMenu(anchor, items) {
   const buttons = list.map((it) => h('button', {
     type: 'button', role: 'menuitem', class: 'ch-menu-item', disabled: !!it.disabled, tabindex: -1, 'data-fk': it.fk || null,
     onclick: () => { close(false); it.onSelect?.(anchor); },
-  }, it.icon ? icon(it.icon) : null,
+  }, typeof it.icon === 'string' ? icon(it.icon) : it.icon || null,
   h('span', { class: 'ch-menu-text' }, h('span', { class: 'ch-menu-label' }, it.label), it.hint ? h('span', { class: 'ch-menu-hint' }, it.hint) : null)));
   const el = h('div', { class: 'ch-menu', role: 'menu', 'aria-label': anchor.getAttribute('aria-label') || 'More' }, buttons);
   (document.querySelector('body > #overlays') || document.body).append(el);

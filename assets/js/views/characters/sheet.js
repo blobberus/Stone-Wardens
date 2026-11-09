@@ -265,7 +265,6 @@ function header(c, s) {
           h('button', { class: 'btn btn-sm', type: 'button', onclick: shortRestDialog, title: 'Spend Hit Dice; recharge short-rest features' }, icon('clock'), 'Short rest'),
           h('button', { class: 'btn btn-sm', type: 'button', onclick: longRestDialog, title: 'Regain HP, slots and features' }, icon('moon'), 'Long rest'),
           h('a', { class: 'btn btn-sm', href: editHref(), title: 'Edit every field, choice and override' }, icon('edit'), 'Edit all'),
-          lvl ? h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => levelDownDialog(), title: 'Remove the most recent level (confirms first)', 'data-fk': 'lvl-down', 'aria-label': 'Level down' }, h('span', { class: 'ch-flip' }, icon('level-up')), h('span', { class: 'ch-act-lbl' }, 'Level down')) : null,
           moreMenu(() => moreItems(c), { label: 'More actions' })))),
     h('div', { class: 'ch-hp-col' }, hpWidget(c, s), companionOn() ? null : trackersToggle()),
     deathSaves(c, s),
@@ -274,7 +273,13 @@ function header(c, s) {
 
 /** The header's "More" menu: actions used now and then, kept out of the always-shown row. */
 function moreItems(c) {
+  const lvl = totalLevel(c);
+  const last = lvl ? lastLeveledClass(c) : null;
   return [
+    lvl ? {
+      label: 'Level down', hint: `Remove the most recent level${last ? ` (${entryName('class', last) || prettify(last)})` : ''}; asks first`,
+      icon: h('span', { class: 'ch-flip' }, icon('level-up')), fk: 'lvl-down', onSelect: () => levelDownDialog(),
+    } : null,
     {
       label: 'Copy link', hint: `[[char:${c.name || c.id}]] for notes and the journal`, icon: 'link', fk: 'more-link',
       onSelect: async () => { const t = `[[char:${c.name || c.id}]]`; try { await navigator.clipboard.writeText(t); toast(`Copied ${t}`); } catch { toast(t); } },
