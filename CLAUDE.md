@@ -301,16 +301,23 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   Its HP box opens by default (setting `chPcHpOpen`), so its header is taller.
 - Sheet header, kept as short as possible so the sections under it fit the screen (96 px on a desktop): row 1 =
   portrait (52 px) + name (one line, ellipsis) + one line "Level · species · classes · background · alignment · player"
-  | Hit points (folded; as wide as its numbers need) | Death saves | AC · Initiative · Speed · Prof in one row (58 px
-  boxes, Vision inside the Speed box, Darkvision inside the Prof box; "Normal (2 mi)" drops its range when it doesn't
-  fit). Row 2 = the action row: slim one-line XP meter (stretches 200-360 px; its "300 to level 2" hides rather than
-  being cut), Level up, Short rest, Long rest ("Short" / "Long" on phones), Edit all, More (⋯, widgets.js `moreMenu`:
-  Level down, Copy link, Print…, Paper Companion; sheet.js `moreItems`). Container breakpoints (ch-head): <= 1000 a
+  | Hit points (folded; as wide as its numbers need, at least 170 px) | Death saves | AC · Initiative · Speed · Prof
+  in one row (58 px boxes; 62 on touch, where the Death saves label sits beside its 24 px boxes; Vision inside the
+  Speed box, Darkvision inside the Prof box; "Normal (2 mi)" drops its range when it doesn't fit). Row 2 = the action
+  row: slim one-line XP meter (asks 200 px, 170 at <= 640, stretches to 360; its "300 to level 2" hides rather than
+  being cut), Level up, Short rest, Long rest, Edit all, More (⋯, widgets.js `moreMenu`: Level down, Copy link,
+  Print…, Paper Companion; sheet.js `moreItems`); at <= 640 "Short" / "Long" and a bare "+" for + XP. On touch every
+  item in the row is 36 px tall. Container breakpoints (ch-head): <= 1000 a
   2 × 2 block (identity | HP + Death saves over actions | stat boxes), <= 640 Death saves beside the identity and HP |
   stats in one row, <= 520 (phones) identity, actions, HP | Death saves, stats. Test it at desktop, iPad (both
   orientations, sidebar open and collapsed) and phone widths with a wide skin font: nothing in the header may be cut.
-  The sticky section bar under it is 39 px (28 px chips; 36 px on touch) and shows "Name · Player" once it is stuck.
-- Sheet order: header -> abilities row | one-line "Hit dice & conditions" panel (hit dice, inspiration star, exhaustion,
+  The sticky section bar under it is 39 px (28 px chips; 36 px on touch); once it is stuck (watched on the bar itself)
+  it shows "Name ♥ HP AC" (the name gives way first; "· Player" too on windows over 1100 px).
+  Measured (header height, mouse / touch): desktop 1400 px 96 / 106, iPad landscape beside the sidebar 130 / 148
+  (96 / 106 collapsed), iPad portrait 164 / 176, phone 296 / 300; before the compact header 221 / 237, 266 / 298,
+  338 / 386, 436 / 467.
+- Sheet order: header -> abilities row ("Abilities" with no roll hint on narrow phones, so its head is one row) |
+  one-line "Hit dice & conditions" panel (hit dice, inspiration star, exhaustion,
   conditions; shown by default, setting `chTrackersShown`; beside the abilities from 1000 px of row width, below them
   when narrower, where 600-999 px puts each label beside its control and drops the heading row; "Hide" in its head,
   while hidden a "Show trackers" chip and chips for active conditions in the HP widget) -> narrow column skills, senses, proficiencies (foldable) | wide column actions window (tabs
