@@ -35,7 +35,7 @@ import { getSetting, setSetting } from '../../core/settings.js';
 import { featureFavKey, spellFavKey, isFavorite, toggleFavorite, favoritesFirst, dropSpellFavorite } from './engine-favs.js';
 import { abilityName } from './data.js';
 // Print (PDF downloads), the Paper Companion view, the header's vision words and hover descriptions
-import { printButton } from './print.js';
+import { openPrintMenu } from './print.js';
 import { companionBody } from './companion.js';
 import { visionOf, NORMAL_SIGHT, NORMAL_SIGHT_NOTE, plain } from './print-model.js';
 import { hoverTip, moreMenu } from './widgets.js';
@@ -224,11 +224,10 @@ function companionApi() {
   };
 }
 
-/** Print, then the Paper Companion switch: small buttons under the portrait, each describing itself on hover. */
+/** The Paper Companion switch under the portrait, describing itself on hover. */
 function picButtons(c) {
   const on = companionOn();
   return [
-    printButton(() => S.char),
     hoverTip(h('button', {
       class: ['btn', 'btn-sm', 'ch-pic-btn', on && 'is-active'], type: 'button', 'aria-pressed': String(on), 'data-fk': 'companion',
       onclick: () => setCompanion(!on),
@@ -283,6 +282,10 @@ function moreItems(c) {
     {
       label: 'Copy link', hint: `[[char:${c.name || c.id}]] for notes and the journal`, icon: 'link', fk: 'more-link',
       onSelect: async () => { const t = `[[char:${c.name || c.id}]]`; try { await navigator.clipboard.writeText(t); toast(`Copied ${t}`); } catch { toast(t); } },
+    },
+    {
+      label: 'Print…', hint: 'A PDF: Major points or the Detailed sheet, in color or grayscale', icon: 'printer', fk: 'print',
+      onSelect: (anchor) => openPrintMenu(anchor, () => S.char),
     },
   ];
 }

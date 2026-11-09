@@ -7,7 +7,7 @@ import { store } from '../../core/store.js';
 import { clone } from '../../core/util.js';
 import { ABILITIES, CURRENCY, DETAIL_FIELDS, VIEW, prettify } from './data.js';
 import { derive, findEntry, entryName, skillList, profName, conditionList, masteryInfo, propertyInfo, R, ready } from './bridge.js';
-import { accentOf, hoverTip } from './widgets.js';
+import { accentOf } from './widgets.js';
 import { printModel, PRINT_KINDS } from './print-model.js';
 import { renderSheet } from './print-pdf.js';
 
@@ -86,20 +86,12 @@ export async function downloadSheet(char, kind, { gray = false } = {}) {
   return file;
 }
 
-// ---------- the button and its popover ----------
+// ---------- the print popover ----------
 
 let pop = null; // {el, close}
 
-/** The Print button under the portrait; getChar() gives the character at click time. */
-export function printButton(getChar) {
-  const btn = h('button', {
-    class: 'btn btn-sm ch-pic-btn', type: 'button', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', 'data-fk': 'print',
-    onclick: (e) => (pop && pop.anchor === e.currentTarget ? pop.close() : openPrintMenu(e.currentTarget, getChar)),
-  }, icon('printer'), h('span', { class: 'ch-pic-lbl' }, 'Print'));
-  return hoverTip(btn, 'Download a PDF of this sheet: Major points (the stats that rarely change, to use with the Paper Companion) or the Detailed sheet (everything, inventory included). In color or grayscale.');
-}
-
-function openPrintMenu(anchor, getChar) {
+/** The Print popover under `anchor` (the sheet header's More button); getChar() gives the character at click time. */
+export function openPrintMenu(anchor, getChar) {
   pop?.close();
   const back = document.activeElement;
   const buttons = [];
