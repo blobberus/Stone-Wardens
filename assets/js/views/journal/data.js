@@ -12,6 +12,8 @@ import { href } from '../../core/router.js';
 import { getSetting } from '../../core/settings.js';
 import { isHidden, isReleased } from '../../core/dm.js';
 import { plainText, plainLines, sectionOf, escapeRe, snippet, fold } from './text.js';
+import { kindOf, isBoard, newBoard, boardText, boardItems, itemAnchor, mapBoardStrings, BOARD_KEYS, KINDS } from './kinds.js';
+import { boardMarkdown } from './board-md.js';
 
 export const ROOT = 'content/journal';
 export const ROOT_SEG = '_'; // route segment of the vault root ("Loose Leaves" in the old book)
@@ -74,8 +76,9 @@ function makeNote(path, folder, slug, text) {
   const hit = parsed.get(path);
   if (hit && hit.text === text && hit.folder === folder) return hit;
   const { data: fm, body } = parseFrontmatter(text);
+  const kind = kindOf(fm);
   const note = {
-    path, folder, slug, text, fm, body,
+    path, folder, slug, text, fm, body, kind,
     rel: folder ? `${folder}/${slug}` : slug,
     title: String(fm.title ?? '').trim() || titleFromSlug(slug),
     order: num(fm.order),
@@ -87,13 +90,15 @@ function makeNote(path, folder, slug, text) {
   };
   note.ctime = timeOf(note.created);
   note.mtime = timeOf(note.updated) || note.ctime;
-  let tags; let links; let plain; let lines; let folded;
+  let tags; let links; let plain; let lines; let folded; let words;
+  // A family tree's or timeline's items count as part of the note: searched, their #tags and [[links]] its own.
+  const all = () => words ?? (words = isBoard(kind) ? `${body}\n\n${boardText(fm)}` : body);
   Object.defineProperties(note, {
-    tags: { get: () => tags || (tags = collectTags(fm, body)) },
-    links: { get: () => links || (links = extractLinks(body)) },
-    plain: { get: () => plain ?? (plain = plainText(body)) },
-    lines: { get: () => lines || (lines = plainLines(body)) },
-    folded: { get: () => folded ?? (folded = fold(`${note.title}\n${plainText(body)}`)) },
+    tags: { get: () => tags || (tags = collectTags(fm, all())) },
+    links: { get: () => links || (links = extractLinks(all())) },
+    plain: { get: () => plain ?? (plain = plainText(all())) },
+    lines: { get: () => lines || (lines = plainLines(all())) },
+    folded: { get: () => folded ?? (folded = fold(`${note.title}\n${plainText(all())}`)) },
   });
   parsed.set(path, note);
   return note;
@@ -337,13 +342,13 @@ function keepFolder(f, leaving = 1) {
 
 // ---------- note operations ----------
 
-/** hidden (DM mode): create it hidden from the players (null = the DM's default). */
-export function createNote({ title, folder = '', body = '', hidden = null }) {
+/** hidden (DM mode): create it hidden from the players (null = the DM's default). kind: note | family-tree | timeline. */
+export function createNote({ title, folder = '', body = '', hidden = null, kind = 'note' }) {
   const ix = index();
   const f = (typeof folder === 'string' ? folderAt(folder, ix) : folder) || ix.root;
   const slug = uniqueSlug(slugify(title), takenIn(f));
   const stamp = now();
-  const fm = { title, author: getSetting('playerName') || undefined, created: stamp, updated: stamp };
+  const fm = { title, author: getSetting('playerName') || undefined, created: stamp, updated: stamp, ...newBoard(kind) };
   const path = notePath(f.path, slug);
   put(path, composeNote(fm, body), { hidden });
   return path;
@@ -398,6 +403,7 @@ export function renameNote(note, title, body = note.body) {
 export function setProperties(note, fm) {
   const next = { ...fm, title: note.title };
   if (note.fm.created && !next.created) next.created = note.fm.created;
+  for (const k of BOARD_KEYS) if (note.fm[k] !== undefined) next[k] = note.fm[k]; // a board's items aren't properties
   return writeNote(note.path, next, note.body);
 }
 
@@ -775,11 +781,30 @@ export function folderLinkPlan(oldIx, folderPath, newTitle, { exclude = [] } = {
   return linkPlan(test, (p) => rebuild(`${p.prefix}:`, safeTarget(newTitle), p), exclude);
 }
 
+/**
+ * rewriteLinks over a whole note. A family tree's or timeline's items are YAML in its frontmatter: their links are
+ * rewritten in the parsed strings and the note written out again, so a new name with a quote can't break the YAML.
+ */
+function rewriteNote(n, test, replace) {
+  if (!isBoard(n.kind)) return rewriteLinks(n.text, test, replace);
+  const body = rewriteLinks(n.body, test, replace);
+  let count = body.count;
+  const key = KINDS[n.kind].key;
+  const data = mapBoardStrings(n.fm[key], (s) => {
+    if (!s.includes('[[')) return s;
+    const r = rewriteLinks(s, test, replace);
+    count += r.count;
+    return r.text;
+  });
+  if (!count) return { text: n.text, count: 0 };
+  return { text: composeNote({ ...n.fm, [key]: data }, body.text), count };
+}
+
 function linkPlan(test, replace, exclude) {
   const hits = [];
   for (const n of index().notes) {
     if (exclude.includes(n.path)) continue;
-    const r = rewriteLinks(n.text, test, replace);
+    const r = rewriteNote(n, test, replace);
     if (r.count) hits.push({ path: n.path, title: n.title, count: r.count });
   }
   return {
@@ -790,7 +815,7 @@ function linkPlan(test, replace, exclude) {
       for (const { path } of hits) {
         const n = noteByPath(path);
         if (!n) continue;
-        const r = rewriteLinks(n.text, test, replace);
+        const r = rewriteNote(n, test, replace);
         if (r.count) { put(path, r.text); total += r.count; }
       }
       return total;
@@ -948,6 +973,16 @@ export function withNote(note, fn) {
 
 const linkSafe = (s) => String(s).replace(/[|\]]/g, ' ');
 
+/** Every titled item of every family tree and timeline: [{title, anchor, type, note}] (not markers). */
+function boardItemList() {
+  const out = [];
+  for (const n of index().notes) {
+    if (!isBoard(n.kind)) continue;
+    for (const it of boardItems(n.fm)) if (it.title && it.type !== 'marker') out.push({ title: it.title, anchor: itemAnchor(it.title), type: it.type, note: n });
+  }
+  return out;
+}
+
 registerLinkType('note', {
   label: 'Note',
   order: 0,
@@ -957,11 +992,16 @@ registerLinkType('note', {
     return { href: noteHref(n, anchor), title: anchor ? `${n.title} › ${anchor}` : n.title, exists: true, path: n.path };
   },
   suggest(q) {
-    return matchNames(index().notes, q, (n) => n.title, 8).map((n) => ({ label: n.title, value: n.title }));
+    const notes = matchNames(index().notes, q, (n) => n.title, 8).map((n) => ({ label: n.title, value: n.title }));
+    // the events, eras and people of timelines and family trees: [[Kings of Vael#Siege of Greywater]]
+    const items = q && q.trim().length >= 2 ? matchNames(boardItemList(), q, (x) => x.title, 4)
+      .map((x) => ({ label: `${x.title} (${x.note.title})`, value: `${linkSafe(x.note.title).replace(/#/g, ' ')}#${linkSafe(x.title)}` })) : [];
+    return [...notes, ...items];
   },
   embed(target, anchor) {
     const n = target ? findNote(target) : contextNote;
     if (!n) return null;
+    if (isBoard(n.kind)) return { markdown: boardMarkdown(n, anchor) };
     if (!anchor) return { markdown: n.body.trim() ? n.body : '*This page is blank.*' };
     return { markdown: sectionOf(n.body, anchor) ?? `*No section “${anchor}” on this page.*` };
   },
