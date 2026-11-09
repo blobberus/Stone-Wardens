@@ -51,10 +51,13 @@ store.on((e) => {
   if (e.type === 'load' || e.path === CAL_PATH || (Array.isArray(e.paths) && e.paths.includes(CAL_PATH))) cache = null;
 });
 
-/** -> {ages, months, byId: Map(id -> age with .index), defaultAge: id} */
+/** The calendar of the site: makeCalendar(content/calendar.json), cached until the file changes. */
 export function calendar() {
-  if (cache) return cache;
-  const raw = store.get(CAL_PATH);
+  return cache || (cache = makeCalendar(store.get(CAL_PATH)));
+}
+
+/** A calendar from the file's data: -> {ages, months, byId: Map(id -> age with .index), defaultAge: id} */
+export function makeCalendar(raw) {
   const d = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
   const seen = new Set();
   let ages = (Array.isArray(d.ages) ? d.ages : []).filter((a) => a && typeof a === 'object').map(normAge)
@@ -63,8 +66,7 @@ export function calendar() {
   const months = strList(d.months).length ? strList(d.months) : [...DEFAULT_MONTHS];
   const byId = new Map(ages.map((a, i) => [a.id, { ...a, index: i }]));
   const defaultAge = byId.has(d.defaultAge) ? d.defaultAge : byId.has(DEFAULT_AGE.id) ? DEFAULT_AGE.id : ages[0].id;
-  cache = { ages, months, byId, defaultAge };
-  return cache;
+  return { ages, months, byId, defaultAge };
 }
 
 export const ageOf = (id, cal = calendar()) => cal.byId.get(id) || null;
@@ -102,13 +104,13 @@ export function newAgeId(abbr, ages = calendar().ages) {
 
 // ---------- dates ----------
 
-/** A stored date -> {year, month, age} or null (no year). */
-export function normDate(d) {
+/** A stored date -> {year, month, age} or null (no year). A date without an age is in the default age. */
+export function normDate(d, cal = null) {
   if (!d || typeof d !== 'object') return null;
   const year = int(d.year);
   if (year == null) return null;
   const m = int(d.month);
-  return { year, month: m && m > 0 ? m : null, age: String(d.age || defaultAge()) };
+  return { year, month: m && m > 0 ? m : null, age: String(d.age || (cal || calendar()).defaultAge) };
 }
 
 /** What a date is saved as (no empty month). */
@@ -123,7 +125,7 @@ export function dateValue(d) {
 
 /** Sort key [age place, year (negated in a countdown age), month]. Unknown ages sort after the known ones. */
 export function dateKey(d, cal = calendar()) {
-  const n = normDate(d);
+  const n = normDate(d, cal);
   if (!n) return [Infinity, 0, 0];
   const a = cal.byId.get(n.age);
   return [a ? a.index : cal.ages.length, a?.countdown ? -n.year : n.year, n.month || 0];
@@ -141,15 +143,15 @@ export const ageAbbr = (id, cal = calendar()) => cal.byId.get(id)?.abbr || id ||
 
 /** "March 100 AFF", "100 AFF" ({short}: no month name). */
 export function fmtDate(d, { cal = calendar(), month = true } = {}) {
-  const n = normDate(d);
+  const n = normDate(d, cal);
   if (!n) return '';
   return [month && n.month ? monthName(n.month, cal) : '', String(n.year), ageAbbr(n.age, cal)].filter(Boolean).join(' ');
 }
 
 /** "100 – 162 AFF", "998 AFF – 3 BCC", "100 AFF – " (no end), "– 162 AFF" (no start). */
 export function fmtRange(a, b, { cal = calendar(), month = true } = {}) {
-  const x = normDate(a);
-  const y = normDate(b);
+  const x = normDate(a, cal);
+  const y = normDate(b, cal);
   if (x && y && x.age === y.age) {
     const left = [month && x.month ? monthName(x.month, cal) : '', String(x.year)].filter(Boolean).join(' ');
     return `${left} – ${fmtDate(y, { cal, month })}`;
@@ -162,8 +164,8 @@ export function fmtRange(a, b, { cal = calendar(), month = true } = {}) {
 
 /** Years from a to b (fractional with months; across ages: null). */
 export function yearsBetween(a, b, cal = calendar()) {
-  const x = normDate(a);
-  const y = normDate(b);
+  const x = normDate(a, cal);
+  const y = normDate(b, cal);
   if (!x || !y || x.age !== y.age) return null;
   const sign = cal.byId.get(x.age)?.countdown ? -1 : 1;
   const months = cal.months.length || 12;
