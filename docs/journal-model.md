@@ -4,6 +4,7 @@ The Journal tab is an Obsidian-style vault: a folder tree of markdown notes unde
 `assets/js/views/journal/` (`data.js` model + link types, `query.js` search, `tree.js` Files pane, `search.js` Search and
 Tags panes, `side.js` right pane, `note.js` the open note, `pages.js` home / folder / missing pages, `dialogs.js`,
 `menu.js`, `state.js` per-device UI state, `text.js` helpers, `trash.js` Recently deleted). Styles: `assets/css/journal.css` (`.jr-`).
+Family trees and timelines (note kinds): [below](#family-trees-and-timelines).
 
 ## Files on disk
 ```
@@ -102,6 +103,78 @@ folder (nothing goes to the trash).
   the players' to see and restore; the hidden ones stay behind when a player restores it, and the DM finds them on the
   page (worked out from their paths: one note = a note, several = their folder), each restored still hidden. On the DM
   Screen a hidden note waiting here is a "Deleted journal note" that can't be released before it is restored.
+
+## Family trees and timelines
+**New note** (the Files pane, the journal home, a folder page and its right pane) opens a menu of three kinds:
+**Regular note**, **Family tree**, **Timeline**; a folder's ⋯ menu has "New … here" for each, and the new-note
+dialog of an unwritten link asks which. Code: `kinds.js` (the kinds, board data, indexing), `calendar.js` (ages,
+months, dates), `board.js` (item dialogs' controls, the hover card), `ages.js` (the Ages menu), `timeline.js`,
+`family.js`, `symbols.js`, `board-md.js` (embeds); styles `assets/css/journal-boards.css` (`.jr-tl-`, `.jr-ft-`).
+
+- **Files.** Both are ordinary notes (`.md` in the vault; trash, moves, renames, search, DM hiding all as before).
+  `kind: timeline` / `kind: family-tree` in the frontmatter, the items under `timeline:` / `family:`, the body is
+  the introduction shown above the board (written, linked and #tagged like any note). A note without `kind` is a
+  regular note: every note made before this, untouched.
+  ```yaml
+  kind: timeline
+  timeline:
+    view: horizontal            # or vertical: the view choice, saved with the note
+    ages: [bcc]                 # ages shown even without items in them (the "Age" tool / "On this timeline")
+    events:
+      - {id: e1, title: Siege of Greywater, year: 100, month: 3, age: aff, symbol: war, text: "…", tags: [war]}
+    spans:                      # sub-timelines: a reign, a war, a time of something
+      - {id: s1, title: Reign of Aldis, color: murrey, from: {year: 104, age: aff}, to: {year: 162, age: aff}, text: "…", tags: []}
+    markers:
+      - {id: m1, label: Party arrives, year: 5, age: bcc, color: rubric}
+  ```
+  ```yaml
+  kind: family-tree
+  family:
+    people:
+      - {id: c, name: Aldis Vael, title: Queen of Vael, born: {year: 80, age: aff}, died: {year: 162, age: aff}, color: murrey, text: "…", tags: []}
+    unions:                     # partners (at most two) and their children; status married (default) | partners | separated
+      - {id: u2, partners: [c, d], children: [f, g]}
+      - {id: u4, partners: [], children: [j, k]}   # siblings whose parents aren't known
+  ```
+  Colours are the map's pin inks (`rubric vermilion ochre gold green verdigris lapis slate murrey umber`).
+- **The words of the items count for the note**: searched, their tags in the Tags pane and `tag:` searches, their
+  `[[links]]` in backlinks and outgoing links. Renaming a note rewrites links inside the items through the parsed
+  YAML (then writes the note again), never as raw text. `[[` suggests events, sub-timelines and people
+  (`[[Kings of Vael#Siege of Greywater]]`); such a link opens the board at the item with its card open (`?h=`).
+  `![[Kings of Vael]]` embeds the introduction and the items in order; `![[Kings of Vael#Reign of Aldis]]` one item.
+  The right pane's Properties names the type ("Timeline · 7 events, 3 sub-timelines"); the Properties editor leaves
+  the board keys alone.
+- **The page.** The introduction (a text box while editing, a couple of paragraphs tall), then the toolbar and the
+  board, in both modes. While editing, a Tags box under the title holds the note's own `tags:`.
+- **The world's calendar**, `content/calendar.json`, shared by every timeline and family tree:
+  `{ages: [{id, abbr, name, color, start, end, countdown, text, tags}], months: [names], defaultAge}`. Without the
+  file there is one age, AFF (After the Fallen Firmament), the default for new dates, and the Gregorian months.
+  A date is an integer year, an optional month and an age (a dropdown). Dates sort by the age's place in the list
+  first (with AFF above BCC, 100 AFF comes before 1 BCC), then the year (backwards in an age whose years count
+  down, like BC), then the month (none first). **Ages** (the toolbar's Ages, or Age to add one): the list in order
+  (earlier / later), each age's abbreviation, name, range of years, "counts down", colour, a paragraph and tags,
+  which age new dates start in, the month names, and (from a timeline) which ages it shows; nothing is written
+  until Save. Deleting an age that dates use asks first; those dates keep their years and sort last.
+- **Timeline.** Add an **Event** (title, date, a symbol: crossed swords for war, a white flag for peace, a crown…,
+  description, tags), an **Age**, a **Sub-timeline** (title, highlight colour, from – to, the end optional while
+  it goes on, description, tags) or a **Marker** (a label, a date, a colour). Horizontal: event cards stand on
+  stems above the axis in up to four lanes; the room between dates grows with the years between them (log scale,
+  − / + spacing) and stretches wherever a card needs it, so every title and year shows (a long title wraps);
+  ages are bands hanging under the axis with their name kept in sight while scrolling; sub-timelines are bars in
+  lanes under it plus a wash of their colour over their stretch; markers are diamonds on the axis, labels under
+  it. Vertical: dates left of the axis, cards right of it (on a narrow page the date goes in the card). Drag to
+  scroll with a mouse.
+- **Family tree.** Add a **Person**; select someone (click their card) to add their **Parent** (at most two),
+  **Partner** (married / partners / separated), **Child** (with which partner, or of them alone) or **Sibling**,
+  someone new or someone already in the tree. Rows are generations (partners share one, children sit below their
+  parents); each family claims its children's families and gets a stretch as wide as its descendants, so no cards
+  meet and parents sit centred over their children; a family two families could claim goes to the first, the
+  other draws a longer line. Lines: double = married, single = partners, dashed = separated; siblings with unknown
+  parents share a bar under a question mark. A person's dialog lists their relations to unlink one or change a
+  partnership. Zoom − / % (fit the whole tree) / +; drag to scroll.
+- **Hover card** (both boards): mouse over an item, or focus it, for its expanded view: what it is, its date or
+  range, the description (markdown, links work), tags (each opens the tag search), Edit and Copy link (a
+  `[[Note#Item]]`). A click or a tap keeps it open; a double click or Enter edits; Esc or a click elsewhere closes it.
 
 ## UI state (localStorage, per device)
 `sw:journal:prefs` (pane tab and visibility, widths, sort, tag sort, right-pane sections) and

@@ -52,6 +52,8 @@ content/              ALL user data, written by the site through the GitHub API
                                 frontmatter `images:` = reference photos (slideshow; docs/journal-model.md)
   media/journal/<file>          uploaded reference photos of journal notes (journal/gallery.js)
   journal-trash/<id>/…          journal Recently deleted: the note / folder at its vault path + _deleted.json
+  calendar.json                 the world's ages in order (default AFF) + month names, for journal timelines and
+                                family trees (docs/journal-model.md "Family trees and timelines")
   library/<kind>/<id>.json   kinds: weapon armor gear magic-item spell feat ability species class subclass
                              background location-type
 wardens-library/      campaign documents (pdf/docx/md/txt/images) shown read-only in Warden's Library
@@ -253,6 +255,15 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   folder moves it to `content/journal-trash/<id>/` at its vault path (toast with Undo); look inside, Restore (back where
   it was: gone folders made again, a taken note name -> `name-2`, a taken folder name -> merged), delete forever, Empty
   folder. Hidden notes stay sealed there and their record names nothing; a player's restore leaves them for the DM.
+- Note kinds (docs/journal-model.md "Family trees and timelines"): New note opens a menu: Regular note, Family tree,
+  Timeline. The two boards are `.md` notes with `kind:` and their items in frontmatter (`timeline:` / `family:`),
+  the body = the introduction above the board; no `kind` = a regular note (all older notes). Items' words, tags and
+  links are indexed with the note (`kinds.js boardText`); renames rewrite links inside items via the parsed YAML
+  (`data.js rewriteNote`), never as raw text. Dates = integer year + optional month + age; `calendar.js` orders
+  ages (content/calendar.json, the Ages menu `ages.js`). Boards: `timeline.js` (horizontal / vertical, events with
+  symbols, age bands, sub-timelines, markers), `family.js` (generations, partners, children); hover card and item
+  dialogs in `board.js`. Test boards at desktop, iPad (touch) and phone widths: no two cards may overlap and no
+  title may be cut (qa: compare card rects; `.jr-tl-ev-title` scrollWidth).
 - Per-device UI state in localStorage `sw:journal:*`. Other views link notes with `href('journal', first || '_', rest)`.
 
 ## Warden's Library tab
