@@ -171,9 +171,11 @@ function render() {
   rerender(S.root, () => mount(S.root,
     header(c, s),
     nav(s),
+    // one slim line, like the open-choices notice below
     S.stale ? h('div', { class: 'callout ch-stale', 'data-callout': 'warning' },
-      h('div', { class: 'callout-title' }, 'This sheet changed elsewhere'),
-      h('div', { class: 'callout-content row' }, h('span', null, 'Another Warden (or another tab) updated it.'),
+      h('div', { class: 'callout-title ch-pending-line' },
+        h('span', null, 'This sheet changed elsewhere:'),
+        h('span', { class: 'ch-pending-list' }, 'another Warden (or another tab) updated it.'),
         h('button', { class: 'btn btn-sm', type: 'button', onclick: () => { flushPersist(S.id); S.char = getCharacter(S.id); S.sheet = derive(S.char); S.stale = false; render(); } }, 'Load their version'),
         h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onclick: () => { S.stale = false; persist(S.char, { now: true }); render(); } }, 'Keep mine'))) : null,
     // one slim line: "3 choices still open: Size, Reach to the Blaze, … [Make choices]"

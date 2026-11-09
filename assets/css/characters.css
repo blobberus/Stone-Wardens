@@ -243,10 +243,11 @@
 .ch-nav-mode .icon { width: 16px; height: 16px; color: var(--ink-muted); }
 
 .ch-stale, .ch-pending { margin: 0 0 var(--space-4); }
-.ch-page .ch-pending { margin-bottom: var(--space-3); padding: 5px 10px 5px 12px; }
+.ch-page :is(.ch-pending, .ch-stale) { margin-bottom: var(--space-3); padding: 5px 10px 5px 12px; }
 .ch-pending-line { flex-wrap: wrap; gap: 2px 10px; }
 .ch-pending-list { flex: 1 1 auto; font-weight: 400; color: var(--ink); }
-.ch-pending-line > .btn { flex: none; height: 28px; margin-left: auto; }
+.ch-pending-line > .btn { flex: none; height: 28px; }
+.ch-pending-line > .ch-pending-list + .btn { margin-left: auto; }
 .ch-stale .callout-content, .ch-pending .callout-content { --row-gap: var(--space-3); }
 .ch-warnings { margin: 0 0 var(--space-4); }
 .ch-warnings summary { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
