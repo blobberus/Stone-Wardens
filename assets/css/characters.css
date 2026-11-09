@@ -134,7 +134,7 @@
 /* First row: identity | Hit points | Death saves | AC · Initiative · Speed · Proficiency (one line when wide, 2 × 2
    when tighter); narrower, the combat boxes take their own line under the identity, still in that order.
    A size container: it follows the real width (icon rail or full sidebar). */
-.ch-head { container: ch-head / inline-size; margin-bottom: var(--space-3); --ch-strip-h: 64px; }
+.ch-head { container: ch-head / inline-size; margin-bottom: var(--space-3); --ch-strip-h: 54px; }
 .ch-head-grid {
   display: grid; gap: var(--space-2) var(--space-3); align-items: start;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 270px) auto minmax(196px, 224px);
@@ -237,14 +237,14 @@
 .ch-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .ch-stat {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; min-width: 0;
-  min-height: 54px; padding: 3px 6px; text-align: center; font: inherit; color: var(--ink);
+  min-height: 48px; padding: 2px 6px; text-align: center; font: inherit; color: var(--ink);
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
 }
 button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease); }
 @media (hover: hover) { button.ch-stat:hover { border-color: var(--border-strong); background: var(--surface-2); } }
 .ch-stat-label { display: inline-flex; align-items: center; gap: 4px; font: 500 var(--text-xs) / 1.15 var(--font-ui); color: var(--ink-muted); }
 .ch-stat-label .icon { width: 15px; height: 15px; }
-.ch-stat-value { font: 700 1.3125rem / 1.15 var(--font-body); }
+.ch-stat-value { font: 700 1.25rem / 1.1 var(--font-body); }
 /* Big numbers use lining figures: Alegreya's old-style 0 reads as a small "o" */
 .ch-page :is(.ch-stat-value, .ch-hp-now, .ch-abil-mod, .ch-abil-score, .ch-abil-save-val, .ch-skl-bonus) { font-variant-numeric: lining-nums tabular-nums; }
 .ch-stat-sub { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 var(--text-xs) / 1.15 var(--font-ui); color: var(--ink-muted); }
@@ -287,7 +287,7 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
 }
 
 .ch-hp {
-  display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 6px var(--space-3) var(--space-2);
+  display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 4px 10px 6px;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
 }
 .ch-hp.is-down { border-color: var(--danger); box-shadow: inset 3px 0 0 var(--danger); }
@@ -295,7 +295,7 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
 .ch-hp-top .ch-fold { margin-left: -6px; }
 .ch-hp-top .ch-stat-label { color: var(--ink); font-weight: 700; font-size: var(--text-sm); }
 .ch-hp-top .ch-stat-label .icon { color: var(--danger); }
-.ch-hp-now { font: 700 1.5rem / 1 var(--font-body); white-space: nowrap; }
+.ch-hp-now { font: 700 1.375rem / 1 var(--font-body); white-space: nowrap; }
 .ch-hp-max { font-size: var(--text-sm); font-weight: 400; color: var(--ink-muted); }
 .ch-hp-temp { margin-top: -2px; color: var(--info); text-align: right; }
 .ch-hp-edit { display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
@@ -306,7 +306,7 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
 .ch-insp-chip .icon { width: 14px; height: 14px; color: var(--gold); --icon-fill: var(--gold); }
 /* Death saves: between Hit points and AC; red edge at 0 HP like the HP box */
 .ch-dsbox {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 4px 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 3px 9px;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
 }
 .ch-dsbox.is-down { border-color: var(--danger); box-shadow: inset 3px 0 0 var(--danger); }
