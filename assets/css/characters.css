@@ -245,6 +245,14 @@
 .ch-nav.is-stuck .ch-nav-who { flex-shrink: 0; opacity: 1; visibility: visible; transition: opacity var(--dur) var(--ease), visibility 0s; }
 @media (hover: hover) { .ch-nav-who:hover .ch-nav-name { text-decoration: underline; text-underline-offset: 0.2em; } }
 .ch-nav-player { font: 400 var(--text-sm) / 1.3 var(--font-ui); color: var(--ink-muted); }
+/* name (gives way first, with "…"), then hit points and AC, which always show */
+.ch-nav.is-stuck .ch-nav-who { display: inline-flex; align-items: baseline; gap: 10px; }
+.ch-nav-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ch-nav-stat { flex: none; display: inline-flex; align-items: center; gap: 3px; font: 700 var(--text-sm) / 1.3 var(--font-ui); color: var(--ink); font-variant-numeric: tabular-nums; }
+.ch-nav-stat .icon { width: 14px; height: 14px; color: var(--danger); align-self: center; }
+.ch-nav-stat.is-down { color: var(--danger); }
+.ch-nav-player { flex: none; }
+@media (max-width: 1100px) { .ch-nav-player { display: none; } } /* narrower: the character's name gets the room */
 /* Paper Companion: its name before the chips */
 .ch-nav-mode { flex: none; display: inline-flex; align-items: center; gap: 5px; font: 700 var(--text-sm) / 1 var(--font-ui); color: var(--ink); white-space: nowrap; }
 .ch-nav-mode .icon { width: 16px; height: 16px; color: var(--ink-muted); }
@@ -914,7 +922,7 @@ div.ch-optcard { cursor: default; }
   .ch-hp-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ch-nav { gap: var(--space-2); }
   .ch-nav-player { display: none; } /* phones: the name only */
-  .ch-nav.is-stuck .ch-nav-who { max-width: 38%; font-size: var(--text-sm); }
+  .ch-nav.is-stuck .ch-nav-who { max-width: 52%; font-size: var(--text-sm); gap: 8px; }
   /* touch: rows and roll buttons a little taller than on desktop, still dense */
   .ch-skl-row { min-height: 34px; }
   .ch-skl-bonus { height: 30px; min-width: 3.4em; }

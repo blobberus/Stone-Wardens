@@ -301,7 +301,7 @@ function moreItems(c) {
   ];
 }
 
-// Sticky section bar; once it sticks (the header, name included, has scrolled away), "Name · Player" fills its
+// Sticky section bar; once it sticks (the header, name included, has scrolled away), "Name ♥ HP AC · Player" fills its
 // empty right side.
 const NAV = { io: null, stuck: false, id: null };
 
@@ -323,7 +323,16 @@ function nav(s) {
     h('button', {
       class: 'ch-nav-who', type: 'button', title: 'Back to the top',
       onclick: () => (S.root.closest('.view') || window).scrollTo({ top: 0, behavior: 'smooth' }),
-    }, h('span', { class: 'ch-nav-name' }, c.name || 'Unnamed'), c.player ? h('span', { class: 'ch-nav-player' }, ` · ${c.player}`) : null));
+    },
+    h('span', { class: 'ch-nav-name' }, c.name || 'Unnamed'),
+    // what a scrolled-down player checks most, so nobody scrolls back up for it: hit points (with temp) and AC
+    (() => {
+      const cur = c.hp.current == null ? s.hpMax : Number(c.hp.current);
+      const temp = Number(c.hp.temp) || 0;
+      return h('span', { class: ['ch-nav-stat', s.hpMax > 0 && cur <= 0 && 'is-down'], 'aria-label': `Hit points ${cur + temp} of ${s.hpMax}` }, icon('heart'), `${cur + temp}/${s.hpMax}`);
+    })(),
+    h('span', { class: 'ch-nav-stat', 'aria-label': `Armor Class ${s.ac.value}` }, `AC ${s.ac.value}`),
+    c.player ? h('span', { class: 'ch-nav-player' }, `· ${c.player}`) : null));
   queueMicrotask(() => watchNav(el));
   return el;
 }
