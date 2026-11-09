@@ -342,6 +342,13 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
 /* One line: Hit dice · Inspiration · Exhaustion · Conditions (wraps only when stacked / on phones) */
 .ch-trk-line { display: flex; flex-wrap: nowrap; align-items: flex-start; gap: var(--space-2) var(--space-3); }
 @container ch-abilrow (max-width: 999px) { .ch-trk-line { flex-wrap: wrap; } }
+/* Under the scores with room for one line (600-999 px), and on phones where it wraps anyway: each label beside its
+   control, so a line is one control tall (between those, labels over the controls keep it to one line) */
+@container ch-abilrow ((min-width: 600px) and (max-width: 999px)) or (max-width: 420px) {
+  .ch-trk-line { align-items: center; gap: var(--space-2) var(--space-4); }
+  .ch-trk-line > .ch-trk { flex-direction: row; align-items: center; gap: 8px; }
+  .ch-trk-line .ch-trk-ctl { min-height: 30px; }
+}
 .ch-trk { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ch-trk-label { font: 500 var(--text-xs) / 1.2 var(--font-ui); color: var(--ink-muted); white-space: nowrap; }
 .ch-trk-ctl { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px 6px; min-height: 34px; }
