@@ -602,7 +602,7 @@ function commonDir(rels) {
 function trashedNote(path, rel, text) {
   const { data: fm, body } = parseFrontmatter(text);
   const slug = stripExt(rel.split('/').pop());
-  return { path, rel, slug, text, fm, body, title: String(fm.title ?? '').trim() || titleFromSlug(slug) };
+  return { path, rel, slug, text, fm, body, kind: kindOf(fm), title: String(fm.title ?? '').trim() || titleFromSlug(slug) };
 }
 
 function entryOf(id, docs, bins, meta) {

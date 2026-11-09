@@ -5,6 +5,8 @@
 import { h } from '../../core/dom.js';
 import { icon, openModal, confirmDialog, toast } from '../../core/ui.js';
 import { renderInto, parseFrontmatter } from '../../core/markdown.js';
+import { isBoard } from './kinds.js';
+import { boardMarkdown } from './board-md.js';
 import { navigate } from '../../core/router.js';
 import { saveSoon } from '../../core/saving.js';
 import { registerHideable } from '../../core/dm.js';
@@ -96,7 +98,8 @@ function peek(e, ctx) {
   if (e.type === 'note') {
     const n = e.notes[0];
     const prose = h('div', { class: 'jr-trash-prose' });
-    if (n?.body.trim()) J.withNote(null, () => renderInto(prose, n.body));
+    if (n && isBoard(n.kind)) J.withNote(null, () => renderInto(prose, boardMarkdown(n))); // a family tree's or timeline's items too
+    else if (n?.body.trim()) J.withNote(null, () => renderInto(prose, n.body));
     else prose.append(h('p', { class: 'muted' }, 'This note is empty.'));
     body.append(prose);
   } else if (e.notes.length) {
