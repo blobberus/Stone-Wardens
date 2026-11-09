@@ -8,7 +8,24 @@ import * as J from './data.js';
 import * as S from './state.js';
 import { headingsOf, fmtDay, relTime, plural } from './text.js';
 import { section, tagList, highlighted, KIND_ICON, KIND_LABEL, btn, iconBtn } from './parts.js';
-import { isBoard, boardData, KINDS } from './kinds.js';
+import { isBoard, boardData, KINDS, itemAnchor } from './kinds.js';
+import { calendar, normDate, dateKey, cmpKey, fmtDate, fmtRange } from './calendar.js';
+import { normalize, generations, lifeLine } from './family-layout.js';
+
+/** A board's items for the outline, in order: a timeline's events and sub-timelines by date, a family by generation. */
+function boardOutline(kind, d) {
+  const cal = calendar();
+  if (kind === 'timeline') {
+    return [
+      ...d.events.filter((e) => e.title && normDate(e, cal)).map((e) => ({ title: e.title, sub: fmtDate(e, { cal }), key: dateKey(e, cal) })),
+      ...d.spans.filter((s) => s.title && normDate(s.from, cal)).map((s) => ({ title: s.title, sub: fmtRange(s.from, s.to, { cal }), key: dateKey(s.from, cal) })),
+    ].sort((a, b) => cmpKey(a.key, b.key));
+  }
+  const n = normalize(d);
+  const gen = generations(n.people, n.unions);
+  return n.people.filter((p) => p.name).map((p) => ({ title: p.name, sub: lifeLine(p, cal), g: gen.get(p.id) }))
+    .sort((a, b) => a.g - b.g || a.title.localeCompare(b.title));
+}
 
 /** "Timeline · 12 events, 2 sub-timelines" / "Family tree · 9 people". */
 function boardSummary(kind, d) {
@@ -112,17 +129,26 @@ export class SidePane {
 
   outlineSection(note, body) {
     const heads = headingsOf(body);
+    // a family tree's or timeline's items follow its headings: click one to go to it on the board
+    const board = isBoard(note.kind) ? boardOutline(note.kind, boardData(this.target?.view?.fm || note.fm)) : [];
     let el;
-    if (!heads.length) el = h('p', { class: 'jr-hint' }, 'No headings. Start a line with # to add one.');
-    else {
-      const min = Math.min(...heads.map((x) => x.level));
-      el = h('ol', { class: 'jr-outline', role: 'list' }, heads.map((x) => h('li', null, h('a', {
-        href: J.noteHref(note, x.raw), 'data-id': x.id, style: `--depth:${x.level - min}`,
-        onclick: (e) => { e.preventDefault(); this.ctx.jumpToHeading(x); },
-      }, x.text))));
+    if (!heads.length && !board.length) {
+      el = h('p', { class: 'jr-hint' }, isBoard(note.kind) ? `Nothing here yet: headings of the introduction and the ${note.kind === 'timeline' ? 'events' : 'people'} show here.` : 'No headings. Start a line with # to add one.');
+    } else {
+      const min = heads.length ? Math.min(...heads.map((x) => x.level)) : 1;
+      el = h('ol', { class: 'jr-outline', role: 'list' },
+        heads.map((x) => h('li', null, h('a', {
+          href: J.noteHref(note, x.raw), 'data-id': x.id, style: `--depth:${x.level - min}`,
+          onclick: (e) => { e.preventDefault(); this.ctx.jumpToHeading(x); },
+        }, x.text))),
+        board.length ? h('li', { class: 'jr-outline-cap' }, note.kind === 'timeline' ? 'On the timeline' : 'In the tree') : null,
+        board.map((x) => h('li', null, h('a', {
+          class: 'jr-outline-item', href: J.noteHref(note, x.title), 'data-id': itemAnchor(x.title), style: '--depth:0',
+          onclick: (e) => { e.preventDefault(); this.ctx.jumpToHeading(itemAnchor(x.title)); },
+        }, h('span', null, x.title), x.sub ? h('small', null, x.sub) : null))));
       this.outlineEl = el;
     }
-    return sec('outline', 'Outline', el, { count: heads.length || null });
+    return sec('outline', 'Outline', el, { count: heads.length + board.length || null });
   }
 
   /** Mark the outline entry for the heading currently at the top of the page. */
