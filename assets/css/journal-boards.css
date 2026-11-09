@@ -13,6 +13,10 @@
 .jr-link-btn:hover { color: var(--link-hover); }
 .jr-board { margin-top: var(--space-5); }
 
+/* a board's own tags while editing (in the page head) */
+.jr-head-tags { max-width: 640px; }
+.jr-head-tags .field-label { font-size: var(--text-xs); color: var(--ink-muted); }
+
 /* the new-note dialog's choice of kind */
 .jr-kinds { min-width: 0; margin: 0; padding: 0; border: 0; }
 .jr-kinds legend { padding: 0; }

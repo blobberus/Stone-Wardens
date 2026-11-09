@@ -12,7 +12,8 @@ import { tagList, metaLine, btn, emptyState } from './parts.js';
 import { noteImages, imagesValue, slideshow, imagesPanel, dropIfUnused, chooseAndUpload, pickExisting } from './gallery.js';
 import { isHidden } from '../../core/dm.js';
 import { visibilityToggle } from '../../core/dm-ui.js';
-import { isBoard, KINDS } from './kinds.js';
+import { isBoard, KINDS, tagsOf } from './kinds.js';
+import { tagsInput } from './board.js';
 import { TimelineBoard } from './timeline.js';
 import { FamilyBoard } from './family.js';
 
@@ -137,7 +138,7 @@ export class NoteView {
       this.titleEl,
       metaLine(note),
       visibilityToggle(this.path, { label: 'this note', before: () => this.writeNow() }), // DM mode only
-      note.tags.length ? tagList(note.tags, { className: 'jr-sheet-tags' }) : null);
+      this.editing && isBoard(note.kind) ? this.tagsEditor(note) : note.tags.length ? tagList(note.tags, { className: 'jr-sheet-tags' }) : null);
     this.bodyEl = h('div', { class: 'jr-sheet-body' });
     const Board = isBoard(note.kind) ? BOARDS[note.kind] : null;
     if (this.editing) this.buildEditor(this.bodyEl, note);
@@ -242,6 +243,27 @@ export class NoteView {
   }
 
   // ---------- family tree / timeline ----------
+
+  /** While editing a family tree or timeline: a box for the note's own tags (its `tags:`), beside those of its text and items. */
+  tagsEditor(note) {
+    const own = tagsOf(this.fm.tags ?? this.fm.tag);
+    const ownKeys = new Set(own.map((t) => t.toLowerCase()));
+    const elsewhere = note.tags.filter((t) => !ownKeys.has(t.toLowerCase()));
+    const ed = tagsInput(own, {
+      label: 'Tags',
+      hint: elsewhere.length ? `Also tagged in the introduction and the items: ${elsewhere.map((t) => `#${t}`).join(' ')}` : null,
+      onChange: (list) => {
+        this.fm = { ...this.fm };
+        delete this.fm.tag;
+        if (list.length) this.fm.tags = list; else delete this.fm.tags;
+        this.dirty = true;
+        this.writeNow();
+        this.ctx.sideLive?.(this);
+      },
+    });
+    ed.el.classList.add('jr-head-tags');
+    return ed.el;
+  }
 
   /** The board changed its items: write them into the note's frontmatter now (the introduction goes with them). */
   setBoard(data) {

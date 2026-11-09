@@ -61,8 +61,11 @@ export function dateFields({ value = null, optional = false, legend = 'When', hi
   };
 }
 
-/** Tags as chips with a box to type more (Enter, comma or space adds one). -> {el, get() -> [tags]} */
-export function tagsInput(tags = [], { label = 'Tags' } = {}) {
+/**
+ * Tags as chips with a box to type more (Enter, comma or space adds one). -> {el, get() -> [tags]}
+ * onChange(list): called whenever a tag is added or removed.
+ */
+export function tagsInput(tags = [], { label = 'Tags', hint = 'Press Enter after each tag. Tags show on the item and find this note in the Tags pane and in tag: searches.', onChange = null } = {}) {
   let list = tagsOf(tags);
   const listId = uidOf('tags');
   const known = J.allTags().map((t) => t.tag);
@@ -76,19 +79,21 @@ export function tagsInput(tags = [], { label = 'Tags' } = {}) {
       h('span', null, `#${t}`),
       h('button', {
         type: 'button', class: 'chip-x jr-chip-x', 'aria-label': `Remove the tag ${t}`, title: 'Remove',
-        onclick: () => { list.splice(i, 1); draw(); box.focus(); },
+        onclick: () => { list.splice(i, 1); draw(); box.focus(); onChange?.([...list]); },
       }, icon('close')))));
   };
   const commit = () => {
     const parts = box.value.split(/[,\s]+/).map(cleanTag).filter(Boolean);
+    const before = list.length;
     for (const t of parts) if (!list.some((x) => x.toLowerCase() === t.toLowerCase())) list.push(t);
     box.value = '';
     draw();
+    if (list.length !== before) onChange?.([...list]);
   };
   box.addEventListener('keydown', (e) => {
     if ((e.key === 'Enter' || e.key === ',' || e.key === ' ') && !e.isComposing) {
       if (box.value.trim()) { e.preventDefault(); e.stopPropagation(); commit(); } else if (e.key !== 'Enter') e.preventDefault();
-    } else if (e.key === 'Backspace' && !box.value && list.length) { list.pop(); draw(); }
+    } else if (e.key === 'Backspace' && !box.value && list.length) { list.pop(); draw(); onChange?.([...list]); }
   });
   box.addEventListener('change', commit);
   box.addEventListener('blur', commit);
@@ -97,7 +102,7 @@ export function tagsInput(tags = [], { label = 'Tags' } = {}) {
     h('span', { class: 'field-label' }, label),
     h('div', { class: 'jr-chipbox', onclick: (e) => { if (e.target === e.currentTarget || e.target === chips) box.focus(); } }, chips, box),
     h('datalist', { id: listId }, known.map((t) => h('option', { value: t }))),
-    h('span', { class: 'field-hint' }, 'Press Enter after each tag. Tags show on the item and find this note in the Tags pane and in tag: searches.'));
+    hint ? h('span', { class: 'field-hint' }, hint) : null);
   return { el, get() { commit(); return [...list]; } };
 }
 
