@@ -69,21 +69,23 @@ export class TimelineBoard {
 
   toolbar(d) {
     const tool = (label, ic, onClick, title) => h('button', { type: 'button', class: 'btn btn-sm jr-tool', title, onclick: onClick }, icon(ic), h('span', null, label));
-    const seg = (label, ic, on, onClick) => h('button', { type: 'button', class: 'jr-seg-btn', 'aria-pressed': String(on), onclick: onClick, title: `${label} view` }, icon(ic), h('span', null, label));
+    const seg = (label, ic, on, onClick) => h('button', { type: 'button', class: 'jr-seg-btn', 'aria-pressed': String(on), onclick: onClick, title: `${label} view`, 'aria-label': `${label} view` }, icon(ic), h('span', { class: 'jr-seg-label' }, label));
     const setView = (v) => { if (this.data.view === v) return; const nd = this.data; nd.view = v; this.save(nd); };
     return h('div', { class: 'jr-tools', role: 'toolbar', 'aria-label': 'Timeline tools' },
-      h('div', { class: 'jr-tools-group', role: 'group', 'aria-label': 'Add' },
+      h('div', { class: 'jr-tools-group', role: 'group', 'aria-label': 'Add to the timeline, and the ages' },
         h('span', { class: 'jr-tools-cap' }, 'Add'),
         tool('Event', 'star', () => this.editEvent(null), 'Add an event: a title, its date and age, a symbol, a description and tags'),
         tool('Age', 'layers', () => this.addAge(), 'Add an age to the master list (its description and range) and show it here'),
         tool('Sub-timeline', 'ruler', () => this.editSpan(null), 'Highlight a stretch of the timeline in a colour: a reign, a war, a time of something'),
-        tool('Marker', 'sym-marker', () => this.editMarker(null), 'Place a simple marker at a year')),
-      h('div', { class: 'jr-tools-group' },
+        tool('Marker', 'sym-marker', () => this.editMarker(null), 'Place a simple marker at a year'),
+        h('span', { class: 'jr-tools-sep', 'aria-hidden': 'true' }),
         tool('Ages', 'clock', () => this.openAges(), 'The master list of ages: their order, descriptions and ranges')),
       h('div', { class: 'jr-tools-group jr-tools-end' },
+        h('span', { class: 'jr-tools-cap' }, 'View'),
         h('div', { class: 'jr-seg', role: 'group', 'aria-label': 'View' },
           seg('Horizontal', 'timeline', d.view !== 'vertical', () => setView('horizontal')),
           seg('Vertical', 'sort', d.view === 'vertical', () => setView('vertical'))),
+        h('span', { class: 'jr-tools-cap' }, 'Spacing'),
         h('div', { class: 'jr-seg', role: 'group', 'aria-label': 'Spacing' },
           h('button', { type: 'button', class: 'jr-seg-btn', title: 'Closer together', 'aria-label': 'Closer together', disabled: this.zoom <= 0.4, onclick: () => this.setZoom(this.zoom / 1.5) }, icon('minus')),
           h('button', { type: 'button', class: 'jr-seg-btn', title: 'Further apart', 'aria-label': 'Further apart', disabled: this.zoom >= 4, onclick: () => this.setZoom(this.zoom * 1.5) }, icon('plus')))));

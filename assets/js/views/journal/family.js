@@ -57,6 +57,7 @@ export class FamilyBoard {
         h('span', { class: 'jr-tools-cap' }, sel ? `For ${who.length > 18 ? `${who.slice(0, 17)}…` : who}` : 'Select someone'),
         rel('Parent', 'parent'), rel('Partner', 'partner'), rel('Child', 'child'), rel('Sibling', 'sibling')),
       h('div', { class: 'jr-tools-group jr-tools-end' },
+        h('span', { class: 'jr-tools-cap' }, 'Zoom'),
         h('div', { class: 'jr-seg', role: 'group', 'aria-label': 'Zoom' },
           h('button', { type: 'button', class: 'jr-seg-btn', title: 'Zoom out', 'aria-label': 'Zoom out', disabled: this.zoom <= 0.4, onclick: () => this.setZoom(this.zoom / 1.25) }, icon('minus')),
           h('button', { type: 'button', class: 'jr-seg-btn', title: 'Fit the whole tree', onclick: () => this.fit() }, h('span', null, `${Math.round(this.zoom * 100)}%`)),
