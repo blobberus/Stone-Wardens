@@ -14,9 +14,10 @@ import { isHidden } from '../../core/dm.js';
 import { visibilityToggle } from '../../core/dm-ui.js';
 import { isBoard, KINDS } from './kinds.js';
 import { TimelineBoard } from './timeline.js';
+import { FamilyBoard } from './family.js';
 
 // The board under a family tree's or timeline's introduction (kinds.js).
-const BOARDS = { timeline: TimelineBoard };
+const BOARDS = { timeline: TimelineBoard, 'family-tree': FamilyBoard };
 
 const SAVE_MS = 400;
 const HL = 'jr-find';
