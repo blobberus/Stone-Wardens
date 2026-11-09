@@ -192,7 +192,14 @@
 .ch-head-actions .btn-sm { height: 28px; padding: 0 8px; }
 .ch-head-actions .ch-more-btn { width: 28px; padding: 0; }
 .ch-rest-word { white-space: pre; }
-@container ch-head (max-width: 520px) { .ch-rest-word { display: none; } } /* phones: "Short", "Long" */
+/* 640 px and less (iPad portrait beside the sidebar, phones): "Short", "Long" and a bare "+" for Award experience, so
+   the XP meter and every button fit one row (two on phones) */
+@container ch-head (max-width: 640px) {
+  .ch-rest-word, .ch-xp-add-lbl { display: none; }
+  .ch-head .ch-xp > .ch-xp-add { width: 28px; padding: 0; }
+  .ch-head .ch-head-actions > .ch-xp { flex-basis: 170px; }
+}
+@media (pointer: coarse) { @container ch-head (max-width: 640px) { .ch-head .ch-xp > .ch-xp-add { width: 36px; } } }
 /* The header's More menu (widgets.js moreMenu): Copy link, Level down, … */
 .ch-menu {
   position: fixed; z-index: var(--z-popover); min-width: 220px; max-width: min(320px, calc(100vw - 16px)); padding: 4px;

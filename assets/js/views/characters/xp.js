@@ -33,7 +33,7 @@ export function xpMeter(char, { onOpen, onAdd } = {}) {
       h('span', { class: 'ch-xp-val num' }, n(st.xp), st.next != null && !due ? h('span', { class: 'ch-xp-next' }, ` / ${n(st.next)}`) : null),
       h('span', { class: 'ch-xp-sub' }, sub)),
     h('span', { class: 'ch-xpbar', 'aria-hidden': 'true' }, h('span', { style: { width: `${st.pct}%` } }))),
-    st.level >= 1 ? h('button', { class: 'btn btn-sm', type: 'button', onclick: () => onAdd?.(), title: 'Award experience', 'data-fk': 'xp-add' }, icon('plus'), 'XP') : null);
+    st.level >= 1 ? h('button', { class: 'btn btn-sm ch-xp-add', type: 'button', onclick: () => onAdd?.(), title: 'Award experience', 'aria-label': 'Award experience', 'data-fk': 'xp-add' }, icon('plus'), h('span', { class: 'ch-xp-add-lbl' }, 'XP')) : null);
 }
 
 /**
