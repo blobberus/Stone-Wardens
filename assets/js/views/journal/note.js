@@ -145,7 +145,9 @@ export class NoteView {
     // a family tree or timeline: its toolbar and board under the introduction, in both modes
     this.board?.destroy();
     this.board = Board ? new Board(this) : null;
-    if (this.board) this.bodyEl.append(this.board.el);
+    // right under the introduction's box while editing (the editing hints come after it), else after the text
+    if (this.board && this.editing && this.editor) this.editor.after(this.board.el);
+    else if (this.board) this.bodyEl.append(this.board.el);
 
     const refs = J.backlinks(note).length;
     const foot = h('footer', { class: 'jr-sheet-foot' },
