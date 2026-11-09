@@ -71,7 +71,7 @@ section('note kinds');
   const fm = { kind: 'timeline', timeline: { events: [{ id: 'e1', title: 'Siege', text: 'See [[Mira]].', tags: ['war', 'grey water'], year: 1 }], spans: [{ title: 'Reign', tags: 'royal' }], markers: [{ label: 'Here' }] } };
   const text = K.boardText(fm);
   check('boardText has titles, text, tags as #tags', text.includes('Siege') && text.includes('[[Mira]]') && text.includes('#war') && text.includes('#grey-water') && text.includes('#royal') && text.includes('Here'), text);
-  eq('boardItems types', K.boardItems(fm).map((i) => i.type), ['event', 'span', 'marker']);
+  eq('boardItems types: the items, then the ages shown', K.boardItems(fm).map((i) => i.type), ['event', 'span', 'marker', 'age']);
   const mapped = K.mapBoardStrings(fm.timeline, (s) => s.replace('[[Mira]]', '[[Mira Vael]]'));
   eq('mapBoardStrings rewrites strings, keeps numbers', [mapped.events[0].text, mapped.events[0].year, fm.timeline.events[0].text], ['See [[Mira Vael]].', 1, 'See [[Mira]].']);
   eq('itemAnchor', K.itemAnchor('Siege of Greywater!'), 'siege-of-greywater');

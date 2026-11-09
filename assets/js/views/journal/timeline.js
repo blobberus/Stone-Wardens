@@ -236,6 +236,7 @@ export class TimelineBoard {
       text: a.text, tags: a.tags,
       actions: [
         cardBtn('Edit ages', 'clock', () => this.openAges()),
+        cardBtn('Copy link', 'link', () => copyItemLink(this.note, a.name)),
         listed && !usedHere ? cardBtn('Remove from this timeline', 'eye-off', () => { const nd = this.data; nd.ages = nd.ages.filter((x) => x !== a.id); this.save(nd); }) : null,
       ].filter(Boolean),
     });

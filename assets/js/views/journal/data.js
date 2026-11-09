@@ -14,6 +14,7 @@ import { isHidden, isReleased } from '../../core/dm.js';
 import { plainText, plainLines, sectionOf, escapeRe, snippet, fold } from './text.js';
 import { kindOf, isBoard, newBoard, boardText, boardItems, itemAnchor, mapBoardStrings, BOARD_KEYS, KINDS } from './kinds.js';
 import { boardMarkdown } from './board-md.js';
+import { CAL_PATH } from './calendar.js';
 
 export const ROOT = 'content/journal';
 export const ROOT_SEG = '_'; // route segment of the vault root ("Loose Leaves" in the old book)
@@ -43,7 +44,14 @@ export const touchesJournal = (e) => e.type === 'load'
   || String(e.path || '').startsWith(PRE)
   || (Array.isArray(e.paths) && e.paths.some((p) => String(p).startsWith(PRE)));
 
-store.on((e) => { if (touchesJournal(e)) cache = null; });
+store.on((e) => {
+  if (touchesJournal(e)) cache = null;
+  // the ages' words and tags are part of the timelines that show them: index those again when the calendar changes
+  if (e.path === CAL_PATH || (Array.isArray(e.paths) && e.paths.includes(CAL_PATH))) {
+    cache = null;
+    for (const [p, n] of parsed) if (n.kind === 'timeline') parsed.delete(p);
+  }
+});
 
 export function index() { return cache || (cache = build()); }
 

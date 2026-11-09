@@ -4,6 +4,7 @@
 // spans, markers}`. Notes without `kind` are regular notes, as every note before this was.
 // docs/journal-model.md "Family trees and timelines".
 import { slugify } from '../../core/util.js';
+import { calendar, normDate } from './calendar.js';
 
 export const KINDS = Object.freeze({
   note: { id: 'note', label: 'Regular note', noun: 'note', icon: 'file', hint: 'Writing, with titles, [[links]] and #tags' },
@@ -69,6 +70,13 @@ export function boardItems(fm) {
     d.events.forEach((e) => add('event', e, e.title));
     d.spans.forEach((s) => add('span', s, s.title));
     d.markers.forEach((m) => add('marker', m, m.label));
+    // the ages it shows (listed, or holding its dates; the default one when empty) count as its items too: their
+    // tags find it, [[Note#Age name]] reaches the band (the ages themselves live in content/calendar.json)
+    const cal = calendar();
+    const ids = new Set(d.ages);
+    for (const x of [...d.events, ...d.markers, ...d.spans.flatMap((s) => [s.from, s.to])]) { const n = normDate(x, cal); if (n) ids.add(n.age); }
+    if (!ids.size) ids.add(cal.defaultAge);
+    for (const id of ids) { const a = cal.byId.get(id); if (a) add('age', a, a.name); }
   } else d.people.forEach((p) => add('person', p, p.name));
   return out;
 }
