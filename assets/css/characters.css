@@ -164,7 +164,7 @@
 .ch-head .ch-hp:not(.is-open) { justify-content: center; }
 /* The portrait alone (Print is in the More menu, the Paper Companion switch in the action row) */
 .ch-head-pic { display: flex; flex: none; width: 52px; }
-/* The Paper Companion switch (sheet.js companionButton) */
+/* "Full sheet" while the Paper Companion shows (sheet.js companionButton; switched on from the More menu) */
 .ch-comp-btn.is-active { border-color: var(--ink-muted); background: var(--surface-3); }
 /* The name: one line (a long one ends in "…", whole in its title); up to two lines on phones */
 .ch-name {

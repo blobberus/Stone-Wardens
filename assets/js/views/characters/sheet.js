@@ -224,15 +224,15 @@ function companionApi() {
   };
 }
 
-/** The Paper Companion switch in the header's action row (its title tells what it does; the browser places it). */
+const COMPANION_HINT = 'Only what changes in play (hit points, spell slots, feature uses, conditions, inventory and coins) on one screen, with your features and traits to look up, beside a printed Major points sheet.';
+
+/** While the Paper Companion shows: "Full sheet" in the action row, so the way back is always in sight. */
 function companionButton() {
-  const on = companionOn();
+  if (!companionOn()) return null; // switched on from the More menu
   return h('button', {
-    class: ['btn', 'btn-sm', 'ch-comp-btn', on && 'is-active'], type: 'button', 'aria-pressed': String(on), 'data-fk': 'companion',
-    title: on ? 'Back to the full character sheet.'
-      : 'Paper Companion: only what changes in play (hit points, spell slots, feature uses, conditions, inventory and coins) on one screen, with your features and traits to look up, beside a printed Major points sheet.',
-    onclick: () => setCompanion(!on),
-  }, icon('companion'), h('span', { class: 'ch-act-lbl' }, on ? 'Full sheet' : 'Companion'));
+    class: 'btn btn-sm ch-comp-btn is-active', type: 'button', 'aria-pressed': 'true', 'data-fk': 'companion',
+    title: 'Back to the full character sheet.', onclick: () => setCompanion(false),
+  }, icon('companion'), 'Full sheet');
 }
 
 function header(c, s) {
@@ -290,6 +290,9 @@ function moreItems(c) {
       label: 'Print…', hint: 'A PDF: Major points or the Detailed sheet, in color or grayscale', icon: 'printer', fk: 'print',
       onSelect: (anchor) => openPrintMenu(anchor, () => S.char),
     },
+    companionOn()
+      ? { label: 'Full sheet', hint: 'Back to the whole character sheet', icon: 'companion', fk: 'more-companion', onSelect: () => setCompanion(false) }
+      : { label: 'Paper Companion', hint: COMPANION_HINT, icon: 'companion', fk: 'more-companion', onSelect: () => setCompanion(true) },
   ];
 }
 
