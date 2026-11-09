@@ -215,6 +215,7 @@
 .jr-swatch input:checked + .jr-swatch-dot { box-shadow: 0 0 0 2px var(--ink); }
 .jr-swatch input:focus-visible + .jr-swatch-dot { outline: 2px solid var(--focus); outline-offset: 3px; }
 
+.jr-symbol-name { font-weight: 400; color: var(--ink-muted); }
 .jr-symbol-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px; }
 .jr-symbol { position: relative; display: block; cursor: pointer; }
 .jr-symbol input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }

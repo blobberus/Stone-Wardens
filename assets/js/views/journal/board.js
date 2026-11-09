@@ -123,11 +123,13 @@ export function colorPicker(value, { label = 'Colour', none = false } = {}) {
 export function symbolPicker(value) {
   const name = uidOf('sym');
   let cur = value || '';
+  const labelOf = (id) => SYMBOLS.find((s) => s.id === id)?.label || 'none';
+  const shown = h('span', { class: 'jr-symbol-name' }, labelOf(cur));
   const el = h('fieldset', { class: 'field jr-symbols' },
-    h('legend', { class: 'field-label' }, 'Symbol'),
+    h('legend', { class: 'field-label' }, 'Symbol: ', shown),
     h('div', { class: 'jr-symbol-grid' },
       [{ id: '', label: 'No symbol', icon: null }, ...SYMBOLS].map((s) => h('label', { class: 'jr-symbol', title: s.label },
-        h('input', { type: 'radio', name, value: s.id, checked: s.id === cur, 'aria-label': s.label, onchange: () => { cur = s.id; } }),
+        h('input', { type: 'radio', name, value: s.id, checked: s.id === cur, 'aria-label': s.label, onchange: () => { cur = s.id; shown.textContent = labelOf(cur); } }),
         h('span', { class: 'jr-symbol-face', 'aria-hidden': 'true' }, s.icon ? icon(s.icon) : h('span', { class: 'jr-symbol-none' }, '—'))))));
   return { el, get: () => cur || null };
 }
