@@ -216,12 +216,13 @@
 .ch-nav {
   position: sticky; top: var(--ch-stick, 0); z-index: 5;
   display: flex; align-items: center; gap: var(--space-3);
-  margin: 0 calc(var(--view-pad) * -1) var(--space-4); padding: var(--space-2) var(--view-pad);
+  margin: 0 calc(var(--view-pad) * -1) var(--space-3); padding: var(--space-1) var(--view-pad);
   background: var(--bg); border-bottom: 1px solid var(--border);
 }
 .ch-nav-chips { display: flex; gap: 6px; flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .ch-nav-chips::-webkit-scrollbar { display: none; }
-.ch-nav-chips .chip { flex: none; }
+.ch-nav-chips .chip { flex: none; height: 28px; padding: 0 11px; }
+@media (pointer: coarse) { .ch-nav-chips .chip { height: 36px; padding: 0 13px; } } /* finger-sized on touch */
 .ch-nav-back { flex: none; margin-left: calc(var(--space-2) * -1); }
 /* "Name · Player" fills the bar's empty right side once the header has scrolled away */
 .ch-nav-who {
