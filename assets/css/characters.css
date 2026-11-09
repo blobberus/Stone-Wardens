@@ -1373,10 +1373,14 @@ button.ch-pc-head:focus-visible { outline: 2px solid var(--focus); outline-offse
   .ch-link-btn, .ch-bonus { padding-block: 6px; margin-block: -6px; }
 
   /* header */
-  .ch-head { --ch-strip-h: 80px; }
+  .ch-head { --ch-strip-h: 62px; }
   .ch-dsbox .ch-ds { gap: 6px; }
   .ch-dsbox .ch-ds .checkbox { width: 24px; height: 24px; }
   .ch-ds-mini { gap: 4px 8px; }
+  /* Death saves: the label beside the two rows of finger-sized boxes (not over them), so the header's boxes are 62 px
+     tall instead of 80 */
+  .ch-head .ch-dsbox { flex-direction: row; gap: 8px; padding: 3px 10px; }
+  .ch-head .ch-dsbox > .ch-stat-label { width: 3.6em; white-space: normal; line-height: 1.15; text-align: right; }
   .ch-head-pic { gap: 6px; }
   .ch-pic-btn { height: 32px; }
   .ch-head-actions .btn-sm, .ch-trk-toggle { height: 36px; }
