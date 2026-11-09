@@ -12,6 +12,11 @@ import { tagList, metaLine, btn, emptyState } from './parts.js';
 import { noteImages, imagesValue, slideshow, imagesPanel, dropIfUnused, chooseAndUpload, pickExisting } from './gallery.js';
 import { isHidden } from '../../core/dm.js';
 import { visibilityToggle } from '../../core/dm-ui.js';
+import { isBoard, KINDS } from './kinds.js';
+import { TimelineBoard } from './timeline.js';
+
+// The board under a family tree's or timeline's introduction (kinds.js).
+const BOARDS = { timeline: TimelineBoard };
 
 const SAVE_MS = 400;
 const HL = 'jr-find';
@@ -133,8 +138,13 @@ export class NoteView {
       visibilityToggle(this.path, { label: 'this note', before: () => this.writeNow() }), // DM mode only
       note.tags.length ? tagList(note.tags, { className: 'jr-sheet-tags' }) : null);
     this.bodyEl = h('div', { class: 'jr-sheet-body' });
-    if (this.editing) this.buildEditor(this.bodyEl);
+    const Board = isBoard(note.kind) ? BOARDS[note.kind] : null;
+    if (this.editing) this.buildEditor(this.bodyEl, note);
     else this.buildReader(this.bodyEl, note);
+    // a family tree or timeline: its toolbar and board under the introduction, in both modes
+    this.board?.destroy();
+    this.board = Board ? new Board(this) : null;
+    if (this.board) this.bodyEl.append(this.board.el);
 
     const refs = J.backlinks(note).length;
     const foot = h('footer', { class: 'jr-sheet-foot' },
@@ -142,9 +152,11 @@ export class NoteView {
       refs ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm jr-refs', onclick: () => this.ctx.openRight('backlinks') },
         icon('link'), h('span', null, `Linked from ${plural(refs, 'note')}`)) : null);
 
-    this.sheet = h('article', { class: 'jr-sheet jr-note', 'data-mode': this.editing ? 'editing' : 'reading', 'aria-label': this.title },
-      this.banner, head, this.bodyEl, foot);
+    this.sheet = h('article', {
+      class: ['jr-sheet', 'jr-note', this.board && 'jr-board-note'], 'data-mode': this.editing ? 'editing' : 'reading', 'data-kind': note.kind, 'aria-label': this.title,
+    }, this.banner, head, this.bodyEl, foot);
     this.host.replaceChildren(this.sheet);
+    this.board?.layout();
     // The title grows with its text: refit when the page width changes or the display font arrives.
     const fit = () => { if (this.titleEl?.isConnected) autosize(this.titleEl); };
     this.ro?.disconnect();
@@ -162,7 +174,11 @@ export class NoteView {
     // reference images: a slideshow at the top of the page; "Expand" / a tap opens the full-screen viewer
     const imgs = noteImages(this.fm);
     if (imgs.length) el.append(slideshow(imgs, { start: Math.min(this.galIndex || 0, imgs.length - 1), onIndex: (i) => { this.galIndex = i; } }));
-    if (this.body.trim()) {
+    if (isBoard(note.kind) && !this.body.trim()) {
+      el.append(h('p', { class: 'jr-hint jr-intro-empty' }, `No introduction yet. `,
+        h('button', { type: 'button', class: 'jr-link-btn', onclick: () => this.setEditing(true) }, 'Write a few paragraphs'),
+        ` about this ${KINDS[note.kind].noun} (Ctrl+E).`));
+    } else if (this.body.trim()) {
       const prose = h('div', { class: 'jr-prose' });
       J.withNote(note, () => renderInto(prose, this.body, { onTaskToggle: () => {}, startNotes: J.startsNotes(note) }));
       // A leading "# Title" that repeats the page title would show the name twice.
@@ -203,19 +219,36 @@ export class NoteView {
     });
   }
 
-  buildEditor(el) {
+  buildEditor(el, note = this.current) {
+    const board = isBoard(note.kind);
     this.editor = markdownEditor({
       value: this.body,
       rows: 16,
-      placeholder: 'Write in Markdown. Type [[ to link a note, map:place, char:character… Start a line with # for a title.',
+      placeholder: board
+        ? `Introduce this ${KINDS[note.kind].noun}: a couple of paragraphs. Formatting, [[links]] and #tags work as in any note.`
+        : 'Write in Markdown. Type [[ to link a note, map:place, char:character… Start a line with # for a title.',
       live: true,
       onInput: (v) => { this.body = v; this.queueSave(); this.liveSoon(); },
     });
     this.editor.classList.add('jr-editor');
+    if (board) this.editor.classList.add('jr-intro-editor');
     el.append(imagesPanel({ list: noteImages(this.fm), slug: this.current.slug || 'note', hidden: () => isHidden(this.path), onChange: (list, removed) => this.setImages(list, removed) }),
       this.editor,
       h('p', { class: 'jr-hint jr-edit-hint' }, 'Kept on this device as you type. Press Save (Ctrl+S) to share it with the party. Ctrl+E goes back to reading.'),
       h('details', { class: 'jr-syntax' }, h('summary', null, 'Formatting help'), syntaxHelp()));
+  }
+
+  // ---------- family tree / timeline ----------
+
+  /** The board changed its items: write them into the note's frontmatter now (the introduction goes with them). */
+  setBoard(data) {
+    if (this.deleted || this.destroyed) return;
+    const key = KINDS[this.current.kind]?.key;
+    if (!key) return;
+    this.fm = { ...this.fm, [key]: data };
+    this.dirty = true;
+    this.writeNow();
+    this.ctx.sideLive?.(this);
   }
 
   // ---------- reference images ----------
@@ -325,6 +358,7 @@ export class NoteView {
     const id = typeof x === 'string' ? x : x.id;
     if (this.editing) {
       const line = typeof x === 'object' ? x.line : headingsOf(this.body).find((hd) => hd.id === id)?.line;
+      if (line == null && this.board?.reveal(id)) return; // an event, era or person of the board
       this.caretToLine(line, smooth);
       return;
     }
@@ -334,7 +368,10 @@ export class NoteView {
   scrollTo(id, smooth = true) {
     if (this.editing) { this.jumpTo(id, smooth); return; }
     const target = this.headingEl(id);
-    if (!target) return;
+    if (!target) {
+      if (this.board?.reveal(id)) history.replaceState(null, '', `${this.current.href}?h=${encodeURIComponent(id)}`);
+      return;
+    }
     this.reveal(target, smooth);
     this.flash(target);
     history.replaceState(null, '', `${this.current.href}?h=${encodeURIComponent(id)}`);
@@ -459,6 +496,7 @@ export class NoteView {
     this.destroyed = true;
     this.liveSoon.cancel();
     this.ro?.disconnect();
+    this.board?.destroy();
     this.clearFind();
     if (!this.deleted) {
       this.writeNow();

@@ -8,8 +8,19 @@ import * as J from './data.js';
 import * as S from './state.js';
 import { headingsOf, fmtDay, relTime, plural } from './text.js';
 import { section, tagList, highlighted, KIND_ICON, KIND_LABEL, btn, iconBtn } from './parts.js';
+import { isBoard, boardData, KINDS } from './kinds.js';
 
-const HIDDEN_PROPS = new Set(['title', 'order', 'images']); // images: the note's slideshow (gallery.js), listed as a count
+/** "Timeline · 12 events, 2 sub-timelines" / "Family tree · 9 people". */
+function boardSummary(kind, d) {
+  const bits = kind === 'timeline'
+    ? [d.events.length ? plural(d.events.length, 'event') : '', d.spans.length ? plural(d.spans.length, 'sub-timeline') : '', d.markers.length ? plural(d.markers.length, 'marker') : '']
+    : [d.people.length ? (d.people.length === 1 ? '1 person' : `${d.people.length} people`) : ''];
+  const what = bits.filter(Boolean).join(', ');
+  return `${KINDS[kind].label}${what ? ` · ${what}` : ' · empty'}`;
+}
+
+// images: the note's slideshow (gallery.js), listed as a count; kind + family / timeline: a board's items (kinds.js)
+const HIDDEN_PROPS = new Set(['title', 'order', 'images', 'kind', 'family', 'timeline']);
 
 const onToggle = (key, on) => { S.prefs.sections[key] = on; S.savePrefs(); };
 const sec = (key, title, body, opts = {}) => section({ key, title, body, open: S.prefs.sections[key] !== false, onToggle, ...opts });
@@ -86,6 +97,7 @@ export class SidePane {
       if (HIDDEN_PROPS.has(k) || k === 'tags' || k === 'tag') continue;
       rows.push(h('dt', null, k), h('dd', null, propValue(k, v)));
     }
+    if (isBoard(note.kind)) rows.unshift(h('dt', null, 'type'), h('dd', null, boardSummary(note.kind, boardData(fm))));
     const photos = Array.isArray(fm.images) ? fm.images.length : fm.images ? 1 : 0;
     if (photos) rows.push(h('dt', null, 'images'), h('dd', null, `${photos} reference ${photos === 1 ? 'photo' : 'photos'}`));
     if (tags.length) rows.push(h('dt', null, 'tags'), h('dd', null, tagList(tags)));
