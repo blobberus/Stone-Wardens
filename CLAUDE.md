@@ -291,21 +291,29 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   properties + `data-ground` / `data-sk-*` on the characters `.view` while a sheet shows (index.js `clearSkin`
   on every other route). `data-ground="light|dark"` switches the whole token set (tokens.css) for that subtree;
   ink is computed per color (>= 4.5:1). Only colors, edges, corners and fonts change, never the layout.
-- Print and Paper Companion (docs/character-model.md "Printouts & Paper Companion"): two small buttons under the portrait,
-  each describing itself on hover. Print -> popover: Major points (stats that rarely change) or Detailed sheet (as it
+- Print and Paper Companion (docs/character-model.md "Printouts & Paper Companion"): "Print…" and "Paper Companion" items
+  in the header's More (⋯) menu ("Full sheet" sits in the action row while the Companion shows). Print -> popover: Major points (stats that rarely change) or Detailed sheet (as it
   stands, inventory included), each PDF or Grayscale, downloaded at once (jsPDF in the browser; content `print-model.js`,
   pure; layout `print-pdf.js`; `node tools/test_print.mjs`). Companion -> the Paper Companion view (`companion.js`,
   device setting `chCompanion`, off by default): only what changes in play on one screen (HP, conditions & hit dice,
   coins, slots with their spells, feature uses, inventory; rows open for details), plus Features & traits to look up
   (search by name, All | Smart tags as on the sheet; placed under the shortest column, list fitted to the screen). Vision "Normal (2 mi)" in the header.
-- Sheet order: header row (portrait with Print / Companion under it, name, XP meter, action buttons | HP, folded, with the "Hide / Show trackers"
-  button under it | Death saves | AC · Initiative · Speed · Prof, one line when wide, 2 × 2 when tighter, the
-  combat boxes on their own line under the identity when narrow; slim Vision / Darkvision cells under the stat boxes
-  (under Speed and Prof in the 2 × 2 grid, each under two boxes in one row of four) in room the header already has,
-  inside the Speed and Prof boxes on phones, so the header never grows for them) ->
-  abilities row | one-line "Hit dice & conditions" panel (hit dice, inspiration star, exhaustion, conditions;
-  shown by default, setting `chTrackersShown`; beside the abilities, below them when narrow; while hidden, active
-  conditions show as chips in the HP widget) -> narrow column skills, senses, proficiencies (foldable) | wide column actions window (tabs
+  Its HP box opens by default (setting `chPcHpOpen`), so its header is taller.
+- Sheet header, kept as short as possible so the sections under it fit the screen (96 px on a desktop): row 1 =
+  portrait (52 px) + name (one line, ellipsis) + one line "Level · species · classes · background · alignment · player"
+  | Hit points (folded; as wide as its numbers need) | Death saves | AC · Initiative · Speed · Prof in one row (58 px
+  boxes, Vision inside the Speed box, Darkvision inside the Prof box; "Normal (2 mi)" drops its range when it doesn't
+  fit). Row 2 = the action row: slim one-line XP meter (stretches 200-360 px; its "300 to level 2" hides rather than
+  being cut), Level up, Short rest, Long rest ("Short" / "Long" on phones), Edit all, More (⋯, widgets.js `moreMenu`:
+  Level down, Copy link, Print…, Paper Companion; sheet.js `moreItems`). Container breakpoints (ch-head): <= 1000 a
+  2 × 2 block (identity | HP + Death saves over actions | stat boxes), <= 640 Death saves beside the identity and HP |
+  stats in one row, <= 520 (phones) identity, actions, HP | Death saves, stats. Test it at desktop, iPad (both
+  orientations, sidebar open and collapsed) and phone widths with a wide skin font: nothing in the header may be cut.
+  The sticky section bar under it is 39 px (28 px chips; 36 px on touch) and shows "Name · Player" once it is stuck.
+- Sheet order: header -> abilities row | one-line "Hit dice & conditions" panel (hit dice, inspiration star, exhaustion,
+  conditions; shown by default, setting `chTrackersShown`; beside the abilities from 1000 px of row width, below them
+  when narrower, where 600-999 px puts each label beside its control and drops the heading row; "Hide" in its head,
+  while hidden a "Show trackers" chip and chips for active conditions in the HP widget) -> narrow column skills, senses, proficiencies (foldable) | wide column actions window (tabs
   Attacks / Spells / Bonus actions),
   resources, inventory, currency, features (All | Smart tag view; compact rows, groups flow through two columns)
   -> details, notes. Tuned for the collapsed sidebar (container queries).
