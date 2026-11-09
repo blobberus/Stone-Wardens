@@ -386,7 +386,7 @@ function trackersToggle() {
 }
 
 /**
- * Hit points: folded = current / max, temp and the bar; open = + Current / Temp / Damage taken inputs and
+ * Hit points: folded = current / max, temp and the bar; open = + Current / Temp HP / HP lost (damage taken) inputs and
  * Amount → Damage / Heal. While the trackers panel is hidden, chips for anything active show here instead.
  */
 function hpWidget(c, s) {
@@ -424,7 +424,7 @@ function hpWidget(c, s) {
           numberInput(cur, (v) => mutate((x) => { x.hp.current = Math.max(0, Math.min(max, v ?? max)); }), { class: 'input input-sm', min: 0, max, 'data-fk': 'hp-cur' })),
         h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Temp HP'),
           numberInput(temp, (v) => mutate((x) => { x.hp.temp = Math.max(0, v || 0); }), { class: 'input input-sm', min: 0, 'data-fk': 'hp-temp' })),
-        h('label', { class: 'field' }, h('span', { class: 'field-label' }, 'Damage taken'),
+        h('label', { class: 'field', title: 'Damage taken: hit point maximum minus current hit points' }, h('span', { class: 'field-label' }, 'HP lost'),
           numberInput(Math.max(0, max - cur), (v) => mutate((x) => { x.hp.current = Math.max(0, max - Math.max(0, v || 0)); }), { class: 'input input-sm', min: 0, max, 'data-fk': 'hp-dmg' }))),
       h('div', { class: 'ch-hp-actions' }, amount,
         h('button', { class: 'btn btn-sm btn-danger', type: 'button', onclick: doDamage, 'data-fk': 'hp-dmg-btn' }, 'Damage'),
