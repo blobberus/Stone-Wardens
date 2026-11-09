@@ -1230,8 +1230,10 @@ button.ch-spell-chip:focus-visible { outline: 2px solid var(--focus); outline-of
 }
 .ch-skin[data-sk-panel]:not([data-sk-border-color]) { --border: color-mix(in srgb, var(--surface), var(--ink) 22%); }
 /* A page color that needs the other ink: the few texts drawn straight on the page follow it */
-.ch-skin[data-sk-pageink] :is(.ch-name, .ch-line, .ch-meta, .ch-nav-back, .ch-nav-who, .ch-nav-mode, .ch-warnings > summary,
-  .ch-head-actions > .btn-ghost, .ch-head-actions > .btn-icon) { --ink: var(--ch-page-ink); --ink-muted: var(--ch-page-muted); --ink-faint: var(--ch-page-muted); }
+/* Text set straight on the page color (the header's action buttons all have their own surface) */
+.ch-skin[data-sk-pageink] :is(.ch-name, .ch-line, .ch-meta, .ch-nav-back, .ch-nav-who, .ch-nav-mode, .ch-warnings > summary) {
+  --ink: var(--ch-page-ink); --ink-muted: var(--ch-page-muted); --ink-faint: var(--ch-page-muted);
+}
 .ch-skin[data-sk-pageink] :is(.ch-name, .ch-line, .ch-nav-who, .ch-nav-mode) { color: var(--ink); }
 /* Edges of the main boxes only (panels, stat boxes, HP, death saves, ability boxes, XP meter), not table rows */
 .ch-skin[data-sk-border] :is(.panel, .ch-stat, .ch-hp, .ch-dsbox, .ch-abil, .ch-xp-meter) {
