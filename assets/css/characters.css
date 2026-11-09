@@ -162,17 +162,10 @@
 /* The folded HP box, the death saves and the four stat boxes share one height */
 .ch-head .ch-hp:not(.is-open), .ch-head .ch-dsbox, .ch-head .ch-stat { min-height: var(--ch-strip-h); }
 .ch-head .ch-hp:not(.is-open) { justify-content: center; }
-/* Portrait with Print and the Paper Companion switch under it (sheet.js picButtons): portrait-wide buttons in the
-   identity column's height, so the header never grows for them (words; icons on phones, where the portrait is
-   smaller); each describes itself on hover / focus (.ch-tip). */
-.ch-head-pic { display: flex; flex-direction: column; align-items: stretch; gap: 4px; flex: none; width: 64px; }
-.ch-pic-btn { width: 100%; height: 22px; padding: 0 2px; justify-content: center; font-size: var(--text-xs); letter-spacing: -0.01em; white-space: nowrap; }
-.ch-pic-btn .icon { display: none; width: 15px; height: 15px; flex: none; }
-@media (max-width: 760px) { /* with the 52px portrait (below) */
-  .ch-pic-btn .icon { display: inline-block; }
-  .ch-pic-lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-}
-.ch-pic-btn.is-active { border-color: var(--ink-muted); background: var(--surface-2); }
+/* The portrait alone (Print is in the More menu, the Paper Companion switch in the action row) */
+.ch-head-pic { display: flex; flex: none; width: 64px; }
+/* The Paper Companion switch (sheet.js companionButton) */
+.ch-comp-btn.is-active { border-color: var(--ink-muted); background: var(--surface-3); }
 .ch-tip-wrap { position: relative; display: flex; }
 .ch-tip-wrap > .btn { flex: 1 1 auto; min-width: 0; }
 .ch-tip {

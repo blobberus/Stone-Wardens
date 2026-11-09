@@ -38,7 +38,7 @@ import { abilityName } from './data.js';
 import { openPrintMenu } from './print.js';
 import { companionBody } from './companion.js';
 import { visionOf, NORMAL_SIGHT, NORMAL_SIGHT_NOTE, plain } from './print-model.js';
-import { hoverTip, moreMenu } from './widgets.js';
+import { moreMenu } from './widgets.js';
 
 const S = {
   root: null, id: null, char: null, sheet: null, stale: false, notesEditing: false, openFeatures: new Set(),
@@ -224,17 +224,15 @@ function companionApi() {
   };
 }
 
-/** The Paper Companion switch under the portrait, describing itself on hover. */
-function picButtons(c) {
+/** The Paper Companion switch in the header's action row (its title tells what it does; the browser places it). */
+function companionButton() {
   const on = companionOn();
-  return [
-    hoverTip(h('button', {
-      class: ['btn', 'btn-sm', 'ch-pic-btn', on && 'is-active'], type: 'button', 'aria-pressed': String(on), 'data-fk': 'companion',
-      onclick: () => setCompanion(!on),
-    }, icon('companion'), h('span', { class: 'ch-pic-lbl' }, on ? 'Full sheet' : 'Companion')),
-    on ? 'Back to the full character sheet.'
-      : 'Paper Companion: only what changes in play (hit points, spell slots, feature uses, conditions, inventory and coins) on one screen, with your features and traits to look up, beside a printed Major points sheet.'),
-  ];
+  return h('button', {
+    class: ['btn', 'btn-sm', 'ch-comp-btn', on && 'is-active'], type: 'button', 'aria-pressed': String(on), 'data-fk': 'companion',
+    title: on ? 'Back to the full character sheet.'
+      : 'Paper Companion: only what changes in play (hit points, spell slots, feature uses, conditions, inventory and coins) on one screen, with your features and traits to look up, beside a printed Major points sheet.',
+    onclick: () => setCompanion(!on),
+  }, icon('companion'), h('span', { class: 'ch-act-lbl' }, on ? 'Full sheet' : 'Companion'));
 }
 
 function header(c, s) {
@@ -250,7 +248,7 @@ function header(c, s) {
   // The hit dice & conditions panel sits beside the ability scores (trackers()).
   return h('header', { class: 'ch-head' }, h('div', { class: 'ch-head-grid' },
     h('div', { class: 'ch-head-id' },
-      h('div', { class: 'ch-head-pic' }, portrait(c, { size: 'md' }), picButtons(c)),
+      h('div', { class: 'ch-head-pic' }, portrait(c, { size: 'md' })),
       h('div', { class: 'ch-head-text' },
         h('h1', { class: 'ch-name' }, c.name || 'Unnamed'),
         h('p', { class: 'ch-line' }, [lvl ? `Level ${lvl}` : 'Level 0', [species, sub ? `(${sub})` : ''].filter(Boolean).join(' '), s.classLine, bg].filter(Boolean).join(' · ')),
@@ -264,6 +262,7 @@ function header(c, s) {
           h('button', { class: 'btn btn-sm', type: 'button', onclick: shortRestDialog, title: 'Spend Hit Dice; recharge short-rest features' }, icon('clock'), 'Short rest'),
           h('button', { class: 'btn btn-sm', type: 'button', onclick: longRestDialog, title: 'Regain HP, slots and features' }, icon('moon'), 'Long rest'),
           h('a', { class: 'btn btn-sm', href: editHref(), title: 'Edit every field, choice and override' }, icon('edit'), 'Edit all'),
+          companionButton(),
           moreMenu(() => moreItems(c), { label: 'More actions' })))),
     h('div', { class: 'ch-hp-col' }, hpWidget(c, s), companionOn() ? null : trackersToggle()),
     deathSaves(c, s),
