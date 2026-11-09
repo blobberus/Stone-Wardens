@@ -243,8 +243,9 @@ function header(c, s) {
   const lvl = totalLevel(c);
   const due = levelsDue(c);
   const meta = [align, c.player ? `Player: ${c.player}` : ''].filter(Boolean).join(' · ');
-  // First row: identity (portrait, name, line, XP, one compact action row) | Hit points | Death saves |
-  // AC · Initiative · Speed · Proficiency (one line when wide, 2 × 2 when tighter).
+  // First row: identity (portrait, name, one line of level · species · classes · background · alignment · player) |
+  // Hit points | Death saves | AC · Initiative · Speed · Proficiency; under it the XP meter and the action row
+  // (characters.css moves the boxes under the identity when narrow). Less used actions are in the More menu.
   // The hit dice & conditions panel sits beside the ability scores (trackers()).
   return h('header', { class: 'ch-head' }, h('div', { class: 'ch-head-grid' },
     h('div', { class: 'ch-head-id' },
@@ -255,19 +256,19 @@ function header(c, s) {
           // one line: level · species · classes · background, then alignment · player in muted type
           const line = [lvl ? `Level ${lvl}` : 'Level 0', [species, sub ? `(${sub})` : ''].filter(Boolean).join(' '), s.classLine, bg].filter(Boolean).join(' · ');
           return h('p', { class: 'ch-line', title: [line, meta].filter(Boolean).join(' · ') }, line, meta ? h('span', { class: 'ch-meta ui' }, ` · ${meta}`) : null);
-        })(),
-        // XP meter and actions share one row, wrapping as needed
-        h('div', { class: 'ch-head-actions' },
-          xpMeter(c, { onOpen: () => xpWindow(), onAdd: () => xpWindow('amount') }),
-          h('button', {
-            class: ['btn', 'btn-sm', due || !lvl ? 'btn-primary' : null, due && 'ch-lu-due'], type: 'button', onclick: () => levelUp(), disabled: lvl >= 20, 'data-fk': 'lvl-up',
-            title: lvl >= 20 ? 'Already level 20' : due ? `Your XP has reached level ${lvl + due}` : lvl ? 'Gain a level now (milestone — ignores XP)' : 'Choose a first class',
-          }, icon('level-up'), !lvl ? 'Choose a class' : due ? (due > 1 ? `Level up · ${due} due` : 'Level up available') : 'Level up'),
-          h('button', { class: 'btn btn-sm', type: 'button', onclick: shortRestDialog, title: 'Spend Hit Dice; recharge short-rest features' }, icon('clock'), 'Short rest'),
-          h('button', { class: 'btn btn-sm', type: 'button', onclick: longRestDialog, title: 'Regain HP, slots and features' }, icon('moon'), 'Long rest'),
-          h('a', { class: 'btn btn-sm', href: editHref(), title: 'Edit every field, choice and override' }, icon('edit'), 'Edit all'),
-          companionButton(),
-          moreMenu(() => moreItems(c), { label: 'More actions' })))),
+        })())),
+      // XP meter and actions: one row of their own under the whole first row, wrapping as needed
+      h('div', { class: 'ch-head-actions' },
+        xpMeter(c, { onOpen: () => xpWindow(), onAdd: () => xpWindow('amount') }),
+        h('button', {
+          class: ['btn', 'btn-sm', due || !lvl ? 'btn-primary' : null, due && 'ch-lu-due'], type: 'button', onclick: () => levelUp(), disabled: lvl >= 20, 'data-fk': 'lvl-up',
+          title: lvl >= 20 ? 'Already level 20' : due ? `Your XP has reached level ${lvl + due}` : lvl ? 'Gain a level now (milestone — ignores XP)' : 'Choose a first class',
+        }, icon('level-up'), !lvl ? 'Choose a class' : due ? (due > 1 ? `Level up · ${due} due` : 'Level up available') : 'Level up'),
+        h('button', { class: 'btn btn-sm', type: 'button', onclick: shortRestDialog, title: 'Spend Hit Dice; recharge short-rest features' }, icon('clock'), 'Short rest'),
+        h('button', { class: 'btn btn-sm', type: 'button', onclick: longRestDialog, title: 'Regain HP, slots and features' }, icon('moon'), 'Long rest'),
+        h('a', { class: 'btn btn-sm', href: editHref(), title: 'Edit every field, choice and override' }, icon('edit'), 'Edit all'),
+        companionButton(),
+        moreMenu(() => moreItems(c), { label: 'More actions' })),
     h('div', { class: 'ch-hp-col' }, hpWidget(c, s)),
     deathSaves(c, s),
     statGrid(s)));

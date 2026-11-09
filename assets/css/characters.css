@@ -138,8 +138,9 @@
 .ch-head-grid {
   display: grid; gap: var(--space-2) var(--space-3); align-items: start;
   grid-template-columns: minmax(0, 1fr) minmax(170px, 210px) auto auto;
-  grid-template-areas: "id hp ds stats";
+  grid-template-areas: "id hp ds stats" "act act act act";
 }
+.ch-head-grid > .ch-head-actions { grid-area: act; margin-top: 0; }
 .ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(64px, auto)); }
 .ch-head-id { grid-area: id; display: flex; gap: var(--space-3); align-items: flex-start; min-width: 0; }
 .ch-head-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
@@ -148,11 +149,11 @@
 .ch-head-grid > .ch-dsbox { grid-area: ds; }
 .ch-head-grid > .ch-stats { grid-area: stats; }
 @container ch-head (max-width: 1000px) {
-  .ch-head-grid { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "id id id" "hp ds stats"; }
+  .ch-head-grid { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "id id id" "act act act" "hp ds stats"; }
 }
 .ch-head .ch-stat-label { white-space: nowrap; }
 @container ch-head (max-width: 640px) {
-  .ch-head-grid { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "id id" "hp ds" "stats stats"; }
+  .ch-head-grid { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "id id" "act act" "hp ds" "stats stats"; }
   .ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 /* The folded HP box, the death saves and the four stat boxes share one height */
