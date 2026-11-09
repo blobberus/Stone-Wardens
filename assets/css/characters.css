@@ -1384,6 +1384,10 @@ button.ch-pc-head:focus-visible { outline: 2px solid var(--focus); outline-offse
   .ch-head-pic { gap: 6px; }
   .ch-pic-btn { height: 32px; }
   .ch-head-actions .btn-sm, .ch-trk-toggle { height: 36px; }
+  /* the XP meter, + XP and More as tall as the buttons beside them (the row is 36 px anyway) */
+  .ch-head .ch-xp-meter { height: 36px; padding-top: 7px; }
+  .ch-head .ch-xp > .btn { height: 36px; }
+  .ch-head-actions .ch-more-btn { width: 36px; }
   .ch-fold { min-height: 36px; padding: 4px 6px; }
 
   /* sections, tabs */
