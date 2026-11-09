@@ -321,9 +321,10 @@ and `levelUpPlan` of the latest class + open choices; Advantages → every sourc
 view and tag are remembered per device in localStorage `sw:characters:features`.
 
 ## Printouts & Paper Companion — `print-model.js` (pure), `print-pdf.js`, `print.js`, `companion.js`
-Two small buttons under the portrait (sheet.js `picButtons`), each with a description on mouse hover / keyboard focus
-(widgets.js `hoverTip`, `.ch-tip`; touch screens show the labels only):
-- **Print** opens a popover (print.js) with the two printouts, each as **PDF** or **Grayscale**; the file downloads at
+Both live in the sheet header: **Print…** in the More (⋯) menu at the end of the action row (sheet.js `moreItems`,
+widgets.js `moreMenu`), the **Companion** switch in the action row itself (sheet.js `companionButton`, described by
+its title):
+- **Print…** opens a popover (print.js `openPrintMenu`, under the More button) with the two printouts, each as **PDF** or **Grayscale**; the file downloads at
   once (`<Name> - Major points.pdf`, `<Name> - Character sheet (grayscale).pdf`). Everything runs in the browser: jsPDF
   (`vendor/jspdf/jspdf.umd.min.js`, global `jspdf`) loads on first use; standard PDF fonts (Times headings, Helvetica
   text; `pdfText` keeps text to WinAnsi); US Letter.

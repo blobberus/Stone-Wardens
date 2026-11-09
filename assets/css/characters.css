@@ -166,18 +166,6 @@
 .ch-head-pic { display: flex; flex: none; width: 64px; }
 /* The Paper Companion switch (sheet.js companionButton) */
 .ch-comp-btn.is-active { border-color: var(--ink-muted); background: var(--surface-3); }
-.ch-tip-wrap { position: relative; display: flex; }
-.ch-tip-wrap > .btn { flex: 1 1 auto; min-width: 0; }
-.ch-tip {
-  position: absolute; left: calc(100% + 8px); top: 50%; z-index: 30; transform: translateY(-50%);
-  width: max-content; max-width: 260px; padding: 6px 9px;
-  font: 400 var(--text-xs) / 1.4 var(--font-ui); color: var(--ink); text-align: left; white-space: normal;
-  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); box-shadow: var(--shadow);
-  opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 120ms var(--ease), visibility 0s linear 120ms;
-}
-.ch-tip-wrap:has(> :focus-visible) > .ch-tip { opacity: 1; visibility: visible; transition: opacity 120ms var(--ease) 300ms, visibility 0s linear 300ms; }
-@media (hover: hover) { .ch-tip-wrap:hover > .ch-tip { opacity: 1; visibility: visible; transition: opacity 120ms var(--ease) 300ms, visibility 0s linear 300ms; } }
-.ch-tip-wrap.is-menu-open > .ch-tip { display: none; }
 .ch-name { margin: 0; font: 600 var(--text-xl) / 1.15 var(--font-display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
 .ch-line { margin: 0; font: 400 var(--text-sm) / 1.35 var(--font-body); }
 .ch-meta { margin: 0; font-size: var(--text-xs); color: var(--ink-muted); }

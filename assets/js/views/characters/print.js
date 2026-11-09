@@ -126,7 +126,6 @@ export function openPrintMenu(anchor, getChar) {
     }));
   (document.querySelector('body > #overlays') || document.body).append(el);
   anchor.setAttribute('aria-expanded', 'true');
-  anchor.closest('.ch-tip-wrap')?.classList.add('is-menu-open');
   const place = () => {
     const a = anchor.getBoundingClientRect();
     const r = el.getBoundingClientRect();
@@ -163,7 +162,6 @@ export function openPrintMenu(anchor, getChar) {
     document.removeEventListener('scroll', onScroll, true);
     window.removeEventListener('resize', place);
     anchor.setAttribute('aria-expanded', 'false');
-    anchor.closest('.ch-tip-wrap')?.classList.remove('is-menu-open');
     if (pop?.el === el) pop = null;
     if (restore) (anchor.isConnected ? anchor : back)?.focus?.();
   }
