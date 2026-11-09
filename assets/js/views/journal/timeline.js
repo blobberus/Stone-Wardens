@@ -45,7 +45,10 @@ export class TimelineBoard {
     this.zoom = 1;
     this.lastAge = null;
     this.el = h('section', { class: 'jr-board jr-tl', 'aria-label': 'Timeline' });
-    this.ro = new ResizeObserver(() => { if (this.d?.view === 'vertical' && this.el.isConnected) this.layoutSoon(); });
+    // the vertical view fits its cards to the width: lay out again when the width (not the height) changes
+    this.ro = new ResizeObserver(() => {
+      if (this.d?.view === 'vertical' && this.el.isConnected && Math.abs(this.scroll.clientWidth - (this.lastWidth || 0)) > 1) this.layoutSoon();
+    });
     this.render();
     document.fonts?.ready.then(() => { if (!this.destroyed) this.layout(); });
   }
