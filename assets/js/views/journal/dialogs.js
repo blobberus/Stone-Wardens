@@ -12,6 +12,7 @@ import * as S from './state.js';
 import { fuzzy, plural } from './text.js';
 import { hitsMarked, KIND_ICON } from './parts.js';
 import { hiddenChoice } from '../../core/dm-ui.js';
+import { KIND_LIST, kindIcon } from './kinds.js';
 
 function submitOnEnter(el, submit, modal) {
   el.addEventListener('keydown', (e) => {
@@ -23,7 +24,18 @@ const folderOptions = (ix) => ix.folderList.map((f) => ({
   value: f.path, label: f.isRoot ? `${J.VAULT_TITLE} (vault root)` : `${' '.repeat(f.depth)}${f.title}`,
 }));
 
-/** Resolves {title, folder, hidden} or null (hidden: DM mode's choice, else null). */
+/** The kind of a new note as three radio cards: Regular note, Family tree, Timeline. -> {el, get()} */
+function kindChoice(value = 'note') {
+  let cur = value;
+  const name = `jr-kind-${Math.random().toString(36).slice(2, 7)}`;
+  const el = h('fieldset', { class: 'field jr-kinds' }, h('legend', { class: 'field-label' }, 'Type'),
+    h('div', { class: 'jr-kind-row' }, KIND_LIST.map((k) => h('label', { class: 'jr-kind' },
+      h('input', { type: 'radio', name, value: k.id, checked: k.id === cur, onchange: () => { cur = k.id; } }),
+      h('span', { class: 'jr-kind-face' }, icon(kindIcon(k.id)), h('strong', null, k.label), h('small', null, k.hint))))));
+  return { el, get: () => cur };
+}
+
+/** Resolves {title, folder, hidden, kind} or null (hidden: DM mode's choice, else null). */
 export function newNoteDialog({ title = '', folder = '' } = {}) {
   return new Promise((resolve) => {
     const ix = J.index();
@@ -33,6 +45,7 @@ export function newNoteDialog({ title = '', folder = '' } = {}) {
     const dupe = h('p', { class: 'field-hint jr-dupe', hidden: true });
     const err = h('p', { class: 'field-error', role: 'alert', hidden: true });
     const vis = { hidden: null };
+    const kind = kindChoice();
     const checkDupe = () => {
       const n = J.findNote(titleEl.value.trim());
       dupe.hidden = !n;
@@ -41,13 +54,13 @@ export function newNoteDialog({ title = '', folder = '' } = {}) {
     const submit = () => {
       const t = titleEl.value.trim();
       if (!t) { err.textContent = 'Give the note a title.'; err.hidden = false; titleEl.focus(); return false; }
-      result = { title: t, folder: sel.value, hidden: vis.hidden };
+      result = { title: t, folder: sel.value, hidden: vis.hidden, kind: kind.get() };
       return true;
     };
     titleEl.addEventListener('input', () => { err.hidden = true; checkDupe(); });
     const m = openModal({
       title: 'New note',
-      body: h('div', { class: 'stack jr-dialog' }, hiddenChoice(vis), field('Title', titleEl), dupe, field('Folder', sel), err),
+      body: h('div', { class: 'stack jr-dialog' }, hiddenChoice(vis), field('Title', titleEl), dupe, kind.el, field('Folder', sel), err),
       actions: [{ label: 'Cancel', kind: 'ghost' }, { label: 'Create note', kind: 'primary', onClick: submit }],
       onClose: () => resolve(result),
     });
@@ -146,7 +159,7 @@ export function descriptionDialog(f) {
 
 // ---------- quick switcher ----------
 
-const noteItem = (n) => ({ icon: 'file', label: n.title, detail: J.folderLabel(n.folderRef), kind: 'Note', href: n.href, hits: [] });
+const noteItem = (n) => ({ icon: kindIcon(n.kind), label: n.title, detail: J.folderLabel(n.folderRef), kind: 'Note', href: n.href, hits: [] });
 const folderItem = (f) => ({ icon: 'folder', label: f.title, detail: f.parent && !f.parent.isRoot ? J.folderLabel(f.parent) : null, kind: 'Folder', href: f.href, hits: [] });
 
 function switcherItems(query) {

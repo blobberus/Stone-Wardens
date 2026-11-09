@@ -8,6 +8,7 @@ import * as J from './data.js';
 import * as S from './state.js';
 import { plural, relTime, fuzzy, plainText } from './text.js';
 import { add, btn, tagList, emptyState, iconBtn } from './parts.js';
+import { kindIcon } from './kinds.js';
 
 const clip = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t; };
 
@@ -40,7 +41,7 @@ export function renderHome(host, ctx) {
   const unwritten = J.unwritten(8);
   const tags = J.allTags().slice(0, 30);
   const actions = h('div', { class: 'row jr-page-actions' },
-    btn('New note', () => ctx.newNote({ folder: ix.root }), { ic: 'file-plus', kind: 'primary', small: false }),
+    btn('New note', (e) => ctx.newNoteMenu(e.currentTarget, { folder: ix.root }), { ic: 'file-plus', kind: 'primary', small: false, attrs: { 'aria-haspopup': 'menu' } }),
     btn('New folder', () => ctx.newFolder({ parent: ix.root }), { ic: 'folder-plus', small: false }),
     btn('Jump to…', () => ctx.switcher(), { ic: 'compass', kind: 'ghost', small: false, title: 'Quick switcher (Ctrl+O or Ctrl+K)' }));
 
@@ -62,10 +63,10 @@ export function renderHome(host, ctx) {
   const grid = h('div', { class: 'jr-index-grid' });
   add(grid,
     opened.length ? block('Recently opened', h('ul', { class: 'jr-lrows', role: 'list' }, opened.map((n) => row({
-      to: n.href, ic: 'file', name: n.title, detail: where(n), meta: relTime(n.updated || n.created),
+      to: n.href, ic: kindIcon(n.kind), name: n.title, detail: where(n), meta: relTime(n.updated || n.created),
     })))) : null,
     edited.length ? block('Recently edited', h('ul', { class: 'jr-lrows', role: 'list' }, edited.map((n) => row({
-      to: n.href, ic: 'file', name: n.title, detail: [where(n), n.author ? `by ${n.author}` : null].filter(Boolean).join(' · ') || null,
+      to: n.href, ic: kindIcon(n.kind), name: n.title, detail: [where(n), n.author ? `by ${n.author}` : null].filter(Boolean).join(' · ') || null,
       meta: relTime(n.updated || n.created),
     })))) : null,
     folders.length ? block('Folders', h('ul', { class: 'jr-lrows', role: 'list' }, folders.map((f) => row({
@@ -110,7 +111,7 @@ export function renderFolder(host, f, ctx) {
     J.withNote(null, () => renderInto(desc, f.description, { startNotes: true })); // a folder's description is the players' own
   }
   const tools = h('div', { class: 'row jr-page-actions' },
-    btn('New note here', () => ctx.newNote({ folder: f }), { ic: 'file-plus', kind: 'primary' }),
+    btn('New note here', (e) => ctx.newNoteMenu(e.currentTarget, { folder: f }), { ic: 'file-plus', kind: 'primary', attrs: { 'aria-haspopup': 'menu' } }),
     btn('New folder', () => ctx.newFolder({ parent: f }), { ic: 'folder-plus' }),
     f.isRoot ? null : btn(f.description ? 'Edit description' : 'Add a description', () => ctx.editDescription(f), { ic: 'edit', kind: 'ghost' }),
     h('span', { class: 'spacer' }),
@@ -119,7 +120,7 @@ export function renderFolder(host, f, ctx) {
   const list = subs.length || notes.length ? h('ul', { class: 'jr-lrows jr-folder-list', role: 'list' },
     subs.map((c) => row({ to: c.href, ic: 'folder', name: c.title, detail: c.description ? clip(plainText(c.description), 90) : null, meta: plural(c.count, 'note') })),
     notes.map((n) => row({
-      to: n.href, ic: 'file', name: n.title, detail: clip(n.plain, 110) || null,
+      to: n.href, ic: kindIcon(n.kind), name: n.title, detail: clip(n.plain, 110) || null,
       meta: relTime(n.updated || n.created), title: n.author ? `by ${n.author}` : null,
     })))
     : emptyState({
@@ -163,7 +164,7 @@ export function renderMissing(host, target, ctx) {
       ],
     }),
     guesses.length ? block('Perhaps you meant', h('ul', { class: 'jr-lrows', role: 'list' }, guesses.map(({ n }) => row({
-      to: n.href, ic: 'file', name: n.title, detail: J.folderLabel(n.folderRef),
+      to: n.href, ic: kindIcon(n.kind), name: n.title, detail: J.folderLabel(n.folderRef),
     })))) : null);
   host.replaceChildren(sheet);
 }

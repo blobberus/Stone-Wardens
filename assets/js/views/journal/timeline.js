@@ -147,7 +147,8 @@ export class TimelineBoard {
     d.markers.forEach((m) => push('marker', m, m));
     d.spans.forEach((s) => { push('span-from', s.from, s); push('span-to', s.to, s); });
     if (!shown.size && cal.ages.length) shown.add(cal.defaultAge); // an empty timeline shows the default age
-    for (const id of shown) {
+    const ages = [...shown].sort((x, y) => cal.byId.get(x).index - cal.byId.get(y).index); // in order, for the tab order too
+    for (const id of ages) {
       const a = cal.byId.get(id);
       const sign = a.countdown ? -1 : 1;
       let lo = -BIG;
@@ -159,7 +160,7 @@ export class TimelineBoard {
       pts.push({ type: 'age-end', key: [a.index, hi, 99], age: a });
     }
     pts.sort((p, q) => cmpKey(p.key, q.key) || ORDER[p.type] - ORDER[q.type]);
-    this.shown = shown;
+    this.shown = ages;
     return pts;
   }
 

@@ -153,6 +153,10 @@
   -webkit-user-drag: element;
 }
 .jr-row.is-note { padding-left: calc(8px + 24px + var(--depth, 0) * var(--jr-indent)); }
+/* a family tree or timeline: its icon sits where a folder's twisty would */
+.jr-row.is-note.has-kind { padding-left: calc(8px + var(--depth, 0) * var(--jr-indent)); }
+.jr-row-kind { display: inline-grid; place-items: center; flex: none; width: 20px; color: var(--ink-muted); }
+.jr-row-kind .icon { width: 16px; height: 16px; }
 .jr-row:hover { color: var(--ink); background: var(--surface-2); }
 .jr-row.is-active { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
 .jr-row.is-active .jr-row-label { font-weight: 500; }

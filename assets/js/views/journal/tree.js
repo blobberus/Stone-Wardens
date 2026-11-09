@@ -10,6 +10,7 @@ import { iconBtn } from './parts.js';
 import { openMenu } from './menu.js';
 import { plural } from './text.js';
 import { hiddenMark } from '../../core/dm-ui.js';
+import { isBoard, kindIcon, KINDS } from './kinds.js';
 
 const esc = (s) => (window.CSS?.escape ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&'));
 
@@ -22,7 +23,8 @@ export class FileTree {
     this.drag = null;
     this.count = h('span', { class: 'jr-pane-title' });
     this.sortBtn = iconBtn('sort', 'Sort order', () => this.sortMenu());
-    this.newNoteBtn = iconBtn('file-plus', 'New note', () => ctx.newNote({ folder: ctx.targetFolder() }));
+    this.newNoteBtn = iconBtn('file-plus', 'New note', (e) => ctx.newNoteMenu(e.currentTarget, { folder: ctx.targetFolder() }),
+      { attrs: { 'aria-haspopup': 'menu', 'aria-expanded': 'false' } });
     const bar = h('div', { class: 'jr-pane-bar' },
       this.count,
       this.newNoteBtn,
@@ -110,7 +112,9 @@ export class FileTree {
     const row = h('a', {
       class: 'jr-row is-note', role: 'treeitem', href: n.href, tabindex: '-1', draggable: 'true', 'data-path': n.path,
       'aria-level': String(depth + 1), style: `--depth:${depth}`,
-    }, h('span', { class: 'jr-row-label' }, n.title), hiddenMark(n.path));
+    }, isBoard(n.kind) ? h('span', { class: 'jr-row-kind', title: KINDS[n.kind].label }, icon(kindIcon(n.kind))) : null,
+    h('span', { class: 'jr-row-label' }, n.title), hiddenMark(n.path));
+    if (isBoard(n.kind)) row.classList.add('has-kind');
     return h('div', { class: 'jr-item is-note', role: 'none' }, h('div', { class: 'jr-line' }, row, this.moreBtn()));
   }
 

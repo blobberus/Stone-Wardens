@@ -29,6 +29,7 @@ import { iconBtn } from './parts.js';
 import { plural } from './text.js';
 import { registerHideable, onDmMode } from '../../core/dm.js';
 import { parseFrontmatter } from '../../core/markdown.js';
+import { KINDS, KIND_LIST } from './kinds.js';
 
 // DM mode: notes can be hidden from the players until released (core/dm.js)
 registerHideable({
@@ -84,6 +85,7 @@ const ctx = {
   currentNote,
   targetFolder,
   newNote: (o) => newNote(o),
+  newNoteMenu: (anchor, o) => newNoteMenu(anchor, o),
   newFolder: (o) => newFolder(o),
   renameNote: (n, t) => renameNote(n, t),
   renameFolder: (f, t) => renameFolder(f, t),
@@ -428,13 +430,26 @@ function renderChrome(draft = null) {
 
 // ---------- creating ----------
 
-function newNote({ folder = targetFolder(), title = null } = {}) {
+/** kind: note | family-tree | timeline (kinds.js). */
+function newNote({ folder = targetFolder(), title = null, kind = 'note' } = {}) {
   const f = typeof folder === 'string' ? J.folderAt(folder) || J.index().root : folder || J.index().root;
-  const t = title || J.freshTitle(f);
-  const path = J.createNote({ title: t, folder: f });
+  const t = title || J.freshTitle(f, kind === 'note' ? 'Untitled' : `Untitled ${KINDS[kind].noun}`);
+  const path = J.createNote({ title: t, folder: f, kind });
   S.reveal(f.path);
   pending = { path, edit: true, focusTitle: !title };
   navigate(J.hrefForPath(path));
+}
+
+/** Every "New note" button: a menu of the three kinds (a regular note, a family tree, a timeline). */
+function newNoteMenu(anchor, { folder = targetFolder(), align = 'start' } = {}) {
+  anchor?.setAttribute('aria-expanded', 'true');
+  openMenu({
+    anchor, align, label: 'New note',
+    items: KIND_LIST.map((k) => ({ label: k.label, icon: k.icon, onClick: () => newNote({ folder, kind: k.id }) })),
+  });
+  // the menu has no close callback: the button's state follows the menu leaving the page
+  const watch = () => { if (document.querySelector('body > #overlays > .jr-menu, body > .jr-menu')) requestAnimationFrame(watch); else anchor?.setAttribute('aria-expanded', 'false'); };
+  requestAnimationFrame(watch);
 }
 
 function newFolder({ parent = targetFolder() } = {}) {
@@ -452,7 +467,7 @@ function openNewFromRoute(r) {
   const back = lastHash && !/^#\/journal\/new(?:[/?]|$)/.test(lastHash) ? lastHash : '#/journal';
   newNoteDialog({ title: r.query.title || '', folder: targetFolder().path }).then((res) => {
     if (!res) { navigate(back, { replace: true }); return; }
-    const path = J.createNote({ title: res.title, folder: res.folder, hidden: res.hidden });
+    const path = J.createNote({ title: res.title, folder: res.folder, hidden: res.hidden, kind: res.kind });
     S.reveal(J.folderAt(res.folder)?.path || '');
     pending = { path, edit: true };
     navigate(J.hrefForPath(path), { replace: true });
@@ -662,6 +677,8 @@ function itemMenu(d, pos = {}) {
     if (!f) return;
     items = [
       { label: 'New note here', icon: 'file-plus', onClick: () => newNote({ folder: f }) },
+      { label: 'New family tree here', icon: 'family-tree', onClick: () => newNote({ folder: f, kind: 'family-tree' }) },
+      { label: 'New timeline here', icon: 'timeline', onClick: () => newNote({ folder: f, kind: 'timeline' }) },
       { label: 'New folder here', icon: 'folder-plus', onClick: () => newFolder({ parent: f }) },
       target?.kind === 'folder' && target.folder.path === f.path ? null : { label: 'Open folder page', icon: 'book-open', onClick: () => navigate(f.href) },
       { sep: true },

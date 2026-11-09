@@ -182,7 +182,7 @@ export class SidePane {
     return sec('props', 'Folder', [
       h('dl', { class: 'jr-props' }, rows),
       f.isRoot ? null : h('div', { class: 'row jr-side-actions' },
-        btn('New note here', () => this.ctx.newNote({ folder: f }), { ic: 'file-plus', kind: 'ghost' }),
+        btn('New note here', (e) => this.ctx.newNoteMenu(e.currentTarget, { folder: f }), { ic: 'file-plus', kind: 'ghost', attrs: { 'aria-haspopup': 'menu' } }),
         btn('Edit description', () => this.ctx.editDescription(f), { ic: 'edit', kind: 'ghost' })),
     ]);
   }
