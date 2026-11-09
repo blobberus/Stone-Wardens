@@ -134,7 +134,7 @@
 /* First row: identity | Hit points | Death saves | AC · Initiative · Speed · Proficiency (always one line of four);
    narrower, the combat boxes take their own line under the identity, still in that order.
    A size container: it follows the real width (icon rail or full sidebar). */
-.ch-head { container: ch-head / inline-size; margin-bottom: var(--space-3); --ch-strip-h: 58px; }
+.ch-head { container: ch-head / inline-size; margin-bottom: var(--space-2); --ch-strip-h: 58px; }
 .ch-head-grid {
   display: grid; gap: var(--space-2) var(--space-3); align-items: start;
   grid-template-columns: minmax(0, 1fr) minmax(170px, 210px) auto auto;
