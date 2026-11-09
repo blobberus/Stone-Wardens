@@ -174,8 +174,9 @@
 @container ch-head (max-width: 520px) {
   .ch-name { white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 }
-.ch-line { margin: 0; font: 400 var(--text-sm) / 1.35 var(--font-body); }
-.ch-meta { margin: 0; font-size: var(--text-xs); color: var(--ink-muted); }
+.ch-line { margin: 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 400 var(--text-sm) / 1.35 var(--font-body); }
+.ch-meta { font-size: var(--text-xs); color: var(--ink-muted); }
+@container ch-head (max-width: 520px) { .ch-line { white-space: normal; } }
 .ch-head-text .ch-xp-row { margin-top: 2px; }
 .ch-head-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .ch-head-actions .btn-sm { height: 28px; padding: 0 8px; }
