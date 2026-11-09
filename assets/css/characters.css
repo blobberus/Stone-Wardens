@@ -155,7 +155,14 @@
   .ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 .ch-head .ch-stat-label { white-space: nowrap; }
+/* Narrow (iPad portrait beside the full sidebar, large phones): Death saves beside the identity, then the actions,
+   then Hit points | the four stat boxes in one row */
 @container ch-head (max-width: 640px) {
+  .ch-head-grid { grid-template-columns: minmax(150px, 1fr) auto auto; grid-template-areas: "id id ds" "act act act" "hp stats stats"; }
+  .ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(78px, 1fr)); }
+}
+/* Phones: Hit points beside Death saves, the stat boxes on their own row */
+@container ch-head (max-width: 520px) {
   .ch-head-grid { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "id id" "act act" "hp ds" "stats stats"; }
   .ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
