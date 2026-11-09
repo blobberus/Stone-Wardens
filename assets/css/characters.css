@@ -151,7 +151,7 @@
 /* Medium (iPad landscape beside the full sidebar): a 2 × 2 block, identity | Hit points + Death saves over
    actions | the four stat boxes (as wide as HP + Death saves together) */
 @container ch-head (max-width: 1000px) {
-  .ch-head-grid { grid-template-columns: minmax(0, 1fr) 240px auto; grid-template-areas: "id hp ds" "act stats stats"; }
+  .ch-head-grid { grid-template-columns: minmax(0, 1fr) minmax(170px, max-content) auto; grid-template-areas: "id hp ds" "act stats stats"; }
   .ch-head-grid > .ch-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 .ch-head .ch-stat-label { white-space: nowrap; }
@@ -984,7 +984,7 @@ button.ch-skl-name:focus-visible { outline: 2px solid var(--focus); outline-offs
 /* In the sheet header the meter is one slim line, as tall as the action buttons: XP 0 / 300 ━━━ 300 to level 2 */
 /* The meter takes what its row leaves (at least ~200 px, at most ~360 px with + XP), so Level up fits beside it and
    the other buttons fill one row under it */
-.ch-head .ch-xp { flex: 1 1 260px; max-width: 360px; }
+.ch-head .ch-xp { flex: 1 1 200px; max-width: 360px; }
 .ch-head .ch-xp-meter {
   flex-direction: row; flex-wrap: wrap; align-items: center; align-content: flex-start; gap: 12px 8px;
   height: 28px; padding: 3px 9px 0; overflow: hidden;
