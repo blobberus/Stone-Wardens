@@ -314,8 +314,8 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
 .ch-dsbox .ch-stat-label { white-space: nowrap; }
 .ch-dsbox .ch-ds { gap: 3px; }
 .ch-dsbox .ch-ds .checkbox { width: 15px; height: 15px; }
-.ch-trk-toggle { height: 28px; padding: 0 10px; }
-.ch-trk-toggle .icon { width: 15px; height: 15px; }
+.ch-trk-toggle .icon, .ch-trk-show .icon { width: 15px; height: 15px; }
+.ch-hp-foot .ch-trk-show { gap: 5px; color: var(--ink-muted); }
 .ch-hp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .ch-hp-grid .field { gap: 2px; }
 .ch-hp-grid .field-label { font-size: var(--text-xs); line-height: 1.2; color: var(--ink-muted); }

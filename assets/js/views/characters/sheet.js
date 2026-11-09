@@ -267,7 +267,7 @@ function header(c, s) {
           h('a', { class: 'btn btn-sm', href: editHref(), title: 'Edit every field, choice and override' }, icon('edit'), 'Edit all'),
           companionButton(),
           moreMenu(() => moreItems(c), { label: 'More actions' })))),
-    h('div', { class: 'ch-hp-col' }, hpWidget(c, s), companionOn() ? null : trackersToggle()),
+    h('div', { class: 'ch-hp-col' }, hpWidget(c, s)),
     deathSaves(c, s),
     statGrid(s)));
 }
@@ -366,14 +366,17 @@ function statGrid(s) {
       v.dark ? `Darkvision ${v.dark} ft: dim light within range counts as bright light, darkness as dim light (shades of gray)` : 'Darkvision: none'));
 }
 
-/** The Hide / Show trackers button under the HP widget (toggles the hit dice & conditions panel). */
+/**
+ * Hide / show the hit dice & conditions panel without a row of its own: "Hide" in the panel's head while it shows,
+ * a "Show trackers" chip in the Hit points box while it is hidden.
+ */
 function trackersToggle() {
   const shown = isOpen(FOLD_KEYS.trackers);
   return h('button', {
-    class: 'btn btn-sm ch-trk-toggle', type: 'button', 'aria-expanded': String(shown), 'aria-controls': 'ch-sec-trackers', 'data-fk': 'trk-toggle',
-    title: shown ? 'Hide the hit dice & conditions panel (the Hit points box then shows anything active)' : 'Show hit dice, death saves, inspiration, exhaustion and conditions',
+    class: shown ? 'btn btn-ghost btn-sm ch-trk-toggle' : 'chip ch-trk-show', type: 'button', 'aria-expanded': String(shown), 'aria-controls': 'ch-sec-trackers', 'data-fk': 'trk-toggle',
+    title: shown ? 'Hide the hit dice & conditions panel (the Hit points box then shows anything active)' : 'Show hit dice, inspiration, exhaustion and conditions',
     onclick: () => toggleFold(FOLD_KEYS.trackers),
-  }, icon('layers'), shown ? 'Hide trackers' : 'Show trackers');
+  }, icon(shown ? 'eye-off' : 'layers'), shown ? 'Hide' : 'Show trackers');
 }
 
 /**
@@ -395,6 +398,7 @@ function hpWidget(c, s) {
   const doHeal = () => { const n = Math.max(0, Number(amount.value) || 0); if (!n) return; mutate((x) => applyHeal(x, n, max)); };
   amount.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? doHeal() : doDamage(); } });
   const active = trk ? [] : [
+    trackersToggle(),
     ...c.conditions.map((id) => chip(conds.find((x) => x.id === id)?.name || prettify(id), { className: 'ch-cond', title: 'Active condition', onRemove: () => mutate((x) => { x.conditions = x.conditions.filter((y) => y !== id); }) })),
     ex ? h('button', { class: 'chip ch-cond', type: 'button', title: `−${ex * 2} to D20 Tests, −${ex * 5} ft Speed (click to show the trackers)`, onclick: () => toggleFold(FOLD_KEYS.trackers) }, `Exhaustion ${ex}`) : null,
     c.heroicInspiration ? h('button', { class: 'chip ch-insp-chip', type: 'button', title: 'Heroic Inspiration (click to spend)', onclick: () => mutate((x) => { x.heroicInspiration = false; }) }, icon('star'), 'Inspired') : null,
@@ -444,7 +448,7 @@ function trackers(c, s) {
   const conds = conditionList().filter((x) => x.id !== 'exhaustion');
   const exText = ex ? `Exhaustion ${ex}: −${ex * 2} to D20 Tests, −${ex * 5} ft Speed${ex >= 6 ? ' (death)' : ''}` : 'No Exhaustion';
   const group = (label, attrs, ...ctl) => h('div', { class: 'ch-trk', ...attrs }, h('span', { class: 'ch-trk-label' }, label), h('div', { class: 'ch-trk-ctl' }, ctl));
-  return section('trackers', 'Hit dice & conditions', { iconName: 'layers', className: 'ch-sec-trackers', attrs: { 'data-fold': FOLD_KEYS.trackers, hidden: !open } },
+  return section('trackers', 'Hit dice & conditions', { iconName: 'layers', className: 'ch-sec-trackers', attrs: { 'data-fold': FOLD_KEYS.trackers, hidden: !open }, actions: companionOn() ? [] : [trackersToggle()] },
   h('div', { class: 'ch-trk-line' },
     group('Hit dice', { 'data-stat': 'hit-dice' },
       s.hitDice.length ? s.hitDice.map((hd) => h('span', { class: 'ch-trk-hd', title: `${hd.total - hd.used} of ${hd.total} d${hd.die} left` },
