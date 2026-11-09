@@ -38,7 +38,7 @@ import { abilityName } from './data.js';
 import { printButton } from './print.js';
 import { companionBody } from './companion.js';
 import { visionOf, NORMAL_SIGHT, NORMAL_SIGHT_NOTE, plain } from './print-model.js';
-import { hoverTip } from './widgets.js';
+import { hoverTip, moreMenu } from './widgets.js';
 
 const S = {
   root: null, id: null, char: null, sheet: null, stale: false, notesEditing: false, openFeatures: new Set(),
@@ -266,13 +266,20 @@ function header(c, s) {
           h('button', { class: 'btn btn-sm', type: 'button', onclick: longRestDialog, title: 'Regain HP, slots and features' }, icon('moon'), 'Long rest'),
           h('a', { class: 'btn btn-sm', href: editHref(), title: 'Edit every field, choice and override' }, icon('edit'), 'Edit all'),
           lvl ? h('button', { class: 'btn btn-ghost btn-sm', type: 'button', onclick: () => levelDownDialog(), title: 'Remove the most recent level (confirms first)', 'data-fk': 'lvl-down', 'aria-label': 'Level down' }, h('span', { class: 'ch-flip' }, icon('level-up')), h('span', { class: 'ch-act-lbl' }, 'Level down')) : null,
-          h('button', {
-            class: 'btn-icon btn-sm', type: 'button', title: 'Copy a [[char:…]] link', 'aria-label': 'Copy link',
-            onclick: async () => { const t = `[[char:${c.name || c.id}]]`; try { await navigator.clipboard.writeText(t); toast(`Copied ${t}`); } catch { toast(t); } },
-          }, icon('link'))))),
+          moreMenu(() => moreItems(c), { label: 'More actions' })))),
     h('div', { class: 'ch-hp-col' }, hpWidget(c, s), companionOn() ? null : trackersToggle()),
     deathSaves(c, s),
     statGrid(s)));
+}
+
+/** The header's "More" menu: actions used now and then, kept out of the always-shown row. */
+function moreItems(c) {
+  return [
+    {
+      label: 'Copy link', hint: `[[char:${c.name || c.id}]] for notes and the journal`, icon: 'link', fk: 'more-link',
+      onSelect: async () => { const t = `[[char:${c.name || c.id}]]`; try { await navigator.clipboard.writeText(t); toast(`Copied ${t}`); } catch { toast(t); } },
+    },
+  ];
 }
 
 // Sticky section bar; once the name in the header scrolls away, "Name · Player" fills its empty right side.

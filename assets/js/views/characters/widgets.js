@@ -286,6 +286,83 @@ export function hoverTip(control, text) {
   return h('span', { class: 'ch-tip-wrap' }, control, h('span', { class: 'ch-tip', role: 'tooltip', id }, text));
 }
 
+// ---------- small action menu (the sheet header's "More") ----------
+
+let menuOpen = null;
+/**
+ * A "More" button (⋯) that opens a short menu of actions under it. items: [{label, hint?, icon?, onSelect(anchor),
+ * disabled?, fk?}] or a function returning them (read each time it opens). Arrow keys / Home / End move, Enter or a
+ * click runs an item, Esc / Tab / a click elsewhere / scrolling closes it (Esc puts the focus back on the button).
+ */
+export function moreMenu(items, { label = 'More', className = '', fk = 'more' } = {}) {
+  const btn = h('button', {
+    class: ['btn', 'btn-sm', 'ch-more-btn', className], type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false',
+    'aria-label': label, title: label, 'data-fk': fk,
+    onclick: () => (menuOpen?.anchor === btn ? menuOpen.close() : openMenu(btn, typeof items === 'function' ? items() : items)),
+  }, icon('more'));
+  return btn;
+}
+
+function openMenu(anchor, items) {
+  menuOpen?.close();
+  const list = [].concat(items || []).filter(Boolean);
+  const buttons = list.map((it) => h('button', {
+    type: 'button', role: 'menuitem', class: 'ch-menu-item', disabled: !!it.disabled, tabindex: -1, 'data-fk': it.fk || null,
+    onclick: () => { close(false); it.onSelect?.(anchor); },
+  }, it.icon ? icon(it.icon) : null,
+  h('span', { class: 'ch-menu-text' }, h('span', { class: 'ch-menu-label' }, it.label), it.hint ? h('span', { class: 'ch-menu-hint' }, it.hint) : null)));
+  const el = h('div', { class: 'ch-menu', role: 'menu', 'aria-label': anchor.getAttribute('aria-label') || 'More' }, buttons);
+  (document.querySelector('body > #overlays') || document.body).append(el);
+  anchor.setAttribute('aria-expanded', 'true');
+  const place = () => {
+    const a = anchor.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    let top = a.bottom + 4;
+    if (top + r.height > innerHeight - 8) top = Math.max(8, a.top - r.height - 4);
+    el.style.left = `${Math.round(Math.max(8, Math.min(a.right - r.width, innerWidth - r.width - 8)))}px`;
+    el.style.top = `${Math.round(top)}px`;
+  };
+  place();
+  const live = () => buttons.filter((b) => !b.disabled);
+  const move = (d) => {
+    const l = live();
+    if (!l.length) return;
+    const i = l.indexOf(document.activeElement);
+    l[d === 'first' ? 0 : d === 'last' ? l.length - 1 : (i + d + l.length) % l.length].focus();
+  };
+  move('first');
+  const onKey = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+    else if (e.key === 'Home') { e.preventDefault(); move('first'); }
+    else if (e.key === 'End') { e.preventDefault(); move('last'); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); }
+    else if (e.key === 'Tab') close(false);
+  };
+  const outside = (e) => { if (!el.contains(e.target) && !anchor.contains(e.target)) close(false); };
+  const onScroll = (e) => { if (!el.contains(e.target)) close(false); };
+  el.addEventListener('keydown', onKey);
+  setTimeout(() => {
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', place);
+  }, 0);
+  let closed = false;
+  function close(restore) {
+    if (closed) return;
+    closed = true;
+    el.remove();
+    document.removeEventListener('pointerdown', outside, true);
+    document.removeEventListener('scroll', onScroll, true);
+    window.removeEventListener('resize', place);
+    anchor.setAttribute('aria-expanded', 'false');
+    if (menuOpen?.el === el) menuOpen = null;
+    if (restore && anchor.isConnected) anchor.focus();
+  }
+  menuOpen = { el, anchor, close: () => close(false) };
+  return menuOpen;
+}
+
 /** Modal showing a compendium entry. */
 export function entryModal(entry, { title, actions = [] } = {}) {
   if (!entry) return null;
