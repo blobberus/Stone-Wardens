@@ -948,6 +948,15 @@ button.ch-skl-name:focus-visible { outline: 2px solid var(--focus); outline-offs
 .ch-xpbar > span { position: absolute; inset: 0 auto 0 0; background: var(--ink-muted); transition: width var(--dur) var(--ease); }
 .ch-xpbar-lg { height: 10px; }
 .ch-xp.is-due .ch-xp-meter { border-color: var(--ok); box-shadow: inset 3px 0 0 var(--ok); }
+/* In the sheet header the meter is one slim line, as tall as the action buttons: XP 0 / 300 ━━━ 300 to level 2 */
+.ch-head .ch-xp-meter {
+  flex-direction: row; align-items: center; gap: 8px; height: 28px; padding: 0 9px;
+  flex: 0 1 340px; width: 340px; min-width: 210px; border-radius: var(--radius-sm);
+}
+.ch-head .ch-xp-top { display: contents; }
+.ch-head .ch-xpbar { order: 1; flex: 1 1 36px; min-width: 24px; height: 5px; }
+.ch-head .ch-xp-sub { order: 2; margin-left: 0; flex: 0 1 auto; }
+.ch-head .ch-xp > .btn { height: 28px; padding: 0 8px; }
 .ch-xp.is-due .ch-xpbar > span, .ch-xpw-sum.is-due .ch-xpbar > span { background: var(--ok); }
 .ch-xp.is-due .ch-xp-sub { color: var(--ok); font-weight: 700; }
 .ch-flip { display: inline-flex; }
