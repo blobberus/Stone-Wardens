@@ -369,14 +369,18 @@ function statGrid(s) {
   const speedSub = Object.entries(s.speed).filter(([k, v]) => k !== 'walk' && v).map(([k, v]) => `${prettify(k)} ${v}`).join(' · ');
   const v = visionOf(s);
   // the label gives way to its icon when the cell is narrow (characters.css: each cell is its own container)
-  const visCell = (cls, ic, label, value, title) => h('div', { class: ['ch-vis', cls], title, 'aria-label': `${label}: ${value}`, role: 'note' },
-    h('span', { class: ['ch-vis-in', value.length > 9 && 'is-long'], 'aria-hidden': 'true' }, icon(ic), h('span', { class: 'ch-vis-label' }, label), h('span', { class: 'ch-vis-value' }, value)));
+  // shown: the value, or [main, extra] where the extra part (" (2 mi)") gives way first in a narrow box (characters.css)
+  const visCell = (cls, ic, label, value, title, shown = value) => h('div', { class: ['ch-vis', cls], title, 'aria-label': `${label}: ${value}`, role: 'note' },
+    h('span', { class: ['ch-vis-in', value.length > 9 && 'is-long'], 'aria-hidden': 'true' }, icon(ic), h('span', { class: 'ch-vis-label' }, label),
+      Array.isArray(shown)
+        ? h('span', { class: 'ch-vis-value is-split' }, h('span', null, shown[0]), h('span', { class: 'ch-vis-extra' }, shown[1]))
+        : h('span', { class: 'ch-vis-value' }, shown)));
   return h('div', { class: 'ch-stats', 'data-sec': 'combat' },
     statBox({ label: 'Armor Class', value: adjustedValue(s, 'ac', String(s.ac.value)), sub: s.armorWorn?.name || (s.shield ? 'Shield' : 'Unarmored'), stat: 'ac', title: s.adjust?.ac ? null : s.ac.formula, onClick: () => acInfo(s) }),
     statBox({ label: 'Initiative', value: adjustedValue(s, 'initiative', fmt(s.initiative)), stat: 'initiative', title: s.adjust?.initiative ? null : 'Roll initiative', onClick: () => rollToast('Initiative', s.initiative) }),
     statBox({ label: 'Speed', value: adjustedValue(s, 'speed', `${s.speed.walk ?? 0} ft`), sub: speedSub || null, stat: 'speed', title: speedSub && !s.adjust?.speed ? `Walk ${s.speed.walk ?? 0} ft · ${speedSub}` : null }),
     statBox({ label: 'Proficiency', value: adjustedValue(s, 'profBonus', fmt(s.profBonus)), stat: 'prof' }),
-    v.vision === 'Normal' ? visCell('ch-vis-sight', 'eye', 'Vision', `Normal (${NORMAL_SIGHT})`, `Vision: ${NORMAL_SIGHT_NOTE}`)
+    v.vision === 'Normal' ? visCell('ch-vis-sight', 'eye', 'Vision', `Normal (${NORMAL_SIGHT})`, `Vision: ${NORMAL_SIGHT_NOTE}`, ['Normal', ` (${NORMAL_SIGHT})`])
       : visCell('ch-vis-sight', 'eye', 'Vision', v.vision, `Vision: ${v.vision}`),
     visCell('ch-vis-dark', 'moon', 'Darkvision', v.dark ? `${v.dark} ft` : 'None',
       v.dark ? `Darkvision ${v.dark} ft: dim light within range counts as bright light, darkness as dim light (shades of gray)` : 'Darkvision: none'));

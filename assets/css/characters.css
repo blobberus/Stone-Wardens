@@ -280,6 +280,10 @@ button.ch-stat { cursor: pointer; transition: border-color var(--dur) var(--ease
   .ch-vis-label { display: none; }
   .ch-vis-in .icon { display: inline-block; }
 }
+/* "Normal (2 mi)": when the range doesn't fit (a narrow box, a wide sheet font) it wraps onto a hidden second line,
+   leaving "Normal" (the range is in the tooltip) */
+.ch-vis-value.is-split { display: flex; flex-wrap: wrap; justify-content: center; height: 1.15em; line-height: 1.15; overflow: hidden; }
+.ch-vis-extra { white-space: pre; }
 @container (max-width: 134px) { /* "Normal (2 mi)", "Blindsight 10 ft": the label fits from about 135px */
   .ch-vis-in.is-long .ch-vis-label { display: none; }
   .ch-vis-in.is-long .icon { display: inline-block; }
