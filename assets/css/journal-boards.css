@@ -1,6 +1,6 @@
-/* Journal boards: family trees and timelines (views/journal/board.js, timeline.js, family.js, ages.js). The note's
-   introduction sits on top as in any note; the toolbar and the board come under it. Item colours are the map's pin
-   inks (--pin-*), passed in as --item. */
+/* Journal boards: family trees and timelines (views/journal/board.js, timeline.js, family.js, ages.js). The toolbar
+   and the board come first, under the title; the note's introduction follows, then its tags. Item colours are the
+   map's pin inks (--pin-*), passed in as --item. */
 
 /* the page: wider than a note's reading measure, so a board has room */
 .jr-sheet.jr-board-note { max-width: min(1320px, 100%); }
@@ -11,16 +11,17 @@
   text-decoration: underline; text-underline-offset: 2px;
 }
 .jr-link-btn:hover { color: var(--link-hover); }
-.jr-board { margin-top: var(--space-5); }
+.jr-board { margin-bottom: var(--space-6); }
 
 /* the right pane's outline: a board's items under its headings */
 .jr-outline-cap { margin: 8px 0 2px; padding-left: 10px; font: 600 var(--text-xs) / 1.3 var(--font-ui); letter-spacing: 0.04em; color: var(--ink-muted); }
 .jr-outline a.jr-outline-item { display: flex; flex-direction: column; gap: 0; }
 .jr-outline-item small { font: 400 var(--text-xs) / 1.25 var(--font-ui); color: var(--ink-muted); font-variant-numeric: tabular-nums; }
 
-/* a board's own tags while editing (in the page head) */
-.jr-head-tags { max-width: 640px; }
-.jr-head-tags .field-label { font-size: var(--text-xs); color: var(--ink-muted); }
+/* a board's tags, at the bottom of the page: a list while reading, a box for its own tags while editing */
+.jr-note-tags { max-width: 640px; margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--rule); }
+.jr-note-tags .field-label, .jr-note-tags-cap { font: 600 var(--text-xs) / 1.3 var(--font-ui); letter-spacing: 0.04em; color: var(--ink-muted); }
+section.jr-note-tags { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
 
 /* the new-note dialog's choice of kind */
 .jr-kinds { min-width: 0; margin: 0; padding: 0; border: 0; }

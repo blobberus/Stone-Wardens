@@ -17,7 +17,7 @@ import { tagsInput } from './board.js';
 import { TimelineBoard } from './timeline.js';
 import { FamilyBoard } from './family.js';
 
-// The board under a family tree's or timeline's introduction (kinds.js).
+// The board at the top of a family tree or timeline, above its introduction (kinds.js).
 const BOARDS = { timeline: TimelineBoard, 'family-tree': FamilyBoard };
 
 const SAVE_MS = 400;
@@ -138,17 +138,17 @@ export class NoteView {
       this.titleEl,
       metaLine(note),
       visibilityToggle(this.path, { label: 'this note', before: () => this.writeNow() }), // DM mode only
-      this.editing && isBoard(note.kind) ? this.tagsEditor(note) : note.tags.length ? tagList(note.tags, { className: 'jr-sheet-tags' }) : null);
+      // a family tree's or timeline's tags go at the bottom of the page instead
+      !isBoard(note.kind) && note.tags.length ? tagList(note.tags, { className: 'jr-sheet-tags' }) : null);
     this.bodyEl = h('div', { class: 'jr-sheet-body' });
+    // a family tree or timeline, in both modes: its toolbar and board first, then the introduction, then its tags
     const Board = isBoard(note.kind) ? BOARDS[note.kind] : null;
-    if (this.editing) this.buildEditor(this.bodyEl, note);
-    else this.buildReader(this.bodyEl, note);
-    // a family tree or timeline: its toolbar and board under the introduction, in both modes
     this.board?.destroy();
     this.board = Board ? new Board(this) : null;
-    // right under the introduction's box while editing (the editing hints come after it), else after the text
-    if (this.board && this.editing && this.editor) this.editor.after(this.board.el);
-    else if (this.board) this.bodyEl.append(this.board.el);
+    if (this.board) this.bodyEl.append(this.board.el);
+    if (this.editing) this.buildEditor(this.bodyEl, note);
+    else this.buildReader(this.bodyEl, note);
+    if (this.board) this.bodyEl.append(this.editing ? this.tagsEditor(note) : this.tagsFoot(note));
 
     const refs = J.backlinks(note).length;
     const foot = h('footer', { class: 'jr-sheet-foot' },
@@ -244,7 +244,15 @@ export class NoteView {
 
   // ---------- family tree / timeline ----------
 
-  /** While editing a family tree or timeline: a box for the note's own tags (its `tags:`), beside those of its text and items. */
+  /** A family tree's or timeline's tags while reading, at the bottom of the page (all of them: its own, its text's and its items'). */
+  tagsFoot(note) {
+    if (!note.tags.length) return '';
+    return h('section', { class: 'jr-note-tags', 'aria-label': 'Tags' },
+      h('span', { class: 'jr-note-tags-cap', 'aria-hidden': 'true' }, 'Tags'),
+      tagList(note.tags));
+  }
+
+  /** While editing a family tree or timeline: a box at the bottom of the page for the note's own tags (its `tags:`), beside those of its text and items. */
   tagsEditor(note) {
     const own = tagsOf(this.fm.tags ?? this.fm.tag);
     const ownKeys = new Set(own.map((t) => t.toLowerCase()));
@@ -261,7 +269,7 @@ export class NoteView {
         this.ctx.sideLive?.(this);
       },
     });
-    ed.el.classList.add('jr-head-tags');
+    ed.el.classList.add('jr-note-tags');
     return ed.el;
   }
 

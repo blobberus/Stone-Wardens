@@ -1,5 +1,5 @@
 // Journal note kinds. A regular note is markdown; a Family tree and a Timeline are markdown notes too, whose body is
-// the introduction above the board (written, linked and #tagged like any note) and whose items live in the note's
+// the introduction under the board (written, linked and #tagged like any note) and whose items live in the note's
 // frontmatter: `kind: family-tree` + `family: {people, unions}`, `kind: timeline` + `timeline: {view, ages, events,
 // spans, markers}`. Notes without `kind` are regular notes, as every note before this was.
 // docs/journal-model.md "Family trees and timelines".

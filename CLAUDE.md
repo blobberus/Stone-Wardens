@@ -257,7 +257,7 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   folder. Hidden notes stay sealed there and their record names nothing; a player's restore leaves them for the DM.
 - Note kinds (docs/journal-model.md "Family trees and timelines"): New note opens a menu: Regular note, Family tree,
   Timeline. The two boards are `.md` notes with `kind:` and their items in frontmatter (`timeline:` / `family:`),
-  the body = the introduction above the board; no `kind` = a regular note (all older notes). Items' words, tags and
+  the body = the introduction (under the board, tags at the bottom); no `kind` = a regular note (all older notes). Items' words, tags and
   links are indexed with the note (`kinds.js boardText`); renames rewrite links inside items via the parsed YAML
   (`data.js rewriteNote`), never as raw text. Dates = integer year + optional month + age; `calendar.js` orders
   ages (content/calendar.json, the Ages menu `ages.js`). Boards: `timeline.js` (horizontal / vertical, events with

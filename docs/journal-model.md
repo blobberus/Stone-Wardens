@@ -113,7 +113,7 @@ months, dates), `board.js` (item dialogs' controls, the hover card), `ages.js` (
 
 - **Files.** Both are ordinary notes (`.md` in the vault; trash, moves, renames, search, DM hiding all as before).
   `kind: timeline` / `kind: family-tree` in the frontmatter, the items under `timeline:` / `family:`, the body is
-  the introduction shown above the board (written, linked and #tagged like any note). A note without `kind` is a
+  the introduction shown under the board (written, linked and #tagged like any note). A note without `kind` is a
   regular note: every note made before this, untouched.
   ```yaml
   kind: timeline
@@ -148,8 +148,9 @@ months, dates), `board.js` (item dialogs' controls, the hover card), `ages.js` (
   ("Timeline · 7 events, 3 sub-timelines"); its Outline lists the items after the introduction's headings (events
   and sub-timelines by date, people by generation; a click goes to the item). The Properties editor leaves the
   board keys alone.
-- **The page.** The introduction (a text box while editing, a couple of paragraphs tall), then the toolbar and the
-  board, in both modes. While editing, a Tags box under the title holds the note's own `tags:`.
+- **The page.** Under the title, the toolbar and the board first, then the introduction (a text box while editing,
+  a couple of paragraphs tall), then the tags at the bottom, in both modes. Reading, they list all the note's tags
+  (its own, its text's and its items'); editing, a Tags box holds the note's own `tags:`.
 - **The world's calendar**, `content/calendar.json`, shared by every timeline and family tree:
   `{ages: [{id, abbr, name, color, start, end, countdown, text, tags}], months: [names], defaultAge}`. Without the
   file there is one age, AFF (After the Fallen Firmament), the default for new dates, and the Gregorian months.
