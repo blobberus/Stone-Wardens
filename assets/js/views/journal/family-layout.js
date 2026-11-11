@@ -6,6 +6,7 @@ export const W = 184; // card width
 export const PG = 40; // between partners (the marriage line)
 export const BG = 36; // between families in a row
 export const VG = 76; // between generations (room for the lines)
+export const VG_TOUCH = 96; // on a touch screen: room for the selected person's finger-sized actions too
 export const PAD = 28;
 export const STATUS = [
   { value: 'married', label: 'Married' },
@@ -114,10 +115,11 @@ function blocksOf(row, unions, order) {
  * Positions: every family (a partner chain) claims its children's families, top rows first, and each family's
  * descendants get a stretch of their own as wide as they need, so no two cards meet; parents sit centred over
  * their children. A child family two families could claim (a marriage between them) goes to the first, and the
- * other draws a longer line to it. -> {x: Map id -> left, gen, rowTop, rowH, width, height, focus: {x, y, ids}}
+ * other draws a longer line to it. vg: the room between generations.
+ * -> {x: Map id -> left, gen, rowTop, rowH, vg, width, height, focus: {x, y, ids}}
  * (focus: the centre and top of the main family's oldest people, where the board opens when it can't show it all)
  */
-export function layoutFamily(people, unions, childOf, heightOf) {
+export function layoutFamily(people, unions, childOf, heightOf, { vg = VG } = {}) {
   const order = new Map(people.map((p, i) => [p.id, i]));
   const gen = generations(people, unions);
   const nRows = Math.max(0, ...gen.values()) + 1;
@@ -172,15 +174,15 @@ export function layoutFamily(people, unions, childOf, heightOf) {
   const rowTop = [];
   const rowH = [];
   // siblings with unknown parents in the top row: room above them for their bar and question mark
-  let y = unions.some((u) => !u.partners.length && u.children.some((c) => gen.get(c) === 0)) ? PAD + VG / 2 + 12 : PAD;
+  let y = unions.some((u) => !u.partners.length && u.children.some((c) => gen.get(c) === 0)) ? PAD + vg / 2 + 12 : PAD;
   for (let k = 0; k < nRows; k++) {
     rowTop.push(y);
     const hh = Math.max(56, ...rows[k].map((id) => heightOf(id)));
     rowH.push(hh);
-    y += hh + VG;
+    y += hh + vg;
   }
   const right = Math.max(0, ...[...x.values()].map((v) => v + W));
   const focus = main ? { x: main.cx, y: rowTop[main.row] ?? PAD, ids: [...main.ids] } : { x: PAD, y: PAD, ids: [] };
-  return { x, gen, rowTop, rowH, width: right + PAD, height: y - VG + PAD, focus };
+  return { x, gen, rowTop, rowH, vg, width: right + PAD, height: y - vg + PAD, focus };
 }
 

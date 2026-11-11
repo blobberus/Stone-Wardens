@@ -375,6 +375,41 @@ section.jr-note-tags { display: flex; flex-wrap: wrap; align-items: baseline; ga
 .jr-ft-person.is-selected { outline: 2px solid var(--accent); outline-offset: 2px; }
 .jr-ft-person:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
+/* the selected person's actions: a small bar floating under their card (family.js positionActs keeps it at its own
+   size at any zoom and inside the board), a notch pointing at the card */
+.jr-ft-stage > .jr-ft-acts {
+  position: absolute; z-index: 4; transform-origin: 0 0;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; box-sizing: border-box; width: max-content;
+  padding: 3px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.jr-ft-acts::before {
+  content: ""; position: absolute; left: var(--notch, 50%); top: -5px; width: 8px; height: 8px; margin-left: -4px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-right: 0; border-bottom: 0;
+  transform: rotate(45deg);
+}
+.jr-ft-acts.is-above::before { top: auto; bottom: -5px; transform: rotate(225deg); }
+.jr-ft-act {
+  position: relative; display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 10px 0 8px;
+  font: 500 var(--text-sm) / 1 var(--font-ui); color: var(--ink); white-space: nowrap;
+  background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer;
+}
+.jr-ft-act .icon { width: 15px; height: 15px; color: var(--accent); }
+@media (hover: hover) { .jr-ft-act:hover { background: var(--surface-2); } }
+.jr-ft-act:active { background: var(--surface-3); }
+.jr-ft-act:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+@media (pointer: coarse) {
+  .jr-ft-stage > .jr-ft-acts { padding: 2px; }
+  .jr-ft-act { height: 44px; padding: 0 12px 0 10px; }
+}
+@container (max-width: 560px) {
+  .jr-ft-stage > .jr-ft-acts { gap: 0; }
+  .jr-ft-act { gap: 2px; padding: 0 6px 0 4px; }
+}
+/* the toolbar while nobody is selected (a narrow board: on a row of its own under Add and Zoom) */
+.jr-ft-tip { margin: 0; font: 400 var(--text-sm) / 1.3 var(--font-ui); color: var(--ink-muted); }
+@container (max-width: 560px) { .jr-ft-tip { order: 1; flex-basis: 100%; } }
+
 .jr-ft-family { display: flex; flex-direction: column; gap: 6px; }
 .jr-ft-rel {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 8px;

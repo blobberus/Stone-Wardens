@@ -143,6 +143,9 @@ section('family tree: layout');
   const two = layoutProblems([{ id: 'x' }, { id: 'y' }, { id: 'm' }, { id: 'n' }, { id: 'k1' }, { id: 'k2' }, { id: 'k3' }],
     [{ partners: ['x', 'y'], children: [] }, { partners: ['m', 'n'], children: ['k1', 'k2', 'k3'] }]);
   eq('the main family is the widest', two.geo.focus.ids, ['m', 'n']);
+  const n0 = F.normalize({ people, unions });
+  const roomy = F.layoutFamily(n0.people, n0.unions, n0.childOf, () => 60, { vg: F.VG_TOUCH });
+  eq('vg: the room between generations (touch)', [roomy.vg, roomy.rowTop[1] - roomy.rowTop[0] - roomy.rowH[0], geo.vg, geo.rowTop[1] - geo.rowTop[0] - geo.rowH[0]], [F.VG_TOUCH, F.VG_TOUCH, F.VG, F.VG]);
   eq('no one in the tree: the focus is the corner', F.layoutFamily([], [], new Map(), () => 60).focus, { x: F.PAD, y: F.PAD, ids: [] });
   // a parent with no parents of their own sits right above their child
   const late = layoutProblems([{ id: 'g' }, { id: 'p' }, { id: 'c' }, { id: 'in' }, { id: 'k' }],

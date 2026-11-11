@@ -209,8 +209,8 @@ let card = null; // {el, anchor, pinned}
 let hideTimer = 0;
 let showTimer = 0;
 
-function place(el, anchor) {
-  const a = anchor.getBoundingClientRect();
+function place(el, anchor, around = null) {
+  const a = around?.() || anchor.getBoundingClientRect(); // around: a wider box to keep clear (e.g. the anchor and its actions)
   const r = el.getBoundingClientRect();
   const vw = innerWidth;
   const vh = innerHeight;
@@ -233,8 +233,8 @@ export function hideCard(force = true) {
 }
 const hideSoon = (ms = 240) => { clearTimeout(hideTimer); hideTimer = setTimeout(() => hideCard(false), ms); };
 
-/** Show the expanded view of an item next to `anchor`. build() -> content nodes. */
-export function showCard(anchor, build, { pinned = false } = {}) {
+/** Show the expanded view of an item next to `anchor`. build() -> content nodes. around() -> the rect to keep clear. */
+export function showCard(anchor, build, { pinned = false, around = null } = {}) {
   clearTimeout(hideTimer);
   clearTimeout(showTimer);
   if (card && card.anchor === anchor && card.el.isConnected) {
@@ -247,7 +247,7 @@ export function showCard(anchor, build, { pinned = false } = {}) {
   el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && card && !card.pinned) hideSoon(); });
   el.addEventListener('click', (e) => { if (e.target.closest('a[href]')) hideCard(true); });
   overlays().append(el);
-  place(el, anchor);
+  place(el, anchor, around);
   anchor.classList.add('is-carded');
   card = { el, anchor, pinned };
   return el;
@@ -266,19 +266,19 @@ window.addEventListener('hashchange', () => hideCard(true));
 
 /**
  * Wire an item element: hover (mouse) or keyboard focus shows its card, a click or tap keeps it open (pinned),
- * a double click or Enter runs open() (the editor).
+ * a double click or Enter runs open() (the editor). around(): see showCard.
  */
-export function hoverable(el, build, { open = null } = {}) {
+export function hoverable(el, build, { open = null, around = null } = {}) {
   el.addEventListener('pointerenter', (e) => {
     if (e.pointerType !== 'mouse') return;
     clearTimeout(showTimer);
-    if (card && !card.pinned) showCard(el, build); // moving along the timeline: no delay between items
-    else if (!card) showTimer = setTimeout(() => showCard(el, build), 160);
+    if (card && !card.pinned) showCard(el, build, { around }); // moving along the timeline: no delay between items
+    else if (!card) showTimer = setTimeout(() => showCard(el, build, { around }), 160);
   });
   el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { clearTimeout(showTimer); if (card?.anchor === el && !card.pinned) hideSoon(); } });
-  el.addEventListener('click', () => showCard(el, build, { pinned: true }));
+  el.addEventListener('click', () => showCard(el, build, { pinned: true, around }));
   if (open) el.addEventListener('dblclick', (e) => { e.preventDefault(); hideCard(true); open(); });
-  el.addEventListener('focus', () => { if (el.matches(':focus-visible') && !isTouch()) showCard(el, build); });
+  el.addEventListener('focus', () => { if (el.matches(':focus-visible') && !isTouch()) showCard(el, build, { around }); });
   el.addEventListener('blur', () => { if (card?.anchor === el && !card.pinned) hideSoon(120); });
   el.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && open) { e.preventDefault(); hideCard(true); open(); }

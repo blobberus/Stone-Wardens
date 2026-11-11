@@ -5,14 +5,14 @@
 // links; click to select, double click to edit. Data (kinds.js boardData): people [{id, name, title, born, died,
 // color, text, tags}] and unions [{id, partners: [ids, at most 2], children: [ids], status}].
 import { h } from '../../core/dom.js';
-import { icon, field, input, select, confirmDialog } from '../../core/ui.js';
+import { icon, field, input, select, confirmDialog, isTouch } from '../../core/ui.js';
 import { calendar, normDate, colorVar } from './calendar.js';
 import { boardData, itemAnchor } from './kinds.js';
 import {
   dateFields, tagsInput, colorPicker, textField, itemDialog, notBefore,
-  hoverable, hideCard, cardBody, cardBtn, copyItemLink, itemId, toolGroup,
+  hoverable, showCard, hideCard, cardBody, cardBtn, copyItemLink, itemId, toolGroup,
 } from './board.js';
-import { W, PG, VG, STATUS, clean, normalize, compact, lifeLine, layoutFamily } from './family-layout.js';
+import { W, PG, VG, VG_TOUCH, PAD, STATUS, clean, normalize, compact, lifeLine, layoutFamily } from './family-layout.js';
 
 // ---------- the board ----------
 
@@ -20,6 +20,9 @@ const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 1.6;
 const READ_ZOOM = 0.6; // opening a wide tree: fitted to the board, but never smaller than this
 const smooth = () => (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
+const ACT_ROOM = () => (isTouch() ? 62 : 48); // under the bottom row: room for the selected person's actions
+const RELATIVES = [['parent', 'Parent', 'a parent'], ['partner', 'Partner', 'a partner'], ['child', 'Child', 'a child'], ['sibling', 'Sibling', 'a sibling']];
+const typing = (t) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
 
 export class FamilyBoard {
   constructor(view) {
@@ -37,6 +40,18 @@ export class FamilyBoard {
     this.sizer = h('div', { class: 'jr-ft-sizer' }, this.stage);
     this.scroll = h('div', { class: 'jr-ft-scroll', tabindex: '0', 'aria-label': 'Family tree, scroll to see more' }, this.sizer);
     this.wirePan(this.scroll);
+    // a click on the board's empty space, or Esc, lets go of the selected person
+    this.scroll.addEventListener('click', (e) => {
+      if (this.panned) { this.panned = false; return; }
+      if (!e.target.closest('.jr-ft-person, .jr-ft-acts')) this.select(null);
+    });
+    this.onKey = (e) => {
+      if (e.key !== 'Escape' || !this.selected || e.defaultPrevented || !this.el.isConnected || typing(e.target)) return;
+      if (document.querySelector('.modal-backdrop, .jr-menu')) return;
+      e.preventDefault();
+      this.select(null);
+    };
+    document.addEventListener('keydown', this.onKey);
     this.ro = new ResizeObserver(() => { if (!this.framed && this.geo) this.frame(); });
     this.ro.observe(this.scroll);
     this.render();
@@ -58,6 +73,7 @@ export class FamilyBoard {
     this.destroyed = true;
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
+    document.removeEventListener('keydown', this.onKey);
     hideCard(true);
   }
 
@@ -67,18 +83,16 @@ export class FamilyBoard {
     const d = this.d;
     const sel = d.people.find((p) => p.id === this.selected) || null;
     const who = sel ? sel.name || 'them' : null;
-    const rel = (label, kind) => ({
-      label, icon: 'plus', onClick: () => this.addRelative(sel, kind), disabled: !sel,
-      title: sel ? `Add ${kind === 'child' ? 'a child' : `a ${kind}`} of ${who}` : 'Select a person first (click their card)',
-    });
     const short = who && who.length > 18 ? `${who.slice(0, 17)}…` : who;
+    // nobody selected: say how to start instead of a row of buttons that do nothing yet
+    const relatives = sel ? toolGroup({
+      caption: `For ${short}`, label: `Relatives of ${who}`,
+      fold: { label: 'Relative', title: `Add a relative of ${who}`, menuLabel: `Add a relative of ${who}` },
+      tools: RELATIVES.map(([kind, label, a]) => ({ label, icon: 'plus', onClick: () => this.addRelative(sel, kind), title: `Add ${a} of ${who}` })),
+    }) : d.people.length ? h('p', { class: 'jr-ft-tip' }, 'Select a person to add their relatives') : null;
     return h('div', { class: 'jr-tools', role: 'toolbar', 'aria-label': 'Family tree tools' },
       toolGroup({ caption: 'Add', label: 'Add', tools: [{ label: 'Person', icon: 'user', onClick: () => this.editPerson(null), title: 'Add someone to the tree' }] }),
-      toolGroup({
-        caption: sel ? `For ${short}` : 'Select someone', label: sel ? `Relatives of ${who}` : 'Relatives of the selected person',
-        fold: { label: 'Relative', title: sel ? `Add a relative of ${who}` : 'Select a person first (click their card)', menuLabel: sel ? `Add a relative of ${who}` : 'Relatives' },
-        tools: [rel('Parent', 'parent'), rel('Partner', 'partner'), rel('Child', 'child'), rel('Sibling', 'sibling')],
-      }),
+      relatives,
       h('div', { class: 'jr-tools-group jr-tools-end' },
         h('span', { class: 'jr-tools-cap' }, 'Zoom'),
         h('div', { class: 'jr-seg', role: 'group', 'aria-label': 'Zoom' },
@@ -100,6 +114,7 @@ export class FamilyBoard {
     this.applyZoom();
     box.scrollLeft = tx * nz + this.sizer.offsetLeft - ax;
     box.scrollTop = ty * nz + this.sizer.offsetTop - ay;
+    this.positionActs();
   }
 
   /** The zoom on the page: the stage's scale, the scroll box's room, the toolbar's % (no new layout). */
@@ -113,7 +128,9 @@ export class FamilyBoard {
     if (!this.geo) return;
     this.stage.style.transform = z === 1 ? '' : `scale(${z})`;
     this.sizer.style.width = `${Math.ceil(this.wpx * z)}px`;
-    this.sizer.style.height = `${Math.ceil(this.hpx * z)}px`;
+    // room under the bottom row for the selected person's actions, so selecting someone never moves the page
+    this.sizer.style.height = `${Math.ceil(this.hpx * z + Math.max(0, ACT_ROOM() - PAD * z))}px`;
+    this.positionActs();
   }
 
   fit() {
@@ -121,6 +138,7 @@ export class FamilyBoard {
     const avail = this.scroll.clientWidth - 16;
     this.setZoom(Math.min(1, avail / this.geo.width));
     this.scroll.scrollLeft = 0;
+    this.positionActs();
   }
 
   /**
@@ -139,6 +157,7 @@ export class FamilyBoard {
       this.applyZoom();
       box.scrollLeft = k.left;
       box.scrollTop = k.top;
+      this.positionActs();
       return;
     }
     const fit = (cw - 16) / this.geo.width;
@@ -146,16 +165,101 @@ export class FamilyBoard {
     this.applyZoom();
     box.scrollTop = 0;
     box.scrollLeft = fit >= READ_ZOOM ? 0 : this.geo.focus.x * this.zoom + this.sizer.offsetLeft - cw / 2;
+    this.positionActs();
   }
 
   select(id) {
     if (this.selected === id) return;
+    const had = this.acts?.contains(document.activeElement);
     this.selected = id;
     this.el.querySelectorAll('.jr-ft-person').forEach((c) => c.classList.toggle('is-selected', c.dataset.id === id));
     this.bar.replaceWith(this.bar = this.toolbar());
+    this.placeActs();
+    if (had) this.cardEl(id)?.focus({ preventScroll: true });
   }
 
   cardEl(id) { return id ? this.stage.querySelector(`.jr-ft-person[data-id="${CSS.escape(id)}"]`) : null; }
+
+  // ---------- the selected person's actions: a small bar under their card ----------
+
+  /** The bar of "+ Parent", "+ Partner", "+ Child", "+ Sibling", right after the selected card (next in Tab order). */
+  placeActs() {
+    this.acts?.remove();
+    this.acts = null;
+    const p = this.d.people.find((x) => x.id === this.selected);
+    const card = p && this.cardEl(p.id);
+    if (!card) return;
+    const who = p.name || 'them';
+    this.acts = h('div', { class: 'jr-ft-acts', role: 'group', 'aria-label': `Add a relative of ${who}` },
+      RELATIVES.map(([kind, label, a]) => h('button', {
+        type: 'button', class: 'jr-ft-act', title: `Add ${a} of ${who}`, onclick: () => this.addRelative(p, kind),
+      }, icon('plus'), h('span', null, label))));
+    card.after(this.acts);
+    this.positionActs();
+  }
+
+  /**
+   * The bar keeps its size at any zoom (scaled back by 1/zoom inside the stage), centred under the card (above it
+   * if the bottom row's room is too small), kept inside the board; a notch points at the card.
+   */
+  positionActs(view = null) {
+    const acts = this.acts;
+    if (!acts || !acts.isConnected || !this.geo) return;
+    const card = acts.previousElementSibling;
+    const z = this.zoom;
+    acts.style.maxWidth = `${Math.max(150, this.scroll.clientWidth - 12)}px`;
+    const bw = acts.offsetWidth;
+    const bh = acts.offsetHeight;
+    const sw = this.sizer.offsetWidth;
+    const sh = this.sizer.offsetHeight;
+    const gap = 6;
+    const cx = (card.offsetLeft + card.offsetWidth / 2) * z;
+    let top = (card.offsetTop + card.offsetHeight) * z + gap;
+    const above = top + bh > sh && card.offsetTop * z - gap - bh >= 0;
+    if (above) top = card.offsetTop * z - gap - bh;
+    // inside the tree and the part of it in view (view.left: where the box is about to scroll to)
+    const box = this.scroll;
+    const vl = (view ? view.left : box.scrollLeft) - this.sizer.offsetLeft;
+    const vr = vl + box.clientWidth;
+    let lo = Math.max(2, vl + 4);
+    let hi = Math.min(sw - 2, vr - 4) - bw;
+    if (hi < lo) { lo = vl + 4; hi = vr - 4 - bw; }
+    const left = hi >= lo ? Math.max(lo, Math.min(cx - bw / 2, hi)) : vl + (box.clientWidth - bw) / 2;
+    acts.classList.toggle('is-above', above);
+    acts.style.setProperty('--notch', `${Math.round(Math.max(14, Math.min(bw - 14, cx - left)))}px`);
+    acts.style.left = `${left / z}px`;
+    acts.style.top = `${top / z}px`;
+    acts.style.transform = z === 1 ? '' : `scale(${1 / z})`;
+  }
+
+  /** The card and its bar together: the hover card keeps clear of both. */
+  aroundOf(el) {
+    const r = el.getBoundingClientRect();
+    if (!this.acts || this.acts.previousElementSibling !== el) return r;
+    const a = this.acts.getBoundingClientRect();
+    const l = Math.min(r.left, a.left);
+    const t = Math.min(r.top, a.top);
+    return new DOMRect(l, t, Math.max(r.right, a.right) - l, Math.max(r.bottom, a.bottom) - t);
+  }
+
+  /**
+   * A click selects the person (their actions show under the card). With a mouse their details show on hover, so
+   * the click hides them; a tap shows them too (and keeps them open); with the keyboard (Space) they move clear.
+   */
+  pick(p, el, how) {
+    this.select(p.id);
+    const build = () => this.personBody(p);
+    const around = () => this.aroundOf(el);
+    const touch = how === 'touch' || how === 'pen';
+    // a card half out of view comes in, with its actions (at once on touch, so the details open where it ends up)
+    const to = this.bringIntoView(p.id, touch ? 'auto' : smooth());
+    if (to) this.positionActs(to);
+    // after any scrolling it caused (the board's or the page's), which would close it again
+    const later = (fn) => requestAnimationFrame(() => requestAnimationFrame(fn));
+    if (touch) { hideCard(true); later(() => { if (el.isConnected && this.selected === p.id) showCard(el, build, { pinned: true, around }); }); }
+    else if (how === 'key') { if (el.classList.contains('is-carded')) { hideCard(true); later(() => showCard(el, build, { around })); } }
+    else hideCard(true);
+  }
 
   // ---------- rendering ----------
 
@@ -197,7 +301,7 @@ export class FamilyBoard {
     for (const p of people) { const c = this.personCard(p, cal); c.style.width = `${W}px`; cards.set(p.id, c); measure.append(c); }
     const hs = new Map([...cards].map(([id, c]) => [id, Math.ceil(c.getBoundingClientRect().height)]));
     measure.remove();
-    const geo = layoutFamily(people, unions, childOf, (id) => hs.get(id));
+    const geo = layoutFamily(people, unions, childOf, (id) => hs.get(id), { vg: isTouch() ? VG_TOUCH : VG });
     this.geo = geo;
     const wpx = Math.max(geo.width, 200);
     const hpx = Math.max(geo.height, 120);
@@ -246,7 +350,7 @@ export class FamilyBoard {
       const kidRow = geo.gen.get(u.children[0]);
       const n = busCount.get(kidRow) || 0;
       busCount.set(kidRow, n + 1);
-      const busY = geo.rowTop[kidRow] - VG / 2 + ((n % 3) - 1) * 7;
+      const busY = geo.rowTop[kidRow] - geo.vg / 2 + ((n % 3) - 1) * 7;
       const cxs = u.children.map((c) => geo.x.get(c) + W / 2);
       if (ux == null) { // unknown parents: a short stub with a question mark over the siblings' bar
         ux = (Math.min(...cxs) + Math.max(...cxs)) / 2;
@@ -269,14 +373,18 @@ export class FamilyBoard {
       c.style.top = `${Math.round(top(p.id))}px`;
       stage.append(c);
     }
+    this.placeActs();
     if (!this.framed) this.frame();
     if (focusId) this.cardEl(focusId)?.focus({ preventScroll: true });
   }
 
-  /** Scroll the board (and the page, if need be) just enough to show someone's card, with room under it. */
-  bringIntoView(id) {
+  /**
+   * Scroll the board (and the page, if need be) just enough to show someone's card, with room under it.
+   * -> the board's scroll target {left, top}, or null when it needn't move.
+   */
+  bringIntoView(id, behavior = smooth()) {
     const el = this.cardEl(id);
-    if (!el) return;
+    if (!el) return null;
     const box = this.scroll;
     const r = el.getBoundingClientRect();
     const b = box.getBoundingClientRect();
@@ -290,15 +398,20 @@ export class FamilyBoard {
     let dy = 0;
     if (r.width > inR - inL || r.left < inL) dx = r.left - inL; else if (r.right > inR) dx = r.right - inR;
     if (r.top < inT) dy = r.top - inT; else if (r.bottom + under > inB) dy = Math.min(r.top - inT, r.bottom + under - inB);
-    if (dx || dy) box.scrollBy({ left: dx, top: dy, behavior: smooth() });
+    const to = dx || dy ? {
+      left: Math.max(0, Math.min(box.scrollLeft + dx, box.scrollWidth - box.clientWidth)),
+      top: Math.max(0, Math.min(box.scrollTop + dy, box.scrollHeight - box.clientHeight)),
+    } : null;
+    if (to) box.scrollTo({ ...to, behavior });
     // the page: the card where it will be, clear of the sticky toolbar
     const desk = this.view.host;
     const d = desk.getBoundingClientRect();
     const top = r.top - dy;
     const bottom = r.bottom - dy + under;
     const clear = d.top + this.bar.offsetHeight + m;
-    if (top < clear) desk.scrollBy({ top: top - clear, behavior: smooth() });
-    else if (bottom > d.bottom - m) desk.scrollBy({ top: Math.min(top - clear, bottom - d.bottom + m), behavior: smooth() });
+    if (top < clear) desk.scrollBy({ top: top - clear, behavior });
+    else if (bottom > d.bottom - m) desk.scrollBy({ top: Math.min(top - clear, bottom - d.bottom + m), behavior });
+    return to;
   }
 
   personCard(p, cal) {
@@ -310,8 +423,15 @@ export class FamilyBoard {
     h('span', { class: 'jr-ft-name' }, p.name || 'Unnamed'),
     p.title ? h('span', { class: 'jr-ft-title' }, p.title) : null,
     life ? h('span', { class: 'jr-ft-life' }, life) : null);
-    el.addEventListener('click', () => this.select(p.id));
-    hoverable(el, () => this.personBody(p), { open: () => this.editPerson(p) });
+    // before hoverable's own click (which would pin the hover card): see pick()
+    el.addEventListener('pointerdown', (e) => { this.pointer = e.pointerType; });
+    el.addEventListener('click', (e) => {
+      e.stopImmediatePropagation();
+      const how = e.detail === 0 ? 'key' : this.pointer || 'mouse';
+      this.pointer = null;
+      this.pick(p, el, how);
+    });
+    hoverable(el, () => this.personBody(p), { open: () => this.editPerson(p), around: () => this.aroundOf(el) });
     return el;
   }
 
@@ -335,9 +455,6 @@ export class FamilyBoard {
       text: [p.text, fam].filter(Boolean).join('\n\n'), tags: p.tags, note: this.note,
       actions: [
         cardBtn('Edit', 'edit', () => this.editPerson(p)),
-        cardBtn('Parent', 'plus', () => this.addRelative(p, 'parent')),
-        cardBtn('Partner', 'plus', () => this.addRelative(p, 'partner')),
-        cardBtn('Child', 'plus', () => this.addRelative(p, 'child')),
         p.name ? cardBtn('Copy link', 'link', () => copyItemLink(this.note, p.name)) : null,
       ].filter(Boolean),
     });
@@ -359,7 +476,14 @@ export class FamilyBoard {
     el.classList.remove('jr-flash');
     void el.offsetWidth;
     el.classList.add('jr-flash');
-    requestAnimationFrame(() => el.click());
+    // selected, with their details open (clear of their actions)
+    requestAnimationFrame(() => {
+      const p = this.d.people.find((x) => x.id === el.dataset.id);
+      if (!p || !el.isConnected) return;
+      this.select(p.id);
+      hideCard(true);
+      showCard(el, () => this.personBody(p), { pinned: true, around: () => this.aroundOf(el) });
+    });
     return true;
   }
 
@@ -369,6 +493,7 @@ export class FamilyBoard {
     let start = null;
     box.addEventListener('pointerdown', (e) => {
       if (e.pointerType !== 'mouse' || e.button !== 0 || e.target.closest('button, a')) return;
+      this.panned = false;
       start = { x: e.clientX, y: e.clientY, left: box.scrollLeft, top: box.scrollTop, id: e.pointerId, moved: false };
     });
     box.addEventListener('pointermove', (e) => {
@@ -380,7 +505,7 @@ export class FamilyBoard {
       box.scrollLeft = start.left - dx;
       box.scrollTop = start.top - dy;
     });
-    const end = () => { if (start?.moved) box.classList.remove('is-panning'); start = null; };
+    const end = () => { if (start?.moved) { box.classList.remove('is-panning'); this.panned = true; } start = null; };
     box.addEventListener('pointerup', end);
     box.addEventListener('pointercancel', end);
   }
@@ -444,7 +569,7 @@ export class FamilyBoard {
         other ? st : null,
         other ? unlinkBtn('Unlink', () => this.pending.push((un) => { const x = un.find((y) => y.id === u.id); if (x) x.partners = x.partners.filter((y) => y !== p.id); })) : null));
     }
-    if (!rows.length) rows.push(h('p', { class: 'jr-hint' }, 'No relatives yet. Use Parent, Partner, Child or Sibling on the toolbar (with this person selected) to add them.'));
+    if (!rows.length) rows.push(h('p', { class: 'jr-hint' }, 'No relatives yet. Select their card on the tree to add a parent, partner, child or sibling.'));
     box.append(...rows);
     return box;
   }
@@ -474,7 +599,8 @@ export class FamilyBoard {
   flash(id) {
     const el = this.cardEl(id);
     if (!el) return;
-    this.bringIntoView(id);
+    const to = this.bringIntoView(id);
+    if (to) this.positionActs(to);
     el.classList.remove('jr-flash');
     void el.offsetWidth;
     el.classList.add('jr-flash');
