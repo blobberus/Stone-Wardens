@@ -40,6 +40,7 @@ export class FamilyBoard {
     this.sizer = h('div', { class: 'jr-ft-sizer' }, this.stage);
     this.scroll = h('div', { class: 'jr-ft-scroll', tabindex: '0', 'aria-label': 'Family tree, scroll to see more' }, this.sizer);
     this.wirePan(this.scroll);
+    this.wireZoom(this.scroll);
     // a click on the board's empty space, or Esc, lets go of the selected person
     this.scroll.addEventListener('click', (e) => {
       if (this.panned) { this.panned = false; return; }
@@ -96,14 +97,14 @@ export class FamilyBoard {
       h('div', { class: 'jr-tools-group jr-tools-end' },
         h('span', { class: 'jr-tools-cap' }, 'Zoom'),
         h('div', { class: 'jr-seg', role: 'group', 'aria-label': 'Zoom' },
-          this.zoomOut = h('button', { type: 'button', class: 'jr-seg-btn', title: 'Zoom out', 'aria-label': 'Zoom out', disabled: this.zoom <= MIN_ZOOM, onclick: () => this.setZoom(this.zoom / 1.25) }, icon('minus')),
+          this.zoomOut = h('button', { type: 'button', class: 'jr-seg-btn', title: 'Zoom out', 'aria-label': 'Zoom out', disabled: this.zoom <= MIN_ZOOM + 0.001, onclick: () => this.setZoom(this.zoom / 1.25) }, icon('minus')),
           h('button', { type: 'button', class: 'jr-seg-btn', title: 'Fit the whole tree', onclick: () => this.fit() }, this.zoomLabel = h('span', null, `${Math.round(this.zoom * 100)}%`)),
-          this.zoomIn = h('button', { type: 'button', class: 'jr-seg-btn', title: 'Zoom in', 'aria-label': 'Zoom in', disabled: this.zoom >= MAX_ZOOM, onclick: () => this.setZoom(this.zoom * 1.25) }, icon('plus')))));
+          this.zoomIn = h('button', { type: 'button', class: 'jr-seg-btn', title: 'Zoom in', 'aria-label': 'Zoom in', disabled: this.zoom >= MAX_ZOOM - 0.001, onclick: () => this.setZoom(this.zoom * 1.25) }, icon('plus')))));
   }
 
   /** Zoom to z, keeping the point `at` ({x, y} in the board's box, its middle by default) where it is. */
   setZoom(z, at = null) {
-    const nz = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.round(z * 100) / 100));
+    const nz = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
     const box = this.scroll;
     if (!this.geo || nz === this.zoom) { this.zoom = nz; this.applyZoom(); return; }
     const ax = at ? at.x : box.clientWidth / 2;
@@ -122,8 +123,8 @@ export class FamilyBoard {
     const z = this.zoom;
     if (this.zoomLabel) {
       this.zoomLabel.textContent = `${Math.round(z * 100)}%`;
-      this.zoomOut.disabled = z <= MIN_ZOOM;
-      this.zoomIn.disabled = z >= MAX_ZOOM;
+      this.zoomOut.disabled = z <= MIN_ZOOM + 0.001;
+      this.zoomIn.disabled = z >= MAX_ZOOM - 0.001;
     }
     if (!this.geo) return;
     this.stage.style.transform = z === 1 ? '' : `scale(${z})`;
@@ -280,6 +281,37 @@ export class FamilyBoard {
     if (touch) { hideCard(true); later(() => { if (el.isConnected && this.selected === p.id) showCard(el, build, { pinned: true, around }); }); }
     else if (how === 'key') { if (el.classList.contains('is-carded')) { hideCard(true); later(() => showCard(el, build, { around })); } }
     else hideCard(true);
+  }
+
+  /** Who an arrow key goes to from `id`: the nearest parent (up), child (down), or neighbour in the row. */
+  neighbour(id, dir) {
+    const { geo, d } = this;
+    if (!geo?.x.has(id)) return null;
+    const x0 = geo.x.get(id);
+    const nearest = (ids) => ids.filter((i) => geo.x.has(i)).sort((a, b) => Math.abs(geo.x.get(a) - x0) - Math.abs(geo.x.get(b) - x0))[0] || null;
+    if (dir === 'up') return nearest(d.childOf.get(id)?.partners || []);
+    if (dir === 'down') return nearest(d.unions.filter((u) => u.partners.includes(id)).flatMap((u) => u.children));
+    const row = d.people.map((x) => x.id).filter((i) => i !== id && geo.gen.get(i) === geo.gen.get(id));
+    return nearest(row.filter((i) => (dir === 'left' ? geo.x.get(i) < x0 : geo.x.get(i) > x0)));
+  }
+
+  /** Keyboard: select someone, focus their card and bring it into view (at once, as focus moves do). */
+  goTo(id) {
+    const el = this.cardEl(id);
+    if (!el) return;
+    this.select(id);
+    const to = this.bringIntoView(id, 'auto');
+    if (to) this.positionActs(to);
+    el.focus({ preventScroll: true });
+    // the scroll closes the details that focus opened: open them again where the card ended up
+    if (to) {
+      const p = this.d.people.find((x) => x.id === id);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (document.activeElement === el && el.matches(':focus-visible') && !el.classList.contains('is-carded')) {
+          showCard(el, () => this.personBody(p), { around: () => this.aroundOf(el) });
+        }
+      }));
+    }
   }
 
   // ---------- rendering ----------
@@ -471,6 +503,14 @@ export class FamilyBoard {
     el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && this.hovered === p.id) light(false); });
     el.addEventListener('focus', () => { if (el.matches(':focus-visible')) light(true); });
     el.addEventListener('blur', () => { if (this.hovered === p.id) light(false); });
+    // arrow keys: Up to a parent, Down to a child, Left / Right along the row (Enter edits, Esc lets go)
+    el.addEventListener('keydown', (e) => {
+      const dir = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }[e.key];
+      if (!dir || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      e.preventDefault();
+      const to = this.neighbour(p.id, dir);
+      if (to) this.goTo(to);
+    });
     el.addEventListener('click', (e) => {
       e.stopImmediatePropagation();
       const how = e.detail === 0 ? 'key' : this.pointer || 'mouse';
@@ -531,6 +571,44 @@ export class FamilyBoard {
       showCard(el, () => this.personBody(p), { pinned: true, around: () => this.aroundOf(el) });
     });
     return true;
+  }
+
+  // ---------- zoom with Ctrl / Cmd + wheel (and a trackpad's pinch), or two fingers ----------
+
+  wireZoom(box) {
+    const at = (x, y) => { const r = box.getBoundingClientRect(); return { x: x - r.left - box.clientLeft, y: y - r.top - box.clientTop }; };
+    box.addEventListener('wheel', (e) => {
+      if (!(e.ctrlKey || e.metaKey) || !this.geo) return;
+      e.preventDefault(); // not the page's own zoom
+      hideCard(true);
+      const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      this.setZoom(this.zoom * Math.exp(-dy * 0.0025), at(e.clientX, e.clientY));
+    }, { passive: false });
+    // two fingers: the point between them stays under them while they spread, pinch or move
+    let pinch = null;
+    const two = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2, d: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) });
+    box.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 2 || !this.geo) { pinch = null; return; }
+      const m = two(e.touches);
+      const a = at(m.x, m.y);
+      pinch = { d: Math.max(1, m.d), z: this.zoom, tx: (box.scrollLeft + a.x - this.sizer.offsetLeft) / this.zoom, ty: (box.scrollTop + a.y - this.sizer.offsetTop) / this.zoom };
+      hideCard(true);
+    }, { passive: true });
+    box.addEventListener('touchmove', (e) => {
+      if (!pinch || e.touches.length !== 2) return;
+      if (e.cancelable) e.preventDefault();
+      const m = two(e.touches);
+      const a = at(m.x, m.y);
+      this.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, (pinch.z * m.d) / pinch.d));
+      this.applyZoom();
+      box.scrollLeft = pinch.tx * this.zoom + this.sizer.offsetLeft - a.x;
+      box.scrollTop = pinch.ty * this.zoom + this.sizer.offsetTop - a.y;
+      this.positionActs();
+    }, { passive: false });
+    const end = (e) => { if (e.touches.length < 2) pinch = null; };
+    box.addEventListener('touchend', end);
+    box.addEventListener('touchcancel', end);
+    box.addEventListener('gesturestart', (e) => e.preventDefault()); // iOS Safari: not the page's zoom
   }
 
   // ---------- drag to scroll (mouse) ----------

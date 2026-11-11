@@ -346,6 +346,7 @@ section.jr-note-tags { display: flex; flex-wrap: wrap; align-items: baseline; ga
   background: color-mix(in srgb, var(--surface-2) 55%, var(--surface));
   border: 1px solid var(--border); border-radius: var(--radius);
   overscroll-behavior: contain; cursor: grab;
+  touch-action: pan-x pan-y; /* two fingers zoom the tree (family.js wireZoom), not the page */
 }
 .jr-ft-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .jr-ft-scroll.is-panning { cursor: grabbing; user-select: none; }
