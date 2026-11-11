@@ -141,7 +141,8 @@ export class NoteView {
       // a family tree's or timeline's tags go at the bottom of the page instead
       !isBoard(note.kind) && note.tags.length ? tagList(note.tags, { className: 'jr-sheet-tags' }) : null);
     this.bodyEl = h('div', { class: 'jr-sheet-body' });
-    // a family tree or timeline, in both modes: its toolbar and board first, then the introduction, then its tags
+    // a family tree or timeline, in both modes: its toolbar and board first (the page's biggest box), then the
+    // introduction, its reference images, then its tags
     const Board = isBoard(note.kind) ? BOARDS[note.kind] : null;
     this.board?.destroy();
     this.board = Board ? new Board(this) : null;
@@ -175,9 +176,17 @@ export class NoteView {
   }
 
   buildReader(el, note) {
-    // reference images: a slideshow at the top of the page; "Expand" / a tap opens the full-screen viewer
+    // reference images: a slideshow at the top of the page ("Expand" / a tap opens the full-screen viewer); on a
+    // family tree or timeline the board comes first, so they follow its introduction
     const imgs = noteImages(this.fm);
-    if (imgs.length) el.append(slideshow(imgs, { start: Math.min(this.galIndex || 0, imgs.length - 1), onIndex: (i) => { this.galIndex = i; } }));
+    const gallery = imgs.length ? slideshow(imgs, { start: Math.min(this.galIndex || 0, imgs.length - 1), onIndex: (i) => { this.galIndex = i; } }) : null;
+    if (gallery && !isBoard(note.kind)) el.append(gallery);
+    this.buildText(el, note);
+    if (gallery && isBoard(note.kind)) el.append(gallery);
+  }
+
+  /** The note's text while reading (a board's introduction, or a hint to write one). */
+  buildText(el, note) {
     if (isBoard(note.kind) && !this.body.trim()) {
       el.append(h('p', { class: 'jr-hint jr-intro-empty' }, `No introduction yet. `,
         h('button', { type: 'button', class: 'jr-link-btn', onclick: () => this.setEditing(true) }, 'Write a few paragraphs'),
@@ -236,10 +245,13 @@ export class NoteView {
     });
     this.editor.classList.add('jr-editor');
     if (board) this.editor.classList.add('jr-intro-editor');
-    el.append(imagesPanel({ list: noteImages(this.fm), slug: this.current.slug || 'note', hidden: () => isHidden(this.path), onChange: (list, removed) => this.setImages(list, removed) }),
+    // the reference images' box: above the text of a regular note, under a board's introduction
+    const images = imagesPanel({ list: noteImages(this.fm), slug: this.current.slug || 'note', hidden: () => isHidden(this.path), onChange: (list, removed) => this.setImages(list, removed) });
+    el.append(board ? '' : images,
       this.editor,
       h('p', { class: 'jr-hint jr-edit-hint' }, 'Kept on this device as you type. Press Save (Ctrl+S) to share it with the party. Ctrl+E goes back to reading.'),
-      h('details', { class: 'jr-syntax' }, h('summary', null, 'Formatting help'), syntaxHelp()));
+      h('details', { class: 'jr-syntax' }, h('summary', null, 'Formatting help'), syntaxHelp()),
+      board ? images : '');
   }
 
   // ---------- family tree / timeline ----------

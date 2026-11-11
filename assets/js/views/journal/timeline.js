@@ -146,7 +146,8 @@ export class TimelineBoard {
     this.stage.addEventListener('focusin', (e) => this.onFocus(e));
     this.wirePan(this.scroll);
     this.empty = !d.events.length && !d.spans.length && !d.markers.length;
-    this.over = d.view === 'vertical' ? null : this.overview();
+    this.el.classList.toggle('is-empty', this.empty);
+    this.over =d.view === 'vertical' ? null : this.overview();
     this.ovGeo = null;
     this.el.classList.remove('has-overview');
     this.el.replaceChildren(...[this.toolbar(d), this.scroll, this.over].filter(Boolean));

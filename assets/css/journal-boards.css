@@ -1,9 +1,26 @@
 /* Journal boards: family trees and timelines (views/journal/board.js, timeline.js, family.js, ages.js). The toolbar
-   and the board come first, under the title; the note's introduction follows, then its tags. Item colours are the
-   map's pin inks (--pin-*), passed in as --item. */
+   and the board come first, under the title, as the page's biggest box; the note's introduction follows, then its
+   reference images, then its tags. Item colours are the map's pin inks (--pin-*), passed in as --item. */
 
 /* the page: wider than a note's reading measure, so a board has room */
 .jr-sheet.jr-board-note { max-width: min(1320px, 100%); }
+/* the board takes the sheet's whole width (past the text's side margins, up to the stitched binding) ... */
+.jr-sheet.jr-board-note .jr-board { margin-left: calc(30px - var(--jr-pad-x) - 20px); margin-right: calc(12px - var(--jr-pad-x)); }
+.jr-root[data-size="narrow"] .jr-sheet.jr-board-note .jr-board { margin-left: -10px; margin-right: -12px; }
+/* ... and the window's height under the title and the toolbar, so the whole board (with the timeline's overview)
+   is in sight when the page opens: the tree or the timeline sits in the middle of a frame that is taller than it
+   (an empty board keeps its small frame; a vertical timeline is as tall as its items) */
+.jr-board-note { --board-h: clamp(320px, calc(100vh - 360px), 680px); }
+.jr-root[data-size="narrow"] .jr-board-note { --board-h: clamp(280px, 50vh, 520px); }
+@supports (height: 1svh) { /* the small viewport: a phone's browser bars shown */
+  .jr-board-note { --board-h: clamp(320px, calc(100svh - 360px), 680px); }
+  .jr-root[data-size="narrow"] .jr-board-note { --board-h: clamp(280px, 50svh, 520px); }
+}
+.jr-board-note .jr-tl:not(.is-empty):not([data-view="vertical"]) .jr-tl-scroll { display: grid; min-height: var(--board-h); }
+.jr-board-note .jr-tl:not([data-view="vertical"]) .jr-tl-stage { margin-block: auto; }
+.jr-board-note .jr-ft-scroll { display: grid; min-height: var(--board-h); }
+.jr-board-note .jr-ft-sizer { margin: auto; } /* in the middle both ways; a bigger tree starts at the top left */
+.jr-board-note .jr-ft-scroll.is-empty { min-height: 0; }
 .jr-intro-editor .md-input { min-height: 11em; }
 .jr-intro-empty { margin: 0; }
 .jr-link-btn {
