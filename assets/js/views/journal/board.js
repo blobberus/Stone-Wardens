@@ -8,6 +8,7 @@ import { calendar, normDate, dateValue, cmpDate, COLORS, colorVar } from './cale
 import { SYMBOLS } from './symbols.js';
 import { cleanTag, tagsOf } from './kinds.js';
 import { tagList } from './parts.js';
+import { openMenu } from './menu.js';
 import * as J from './data.js';
 
 const overlays = () => document.querySelector('body > #overlays') || document.body;
@@ -170,6 +171,33 @@ export function itemDialog({ title, fields, save, remove = null, removeLabel = '
       m.el.querySelector('.modal-foot .btn-primary')?.click();
     });
   });
+}
+
+// ---------- toolbar ----------
+
+/** A toolbar button. {label, icon, title, onClick, disabled} */
+export const toolBtn = ({ label, icon: ic, title = null, onClick, disabled = false }) => h('button', {
+  type: 'button', class: 'btn btn-sm jr-tool', title, disabled, onclick: onClick,
+}, ic ? icon(ic) : null, h('span', null, label));
+
+/**
+ * A group of the toolbar: a caption and its buttons. fold {label, title, menuLabel}: on a narrow board (a CSS
+ * container query) the caption and the buttons give way to one menu button with the same actions, so the toolbar
+ * keeps to a row or two on a phone or beside both side panes.
+ */
+export function toolGroup({ caption = null, label, tools, fold = null, className = null }) {
+  const live = tools.filter(Boolean);
+  const menuBtn = fold ? h('button', {
+    type: 'button', class: 'btn btn-sm jr-tool jr-tool-fold', 'aria-haspopup': 'menu', title: fold.title || null,
+    disabled: live.every((t) => t.disabled),
+    onclick: (e) => openMenu({
+      anchor: e.currentTarget, label: fold.menuLabel || fold.label,
+      items: live.map((t) => ({ label: t.label, icon: t.icon, disabled: t.disabled, onClick: t.onClick })),
+    }),
+  }, icon(fold.icon || 'plus'), h('span', null, fold.label), icon('chevron-down')) : null;
+  return h('div', { class: ['jr-tools-group', fold && 'can-fold', className], role: 'group', 'aria-label': label },
+    caption ? h('span', { class: 'jr-tools-cap' }, caption) : null,
+    live.map(toolBtn), menuBtn);
 }
 
 /** Is date b on or after date a? (a missing date is fine) */

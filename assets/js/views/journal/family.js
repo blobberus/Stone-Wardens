@@ -10,7 +10,7 @@ import { calendar, normDate, colorVar } from './calendar.js';
 import { boardData, itemAnchor } from './kinds.js';
 import {
   dateFields, tagsInput, colorPicker, textField, itemDialog, notBefore,
-  hoverable, hideCard, cardBody, cardBtn, copyItemLink, itemId,
+  hoverable, hideCard, cardBody, cardBtn, copyItemLink, itemId, toolGroup,
 } from './board.js';
 import { W, PG, VG, STATUS, clean, normalize, compact, lifeLine, layoutFamily } from './family-layout.js';
 
@@ -46,16 +46,18 @@ export class FamilyBoard {
     const d = this.d;
     const sel = d.people.find((p) => p.id === this.selected) || null;
     const who = sel ? sel.name || 'them' : null;
-    const tool = (label, ic, onClick, title, disabled = false) => h('button', { type: 'button', class: 'btn btn-sm jr-tool', title, disabled, onclick: onClick }, icon(ic), h('span', null, label));
-    const rel = (label, kind) => tool(label, 'plus', () => this.addRelative(sel, kind),
-      sel ? `Add ${kind === 'child' ? 'a child' : `a ${kind}`} of ${who}` : 'Select a person first (click their card)', !sel);
+    const rel = (label, kind) => ({
+      label, icon: 'plus', onClick: () => this.addRelative(sel, kind), disabled: !sel,
+      title: sel ? `Add ${kind === 'child' ? 'a child' : `a ${kind}`} of ${who}` : 'Select a person first (click their card)',
+    });
+    const short = who && who.length > 18 ? `${who.slice(0, 17)}…` : who;
     return h('div', { class: 'jr-tools', role: 'toolbar', 'aria-label': 'Family tree tools' },
-      h('div', { class: 'jr-tools-group', role: 'group', 'aria-label': 'Add' },
-        h('span', { class: 'jr-tools-cap' }, 'Add'),
-        tool('Person', 'user', () => this.editPerson(null), 'Add someone to the tree')),
-      h('div', { class: 'jr-tools-group', role: 'group', 'aria-label': sel ? `Relatives of ${who}` : 'Relatives of the selected person' },
-        h('span', { class: 'jr-tools-cap' }, sel ? `For ${who.length > 18 ? `${who.slice(0, 17)}…` : who}` : 'Select someone'),
-        rel('Parent', 'parent'), rel('Partner', 'partner'), rel('Child', 'child'), rel('Sibling', 'sibling')),
+      toolGroup({ caption: 'Add', label: 'Add', tools: [{ label: 'Person', icon: 'user', onClick: () => this.editPerson(null), title: 'Add someone to the tree' }] }),
+      toolGroup({
+        caption: sel ? `For ${short}` : 'Select someone', label: sel ? `Relatives of ${who}` : 'Relatives of the selected person',
+        fold: { label: 'Relative', title: sel ? `Add a relative of ${who}` : 'Select a person first (click their card)', menuLabel: sel ? `Add a relative of ${who}` : 'Relatives' },
+        tools: [rel('Parent', 'parent'), rel('Partner', 'partner'), rel('Child', 'child'), rel('Sibling', 'sibling')],
+      }),
       h('div', { class: 'jr-tools-group jr-tools-end' },
         h('span', { class: 'jr-tools-cap' }, 'Zoom'),
         h('div', { class: 'jr-seg', role: 'group', 'aria-label': 'Zoom' },
