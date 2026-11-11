@@ -145,12 +145,11 @@ export class TimelineBoard {
     this.stage.addEventListener('keydown', (e) => this.onKey(e));
     this.stage.addEventListener('focusin', (e) => this.onFocus(e));
     this.wirePan(this.scroll);
-    const empty = !d.events.length && !d.spans.length && !d.markers.length;
+    this.empty = !d.events.length && !d.spans.length && !d.markers.length;
     this.over = d.view === 'vertical' ? null : this.overview();
     this.ovGeo = null;
     this.el.classList.remove('has-overview');
-    this.el.replaceChildren(...[this.toolbar(d), this.scroll, this.over,
-      empty ? h('p', { class: 'jr-hint jr-tl-empty' }, 'Nothing on this timeline yet. Add an event, an age, a sub-timeline or a marker with the buttons above; each falls into place by its year and age.') : null].filter(Boolean));
+    this.el.replaceChildren(...[this.toolbar(d), this.scroll, this.over].filter(Boolean));
     this.ro.disconnect();
     this.ro.observe(this.scroll);
     this.layout();
@@ -282,6 +281,13 @@ export class TimelineBoard {
       else out.push({ key: p.key, pts: [p] });
     }
     return out;
+  }
+
+  /** An empty timeline says so inside its frame, over the axis and its age, with a button for the first event. */
+  emptyEl() {
+    return h('div', { class: 'jr-tl-empty' },
+      h('p', null, 'Nothing on this timeline yet: each event falls into place by its year and age.'),
+      h('button', { type: 'button', class: 'btn btn-primary', onclick: () => this.editEvent(null) }, icon('plus'), h('span', null, 'Add the first event')));
   }
 
   // ---------- items ----------
@@ -438,7 +444,16 @@ export class TimelineBoard {
 
     // y: event lanes, the axis, marker labels, sub-timeline lanes
     const step = cardH + H.laneGap;
-    const axisY = H.top + Math.max(lanes, 1) * step + H.stem;
+    let axisY = H.top + Math.max(lanes, 1) * step + H.stem;
+    if (this.empty) {
+      const empty = this.emptyEl();
+      empty.style.left = '0';
+      empty.style.right = '0';
+      stage.append(empty);
+      const eh = Math.ceil(empty.getBoundingClientRect().height);
+      axisY = Math.max(axisY, eh + 2 * 20 + H.stem);
+      empty.style.top = `${Math.round((axisY - H.stem - eh) / 2)}px`;
+    }
     // the axis runs along the top edge of the age bands, so event dots and markers never sit on an age's name
     const axisMid = axisY;
     const marks = pts.filter((p) => p.type === 'marker');
@@ -704,7 +719,16 @@ export class TimelineBoard {
       if (need === spanLanes) break;
       spanLanes = need;
     }
-    const height = geo.end + 14;
+    let height = geo.end + 14;
+    if (this.empty) {
+      const note = this.emptyEl();
+      note.classList.add('is-vertical');
+      note.style.left = `${geo.cardX}px`;
+      note.style.top = `${V.padTop - 14}px`;
+      note.style.width = `${geo.cardW}px`;
+      stage.append(note);
+      height = Math.max(height, V.padTop - 14 + Math.ceil(note.getBoundingClientRect().height) + 24);
+    }
     stage.style.width = '100%';
     stage.style.height = `${Math.ceil(height)}px`;
     const put = (el, x0, y0, w, hh) => {
