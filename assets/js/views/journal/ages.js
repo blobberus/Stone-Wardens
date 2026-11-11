@@ -136,18 +136,21 @@ export function agesDialog({ shown = null, used = new Set(), startNew = false } 
             h('div', { class: 'jr-age-meta' },
               h('span', null, range),
               a.countdown ? h('span', null, 'counts down') : null,
-              a.id === def ? h('span', { class: 'jr-age-default' }, 'default for new dates') : null,
               tagsOf(a.tags).length ? h('span', null, tagsOf(a.tags).map((t) => `#${t}`).join(' ')) : null),
             a.text ? h('p', { class: 'jr-age-text' }, a.text) : null),
           h('div', { class: 'jr-age-tools' },
             on ? h('label', { class: 'checkbox jr-age-on', title: usedHere ? 'Items on this timeline use this age, so it shows' : 'Show this age on the timeline even without events in it' },
               h('input', { type: 'checkbox', checked: usedHere || on.has(a.id), disabled: usedHere, onchange: (e) => { if (e.target.checked) on.add(a.id); else on.delete(a.id); } }),
               h('span', null, 'On this timeline')) : null,
-            a.id !== def ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm', title: `Make ${a.abbr} the age new dates start in`, onclick: () => { def = a.id; draw(a.id); } }, 'Make default') : null,
-            h('button', { type: 'button', class: 'btn-icon btn-sm', title: 'Earlier', 'aria-label': `Move ${a.abbr} earlier`, disabled: i === 0, 'data-move': 'up', onclick: () => move(i, -1) }, icon('chevron-up')),
-            h('button', { type: 'button', class: 'btn-icon btn-sm', title: 'Later', 'aria-label': `Move ${a.abbr} later`, disabled: i === ages.length - 1, 'data-move': 'down', onclick: () => move(i, 1) }, icon('chevron-down')),
-            h('button', { type: 'button', class: 'btn-icon btn-sm', title: 'Edit', 'aria-label': `Edit ${a.abbr}`, onclick: () => edit(a) }, icon('edit')),
-            h('button', { type: 'button', class: 'btn-icon btn-sm', title: 'Delete', 'aria-label': `Delete ${a.abbr}`, disabled: ages.length === 1, onclick: () => del(a) }, icon('trash'))));
+            // the default's slot keeps the place of the others' "Make default", so every row's controls line up
+            a.id !== def
+              ? h('button', { type: 'button', class: 'btn btn-ghost btn-sm jr-age-def', title: `Make ${a.abbr} the age new dates start in`, onclick: () => { def = a.id; draw(a.id); } }, 'Make default')
+              : h('span', { class: 'jr-age-def is-default', title: 'New dates start in this age' }, icon('check'), 'Default'),
+            h('span', { class: 'jr-age-btns' },
+              h('button', { type: 'button', class: 'btn-icon btn-sm', title: 'Earlier', 'aria-label': `Move ${a.abbr} earlier`, disabled: i === 0, 'data-move': 'up', onclick: () => move(i, -1) }, icon('chevron-up')),
+              h('button', { type: 'button', class: 'btn-icon btn-sm', title: 'Later', 'aria-label': `Move ${a.abbr} later`, disabled: i === ages.length - 1, 'data-move': 'down', onclick: () => move(i, 1) }, icon('chevron-down')),
+              h('button', { type: 'button', class: 'btn-icon btn-sm', title: 'Edit', 'aria-label': `Edit ${a.abbr}`, onclick: () => edit(a) }, icon('edit')),
+              h('button', { type: 'button', class: 'btn-icon btn-sm', title: 'Delete', 'aria-label': `Delete ${a.abbr}`, disabled: ages.length === 1, onclick: () => del(a) }, icon('trash')))));
       }));
       if (focusId) requestAnimationFrame(() => listEl.querySelector(`[data-age="${CSS.escape(focusId)}"] .btn-icon[title="Edit"]`)?.focus());
     }
