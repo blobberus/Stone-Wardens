@@ -114,7 +114,8 @@ function blocksOf(row, unions, order) {
  * Positions: every family (a partner chain) claims its children's families, top rows first, and each family's
  * descendants get a stretch of their own as wide as they need, so no two cards meet; parents sit centred over
  * their children. A child family two families could claim (a marriage between them) goes to the first, and the
- * other draws a longer line to it. -> {x: Map id -> left, gen, rowTop, rowH, width, height}
+ * other draws a longer line to it. -> {x: Map id -> left, gen, rowTop, rowH, width, height, focus: {x, y, ids}}
+ * (focus: the centre and top of the main family's oldest people, where the board opens when it can't show it all)
  */
 export function layoutFamily(people, unions, childOf, heightOf) {
   const order = new Map(people.map((p, i) => [p.id, i]));
@@ -161,7 +162,11 @@ export function layoutFamily(people, unions, childOf, heightOf) {
   };
   let left = PAD;
   // separate families side by side in the order their first person was added (the first family stays at the left)
-  for (const r of sorted.filter((n) => !claimed.has(n)).sort((a, b) => a.first - b.first)) { measure(r); place(r, left); left += r.sw + BG; }
+  const roots = sorted.filter((n) => !claimed.has(n)).sort((a, b) => a.first - b.first);
+  for (const r of roots) { measure(r); place(r, left); left += r.sw + BG; }
+  // the main family: the one with the most room below it (the first of equals); the board opens on its oldest people
+  let main = null;
+  for (const r of roots) if (r.ids.length && (!main || r.sw > main.sw)) main = r;
 
   // rows' heights from their tallest card
   const rowTop = [];
@@ -175,6 +180,7 @@ export function layoutFamily(people, unions, childOf, heightOf) {
     y += hh + VG;
   }
   const right = Math.max(0, ...[...x.values()].map((v) => v + W));
-  return { x, gen, rowTop, rowH, width: right + PAD, height: y - VG + PAD };
+  const focus = main ? { x: main.cx, y: rowTop[main.row] ?? PAD, ids: [...main.ids] } : { x: PAD, y: PAD, ids: [] };
+  return { x, gen, rowTop, rowH, width: right + PAD, height: y - VG + PAD, focus };
 }
 

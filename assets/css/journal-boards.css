@@ -349,7 +349,7 @@ section.jr-note-tags { display: flex; flex-wrap: wrap; align-items: baseline; ga
 }
 .jr-ft-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .jr-ft-scroll.is-panning { cursor: grabbing; user-select: none; }
-.jr-ft-sizer { position: relative; min-width: 100%; }
+.jr-ft-sizer { position: relative; margin: 0 auto; } /* a tree narrower than the board sits in its middle */
 .jr-ft-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .jr-ft-stage > .jr-ft-person { position: absolute; }
 .jr-ft-lines { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }

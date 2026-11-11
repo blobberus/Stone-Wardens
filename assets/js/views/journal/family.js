@@ -16,12 +16,29 @@ import { W, PG, VG, STATUS, clean, normalize, compact, lifeLine, layoutFamily } 
 
 // ---------- the board ----------
 
+const MIN_ZOOM = 0.4;
+const MAX_ZOOM = 1.6;
+const READ_ZOOM = 0.6; // opening a wide tree: fitted to the board, but never smaller than this
+const smooth = () => (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
+
 export class FamilyBoard {
   constructor(view) {
     this.view = view;
-    this.zoom = 1;
-    this.selected = null;
+    // switching Read / Edit makes the board again: it comes back where it was
+    const kept = view.ftKept || null;
+    view.ftKept = null;
+    this.kept = kept;
+    this.zoom = kept?.zoom ?? 1;
+    this.selected = kept?.selected ?? null;
+    this.framed = false;
     this.el = h('section', { class: 'jr-board jr-ft', 'aria-label': 'Family tree' });
+    // the scroll box is made once, so a change to the tree keeps the place it shows
+    this.stage = h('div', { class: 'jr-ft-stage' });
+    this.sizer = h('div', { class: 'jr-ft-sizer' }, this.stage);
+    this.scroll = h('div', { class: 'jr-ft-scroll', tabindex: '0', 'aria-label': 'Family tree, scroll to see more' }, this.sizer);
+    this.wirePan(this.scroll);
+    this.ro = new ResizeObserver(() => { if (!this.framed && this.geo) this.frame(); });
+    this.ro.observe(this.scroll);
     this.render();
     document.fonts?.ready.then(() => { if (!this.destroyed) this.layout(); });
   }
@@ -35,8 +52,12 @@ export class FamilyBoard {
   }
 
   destroy() {
+    if (this.framed && this.scroll.isConnected) {
+      this.view.ftKept = { zoom: this.zoom, selected: this.selected, left: this.scroll.scrollLeft, top: this.scroll.scrollTop };
+    }
     this.destroyed = true;
     cancelAnimationFrame(this.raf);
+    this.ro.disconnect();
     hideCard(true);
   }
 
@@ -61,20 +82,70 @@ export class FamilyBoard {
       h('div', { class: 'jr-tools-group jr-tools-end' },
         h('span', { class: 'jr-tools-cap' }, 'Zoom'),
         h('div', { class: 'jr-seg', role: 'group', 'aria-label': 'Zoom' },
-          h('button', { type: 'button', class: 'jr-seg-btn', title: 'Zoom out', 'aria-label': 'Zoom out', disabled: this.zoom <= 0.4, onclick: () => this.setZoom(this.zoom / 1.25) }, icon('minus')),
-          h('button', { type: 'button', class: 'jr-seg-btn', title: 'Fit the whole tree', onclick: () => this.fit() }, h('span', null, `${Math.round(this.zoom * 100)}%`)),
-          h('button', { type: 'button', class: 'jr-seg-btn', title: 'Zoom in', 'aria-label': 'Zoom in', disabled: this.zoom >= 1.6, onclick: () => this.setZoom(this.zoom * 1.25) }, icon('plus')))));
+          this.zoomOut = h('button', { type: 'button', class: 'jr-seg-btn', title: 'Zoom out', 'aria-label': 'Zoom out', disabled: this.zoom <= MIN_ZOOM, onclick: () => this.setZoom(this.zoom / 1.25) }, icon('minus')),
+          h('button', { type: 'button', class: 'jr-seg-btn', title: 'Fit the whole tree', onclick: () => this.fit() }, this.zoomLabel = h('span', null, `${Math.round(this.zoom * 100)}%`)),
+          this.zoomIn = h('button', { type: 'button', class: 'jr-seg-btn', title: 'Zoom in', 'aria-label': 'Zoom in', disabled: this.zoom >= MAX_ZOOM, onclick: () => this.setZoom(this.zoom * 1.25) }, icon('plus')))));
   }
 
-  setZoom(z) {
-    this.zoom = Math.max(0.4, Math.min(1.6, Math.round(z * 100) / 100));
-    this.render();
+  /** Zoom to z, keeping the point `at` ({x, y} in the board's box, its middle by default) where it is. */
+  setZoom(z, at = null) {
+    const nz = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.round(z * 100) / 100));
+    const box = this.scroll;
+    if (!this.geo || nz === this.zoom) { this.zoom = nz; this.applyZoom(); return; }
+    const ax = at ? at.x : box.clientWidth / 2;
+    const ay = at ? at.y : box.clientHeight / 2;
+    const tx = (box.scrollLeft + ax - this.sizer.offsetLeft) / this.zoom;
+    const ty = (box.scrollTop + ay - this.sizer.offsetTop) / this.zoom;
+    this.zoom = nz;
+    this.applyZoom();
+    box.scrollLeft = tx * nz + this.sizer.offsetLeft - ax;
+    box.scrollTop = ty * nz + this.sizer.offsetTop - ay;
+  }
+
+  /** The zoom on the page: the stage's scale, the scroll box's room, the toolbar's % (no new layout). */
+  applyZoom() {
+    const z = this.zoom;
+    if (this.zoomLabel) {
+      this.zoomLabel.textContent = `${Math.round(z * 100)}%`;
+      this.zoomOut.disabled = z <= MIN_ZOOM;
+      this.zoomIn.disabled = z >= MAX_ZOOM;
+    }
+    if (!this.geo) return;
+    this.stage.style.transform = z === 1 ? '' : `scale(${z})`;
+    this.sizer.style.width = `${Math.ceil(this.wpx * z)}px`;
+    this.sizer.style.height = `${Math.ceil(this.hpx * z)}px`;
   }
 
   fit() {
     if (!this.geo) return;
-    const avail = this.scroll.clientWidth - 4;
+    const avail = this.scroll.clientWidth - 16;
     this.setZoom(Math.min(1, avail / this.geo.width));
+    this.scroll.scrollLeft = 0;
+  }
+
+  /**
+   * The first look: a tree narrower than the board sits in its middle; a wider one is fitted to the width, or, if
+   * that would make it too small to read, shown at READ_ZOOM from its main family's oldest people. Switching Read /
+   * Edit comes back to where it was instead.
+   */
+  frame() {
+    const box = this.scroll;
+    const cw = box.clientWidth;
+    if (!this.geo || !cw || !this.d.people.length || !this.el.isConnected) return;
+    this.framed = true;
+    const k = this.kept;
+    this.kept = null;
+    if (k) {
+      this.applyZoom();
+      box.scrollLeft = k.left;
+      box.scrollTop = k.top;
+      return;
+    }
+    const fit = (cw - 16) / this.geo.width;
+    this.zoom = fit >= 1 ? 1 : Math.max(READ_ZOOM, Math.floor(fit * 100) / 100);
+    this.applyZoom();
+    box.scrollTop = 0;
+    box.scrollLeft = fit >= READ_ZOOM ? 0 : this.geo.focus.x * this.zoom + this.sizer.offsetLeft - cw / 2;
   }
 
   select(id) {
@@ -84,19 +155,23 @@ export class FamilyBoard {
     this.bar.replaceWith(this.bar = this.toolbar());
   }
 
+  cardEl(id) { return id ? this.stage.querySelector(`.jr-ft-person[data-id="${CSS.escape(id)}"]`) : null; }
+
   // ---------- rendering ----------
 
   render() {
     hideCard(true);
     this.d = this.data;
     if (this.selected && !this.d.people.some((p) => p.id === this.selected)) this.selected = null;
-    this.bar = this.toolbar();
-    this.stage = h('div', { class: 'jr-ft-stage' });
-    this.sizer = h('div', { class: 'jr-ft-sizer' }, this.stage);
-    this.scroll = h('div', { class: 'jr-ft-scroll', tabindex: '0', 'aria-label': 'Family tree, scroll to see more' }, this.sizer);
-    this.wirePan(this.scroll);
-    this.el.replaceChildren(...[this.bar, this.scroll,
-      !this.d.people.length ? h('p', { class: 'jr-hint jr-tl-empty' }, 'No one in this family tree yet. Add the first person with the Person button, then select them to add their parents, partners and children.') : null].filter(Boolean));
+    const bar = this.toolbar();
+    if (this.bar?.parentNode === this.el) this.bar.replaceWith(bar);
+    this.bar = bar;
+    // never take the scroll box out of the page: it would forget how far it was scrolled
+    if (this.scroll.parentNode !== this.el) this.el.replaceChildren(this.bar, this.scroll);
+    else if (this.el.firstChild !== this.bar) this.el.prepend(this.bar);
+    this.hint?.remove();
+    this.hint = !this.d.people.length ? h('p', { class: 'jr-hint jr-tl-empty' }, 'No one in this family tree yet. Add the first person with the Person button, then select them to add their parents, partners and children.') : null;
+    if (this.hint) this.el.append(this.hint);
     this.layout();
   }
 
@@ -112,10 +187,13 @@ export class FamilyBoard {
     const { people, unions, childOf } = this.d;
     const cal = calendar();
     const stage = this.stage;
+    const ae = document.activeElement;
+    const focusId = ae && stage.contains(ae) ? ae.closest('.jr-ft-person')?.dataset.id || this.selected : null;
     stage.replaceChildren();
     const cards = new Map();
+    // measured outside the (zoomed) stage: the layout wants their own heights
     const measure = h('div', { class: 'jr-tl-measure' });
-    stage.append(measure);
+    this.el.append(measure);
     for (const p of people) { const c = this.personCard(p, cal); c.style.width = `${W}px`; cards.set(p.id, c); measure.append(c); }
     const hs = new Map([...cards].map(([id, c]) => [id, Math.ceil(c.getBoundingClientRect().height)]));
     measure.remove();
@@ -123,11 +201,11 @@ export class FamilyBoard {
     this.geo = geo;
     const wpx = Math.max(geo.width, 200);
     const hpx = Math.max(geo.height, 120);
+    this.wpx = wpx;
+    this.hpx = hpx;
     stage.style.width = `${wpx}px`;
     stage.style.height = `${hpx}px`;
-    stage.style.transform = this.zoom === 1 ? '' : `scale(${this.zoom})`;
-    this.sizer.style.width = `${Math.ceil(wpx * this.zoom)}px`;
-    this.sizer.style.height = `${Math.ceil(hpx * this.zoom)}px`;
+    this.applyZoom();
 
     // lines first (under the cards)
     const NS = 'http://www.w3.org/2000/svg';
@@ -191,6 +269,36 @@ export class FamilyBoard {
       c.style.top = `${Math.round(top(p.id))}px`;
       stage.append(c);
     }
+    if (!this.framed) this.frame();
+    if (focusId) this.cardEl(focusId)?.focus({ preventScroll: true });
+  }
+
+  /** Scroll the board (and the page, if need be) just enough to show someone's card, with room under it. */
+  bringIntoView(id) {
+    const el = this.cardEl(id);
+    if (!el) return;
+    const box = this.scroll;
+    const r = el.getBoundingClientRect();
+    const b = box.getBoundingClientRect();
+    const m = 16;
+    const under = 56; // their actions sit under the card
+    const inL = b.left + box.clientLeft + m;
+    const inR = b.left + box.clientLeft + box.clientWidth - m;
+    const inT = b.top + box.clientTop + m;
+    const inB = b.top + box.clientTop + box.clientHeight - m;
+    let dx = 0;
+    let dy = 0;
+    if (r.width > inR - inL || r.left < inL) dx = r.left - inL; else if (r.right > inR) dx = r.right - inR;
+    if (r.top < inT) dy = r.top - inT; else if (r.bottom + under > inB) dy = Math.min(r.top - inT, r.bottom + under - inB);
+    if (dx || dy) box.scrollBy({ left: dx, top: dy, behavior: smooth() });
+    // the page: the card where it will be, clear of the sticky toolbar
+    const desk = this.view.host;
+    const d = desk.getBoundingClientRect();
+    const top = r.top - dy;
+    const bottom = r.bottom - dy + under;
+    const clear = d.top + this.bar.offsetHeight + m;
+    if (top < clear) desk.scrollBy({ top: top - clear, behavior: smooth() });
+    else if (bottom > d.bottom - m) desk.scrollBy({ top: Math.min(top - clear, bottom - d.bottom + m), behavior: smooth() });
   }
 
   personCard(p, cal) {
@@ -362,10 +470,11 @@ export class FamilyBoard {
     requestAnimationFrame(() => this.flash(res.id));
   }
 
+  /** Someone just added or edited: bring them into view and flash their card. */
   flash(id) {
-    const el = this.stage.querySelector(`.jr-ft-person[data-id="${CSS.escape(id)}"]`);
+    const el = this.cardEl(id);
     if (!el) return;
-    el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    this.bringIntoView(id);
     el.classList.remove('jr-flash');
     void el.offsetWidth;
     el.classList.add('jr-flash');

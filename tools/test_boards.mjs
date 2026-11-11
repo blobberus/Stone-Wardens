@@ -138,6 +138,12 @@ section('family tree: layout');
   check('parents centred over their children', Math.abs(mid('orin', 'sera') - mid('aldis', 'brannoc')) < 1, [mid('orin', 'sera'), mid('aldis', 'brannoc')]);
   check('someone with two partners sits between them', geo.x.get('edric') < geo.x.get('aldis') && geo.x.get('aldis') < geo.x.get('corwin'));
   check('the first family added stays at the left', geo.x.get('orin') < geo.x.get('wren') || geo.x.get('edric') < geo.x.get('wren'));
+  check('the board opens on the main family\'s oldest couple', Math.abs(geo.focus.x - mid('orin', 'sera') - F.W / 2) < 1 && geo.focus.y === geo.rowTop[0] && geo.focus.ids.join() === 'orin,sera', geo.focus);
+  // a small family added first and a big one after it: the big one is the main family
+  const two = layoutProblems([{ id: 'x' }, { id: 'y' }, { id: 'm' }, { id: 'n' }, { id: 'k1' }, { id: 'k2' }, { id: 'k3' }],
+    [{ partners: ['x', 'y'], children: [] }, { partners: ['m', 'n'], children: ['k1', 'k2', 'k3'] }]);
+  eq('the main family is the widest', two.geo.focus.ids, ['m', 'n']);
+  eq('no one in the tree: the focus is the corner', F.layoutFamily([], [], new Map(), () => 60).focus, { x: F.PAD, y: F.PAD, ids: [] });
   // a parent with no parents of their own sits right above their child
   const late = layoutProblems([{ id: 'g' }, { id: 'p' }, { id: 'c' }, { id: 'in' }, { id: 'k' }],
     [{ partners: ['g'], children: ['p'] }, { partners: ['p'], children: ['c'] }, { partners: ['c', 'in'], children: ['k'] }]);
