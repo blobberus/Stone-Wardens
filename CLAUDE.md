@@ -263,7 +263,11 @@ tools/build_srd.py    converts 5e-bits/5e-database src/2024/en -> srd/
   ages (content/calendar.json, the Ages menu `ages.js`). Boards: `timeline.js` (horizontal / vertical, events with
   symbols, age bands, sub-timelines, markers), `family.js` (generations, partners, children); hover card and item
   dialogs in `board.js`. Test boards at desktop, iPad (touch) and phone widths: no two cards may overlap and no
-  title may be cut (qa: compare card rects; `.jr-tl-ev-title` scrollWidth).
+  title may be cut (qa: compare card rects; `.jr-tl-ev-title` scrollWidth). `save()` re-renders a board: keep the
+  scroll box (or its scroll / zoom) across that, and the open card with its item (`showCard(el, build, {pinned})`
+  again after a re-layout); the family board's scroll box is built once and only its contents change (the empty
+  state replaces the sizer; the line key is the frame's footer, `.jr-ft.has-key`). Keyboard: items are in the
+  page in date order (the tab order); arrows move by date (timeline) or to relatives (family tree).
 - Per-device UI state in localStorage `sw:journal:*`. Other views link notes with `href('journal', first || '_', rest)`.
 
 ## Warden's Library tab

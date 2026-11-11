@@ -150,13 +150,18 @@ months, dates), `board.js` (item dialogs' controls, the hover card), `ages.js` (
   board keys alone.
 - **The page.** Under the title, the toolbar and the board first, then the introduction (a text box while editing,
   a couple of paragraphs tall), then the tags at the bottom, in both modes. Reading, they list all the note's tags
-  (its own, its text's and its items'); editing, a Tags box holds the note's own `tags:`.
+  (its own, its text's and its items'); editing, a Tags box holds the note's own `tags:`. The toolbar is the
+  board's header (one frame) and stays in sight while a long board scrolls; on a board under 560px wide (a phone,
+  or both side panes open) the add buttons fold into one **Add** menu (**Relative** on a family tree). Both boards
+  keep their place (scroll, zoom) across edits and Read / Edit, bring the item just added or edited into view with
+  a gold ring that fades, and give it the focus; an empty board says so inside its frame, with a button to add the
+  first item.
 - **The world's calendar**, `content/calendar.json`, shared by every timeline and family tree:
   `{ages: [{id, abbr, name, color, start, end, countdown, text, tags}], months: [names], defaultAge}`. Without the
   file there is one age, AFF (After the Fallen Firmament), the default for new dates, and the Gregorian months.
   A date is an integer year, an optional month and an age (a dropdown). Dates sort by the age's place in the list
   first (with AFF above BCC, 100 AFF comes before 1 BCC), then the year (backwards in an age whose years count
-  down, like BC), then the month (none first). **Ages** (the toolbar's Ages, or Age to add one): the list in order
+  down, like BC), then the month (none first). **Ages** (the toolbar's Edit ages, or Age to add one): the list in order
   (earlier / later), each age's abbreviation, name, range of years, "counts down", colour, a paragraph and tags,
   which age new dates start in, the month names, and (from a timeline) which ages it shows; nothing is written
   until Save. Deleting an age that dates use asks first; those dates keep their years and sort last.
@@ -167,16 +172,27 @@ months, dates), `board.js` (item dialogs' controls, the hover card), `ages.js` (
   − / + spacing) and stretches wherever a card needs it, so every title and year shows (a long title wraps);
   ages are bands hanging under the axis with their name kept in sight while scrolling; sub-timelines are bars in
   lanes under it plus a wash of their colour over their stretch; markers are diamonds on the axis, labels under
-  it. Vertical: dates left of the axis, cards right of it (on a narrow page the date goes in the card). Drag to
-  scroll with a mouse.
-- **Family tree.** Add a **Person**; select someone (click their card) to add their **Parent** (at most two),
+  it. Each row of cards above the axis is only as tall as its own cards. Vertical: dates left of the axis, cards
+  right of it (on a narrow page the date goes in the card). Drag to scroll with a mouse. When a horizontal board is
+  wider than its box, an **overview** strip under it shows the whole timeline (ages as tinted segments, events as
+  ticks, a window on the part in sight): click or tap to centre there, drag the window, or focus it and use Left /
+  Right / Home / End. Tab and the arrow keys go from item to item by date (Home / End: the first / last), each
+  brought into sight with its card open; an open card follows its item when the board is laid out again (a pane
+  opened or closed).
+- **Family tree.** Add a **Person**; select someone (click their card) and a bar under the card ("+ Parent",
+  "+ Partner", "+ Child", "+ Sibling"; the toolbar has the same) adds their **Parent** (at most two),
   **Partner** (married / partners / separated), **Child** (with which partner, or of them alone) or **Sibling**,
-  someone new or someone already in the tree. Rows are generations (partners share one, children sit below their
+  someone new or someone already in the tree; the person added is selected, so the next relative is one click.
+  Esc or a click on empty board lets go. The person hovered or focused (else the selected one) has their own lines
+  drawn in their colour while the rest of the tree fades; arrow keys go to relatives (Up a parent, Down a child,
+  Left / Right along the row). It opens fitted to the board's width (never below 60%, then centred on the oldest
+  generation), or centred when it is narrower. Rows are generations (partners share one, children sit below their
   parents); each family claims its children's families and gets a stretch as wide as its descendants, so no cards
   meet and parents sit centred over their children; a family two families could claim goes to the first, the
   other draws a longer line. Lines: double = married, single = partners, dashed = separated; siblings with unknown
   parents share a bar under a question mark. A person's dialog lists their relations to unlink one or change a
-  partnership. Zoom − / % (fit the whole tree) / +; drag to scroll.
+  partnership. A key under the board names the kinds of line this tree draws. Zoom − / % (fit the whole tree) / +,
+  Ctrl / Cmd + wheel or two fingers (around the pointer); drag to scroll.
 - **Hover card** (both boards): mouse over an item, or focus it, for its expanded view: what it is, its date or
   range, the description (markdown, links work), tags (each opens the tag search), Edit and Copy link (a
   `[[Note#Item]]`). A click or a tap keeps it open; a double click or Enter edits; Esc or a click elsewhere closes it.
