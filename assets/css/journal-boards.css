@@ -91,6 +91,7 @@ section.jr-note-tags { display: flex; flex-wrap: wrap; align-items: baseline; ga
 }
 .jr-tl-scroll.is-panning { cursor: grabbing; user-select: none; }
 .jr-tl[data-view="vertical"] .jr-tl-scroll { overflow: visible; cursor: auto; padding: 0 var(--space-2); }
+.jr-tl.is-narrow[data-view="vertical"] .jr-tl-scroll { padding: 0 4px; } /* a phone: the room goes to the cards */
 .jr-tl-stage { position: relative; min-height: 120px; }
 .jr-tl-stage > * { position: absolute; }
 /* an empty timeline: one sentence and a button inside the frame, over the axis and its age */
@@ -216,8 +217,10 @@ section.jr-note-tags { display: flex; flex-wrap: wrap; align-items: baseline; ga
 .jr-tl-ov-span { bottom: 0; height: var(--line); background: var(--item); border-radius: 2px; opacity: 0.85; }
 .jr-tl-ov-win {
   top: -3px; bottom: -3px; z-index: 1; box-sizing: border-box;
-  border: 2px solid var(--ink); border-radius: var(--radius-sm); cursor: grab; pointer-events: auto;
+  border: 2px solid var(--ink-muted); border-radius: var(--radius-sm); cursor: grab; pointer-events: auto;
 }
+@media (hover: hover) { .jr-tl-ov:hover .jr-tl-ov-win { border-color: var(--ink); } }
+.jr-tl-ov.is-dragging .jr-tl-ov-win, .jr-tl-ov:focus-visible .jr-tl-ov-win { border-color: var(--ink); }
 .jr-tl-ov.is-dragging, .jr-tl-ov.is-dragging .jr-tl-ov-win { cursor: grabbing; }
 
 /* an item just added or edited, or opened from a link: a gold ring that fades */

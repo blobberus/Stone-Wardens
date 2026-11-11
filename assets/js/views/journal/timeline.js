@@ -21,7 +21,7 @@ const BIG = 1e12; // the open end of an age without a set range
 const ORDER = { 'age-start': 0, 'span-from': 1, event: 2, marker: 3, 'span-to': 4, 'age-end': 5 };
 
 // horizontal geometry (px)
-const H = { padX: 58, top: 10, laneGap: 10, lanes: 4, stem: 16, axisH: 30, markRow: 20, spanH: 22, spanGap: 6, bottom: 14, gapX: 12, maxCard: 280 };
+const H = { padX: 58, top: 16, laneGap: 10, lanes: 4, stem: 16, axisH: 30, markRow: 20, spanH: 22, spanGap: 6, bottom: 14, gapX: 12, maxCard: 280 };
 // vertical geometry
 const V = { dateW: 128, axisH: 26, spanW: 22, spanGap: 6, padTop: 52, cardGap: 10, maxCard: 460 };
 const MIN_GAP = 18;
@@ -408,8 +408,11 @@ export class TimelineBoard {
     for (const p of evs) p.w = Math.ceil(p.el.getBoundingClientRect().width) + 2;
     for (const p of evs) if (p.w > H.maxCard) { p.w = H.maxCard; p.el.classList.add('is-wrapped'); p.el.style.width = `${H.maxCard}px`; }
     for (const p of evs) p.hh = Math.ceil(p.el.getBoundingClientRect().height);
+    // marker labels, measured with the cards: they go under the axis, in the rows they need
+    const marks = pts.filter((p) => p.type === 'marker');
+    for (const p of marks) if (p.item.label) { p.lab = h('span', { class: 'jr-tl-mark-label', style: `--item:${colorVar(p.item.color, 'rubric')}` }, p.item.label); measure.append(p.lab); }
+    for (const p of marks) if (p.lab) p.labW = p.lab.getBoundingClientRect().width;
     measure.remove();
-    const cardH = evs.reduce((m, p) => Math.max(m, p.hh), 46);
 
     // x: dates in order, the room between them from the years; events take the lowest free lane above the axis, and
     // push everything after them along when no lane is free, so no title is ever covered or cut.
@@ -442,9 +445,13 @@ export class TimelineBoard {
     }
     const width = Math.max(maxRight + H.padX, this.scroll.clientWidth - 2);
 
-    // y: event lanes, the axis, marker labels, sub-timeline lanes
-    const step = cardH + H.laneGap;
-    let axisY = H.top + Math.max(lanes, 1) * step + H.stem;
+    // y: event lanes, each as tall as its own tallest card (one long title doesn't make every lane tall), the axis,
+    // marker labels, sub-timeline lanes
+    const laneH = Array.from({ length: lanes }, (_, l) => evs.reduce((m, p) => (p.lane === l ? Math.max(m, p.hh) : m), 0));
+    const laneUp = []; // how far a lane's cards stand above the lowest lane's
+    let up = 0;
+    laneH.forEach((hh, l) => { laneUp[l] = up; up += hh + H.laneGap; });
+    let axisY = H.top + Math.max(0, up - H.laneGap) + H.stem - 6;
     if (this.empty) {
       const empty = this.emptyEl();
       empty.style.left = '0';
@@ -456,8 +463,16 @@ export class TimelineBoard {
     }
     // the axis runs along the top edge of the age bands, so event dots and markers never sit on an age's name
     const axisMid = axisY;
-    const marks = pts.filter((p) => p.type === 'marker');
-    const markRows = marks.some((p) => p.item.label) ? 2 : 0;
+    // marker labels in two rows under the axis (one that would overlap both waits for the hover card)
+    const rowRight = [-Infinity, -Infinity];
+    let markRows = 0;
+    for (const p of marks) {
+      if (!p.lab) continue;
+      p.labRow = rowRight.findIndex((r) => r + 8 <= p.x - p.labW / 2);
+      if (p.labRow < 0) continue;
+      rowRight[p.labRow] = p.x + p.labW / 2;
+      markRows = Math.max(markRows, p.labRow + 1);
+    }
     const spanTop = axisY + H.axisH + 8 + markRows * H.markRow;
     const spans = this.spanGeom(pts, width - H.padX / 2);
     const spanLanes = spans.reduce((m, s) => Math.max(m, s.lane + 1), 0);
@@ -482,25 +497,15 @@ export class TimelineBoard {
     // each sub-timeline also colours the axis itself over its stretch (thin strips stacked above the line)
     for (const s of spans) put(this.highlightEl(s.item), s.x1, axisY - 5 - Math.min(s.lane, 3) * 5, Math.max(4, s.x2 - s.x1), 5);
     for (const p of evs) {
-      const bottom = axisY - H.stem + 6 - p.lane * step;
+      const bottom = axisY - H.stem + 6 - laneUp[p.lane];
       put(h('div', { class: 'jr-tl-stem', 'aria-hidden': 'true' }), p.x, bottom, 2, axisMid - bottom);
       put(h('div', { class: 'jr-tl-dot', 'aria-hidden': 'true', style: `--item:${p.color}` }), p.x - 5, axisMid - 5);
       put(p.el, p.x, bottom - p.hh, p.w, p.hh);
     }
-    // markers: diamonds on the axis; labels in two rows under it (a label that would overlap both rows waits for
-    // the hover card)
-    const rowRight = [-Infinity, -Infinity];
+    // markers: diamonds on the axis, their labels under it
     for (const p of marks) {
       p.el = put(this.markerEl(p), p.x - 9, axisMid - 9);
-      if (!p.item.label) continue;
-      const lab = h('span', { class: 'jr-tl-mark-label', style: `--item:${colorVar(p.item.color, 'rubric')}` }, p.item.label);
-      stage.append(lab);
-      const w = lab.getBoundingClientRect().width;
-      const row = rowRight.findIndex((r) => r + 8 <= p.x - w / 2);
-      if (row < 0) { lab.remove(); continue; }
-      rowRight[row] = p.x + w / 2;
-      lab.style.left = `${Math.round(p.x - w / 2)}px`;
-      lab.style.top = `${Math.round(axisY + H.axisH + 3 + row * H.markRow)}px`;
+      if (p.lab && p.labRow >= 0) put(p.lab, p.x - p.labW / 2, axisY + H.axisH + 3 + p.labRow * H.markRow);
     }
     for (const s of spans) {
       const el = put(this.spanEl(s.item), s.x1, spanTop + s.lane * (H.spanH + H.spanGap), Math.max(14, s.x2 - s.x1), H.spanH);
@@ -666,9 +671,12 @@ export class TimelineBoard {
 
   layoutV(pts, cal) {
     const stage = this.stage;
-    const width = Math.max(260, this.scroll.clientWidth - 16);
-    const narrow = width < 520;
-    this.el.classList.toggle('is-narrow', narrow);
+    const inner = this.scroll.clientWidth;
+    const narrow = inner - 16 < 520;
+    this.el.classList.toggle('is-narrow', narrow); // (a narrower padding, too)
+    const width = Math.max(260, inner - (narrow ? 8 : 16));
+    const gapA = narrow ? 6 : 10; // axis to sub-timelines
+    const gapB = narrow ? 6 : 8; // sub-timelines to cards
     const evs = pts.filter((p) => p.type === 'event');
     // the dates left of the axis, as wide as the longest; a narrow page shows each date in its card instead
     let dateW = 0;
@@ -688,8 +696,8 @@ export class TimelineBoard {
     let spanLanes = 0;
     let geo = null;
     for (let pass = 0; pass < 2; pass++) {
-      const cardX = axisX + V.axisH + 10 + spanCount(spanLanes) + 8;
-      const cardW = Math.min(V.maxCard, width - cardX - 8);
+      const cardX = axisX + V.axisH + gapA + spanCount(spanLanes) + gapB;
+      const cardW = Math.min(V.maxCard, width - cardX - (narrow ? 2 : 8));
       const measure = h('div', { class: 'jr-tl-measure is-vertical' });
       stage.replaceChildren(measure);
       for (const p of evs) { p.el = this.eventCard(p); p.el.style.width = `${cardW}px`; measure.append(p.el); }
@@ -756,7 +764,7 @@ export class TimelineBoard {
       if (!narrow && p.item.label && !dated.has(Math.round(p.y))) put(h('span', { class: 'jr-tl-vdate is-marker', style: `--item:${colorVar(p.item.color, 'rubric')}` }, p.item.label), 0, p.y - 10, dateW);
     }
     for (const s of geo.spans) {
-      const el = put(this.spanEl(s.item), axisX + V.axisH + 10 + s.lane * (spanW + V.spanGap), s.x1, spanW, Math.max(14, s.x2 - s.x1));
+      const el = put(this.spanEl(s.item), axisX + V.axisH + gapA + s.lane * (spanW + V.spanGap), s.x1, spanW, Math.max(14, s.x2 - s.x1));
       this.spanEls.set(s.item, el);
       el.classList.add('is-vertical');
       el.addEventListener('pointerenter', () => this.washOn(s.item, true));
