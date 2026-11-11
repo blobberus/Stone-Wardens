@@ -186,6 +186,13 @@ section.jr-note-tags { display: flex; flex-wrap: wrap; align-items: baseline; ga
   font: italic 500 var(--text-xs) / 18px var(--font-ui); color: color-mix(in srgb, var(--item) 75%, var(--ink));
 }
 
+/* an item just added or edited, or opened from a link: a gold ring that fades */
+.jr-tl-flash { animation: jr-tl-flash 1.6s var(--ease); }
+@keyframes jr-tl-flash {
+  from { outline: 3px solid var(--gold); outline-offset: 3px; }
+  to { outline: 3px solid transparent; outline-offset: 3px; }
+}
+
 /* ---------- hover card (the expanded view of an item) ---------- */
 .jr-bcard {
   position: fixed; z-index: var(--z-popover); box-sizing: border-box;

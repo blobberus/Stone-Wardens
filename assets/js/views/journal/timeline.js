@@ -32,6 +32,20 @@ const EMPTY_AGE = 150;
 
 const clean = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v != null && v !== '' && !(Array.isArray(v) && !v.length)));
 const same = (a, b) => a === b || (!!a?.id && a.id === b?.id);
+/** An item's key on the board (it survives a re-render): e:<id>, s:<id>, m:<id>, a:<age id>. */
+const keyOf = (type, x) => `${type}:${x?.id || x?.title || x?.label || ''}`;
+
+// Where each timeline was scrolled to on this device (note path -> scrollLeft), for the session: a re-render (an
+// edit, Read / Edit, a change pulled from the others) puts the board back where it was.
+const PLACE = new Map();
+
+/** Flash an item once (a ring that fades), e.g. after it was added or edited, or a link opened it. */
+function flash(el) {
+  el.classList.remove('jr-tl-flash');
+  void el.offsetWidth;
+  el.classList.add('jr-tl-flash');
+  el.addEventListener('animationend', () => el.classList.remove('jr-tl-flash'), { once: true });
+}
 
 /** The timeline as it is saved (no empty lists). */
 function compact(d) {
@@ -45,6 +59,7 @@ export class TimelineBoard {
     this.zoom = 1;
     this.lastAge = null;
     this.el = h('section', { class: 'jr-board jr-tl', 'aria-label': 'Timeline' });
+    this.keepX = PLACE.get(view.path) ?? null;
     // the vertical view fits its cards to the width: lay out again when the width (not the height) changes
     this.ro = new ResizeObserver(() => {
       if (this.d?.view === 'vertical' && this.el.isConnected && Math.abs(this.scroll.clientWidth - (this.lastWidth || 0)) > 1) this.layoutSoon();
@@ -56,9 +71,12 @@ export class TimelineBoard {
   get note() { return this.view.current; }
   get data() { return boardData(this.view.fm); }
 
-  save(d) {
+  /** Write the items and draw the board again. show: an item's key to bring into sight afterwards (flashed, and
+   *  focused when `focus`); center: put it in the middle even if it shows already (after a change of view). */
+  save(d, { show = null, center = false, focus = false } = {}) {
     this.view.setBoard(compact(d));
     this.render();
+    if (show) requestAnimationFrame(() => this.showItem(show, { flash: !center, center, focus }));
   }
 
   destroy() {
@@ -72,7 +90,8 @@ export class TimelineBoard {
 
   toolbar(d) {
     const seg = (label, ic, on, onClick) => h('button', { type: 'button', class: 'jr-seg-btn', 'aria-pressed': String(on), onclick: onClick, title: `${label} view`, 'aria-label': `${label} view` }, icon(ic), h('span', { class: 'jr-seg-label' }, label));
-    const setView = (v) => { if (this.data.view === v) return; const nd = this.data; nd.view = v; this.save(nd); };
+    // the other view opens at the event that was in sight
+    const setView = (v) => { if (this.data.view === v) return; const at = this.inView(); const nd = this.data; nd.view = v; this.save(nd, { show: at, center: true }); };
     return h('div', { class: 'jr-tools', role: 'toolbar', 'aria-label': 'Timeline tools' },
       toolGroup({
         caption: 'Add', label: 'Add to the timeline', fold: { label: 'Add', title: 'Add an event, an age, a sub-timeline or a marker', menuLabel: 'Add to the timeline' },
@@ -110,8 +129,13 @@ export class TimelineBoard {
     const d = this.data;
     this.d = d;
     this.el.dataset.view = d.view;
-    this.stage = h('div', { class: 'jr-tl-stage' });
+    // keep the place: the scroll of the board being replaced, and its height until the new one is laid out (so the
+    // page under a long vertical timeline doesn't jump up meanwhile)
+    if (this.scroll && this.scroll.scrollWidth > this.scroll.clientWidth) this.keepX = this.scroll.scrollLeft;
+    const oldH = this.stage?.offsetHeight;
+    this.stage = h('div', { class: 'jr-tl-stage', style: oldH ? `height:${oldH}px` : null });
     this.scroll = h('div', { class: 'jr-tl-scroll', tabindex: '0', 'aria-label': 'Timeline, scroll to see more' }, this.stage);
+    this.scroll.addEventListener('scroll', () => this.onScroll(), { passive: true });
     this.wirePan(this.scroll);
     const empty = !d.events.length && !d.spans.length && !d.markers.length;
     this.el.replaceChildren(...[this.toolbar(d), this.scroll,
@@ -134,9 +158,16 @@ export class TimelineBoard {
     const cal = calendar();
     this.cal = cal;
     const pts = this.points(this.d, cal);
+    const x = this.keepX ?? this.scroll.scrollLeft;
+    this.keepX = null;
     this.stage.replaceChildren();
-    if (this.d.view === 'vertical') this.layoutV(pts, cal); else this.layoutH(pts, cal);
+    if (this.d.view === 'vertical') this.layoutV(pts, cal);
+    else { this.layoutH(pts, cal); this.scroll.scrollLeft = x; }
     this.lastWidth = this.scroll.clientWidth;
+  }
+
+  onScroll() {
+    if (this.d.view !== 'vertical') PLACE.set(this.view.path, this.scroll.scrollLeft);
   }
 
   /** Every dated thing as a point on the axis, in order. */
@@ -201,7 +232,7 @@ export class TimelineBoard {
     const age = this.cal.byId.get(p.date.age);
     p.color = colorVar(age?.color, 'slate');
     const el = h('button', {
-      type: 'button', class: 'jr-tl-event', 'data-anchor': itemAnchor(e.title || ''), style: `--item:${p.color}`,
+      type: 'button', class: 'jr-tl-event', 'data-anchor': itemAnchor(e.title || ''), 'data-key': keyOf('e', e), style: `--item:${p.color}`,
       'aria-label': `${e.title || 'Untitled event'}, ${fmtDate(p.date, { cal: this.cal })}`,
     },
     sym ? h('span', { class: 'jr-tl-sym', title: symbolLabel(e.symbol) }, icon(sym)) : null,
@@ -259,7 +290,7 @@ export class TimelineBoard {
   markerEl(p) {
     const m = p.item;
     const el = h('button', {
-      type: 'button', class: 'jr-tl-marker', style: `--item:${colorVar(m.color, 'rubric')}`,
+      type: 'button', class: 'jr-tl-marker', 'data-key': keyOf('m', m), style: `--item:${colorVar(m.color, 'rubric')}`,
       'aria-label': `Marker${m.label ? ` ${m.label}` : ''}, ${fmtDate(p.date, { cal: this.cal })}`,
     }, h('span', { class: 'jr-tl-diamond', 'aria-hidden': 'true' }));
     hoverable(el, () => this.markerBody(p), { open: () => this.editMarker(m) });
@@ -268,7 +299,7 @@ export class TimelineBoard {
 
   ageEl(a, horizontal) {
     const el = h('button', {
-      type: 'button', class: 'jr-tl-age', style: `--item:${colorVar(a.color)}`, 'aria-label': `Age: ${a.name} (${a.abbr})`, 'data-anchor': itemAnchor(a.name),
+      type: 'button', class: 'jr-tl-age', 'data-key': `a:${a.id}`, style: `--item:${colorVar(a.color)}`, 'aria-label': `Age: ${a.name} (${a.abbr})`, 'data-anchor': itemAnchor(a.name),
     }, h('span', { class: 'jr-tl-age-name' }, h('strong', null, a.abbr), horizontal ? h('span', null, a.name) : null));
     hoverable(el, () => this.ageBody(a), { open: () => this.openAges() });
     return el;
@@ -276,7 +307,7 @@ export class TimelineBoard {
 
   spanEl(s) {
     const el = h('button', {
-      type: 'button', class: ['jr-tl-span', !normDate(s.to) && 'is-open'], style: `--item:${colorVar(s.color, 'lapis')}`, 'data-anchor': itemAnchor(s.title || ''),
+      type: 'button', class: ['jr-tl-span', !normDate(s.to) && 'is-open'], 'data-key': keyOf('s', s), style: `--item:${colorVar(s.color, 'lapis')}`, 'data-anchor': itemAnchor(s.title || ''),
       'aria-label': `Sub-timeline ${s.title || 'Untitled'}, ${fmtRange(s.from, s.to, { cal: this.cal })}`,
     }, h('span', { class: 'jr-tl-span-name' }, s.title || 'Untitled'));
     hoverable(el, () => this.spanBody(s), { open: () => this.editSpan(s) });
@@ -537,20 +568,62 @@ export class TimelineBoard {
   reveal(anchor) {
     const el = [...this.stage.querySelectorAll('[data-anchor]')].find((x) => x.dataset.anchor === anchor);
     if (!el) return false;
+    this.scrollToEl(el, { centerX: true, centerY: true });
+    flash(el);
+    requestAnimationFrame(() => el.click());
+    return true;
+  }
+
+  itemEl(key) { return key ? [...this.stage.querySelectorAll('[data-key]')].find((x) => x.dataset.key === key) || null : null; }
+
+  /**
+   * Scroll the board (horizontal) and the page so that el shows, clear of the toolbar stuck at the top.
+   * centerX: in the middle of the board even when it shows already; centerY: a third down the page likewise.
+   */
+  scrollToEl(el, { centerX = false, centerY = false } = {}) {
     const box = this.scroll;
     if (this.d.view !== 'vertical') {
       const r = el.getBoundingClientRect();
       const b = box.getBoundingClientRect();
-      box.scrollLeft += r.left - b.left - (b.width - r.width) / 2;
+      if (centerX || r.left < b.left + 4 || r.right > b.right - 4) box.scrollLeft += r.left - b.left - (b.width - Math.min(r.width, b.width)) / 2;
     }
     const desk = this.view.host;
-    const top = el.getBoundingClientRect().top - desk.getBoundingClientRect().top + desk.scrollTop - desk.clientHeight / 3;
-    desk.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
-    el.classList.remove('jr-flash');
-    void el.offsetWidth;
-    el.classList.add('jr-flash');
-    requestAnimationFrame(() => el.click());
-    return true;
+    if (!desk?.getBoundingClientRect) return;
+    const d = desk.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    const top = d.top + (this.el.querySelector('.jr-tools')?.offsetHeight || 0) + 8;
+    const room = d.bottom - 8 - top;
+    if (centerY || r.top < top || r.bottom > d.bottom - 8) desk.scrollTop += r.top - top - Math.max(0, (room - r.height) / 3);
+  }
+
+  /** Bring the item with this key into sight; flash it, focus it. -> its element, or null */
+  showItem(key, { flash: lit = false, center = false, focus = false } = {}) {
+    const el = this.itemEl(key);
+    if (!el) return null;
+    this.scrollToEl(el, { centerX: center, centerY: center });
+    if (lit) flash(el);
+    // after the scroll has happened (a scroll closes the hover card that focusing opens)
+    if (focus) requestAnimationFrame(() => { if (el.isConnected) el.focus({ preventScroll: true }); });
+    return el;
+  }
+
+  /** The key of the event in sight: nearest the middle of the board (horizontal), nearest a third down the page
+   *  under the toolbar (vertical; where showItem puts one). */
+  inView() {
+    const evs = [...this.stage.querySelectorAll('.jr-tl-event[data-key]')];
+    if (!evs.length) return null;
+    let dist;
+    if (this.d.view !== 'vertical') {
+      const b = this.scroll.getBoundingClientRect();
+      const mid = b.left + b.width / 2;
+      dist = (el) => { const r = el.getBoundingClientRect(); return Math.abs(r.left + r.width / 2 - mid); };
+    } else {
+      const d = this.view.host.getBoundingClientRect();
+      const top = d.top + (this.el.querySelector('.jr-tools')?.offsetHeight || 0) + 8;
+      const line = top + (d.bottom - 8 - top) / 3;
+      dist = (el) => Math.abs(el.getBoundingClientRect().top - line);
+    }
+    return evs.reduce((a, c) => (dist(c) < dist(a) ? c : a)).dataset.key;
   }
 
   // ---------- drag to scroll (mouse) ----------
@@ -584,7 +657,17 @@ export class TimelineBoard {
     return next ? list.map((x) => (same(x, old) ? next : x)) : list.filter((x) => !same(x, old));
   }
 
+  /** After an item's dialog: write the change, then show the item where it landed and focus it (canceled: back to
+   *  what opened the dialog). */
+  finish(r, list, old, next, type, back) {
+    if (!r) { if (back?.isConnected && back !== document.body) back.focus({ preventScroll: true }); return; }
+    const d = this.data;
+    d[list] = this.replace(d[list], old, r === 'removed' ? null : next);
+    this.save(d, { show: r === 'saved' ? keyOf(type, next) : null, focus: true });
+  }
+
   async editEvent(ev) {
+    const back = document.activeElement;
     const isNew = !ev;
     const e = ev || {};
     const title = input({ value: e.title || '', maxlength: 140, placeholder: 'e.g. The Siege of Greywater', autofocus: true });
@@ -610,14 +693,11 @@ export class TimelineBoard {
         return true;
       },
     });
-    if (!r) return;
-    const d = this.data;
-    d.events = this.replace(d.events, ev, r === 'removed' ? null : next);
-    this.save(d);
-    if (r === 'saved' && next.title) requestAnimationFrame(() => this.flashItem(itemAnchor(next.title)));
+    this.finish(r, 'events', ev, next, 'e', back);
   }
 
   async editSpan(sp) {
+    const back = document.activeElement;
     const isNew = !sp;
     const s = sp || {};
     const title = input({ value: s.title || '', maxlength: 140, placeholder: 'e.g. The reign of Queen Aldis', autofocus: true });
@@ -646,13 +726,11 @@ export class TimelineBoard {
         return true;
       },
     });
-    if (!r) return;
-    const d = this.data;
-    d.spans = this.replace(d.spans, sp, r === 'removed' ? null : next);
-    this.save(d);
+    this.finish(r, 'spans', sp, next, 's', back);
   }
 
   async editMarker(mk) {
+    const back = document.activeElement;
     const isNew = !mk;
     const m = mk || {};
     const label = input({ value: m.label || '', maxlength: 60, placeholder: 'Optional, e.g. The party arrives', autofocus: true });
@@ -673,10 +751,7 @@ export class TimelineBoard {
         return true;
       },
     });
-    if (!r) return;
-    const d = this.data;
-    d.markers = this.replace(d.markers, mk, r === 'removed' ? null : next);
-    this.save(d);
+    this.finish(r, 'markers', mk, next, 'm', back);
   }
 
   async openAges({ startNew = false } = {}) {
@@ -689,17 +764,4 @@ export class TimelineBoard {
   }
 
   addAge() { return this.openAges({ startNew: true }); }
-
-  flashItem(anchor) {
-    const el = [...this.stage.querySelectorAll('[data-anchor]')].find((x) => x.dataset.anchor === anchor);
-    if (!el) return;
-    if (this.d.view !== 'vertical') {
-      const r = el.getBoundingClientRect();
-      const b = this.scroll.getBoundingClientRect();
-      if (r.left < b.left || r.right > b.right) this.scroll.scrollLeft += r.left - b.left - (b.width - r.width) / 2;
-    }
-    el.classList.remove('jr-flash');
-    void el.offsetWidth;
-    el.classList.add('jr-flash');
-  }
 }
