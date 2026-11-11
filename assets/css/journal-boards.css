@@ -358,6 +358,15 @@ section.jr-note-tags { display: flex; flex-wrap: wrap; align-items: baseline; ga
 .jr-ft-wed.is-married { stroke-width: 1.6; }
 .jr-ft-wed.is-separated { stroke-dasharray: 5 4; }
 .jr-ft-unknown { font: 700 13px var(--font-ui); fill: var(--ink-muted); text-anchor: middle; }
+/* the person under the mouse, or the selected one: their own lines drawn again on top in ink or their house
+   colour, the others a little fainter */
+.jr-ft-base { transition: opacity var(--dur) var(--ease); }
+.jr-ft-lines.is-lit .jr-ft-base { opacity: 0.35; }
+.jr-ft-lit { --lit-ink: color-mix(in srgb, var(--lit, var(--ink)) 72%, var(--ink)); } /* readable on either theme */
+.jr-ft-lit .jr-ft-line { stroke: var(--lit-ink); stroke-width: 2.5; }
+.jr-ft-lit .jr-ft-wed { stroke: var(--lit-ink); }
+.jr-ft-lit .jr-ft-unknown { fill: var(--lit-ink); }
+@media (prefers-reduced-motion: reduce) { .jr-ft-base { transition: none; } }
 
 .jr-ft-person {
   display: flex; flex-direction: column; align-items: center; gap: 1px; box-sizing: border-box;
@@ -370,10 +379,17 @@ section.jr-note-tags { display: flex; flex-wrap: wrap; align-items: baseline; ga
 .jr-ft-title { font: italic 400 var(--text-xs) / 1.3 var(--font-body); color: var(--ink-muted); overflow-wrap: anywhere; }
 .jr-ft-life { font: 500 var(--text-xs) / 1.3 var(--font-ui); color: var(--ink-muted); font-variant-numeric: tabular-nums; }
 .jr-ft-person.is-dead .jr-ft-life::before { content: "\2020\00a0"; } /* † before the years of the dead */
-@media (hover: hover) { .jr-ft-person:hover { box-shadow: var(--shadow); } }
+/* hover lifts the card; selected is a different thing: the accent frame and its wash (the house colour stays on top) */
+@media (hover: hover) { .jr-ft-person:hover { border-color: var(--ink-muted); border-top-color: var(--item, var(--ink-muted)); box-shadow: var(--shadow); } }
 .jr-ft-person.is-carded { box-shadow: var(--shadow); }
-.jr-ft-person.is-selected { outline: 2px solid var(--accent); outline-offset: 2px; }
-.jr-ft-person:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.jr-ft-person.is-selected, .jr-ft-person.is-selected:hover {
+  background: color-mix(in srgb, var(--accent-soft) 70%, var(--surface));
+  border-color: var(--accent); border-top-color: var(--item, var(--accent)); box-shadow: 0 0 0 1px var(--accent);
+}
+.jr-ft-person:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+/* just added or edited: a flash that fades into the card's own ground (never see-through) */
+.jr-ft-person.jr-flash { animation-name: jr-ft-flash; }
+@keyframes jr-ft-flash { from { background-color: var(--gold-soft); } }
 
 /* the selected person's actions: a small bar floating under their card (family.js positionActs keeps it at its own
    size at any zoom and inside the board), a notch pointing at the card */

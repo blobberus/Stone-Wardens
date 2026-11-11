@@ -175,7 +175,28 @@ export class FamilyBoard {
     this.el.querySelectorAll('.jr-ft-person').forEach((c) => c.classList.toggle('is-selected', c.dataset.id === id));
     this.bar.replaceWith(this.bar = this.toolbar());
     this.placeActs();
+    this.lightLines();
     if (had) this.cardEl(id)?.focus({ preventScroll: true });
+  }
+
+  /**
+   * A person's own lines (to their parents, partners and children) drawn again on top in ink, or their house
+   * colour, while the rest fade a little: the person under the mouse, else the selected one.
+   */
+  lightLines(id = this.hovered || this.selected) {
+    const L = this.lines;
+    if (!L) return;
+    L.lit.replaceChildren();
+    const p = id ? this.d.people.find((x) => x.id === id) : null;
+    L.svg.classList.toggle('is-lit', !!p);
+    if (!p) return;
+    const own = new Set(this.d.unions.filter((u) => u.partners.includes(id)).map((u) => u.id));
+    const pu = this.d.childOf.get(id);
+    for (const el of L.base.children) {
+      const u = el.dataset.u;
+      if (own.has(u) || (pu && u === pu.id && (el.dataset.role !== 'kid' || el.dataset.c === id))) L.lit.append(el.cloneNode(true));
+    }
+    L.svg.style.setProperty('--lit', p.color ? colorVar(p.color) : 'var(--ink)');
   }
 
   cardEl(id) { return id ? this.stage.querySelector(`.jr-ft-person[data-id="${CSS.escape(id)}"]`) : null; }
@@ -293,6 +314,7 @@ export class FamilyBoard {
     const stage = this.stage;
     const ae = document.activeElement;
     const focusId = ae && stage.contains(ae) ? ae.closest('.jr-ft-person')?.dataset.id || this.selected : null;
+    this.hovered = null;
     stage.replaceChildren();
     const cards = new Map();
     // measured outside the (zoomed) stage: the layout wants their own heights
@@ -318,7 +340,22 @@ export class FamilyBoard {
     svg.setAttribute('width', String(wpx));
     svg.setAttribute('height', String(hpx));
     svg.setAttribute('aria-hidden', 'true');
-    const path = (d, cls) => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); p.setAttribute('class', cls); svg.append(p); };
+    // every line knows its family (u), what it is (wed: the partners', stub: down from them, kid: to one child c),
+    // so a person's own lines can be drawn again on top (lightLines)
+    const base = document.createElementNS(NS, 'g');
+    base.setAttribute('class', 'jr-ft-base');
+    const lit = document.createElementNS(NS, 'g');
+    lit.setAttribute('class', 'jr-ft-lit');
+    svg.append(base, lit);
+    const path = (d, cls, u, role, c = null) => {
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', d);
+      p.setAttribute('class', cls);
+      p.dataset.u = u.id;
+      p.dataset.role = role;
+      if (c) p.dataset.c = c;
+      base.append(p);
+    };
     const top = (id) => geo.rowTop[geo.gen.get(id)];
     const busCount = new Map();
     for (const u of unions) {
@@ -332,19 +369,19 @@ export class FamilyBoard {
         const adjacent = Math.abs(xb - xa - PG) < 2;
         const cls = `jr-ft-wed is-${u.status}`;
         if (adjacent) {
-          if (u.status === 'married') { path(`M${xa} ${ya - 2.5}H${xb}`, cls); path(`M${xa} ${ya + 2.5}H${xb}`, cls); }
-          else path(`M${xa} ${ya}H${xb}`, cls);
+          if (u.status === 'married') { path(`M${xa} ${ya - 2.5}H${xb}`, cls, u, 'wed'); path(`M${xa} ${ya + 2.5}H${xb}`, cls, u, 'wed'); }
+          else path(`M${xa} ${ya}H${xb}`, cls, u, 'wed');
         } else {
           // partners with someone between them: the line goes over the cards
           const yTop = top(a) - 12;
-          path(`M${geo.x.get(a) + W / 2} ${top(a)}V${yTop}H${geo.x.get(b) + W / 2}V${top(b)}`, cls);
+          path(`M${geo.x.get(a) + W / 2} ${top(a)}V${yTop}H${geo.x.get(b) + W / 2}V${top(b)}`, cls, u, 'wed');
         }
         ux = adjacent ? (xa + xb) / 2 : (geo.x.get(a) + W / 2 + geo.x.get(b) + W / 2) / 2;
         uy = adjacent ? ya + (u.status === 'married' ? 2.5 : 0) : top(a) - 12;
       } else if (u.partners.length === 1) {
         const a = u.partners[0];
         ux = geo.x.get(a) + W / 2;
-        uy = top(a) + geo.rowH[geo.gen.get(a)];
+        uy = top(a) + hs.get(a); // from their own card, not the row's tallest
       }
       if (!u.children.length) continue;
       const kidRow = geo.gen.get(u.children[0]);
@@ -359,14 +396,17 @@ export class FamilyBoard {
         q.setAttribute('x', String(ux));
         q.setAttribute('y', String(uy - 3));
         q.setAttribute('class', 'jr-ft-unknown');
+        q.dataset.u = u.id;
+        q.dataset.role = 'stub';
         q.textContent = '?';
-        svg.append(q);
+        base.append(q);
       }
-      path(`M${ux} ${uy}V${busY}`, 'jr-ft-line');
-      path(`M${Math.min(ux, ...cxs)} ${busY}H${Math.max(ux, ...cxs)}`, 'jr-ft-line');
-      for (const c of u.children) path(`M${geo.x.get(c) + W / 2} ${busY}V${top(c)}`, 'jr-ft-line');
+      path(`M${ux} ${uy}V${busY}`, 'jr-ft-line', u, 'stub');
+      // the bar to the children: a stretch per child, so one child's own line can stand out
+      for (const c of u.children) path(`M${ux} ${busY}H${geo.x.get(c) + W / 2}V${top(c)}`, 'jr-ft-line', u, 'kid', c);
     }
     stage.append(svg);
+    this.lines = { svg, base, lit };
     for (const p of people) {
       const c = cards.get(p.id);
       c.style.left = `${Math.round(geo.x.get(p.id))}px`;
@@ -374,6 +414,7 @@ export class FamilyBoard {
       stage.append(c);
     }
     this.placeActs();
+    this.lightLines();
     if (!this.framed) this.frame();
     if (focusId) this.cardEl(focusId)?.focus({ preventScroll: true });
   }
@@ -425,6 +466,11 @@ export class FamilyBoard {
     life ? h('span', { class: 'jr-ft-life' }, life) : null);
     // before hoverable's own click (which would pin the hover card): see pick()
     el.addEventListener('pointerdown', (e) => { this.pointer = e.pointerType; });
+    const light = (on) => { this.hovered = on ? p.id : null; this.lightLines(); };
+    el.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') light(true); });
+    el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && this.hovered === p.id) light(false); });
+    el.addEventListener('focus', () => { if (el.matches(':focus-visible')) light(true); });
+    el.addEventListener('blur', () => { if (this.hovered === p.id) light(false); });
     el.addEventListener('click', (e) => {
       e.stopImmediatePropagation();
       const how = e.detail === 0 ? 'key' : this.pointer || 'mouse';
