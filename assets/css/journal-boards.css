@@ -185,6 +185,35 @@ section.jr-note-tags { display: flex; flex-wrap: wrap; align-items: baseline; ga
   font: italic 500 var(--text-xs) / 18px var(--font-ui); color: color-mix(in srgb, var(--item) 75%, var(--ink));
 }
 
+/* the overview: the whole timeline in a thin bar at the foot of the frame, with a window on the part in sight. It
+   stands in for the board's scrollbar (hidden meanwhile): click or tap to centre a spot, drag the window. Events
+   are ticks above, the ages tinted segments, sub-timelines coloured lines under them, as on the board. */
+.jr-tl.has-overview .jr-tl-scroll { border-bottom-left-radius: 0; border-bottom-right-radius: 0; scrollbar-width: none; }
+.jr-tl.has-overview .jr-tl-scroll::-webkit-scrollbar { display: none; }
+.jr-tl-ov {
+  box-sizing: border-box; padding: 3px 8px;
+  background: var(--surface-2); border: 1px solid var(--border); border-top: 0; border-radius: 0 0 var(--radius) var(--radius);
+  cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: pan-y;
+}
+.jr-tl-ov[hidden] { display: none; }
+.jr-tl-ov:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.jr-tl-ov-track { --tick: 6px; --band: 15px; --line: 3px; position: relative; height: calc(var(--tick) + var(--band) + var(--line) + 2px); }
+.jr-tl-ov-track > * { position: absolute; pointer-events: none; }
+.jr-tl-ov-tick { top: 0; width: 2px; height: var(--tick); margin-left: -1px; background: var(--ink); border-radius: 1px; }
+.jr-tl-ov-mark { top: 0; width: 7px; height: 7px; margin-left: -3.5px; background: var(--item); transform: scale(0.8) rotate(45deg); }
+.jr-tl-ov-age {
+  top: calc(var(--tick) + 1px); height: var(--band); box-sizing: border-box; display: flex; align-items: center; overflow: hidden; padding: 0 5px;
+  background: color-mix(in srgb, var(--item) 18%, var(--surface)); border: 1px solid color-mix(in srgb, var(--item) 40%, transparent); border-radius: 3px;
+}
+.jr-tl-ov-abbr { font: 600 0.8125rem / 1 var(--font-ui); color: var(--ink-muted); white-space: nowrap; }
+.jr-tl-ov-abbr.is-tight { visibility: hidden; }
+.jr-tl-ov-span { bottom: 0; height: var(--line); background: var(--item); border-radius: 2px; opacity: 0.85; }
+.jr-tl-ov-win {
+  top: -3px; bottom: -3px; z-index: 1; box-sizing: border-box;
+  border: 2px solid var(--ink); border-radius: var(--radius-sm); cursor: grab; pointer-events: auto;
+}
+.jr-tl-ov.is-dragging, .jr-tl-ov.is-dragging .jr-tl-ov-win { cursor: grabbing; }
+
 /* an item just added or edited, or opened from a link: a gold ring that fades */
 .jr-tl-flash { animation: jr-tl-flash 1.6s var(--ease); }
 @keyframes jr-tl-flash {
@@ -293,6 +322,8 @@ section.jr-note-tags { display: flex; flex-wrap: wrap; align-items: baseline; ga
 @media (pointer: coarse) {
   .jr-seg-btn { height: calc(var(--control-h-sm) - 2px); padding: 0 12px; }
   .jr-tl-marker { width: 30px; height: 30px; }
+  .jr-tl-ov { padding: 5px 10px; } /* a 44px tall strip to tap and drag */
+  .jr-tl-ov-track { --tick: 9px; --band: 20px; --line: 3px; }
   .jr-swatch { width: 38px; height: 38px; }
   .jr-swatch-dot { width: 30px; height: 30px; }
   .jr-symbol-face { height: 46px; }

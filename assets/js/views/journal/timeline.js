@@ -64,9 +64,10 @@ export class TimelineBoard {
     this.lastAge = null;
     this.el = h('section', { class: 'jr-board jr-tl', 'aria-label': 'Timeline' });
     this.keepX = PLACE.get(view.path) ?? null;
-    // the vertical view fits its cards to the width: lay out again when the width (not the height) changes
+    // lay out again when the width (not the height) changes: the vertical view fits its cards to it, the horizontal
+    // one is at least as wide as its box (and its overview shows only while it is wider)
     this.ro = new ResizeObserver(() => {
-      if (this.d?.view === 'vertical' && this.el.isConnected && Math.abs(this.scroll.clientWidth - (this.lastWidth || 0)) > 1) this.layoutSoon();
+      if (this.d && this.el.isConnected && Math.abs(this.scroll.clientWidth - (this.lastWidth || 0)) > 1) this.layoutSoon();
     });
     this.render();
     document.fonts?.ready.then(() => { if (!this.destroyed) this.layout(); });
@@ -145,7 +146,10 @@ export class TimelineBoard {
     this.stage.addEventListener('focusin', (e) => this.onFocus(e));
     this.wirePan(this.scroll);
     const empty = !d.events.length && !d.spans.length && !d.markers.length;
-    this.el.replaceChildren(...[this.toolbar(d), this.scroll,
+    this.over = d.view === 'vertical' ? null : this.overview();
+    this.ovGeo = null;
+    this.el.classList.remove('has-overview');
+    this.el.replaceChildren(...[this.toolbar(d), this.scroll, this.over,
       empty ? h('p', { class: 'jr-hint jr-tl-empty' }, 'Nothing on this timeline yet. Add an event, an age, a sub-timeline or a marker with the buttons above; each falls into place by its year and age.') : null].filter(Boolean));
     this.ro.disconnect();
     this.ro.observe(this.scroll);
@@ -221,7 +225,9 @@ export class TimelineBoard {
   }
 
   onScroll() {
-    if (this.d.view !== 'vertical') PLACE.set(this.view.path, this.scroll.scrollLeft);
+    if (this.d.view === 'vertical') return;
+    PLACE.set(this.view.path, this.scroll.scrollLeft);
+    if (this.over && !this.ovRaf) this.ovRaf = requestAnimationFrame(() => { this.ovRaf = 0; this.syncOverview(); });
   }
 
   /** Every dated thing as a point on the axis, in order. */
@@ -456,7 +462,8 @@ export class TimelineBoard {
     // sub-timelines: a wash over their stretch, behind everything
     for (const s of spans) put(h('div', { class: 'jr-tl-wash', style: `--item:${colorVar(s.item.color, 'lapis')}`, 'data-span': s.item.id || '' }), s.x1, 0, Math.max(4, s.x2 - s.x1), height);
     put(h('div', { class: 'jr-tl-axis', 'aria-hidden': 'true' }), 0, axisMid - 1, width, 2);
-    for (const a of this.ageGeom(pts)) this.ageEls.set(a.age.id, put(this.ageEl(a.age, true), a.x1, axisY, a.x2 - a.x1, H.axisH));
+    const ageG = this.ageGeom(pts);
+    for (const a of ageG) this.ageEls.set(a.age.id, put(this.ageEl(a.age, true), a.x1, axisY, a.x2 - a.x1, H.axisH));
     // each sub-timeline also colours the axis itself over its stretch (thin strips stacked above the line)
     for (const s of spans) put(this.highlightEl(s.item), s.x1, axisY - 5 - Math.min(s.lane, 3) * 5, Math.max(4, s.x2 - s.x1), 5);
     for (const p of evs) {
@@ -486,6 +493,121 @@ export class TimelineBoard {
       el.addEventListener('pointerenter', () => this.washOn(s.item, true));
       el.addEventListener('pointerleave', () => this.washOn(s.item, false));
     }
+    this.drawOverview({ width: Math.ceil(width), ages: ageG, evs, spans, marks });
+  }
+
+  // ---------- the overview (horizontal) ----------
+
+  /**
+   * The whole timeline in a thin bar under the board: events as ink ticks, the ages as tinted segments (with their
+   * abbreviation where it fits), sub-timelines as coloured lines, and a window on the part in sight. A click or tap
+   * centres the board there, a drag moves the window; on the keyboard it is a slider (Left / Right, Page Up / Down,
+   * Home / End). Shown only while the timeline is wider than its box.
+   */
+  overview() {
+    this.ovWin = h('div', { class: 'jr-tl-ov-win' });
+    this.ovTrack = h('div', { class: 'jr-tl-ov-track', 'aria-hidden': 'true' }, this.ovWin);
+    this.ovFitW = 0;
+    const el = h('div', {
+      class: 'jr-tl-ov', role: 'slider', tabindex: '0', hidden: true, title: 'The whole timeline: click or drag to move along it',
+      'aria-label': 'Timeline overview', 'aria-orientation': 'horizontal', 'aria-valuemin': '0', 'aria-valuemax': '100',
+    }, this.ovTrack);
+    let drag = null;
+    el.addEventListener('pointerdown', (e) => {
+      if ((e.pointerType === 'mouse' && e.button !== 0) || !this.ovGeo) return;
+      const box = this.scroll;
+      const t = this.ovTrack.getBoundingClientRect();
+      const k = this.ovGeo.width / Math.max(1, t.width); // board px per bar px
+      const w = this.ovWin.getBoundingClientRect();
+      // a press beside the window centres the board there; holding on, a drag goes on from there
+      if (e.clientX < w.left || e.clientX > w.right) box.scrollLeft = (e.clientX - t.left) * k - box.clientWidth / 2;
+      drag = { id: e.pointerId, x: e.clientX, left: box.scrollLeft, k };
+      try { el.setPointerCapture(e.pointerId); } catch { /* not an active pointer */ }
+      el.classList.add('is-dragging');
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (drag && e.pointerId === drag.id) this.scroll.scrollLeft = drag.left + (e.clientX - drag.x) * drag.k;
+    });
+    const end = (e) => { if (drag && e.pointerId === drag.id) { drag = null; el.classList.remove('is-dragging'); } };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('lostpointercapture', end);
+    el.addEventListener('keydown', (e) => {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      const box = this.scroll;
+      const vw = box.clientWidth;
+      const by = { ArrowLeft: -vw / 3, ArrowRight: vw / 3, PageUp: -vw * 0.9, PageDown: vw * 0.9 }[e.key];
+      if (e.key === 'Home') box.scrollLeft = 0;
+      else if (e.key === 'End') box.scrollLeft = box.scrollWidth;
+      else if (by) box.scrollLeft += by;
+      else return;
+      e.preventDefault();
+    });
+    return el;
+  }
+
+  /** Draw the overview's marks (placed as shares of the board's width, so a resize only moves the window). */
+  drawOverview(geo) {
+    if (!this.over) return;
+    this.ovGeo = geo;
+    this.ovFitW = 0;
+    const share = (x) => (Math.max(0, Math.min(geo.width, x)) / geo.width) * 100;
+    const at = (x) => `left:${share(x)}%`;
+    const stretch = (x1, x2) => `left:${share(x1)}%;width:${share(x2) - share(x1)}%`;
+    const marks = [
+      ...geo.ages.map((a) => h('span', { class: 'jr-tl-ov-age', style: `${stretch(a.x1, a.x2)};--item:${colorVar(a.age.color)}` }, h('span', { class: 'jr-tl-ov-abbr' }, a.age.abbr))),
+      ...geo.spans.map((s) => h('span', { class: 'jr-tl-ov-span', style: `${stretch(s.x1, Math.max(s.x2, s.x1 + 3))};--item:${colorVar(s.item.color, 'lapis')}` })),
+      ...geo.evs.map((p) => h('span', { class: 'jr-tl-ov-tick', style: at(p.x) })),
+      ...geo.marks.map((p) => h('span', { class: 'jr-tl-ov-mark', style: `${at(p.x)};--item:${colorVar(p.item.color, 'rubric')}` })),
+    ];
+    this.ovTrack.replaceChildren(...marks, this.ovWin);
+    this.syncOverview();
+  }
+
+  /** Show or hide the overview for the box's width; move its window over the part in sight. */
+  syncOverview() {
+    const ov = this.over;
+    const geo = this.ovGeo;
+    if (!ov || !geo) return;
+    const box = this.scroll;
+    const vw = box.clientWidth;
+    const need = geo.width > vw + 2;
+    if (ov.hidden === need) {
+      ov.hidden = !need;
+      this.el.classList.toggle('has-overview', need);
+    }
+    if (!need) return;
+    const tw = this.ovTrack.clientWidth;
+    if (tw !== this.ovFitW) { this.ovFitW = tw; this.fitOverview(); }
+    const left = box.scrollLeft;
+    const w = Math.min(tw, Math.max(14, (vw / geo.width) * tw));
+    const x = Math.max(0, Math.min(tw - w, (left / geo.width) * tw));
+    this.ovWin.style.left = `${x.toFixed(1)}px`;
+    this.ovWin.style.width = `${w.toFixed(1)}px`;
+    const max = Math.max(1, box.scrollWidth - vw);
+    ov.setAttribute('aria-valuenow', String(Math.round(Math.min(1, left / max) * 100)));
+    ov.setAttribute('aria-valuetext', this.inSightText(left, left + vw));
+  }
+
+  /** An age's abbreviation shows only where its segment has room for all of it. */
+  fitOverview() {
+    for (const a of this.ovTrack.querySelectorAll('.jr-tl-ov-abbr')) {
+      a.classList.remove('is-tight');
+      a.classList.toggle('is-tight', a.scrollWidth > a.parentElement.clientWidth - 4);
+    }
+  }
+
+  /** What the overview's window holds, in words (for screen readers). */
+  inSightText(l, r) {
+    const geo = this.ovGeo;
+    const inside = geo.evs.filter((p) => p.x >= l - 4 && p.x <= r);
+    if (!inside.length) {
+      const ages = geo.ages.filter((a) => a.x2 > l && a.x1 < r).map((a) => a.age.name);
+      return `No events in sight${ages.length ? `, in ${ages.join(' and ')}` : ''}`;
+    }
+    const first = fmtDate(inside[0].date, { cal: this.cal });
+    const last = fmtDate(inside[inside.length - 1].date, { cal: this.cal });
+    return `${plural(inside.length, 'event')} of ${geo.evs.length} in sight, ${first === last ? first : `${first} to ${last}`}`;
   }
 
   washOn(s, on) {
