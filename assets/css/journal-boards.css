@@ -89,7 +89,6 @@ section.jr-note-tags { display: flex; flex-wrap: wrap; align-items: baseline; ga
   border: 1px solid var(--border); border-radius: var(--radius);
   overscroll-behavior-x: contain; cursor: grab;
 }
-.jr-tl-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .jr-tl-scroll.is-panning { cursor: grabbing; user-select: none; }
 .jr-tl[data-view="vertical"] .jr-tl-scroll { overflow: visible; cursor: auto; padding: 0 var(--space-2); }
 .jr-tl-stage { position: relative; min-height: 120px; }

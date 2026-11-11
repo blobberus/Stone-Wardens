@@ -6,7 +6,7 @@
 // (or tapping it) shows its expanded view: description, tags, links. Data: kinds.js boardData; saved through the
 // note view's setBoard.
 import { h } from '../../core/dom.js';
-import { icon, field, input, confirmDialog } from '../../core/ui.js';
+import { icon, field, input, confirmDialog, isTouch } from '../../core/ui.js';
 import { calendar, normDate, dateKey, cmpKey, fmtDate, fmtRange, colorVar, yearsBetween } from './calendar.js';
 import { boardData, itemAnchor } from './kinds.js';
 import { symbolIcon, symbolLabel } from './symbols.js';
@@ -38,6 +38,10 @@ const keyOf = (type, x) => `${type}:${x?.id || x?.title || x?.label || ''}`;
 // Where each timeline was scrolled to on this device (note path -> scrollLeft), for the session: a re-render (an
 // edit, Read / Edit, a change pulled from the others) puts the board back where it was.
 const PLACE = new Map();
+
+// each item's card, so the keyboard can show it again after a scroll closed it
+const CARDS = new WeakMap();
+const wire = (el, build, open) => { hoverable(el, build, { open }); CARDS.set(el, build); };
 
 /** Flash an item once (a ring that fades), e.g. after it was added or edited, or a link opened it. */
 function flash(el) {
@@ -134,8 +138,11 @@ export class TimelineBoard {
     if (this.scroll && this.scroll.scrollWidth > this.scroll.clientWidth) this.keepX = this.scroll.scrollLeft;
     const oldH = this.stage?.offsetHeight;
     this.stage = h('div', { class: 'jr-tl-stage', style: oldH ? `height:${oldH}px` : null });
-    this.scroll = h('div', { class: 'jr-tl-scroll', tabindex: '0', 'aria-label': 'Timeline, scroll to see more' }, this.stage);
+    // the items are what Tab and the arrow keys go through, in date order (orderItems), so the box itself is no tab stop
+    this.scroll = h('div', { class: 'jr-tl-scroll' }, this.stage);
     this.scroll.addEventListener('scroll', () => this.onScroll(), { passive: true });
+    this.stage.addEventListener('keydown', (e) => this.onKey(e));
+    this.stage.addEventListener('focusin', (e) => this.onFocus(e));
     this.wirePan(this.scroll);
     const empty = !d.events.length && !d.spans.length && !d.markers.length;
     this.el.replaceChildren(...[this.toolbar(d), this.scroll,
@@ -160,10 +167,57 @@ export class TimelineBoard {
     const pts = this.points(this.d, cal);
     const x = this.keepX ?? this.scroll.scrollLeft;
     this.keepX = null;
+    const focused = this.stage.contains(document.activeElement) ? document.activeElement.dataset.key : null;
+    this.ageEls = new Map(); // age id -> its band
+    this.spanEls = new Map(); // sub-timeline -> its bar
     this.stage.replaceChildren();
     if (this.d.view === 'vertical') this.layoutV(pts, cal);
     else { this.layoutH(pts, cal); this.scroll.scrollLeft = x; }
+    this.orderItems(pts);
     this.lastWidth = this.scroll.clientWidth;
+    if (focused) this.itemEl(focused)?.focus({ preventScroll: true }); // laid out again (a resize): the focus stays
+  }
+
+  // ---------- the keyboard: the items in date order ----------
+
+  /** Put the items in date order in the page, so Tab goes along the timeline (ages at their start, sub-timelines
+   *  at theirs); the arrow keys use the same order. */
+  orderItems(pts) {
+    const seq = [];
+    for (const p of pts) {
+      const el = p.type === 'event' || p.type === 'marker' ? p.el : p.type === 'span-from' ? this.spanEls.get(p.item) : p.type === 'age-start' ? this.ageEls.get(p.age.id) : null;
+      if (el?.isConnected && !seq.includes(el)) seq.push(el);
+    }
+    for (const el of seq) this.stage.append(el);
+    this.items = seq;
+  }
+
+  /** Left / Up: the item before; Right / Down: the next one; Home / End: the first / the last. */
+  onKey(e) {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const list = this.items || [];
+    const i = list.indexOf(e.target);
+    if (i < 0) return;
+    const to = { ArrowLeft: i - 1, ArrowUp: i - 1, ArrowRight: i + 1, ArrowDown: i + 1, Home: 0, End: list.length - 1 }[e.key];
+    if (to == null) return;
+    e.preventDefault();
+    const el = list[Math.max(0, Math.min(list.length - 1, to))];
+    if (el === e.target) return;
+    el.focus({ preventScroll: true });
+    this.keepInSight(el);
+  }
+
+  /** Tab onto an item: it comes into sight (not for a click, which shouldn't move what is under the pointer). */
+  onFocus(e) {
+    if (this.items?.includes(e.target) && e.target.matches(':focus-visible')) this.keepInSight(e.target);
+  }
+
+  /** A focused item comes into sight, clear of the toolbar; its card (which a scroll closes) shows again once the
+   *  board has moved. */
+  keepInSight(el) {
+    this.scrollToEl(el);
+    const build = CARDS.get(el);
+    requestAnimationFrame(() => { if (document.activeElement === el && build && !el.classList.contains('is-carded') && !isTouch()) showCard(el, build); });
   }
 
   onScroll() {
@@ -239,7 +293,7 @@ export class TimelineBoard {
     h('span', { class: 'jr-tl-ev-text' },
       h('span', { class: 'jr-tl-ev-title' }, e.title || 'Untitled event'),
       h('span', { class: 'jr-tl-ev-date' }, fmtDate(p.date, { cal: this.cal }))));
-    hoverable(el, () => this.eventBody(p), { open: () => this.editEvent(e) });
+    wire(el, () => this.eventBody(p), () => this.editEvent(e));
     return el;
   }
 
@@ -293,7 +347,7 @@ export class TimelineBoard {
       type: 'button', class: 'jr-tl-marker', 'data-key': keyOf('m', m), style: `--item:${colorVar(m.color, 'rubric')}`,
       'aria-label': `Marker${m.label ? ` ${m.label}` : ''}, ${fmtDate(p.date, { cal: this.cal })}`,
     }, h('span', { class: 'jr-tl-diamond', 'aria-hidden': 'true' }));
-    hoverable(el, () => this.markerBody(p), { open: () => this.editMarker(m) });
+    wire(el, () => this.markerBody(p), () => this.editMarker(m));
     return el;
   }
 
@@ -301,7 +355,7 @@ export class TimelineBoard {
     const el = h('button', {
       type: 'button', class: 'jr-tl-age', 'data-key': `a:${a.id}`, style: `--item:${colorVar(a.color)}`, 'aria-label': `Age: ${a.name} (${a.abbr})`, 'data-anchor': itemAnchor(a.name),
     }, h('span', { class: 'jr-tl-age-name' }, h('strong', null, a.abbr), horizontal ? h('span', null, a.name) : null));
-    hoverable(el, () => this.ageBody(a), { open: () => this.openAges() });
+    wire(el, () => this.ageBody(a), () => this.openAges());
     return el;
   }
 
@@ -310,7 +364,7 @@ export class TimelineBoard {
       type: 'button', class: ['jr-tl-span', !normDate(s.to) && 'is-open'], 'data-key': keyOf('s', s), style: `--item:${colorVar(s.color, 'lapis')}`, 'data-anchor': itemAnchor(s.title || ''),
       'aria-label': `Sub-timeline ${s.title || 'Untitled'}, ${fmtRange(s.from, s.to, { cal: this.cal })}`,
     }, h('span', { class: 'jr-tl-span-name' }, s.title || 'Untitled'));
-    hoverable(el, () => this.spanBody(s), { open: () => this.editSpan(s) });
+    wire(el, () => this.spanBody(s), () => this.editSpan(s));
     return el;
   }
 
@@ -402,7 +456,7 @@ export class TimelineBoard {
     // sub-timelines: a wash over their stretch, behind everything
     for (const s of spans) put(h('div', { class: 'jr-tl-wash', style: `--item:${colorVar(s.item.color, 'lapis')}`, 'data-span': s.item.id || '' }), s.x1, 0, Math.max(4, s.x2 - s.x1), height);
     put(h('div', { class: 'jr-tl-axis', 'aria-hidden': 'true' }), 0, axisMid - 1, width, 2);
-    for (const a of this.ageGeom(pts)) put(this.ageEl(a.age, true), a.x1, axisY, a.x2 - a.x1, H.axisH);
+    for (const a of this.ageGeom(pts)) this.ageEls.set(a.age.id, put(this.ageEl(a.age, true), a.x1, axisY, a.x2 - a.x1, H.axisH));
     // each sub-timeline also colours the axis itself over its stretch (thin strips stacked above the line)
     for (const s of spans) put(this.highlightEl(s.item), s.x1, axisY - 5 - Math.min(s.lane, 3) * 5, Math.max(4, s.x2 - s.x1), 5);
     for (const p of evs) {
@@ -415,7 +469,7 @@ export class TimelineBoard {
     // the hover card)
     const rowRight = [-Infinity, -Infinity];
     for (const p of marks) {
-      const el = put(this.markerEl(p), p.x - 9, axisMid - 9);
+      p.el = put(this.markerEl(p), p.x - 9, axisMid - 9);
       if (!p.item.label) continue;
       const lab = h('span', { class: 'jr-tl-mark-label', style: `--item:${colorVar(p.item.color, 'rubric')}` }, p.item.label);
       stage.append(lab);
@@ -428,6 +482,7 @@ export class TimelineBoard {
     }
     for (const s of spans) {
       const el = put(this.spanEl(s.item), s.x1, spanTop + s.lane * (H.spanH + H.spanGap), Math.max(14, s.x2 - s.x1), H.spanH);
+      this.spanEls.set(s.item, el);
       el.addEventListener('pointerenter', () => this.washOn(s.item, true));
       el.addEventListener('pointerleave', () => this.washOn(s.item, false));
     }
@@ -541,7 +596,7 @@ export class TimelineBoard {
     const axisMid = axisX + V.axisH / 2;
     for (const s of geo.spans) put(h('div', { class: 'jr-tl-wash', style: `--item:${colorVar(s.item.color, 'lapis')}`, 'data-span': s.item.id || '' }), 0, s.y1 ?? s.x1, width, Math.max(4, s.x2 - s.x1));
     put(h('div', { class: 'jr-tl-axis is-vertical', 'aria-hidden': 'true' }), axisMid - 1, 0, 2, height);
-    for (const a of this.ageGeom(pts)) put(this.ageEl(a.age, false), axisX, a.x1, V.axisH, a.x2 - a.x1);
+    for (const a of this.ageGeom(pts)) this.ageEls.set(a.age.id, put(this.ageEl(a.age, false), axisX, a.x1, V.axisH, a.x2 - a.x1));
     for (const s of geo.spans) put(this.highlightEl(s.item), axisX - 5 - Math.min(s.lane, 3) * 5, s.x1, 5, Math.max(4, s.x2 - s.x1));
     for (const p of evs) {
       put(h('div', { class: 'jr-tl-stem is-vertical', 'aria-hidden': 'true' }), axisMid, p.y, geo.cardX - axisMid, 2);
@@ -551,11 +606,12 @@ export class TimelineBoard {
     }
     const dated = new Set(evs.map((p) => Math.round(p.y)));
     for (const p of pts.filter((q) => q.type === 'marker')) {
-      const el = put(this.markerEl(p), axisMid - 9, p.y - 9);
+      p.el = put(this.markerEl(p), axisMid - 9, p.y - 9);
       if (!narrow && p.item.label && !dated.has(Math.round(p.y))) put(h('span', { class: 'jr-tl-vdate is-marker', style: `--item:${colorVar(p.item.color, 'rubric')}` }, p.item.label), 0, p.y - 10, dateW);
     }
     for (const s of geo.spans) {
       const el = put(this.spanEl(s.item), axisX + V.axisH + 10 + s.lane * (spanW + V.spanGap), s.x1, spanW, Math.max(14, s.x2 - s.x1));
+      this.spanEls.set(s.item, el);
       el.classList.add('is-vertical');
       el.addEventListener('pointerenter', () => this.washOn(s.item, true));
       el.addEventListener('pointerleave', () => this.washOn(s.item, false));
