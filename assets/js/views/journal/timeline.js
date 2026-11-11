@@ -171,6 +171,11 @@ export class TimelineBoard {
     const x = this.keepX ?? this.scroll.scrollLeft;
     this.keepX = null;
     const focused = this.stage.contains(document.activeElement) ? document.activeElement.dataset.key : null;
+    // an item's card open while the board is laid out again (its width changed, the fonts came): open it again on
+    // the item's new element, where that is now
+    const carded = this.stage.querySelector('.is-carded')?.dataset.key;
+    const pinned = !!document.querySelector('.jr-bcard.is-pinned');
+    if (carded) hideCard(true);
     this.ageEls = new Map(); // age id -> its band
     this.spanEls = new Map(); // sub-timeline -> its bar
     this.stage.replaceChildren();
@@ -179,6 +184,8 @@ export class TimelineBoard {
     this.orderItems(pts);
     this.lastWidth = this.scroll.clientWidth;
     if (focused) this.itemEl(focused)?.focus({ preventScroll: true }); // laid out again (a resize): the focus stays
+    const again = this.itemEl(carded);
+    if (again && CARDS.get(again)) showCard(again, CARDS.get(again), { pinned });
   }
 
   // ---------- the keyboard: the items in date order ----------
