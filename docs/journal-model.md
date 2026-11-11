@@ -37,7 +37,8 @@ content/journal-trash/          Recently deleted (see below)
     - src: wardens-library/handouts/map-of-vael.png
       caption: The map Mira found
   ```
-  Reading view shows them as a slideshow at the top of the page (previous / next, arrow keys, swipe, thumbnails);
+  Reading view shows them as a slideshow at the top of the page (on a family tree or timeline: under the board and
+  its introduction; previous / next, arrow keys, swipe, thumbnails);
   "Expand" or a tap on the photo opens a full-screen viewer to scroll through all of them (Esc closes). Editing view has
   a **Reference images** panel: Upload photos (or drop files on it), From site files (any image already in the repo,
   e.g. uploaded through GitHub), captions, reorder (drag a photo: a mouse at once, a finger after holding it for a
@@ -149,8 +150,13 @@ months, dates), `board.js` (item dialogs' controls, the hover card), `ages.js` (
   and sub-timelines by date, people by generation; a click goes to the item). The Properties editor leaves the
   board keys alone.
 - **The page.** Under the title, the toolbar and the board first, then the introduction (a text box while editing,
-  a couple of paragraphs tall), then the tags at the bottom, in both modes. Reading, they list all the note's tags
-  (its own, its text's and its items'); editing, a Tags box holds the note's own `tags:`. The toolbar is the
+  a couple of paragraphs tall), then the reference images (slideshow / panel), then the tags at the bottom, in both
+  modes. The board is the page's biggest box: it takes the sheet's whole width (past the text's margins, up to the
+  binding) and the window's height under the title and toolbar, so all of it is in sight when the page opens (half
+  the window on a phone; 280–680px), its tree or timeline in the
+  middle of the frame (an empty board keeps a small frame; a vertical timeline is as tall as its items). Reading,
+  the tags list all the note's tags (its own, its text's and its items'); editing, a Tags box holds the note's own
+  `tags:`. The toolbar is the
   board's header (one frame) and stays in sight while a long board scrolls; on a board under 560px wide (a phone,
   or both side panes open) the add buttons fold into one **Add** menu (**Relative** on a family tree). Both boards
   keep their place (scroll, zoom) across edits and Read / Edit, bring the item just added or edited into view with
