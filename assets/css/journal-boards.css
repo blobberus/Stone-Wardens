@@ -350,6 +350,20 @@ section.jr-note-tags { display: flex; flex-wrap: wrap; align-items: baseline; ga
 }
 .jr-ft-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .jr-ft-scroll.is-panning { cursor: grabbing; user-select: none; }
+/* nobody in the tree yet: one sentence and the button to start, inside the frame */
+.jr-ft-scroll.is-empty { cursor: auto; }
+.jr-ft-empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: 44px 16px 48px; text-align: center; }
+.jr-ft-empty p { margin: 0; font: 400 var(--text-md) / 1.4 var(--font-body); color: var(--ink-muted); }
+/* the key to the lines: the frame's quiet footer (only the kinds this tree draws) */
+.jr-ft.has-key .jr-ft-scroll { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.jr-ft-key {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; padding: 5px 10px;
+  font: 400 var(--text-xs) / 1.3 var(--font-ui); color: var(--ink-muted);
+  background: var(--surface-2); border: 1px solid var(--border); border-top: 0; border-radius: 0 0 var(--radius) var(--radius);
+}
+.jr-ft-key-item { display: inline-flex; align-items: center; gap: 6px; }
+.jr-ft-key svg { flex: none; width: 24px; height: 10px; overflow: visible; }
+.jr-ft-key .jr-ft-unknown { font-size: 11px; text-anchor: middle; }
 .jr-ft-sizer { position: relative; margin: 0 auto; } /* a tree narrower than the board sits in its middle */
 .jr-ft-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .jr-ft-stage > .jr-ft-person { position: absolute; }

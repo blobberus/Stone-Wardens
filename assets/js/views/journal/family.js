@@ -2,7 +2,10 @@
 // Sibling; zoom and fit) over the tree. People are cards (name, title, born – died, a house colour), laid out
 // generation by generation: partners side by side joined by a line (double: married, single: partners, dashed:
 // separated), their children below on a shared bar. Hover a card (or tap it) for the person's description, tags and
-// links; click to select, double click to edit. Data (kinds.js boardData): people [{id, name, title, born, died,
+// links; click to select (their + Parent / Partner / Child / Sibling bar shows under the card; their own lines stand
+// out), double click to edit. Arrow keys go to relatives, Ctrl / Cmd + wheel or two fingers zoom. An empty tree says
+// so inside the frame; a key under the board names the kinds of line drawn. Data (kinds.js boardData): people
+// [{id, name, title, born, died,
 // color, text, tags}] and unions [{id, partners: [ids, at most 2], children: [ids], status}].
 import { h } from '../../core/dom.js';
 import { icon, field, input, select, confirmDialog, isTouch } from '../../core/ui.js';
@@ -94,7 +97,7 @@ export class FamilyBoard {
     return h('div', { class: 'jr-tools', role: 'toolbar', 'aria-label': 'Family tree tools' },
       toolGroup({ caption: 'Add', label: 'Add', tools: [{ label: 'Person', icon: 'user', onClick: () => this.editPerson(null), title: 'Add someone to the tree' }] }),
       relatives,
-      h('div', { class: 'jr-tools-group jr-tools-end' },
+      !d.people.length ? null : h('div', { class: 'jr-tools-group jr-tools-end' },
         h('span', { class: 'jr-tools-cap' }, 'Zoom'),
         h('div', { class: 'jr-seg', role: 'group', 'aria-label': 'Zoom' },
           this.zoomOut = h('button', { type: 'button', class: 'jr-seg-btn', title: 'Zoom out', 'aria-label': 'Zoom out', disabled: this.zoom <= MIN_ZOOM + 0.001, onclick: () => this.setZoom(this.zoom / 1.25) }, icon('minus')),
@@ -254,6 +257,30 @@ export class FamilyBoard {
     acts.style.transform = z === 1 ? '' : `scale(${1 / z})`;
   }
 
+  /** A quiet key under the board to the kinds of line this tree draws (none: no key). */
+  lineKey() {
+    const NS = 'http://www.w3.org/2000/svg';
+    const sample = (paths, text = null) => {
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 24 10');
+      svg.setAttribute('aria-hidden', 'true');
+      for (const [d, cls] of paths) { const e = document.createElementNS(NS, 'path'); e.setAttribute('d', d); e.setAttribute('class', cls); svg.append(e); }
+      if (text) { const t = document.createElementNS(NS, 'text'); t.setAttribute('x', '12'); t.setAttribute('y', '9'); t.setAttribute('class', 'jr-ft-unknown'); t.textContent = text; svg.append(t); }
+      return svg;
+    };
+    const { unions } = this.d;
+    const has = (st) => unions.some((u) => u.partners.length === 2 && u.status === st);
+    const items = [
+      has('married') && [sample([['M0 2.5H24', 'jr-ft-wed is-married'], ['M0 7.5H24', 'jr-ft-wed is-married']]), 'Married'],
+      has('partners') && [sample([['M0 5H24', 'jr-ft-wed is-partners']]), 'Partners'],
+      has('separated') && [sample([['M0 5H24', 'jr-ft-wed is-separated']]), 'Separated'],
+      unions.some((u) => !u.partners.length) && [sample([], '?'), 'Parents unknown'],
+    ].filter(Boolean);
+    if (!items.length) return null;
+    return h('div', { class: 'jr-ft-key', role: 'note', 'aria-label': 'Key to the lines' },
+      items.map(([svg, label]) => h('span', { class: 'jr-ft-key-item' }, svg, h('span', null, label))));
+  }
+
   /** The card and its bar together: the hover card keeps clear of both. */
   aroundOf(el) {
     const r = el.getBoundingClientRect();
@@ -326,9 +353,10 @@ export class FamilyBoard {
     // never take the scroll box out of the page: it would forget how far it was scrolled
     if (this.scroll.parentNode !== this.el) this.el.replaceChildren(this.bar, this.scroll);
     else if (this.el.firstChild !== this.bar) this.el.prepend(this.bar);
-    this.hint?.remove();
-    this.hint = !this.d.people.length ? h('p', { class: 'jr-hint jr-tl-empty' }, 'No one in this family tree yet. Add the first person with the Person button, then select them to add their parents, partners and children.') : null;
-    if (this.hint) this.el.append(this.hint);
+    this.key?.remove();
+    this.key = this.lineKey();
+    if (this.key) this.scroll.after(this.key);
+    this.el.classList.toggle('has-key', !!this.key);
     this.layout();
   }
 
@@ -348,6 +376,19 @@ export class FamilyBoard {
     const focusId = ae && stage.contains(ae) ? ae.closest('.jr-ft-person')?.dataset.id || this.selected : null;
     this.hovered = null;
     stage.replaceChildren();
+    // nobody yet: one sentence and the button to start, inside the frame
+    this.scroll.classList.toggle('is-empty', !people.length);
+    if (!people.length) {
+      this.geo = null;
+      this.lines = null;
+      this.acts = null;
+      this.empty ||= h('div', { class: 'jr-ft-empty' },
+        h('p', null, 'No one in this family tree yet.'),
+        h('button', { type: 'button', class: 'btn btn-primary', onclick: () => this.editPerson(null) }, icon('user'), h('span', null, 'Add the first person')));
+      this.scroll.replaceChildren(this.empty);
+      return;
+    }
+    if (this.sizer.parentNode !== this.scroll) this.scroll.replaceChildren(this.sizer);
     const cards = new Map();
     // measured outside the (zoomed) stage: the layout wants their own heights
     const measure = h('div', { class: 'jr-tl-measure' });
@@ -725,6 +766,9 @@ export class FamilyBoard {
     if (!el) return;
     const to = this.bringIntoView(id);
     if (to) this.positionActs(to);
+    // the dialog's opener went with the old toolbar or card: the keyboard goes on from this card (its actions next)
+    const ae = document.activeElement;
+    if (!ae || ae === document.body || !ae.isConnected) el.focus({ preventScroll: true });
     el.classList.remove('jr-flash');
     void el.offsetWidth;
     el.classList.add('jr-flash');
