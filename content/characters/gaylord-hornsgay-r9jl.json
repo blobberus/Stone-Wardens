@@ -89,7 +89,7 @@
     }
   ],
   "slotsUsed": [
-    0,
+    1,
     0,
     0,
     0,
@@ -186,7 +186,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T04:27:46.487Z",
+  "updated": "2026-11-13T04:30:30.253Z",
   "levelOrder": [
     "paladin"
   ],
