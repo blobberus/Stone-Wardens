@@ -98,7 +98,7 @@
     "pp": 0
   },
   "hp": {
-    "current": 11,
+    "current": 1,
     "temp": 0
   },
   "hitDiceUsed": {},
@@ -173,5 +173,5 @@
   },
   "createdBy": "Rohan",
   "created": "2026-11-06T02:48:16.859Z",
-  "updated": "2026-11-13T04:25:45.461Z"
+  "updated": "2026-11-13T04:25:48.739Z"
 }
