@@ -49,7 +49,11 @@
     "species:versatile": "savage-attacker",
     "background:abilities": {
       "cha": 2
-    }
+    },
+    "origin:languages": [
+      "elvish",
+      "dwarvish"
+    ]
   },
   "skills": [
     "intimidation",
@@ -162,7 +166,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T02:04:32.694Z",
+  "updated": "2026-11-13T02:04:51.412Z",
   "levelOrder": [
     "paladin"
   ]
