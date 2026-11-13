@@ -143,6 +143,17 @@
       "attuned": false,
       "notes": "",
       "custom": null
+    },
+    {
+      "uid": "7to9bb",
+      "kind": "weapon",
+      "ref": "4-bear-incisors-dax6",
+      "name": "4 Bear Incisors",
+      "qty": 1,
+      "equipped": false,
+      "attuned": false,
+      "notes": "",
+      "custom": null
     }
   ],
   "currency": {
@@ -228,7 +239,7 @@
   },
   "createdBy": "Mark",
   "created": "2026-11-07T23:42:05.453Z",
-  "updated": "2026-11-13T04:35:17.741Z",
+  "updated": "2026-11-13T04:35:29.441Z",
   "xpLog": [
     {
       "at": "2026-11-13T04:26:37.470Z",

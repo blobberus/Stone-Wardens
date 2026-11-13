@@ -1,0 +1,21 @@
+{
+  "category": "simple",
+  "weaponKind": "melee",
+  "damage": "1d6",
+  "damageType": "slashing",
+  "versatile": null,
+  "properties": [],
+  "mastery": null,
+  "range": null,
+  "thrown": null,
+  "weight": null,
+  "cost": {
+    "qty": null,
+    "unit": "gp"
+  },
+  "description": "",
+  "id": "4-bear-incisors-dax6",
+  "name": "4 Bear Incisors",
+  "created": "2026-11-13T04:35:29.429Z",
+  "updated": "2026-11-13T04:35:29.429Z"
+}
