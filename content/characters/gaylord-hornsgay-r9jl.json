@@ -109,7 +109,7 @@
     "pp": 0
   },
   "hp": {
-    "current": 1,
+    "current": 8,
     "temp": 0
   },
   "hitDiceUsed": {},
@@ -186,7 +186,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T04:34:33.128Z",
+  "updated": "2026-11-13T04:34:49.275Z",
   "levelOrder": [
     "paladin"
   ],
