@@ -10,7 +10,9 @@
   },
   "background": {
     "id": "charlatan",
-    "abilityBonuses": {}
+    "abilityBonuses": {
+      "cha": 2
+    }
   },
   "classes": [
     {
@@ -44,7 +46,10 @@
       "persuasion"
     ],
     "species:size": "Medium",
-    "species:versatile": "savage-attacker"
+    "species:versatile": "savage-attacker",
+    "background:abilities": {
+      "cha": 2
+    }
   },
   "skills": [
     "intimidation",
@@ -157,7 +162,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T02:04:16.272Z",
+  "updated": "2026-11-13T02:04:32.694Z",
   "levelOrder": [
     "paladin"
   ]
