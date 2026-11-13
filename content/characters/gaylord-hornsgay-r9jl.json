@@ -4,7 +4,7 @@
   "player": "Blobberus",
   "portrait": "content/characters/portraits/gaylord-hornsgay-hrjzo4.jpg",
   "species": {
-    "id": "tiefling",
+    "id": "human",
     "subspecies": null,
     "size": null
   },
@@ -152,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T02:02:50.316Z",
+  "updated": "2026-11-13T02:03:15.473Z",
   "levelOrder": [
     "paladin"
   ]
