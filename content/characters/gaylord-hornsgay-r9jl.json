@@ -118,7 +118,7 @@
     "fail": 0
   },
   "resourcesUsed": {
-    "lay-on-hands": 0
+    "lay-on-hands": 5
   },
   "conditions": [],
   "exhaustion": 1,
@@ -186,7 +186,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T04:34:49.275Z",
+  "updated": "2026-11-13T04:35:13.896Z",
   "levelOrder": [
     "paladin"
   ],
