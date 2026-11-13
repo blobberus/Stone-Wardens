@@ -192,7 +192,7 @@
   "hitDiceUsed": {},
   "deathSaves": {
     "success": 0,
-    "fail": 0
+    "fail": 1
   },
   "resourcesUsed": {},
   "conditions": [],
@@ -261,7 +261,7 @@
   },
   "createdBy": "Mark",
   "created": "2026-11-07T23:42:05.453Z",
-  "updated": "2026-11-13T04:42:25.689Z",
+  "updated": "2026-11-13T04:44:30.770Z",
   "xpLog": [
     {
       "at": "2026-11-13T04:26:37.470Z",
