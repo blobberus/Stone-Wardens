@@ -114,7 +114,7 @@
   },
   "hitDiceUsed": {},
   "deathSaves": {
-    "success": 0,
+    "success": 2,
     "fail": 0
   },
   "resourcesUsed": {
@@ -186,7 +186,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T04:05:14.168Z",
+  "updated": "2026-11-13T04:21:52.147Z",
   "levelOrder": [
     "paladin"
   ]
