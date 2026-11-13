@@ -103,8 +103,8 @@
   },
   "hitDiceUsed": {},
   "deathSaves": {
-    "success": 1,
-    "fail": 2
+    "success": 0,
+    "fail": 0
   },
   "resourcesUsed": {
     "second-wind": 1
@@ -175,7 +175,7 @@
   },
   "createdBy": "Rohan",
   "created": "2026-11-06T02:48:16.859Z",
-  "updated": "2026-11-13T04:46:24.103Z",
+  "updated": "2026-11-13T08:58:18.907Z",
   "xpLog": [
     {
       "at": "2026-11-13T04:26:26.054Z",
