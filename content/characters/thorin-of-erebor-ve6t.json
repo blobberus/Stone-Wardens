@@ -157,7 +157,7 @@
     "skin": "",
     "location": "",
     "groups": "",
-    "religion": "",
+    "religion": "Dwarvish ",
     "appearance": "Rugged, beaten-down dwarf tired of the ages. His locks show some gray from his time in war, eyes gleaming with a spark of bright vengeance. He looks at you; you feel his deep blue-gray eyes stare into your soul and understand your joys, sorrows, and deepest, darkest desires. ",
     "personalityTraits": "",
     "socialTraits": "",
@@ -173,5 +173,5 @@
   },
   "createdBy": "Rohan",
   "created": "2026-11-06T02:48:16.859Z",
-  "updated": "2026-11-06T07:42:11.034Z"
+  "updated": "2026-11-13T02:04:10.787Z"
 }
