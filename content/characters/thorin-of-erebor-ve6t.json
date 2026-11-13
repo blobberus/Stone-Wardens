@@ -103,7 +103,7 @@
   },
   "hitDiceUsed": {},
   "deathSaves": {
-    "success": 0,
+    "success": 1,
     "fail": 1
   },
   "resourcesUsed": {},
@@ -173,5 +173,5 @@
   },
   "createdBy": "Rohan",
   "created": "2026-11-06T02:48:16.859Z",
-  "updated": "2026-11-13T04:06:37.066Z"
+  "updated": "2026-11-13T04:16:01.440Z"
 }
