@@ -43,7 +43,8 @@
     "species:skillful": [
       "persuasion"
     ],
-    "species:size": "Medium"
+    "species:size": "Medium",
+    "species:versatile": "savage-attacker"
   },
   "skills": [
     "intimidation",
@@ -156,7 +157,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T02:04:07.609Z",
+  "updated": "2026-11-13T02:04:16.272Z",
   "levelOrder": [
     "paladin"
   ]
