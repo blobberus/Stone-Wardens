@@ -53,6 +53,10 @@
     "origin:languages": [
       "elvish",
       "dwarvish"
+    ],
+    "feat:skilled": [
+      "perception",
+      "performance"
     ]
   },
   "skills": [
@@ -166,7 +170,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T02:04:51.412Z",
+  "updated": "2026-11-13T02:05:59.572Z",
   "levelOrder": [
     "paladin"
   ]
