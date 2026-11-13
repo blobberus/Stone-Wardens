@@ -1,0 +1,13 @@
+{
+  "category": "adventuring-gear",
+  "cost": {
+    "qty": null,
+    "unit": "gp"
+  },
+  "weight": null,
+  "description": "",
+  "id": "bear-meat-samv",
+  "name": "Bear Meat",
+  "created": "2026-11-13T04:42:25.676Z",
+  "updated": "2026-11-13T04:42:25.676Z"
+}

@@ -165,6 +165,17 @@
       "attuned": false,
       "notes": "",
       "custom": null
+    },
+    {
+      "uid": "yxfgx5",
+      "kind": "gear",
+      "ref": "bear-meat-samv",
+      "name": "Bear Meat",
+      "qty": 1,
+      "equipped": false,
+      "attuned": false,
+      "notes": "",
+      "custom": null
     }
   ],
   "currency": {
@@ -250,7 +261,7 @@
   },
   "createdBy": "Mark",
   "created": "2026-11-07T23:42:05.453Z",
-  "updated": "2026-11-13T04:40:39.413Z",
+  "updated": "2026-11-13T04:42:25.689Z",
   "xpLog": [
     {
       "at": "2026-11-13T04:26:37.470Z",
