@@ -117,7 +117,9 @@
     "success": 0,
     "fail": 0
   },
-  "resourcesUsed": {},
+  "resourcesUsed": {
+    "lay-on-hands": 0
+  },
   "conditions": [],
   "exhaustion": 0,
   "heroicInspiration": false,
@@ -184,7 +186,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T03:58:26.896Z",
+  "updated": "2026-11-13T04:01:28.456Z",
   "levelOrder": [
     "paladin"
   ]
