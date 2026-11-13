@@ -1,0 +1,13 @@
+{
+  "category": "adventuring-gear",
+  "cost": {
+    "qty": null,
+    "unit": "gp"
+  },
+  "weight": null,
+  "description": "",
+  "id": "bear-hide-rd8e",
+  "name": "Bear hide",
+  "created": "2026-11-13T04:35:17.722Z",
+  "updated": "2026-11-13T04:35:17.722Z"
+}

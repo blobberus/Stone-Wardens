@@ -132,7 +132,19 @@
     0
   ],
   "pactUsed": 0,
-  "inventory": [],
+  "inventory": [
+    {
+      "uid": "neflia",
+      "kind": "gear",
+      "ref": "bear-hide-rd8e",
+      "name": "Bear hide",
+      "qty": 1,
+      "equipped": false,
+      "attuned": false,
+      "notes": "",
+      "custom": null
+    }
+  ],
   "currency": {
     "cp": 0,
     "sp": 0,
@@ -216,7 +228,7 @@
   },
   "createdBy": "Mark",
   "created": "2026-11-07T23:42:05.453Z",
-  "updated": "2026-11-13T04:26:37.473Z",
+  "updated": "2026-11-13T04:35:17.741Z",
   "xpLog": [
     {
       "at": "2026-11-13T04:26:37.470Z",
