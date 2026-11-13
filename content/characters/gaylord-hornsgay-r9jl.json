@@ -106,7 +106,7 @@
   },
   "resourcesUsed": {},
   "conditions": [],
-  "exhaustion": 5,
+  "exhaustion": 1,
   "heroicInspiration": false,
   "xp": 0,
   "abilities": [],
@@ -171,7 +171,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T02:41:13.827Z",
+  "updated": "2026-11-13T02:41:19.896Z",
   "levelOrder": [
     "paladin"
   ]
