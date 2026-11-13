@@ -106,7 +106,9 @@
     "success": 1,
     "fail": 2
   },
-  "resourcesUsed": {},
+  "resourcesUsed": {
+    "second-wind": 1
+  },
   "conditions": [],
   "exhaustion": 0,
   "heroicInspiration": false,
@@ -173,7 +175,7 @@
   },
   "createdBy": "Rohan",
   "created": "2026-11-06T02:48:16.859Z",
-  "updated": "2026-11-13T04:29:28.228Z",
+  "updated": "2026-11-13T04:30:28.853Z",
   "xpLog": [
     {
       "at": "2026-11-13T04:26:26.054Z",
