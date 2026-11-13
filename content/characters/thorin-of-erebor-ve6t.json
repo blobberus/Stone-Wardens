@@ -110,7 +110,7 @@
   "conditions": [],
   "exhaustion": 0,
   "heroicInspiration": false,
-  "xp": 0,
+  "xp": 80,
   "abilities": [],
   "favorites": {
     "items": [],
@@ -173,5 +173,12 @@
   },
   "createdBy": "Rohan",
   "created": "2026-11-06T02:48:16.859Z",
-  "updated": "2026-11-13T04:25:48.739Z"
+  "updated": "2026-11-13T04:26:26.057Z",
+  "xpLog": [
+    {
+      "at": "2026-11-13T04:26:26.054Z",
+      "delta": 80,
+      "total": 80
+    }
+  ]
 }
