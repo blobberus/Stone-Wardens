@@ -154,6 +154,17 @@
       "attuned": false,
       "notes": "",
       "custom": null
+    },
+    {
+      "uid": "ftp2wz",
+      "kind": "weapon",
+      "ref": "bear-claws-m2ao",
+      "name": "Bear Claws",
+      "qty": 1,
+      "equipped": false,
+      "attuned": false,
+      "notes": "",
+      "custom": null
     }
   ],
   "currency": {
@@ -239,7 +250,7 @@
   },
   "createdBy": "Mark",
   "created": "2026-11-07T23:42:05.453Z",
-  "updated": "2026-11-13T04:35:29.441Z",
+  "updated": "2026-11-13T04:36:18.163Z",
   "xpLog": [
     {
       "at": "2026-11-13T04:26:37.470Z",
