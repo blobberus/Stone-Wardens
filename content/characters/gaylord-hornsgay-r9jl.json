@@ -74,7 +74,20 @@
     "languages": []
   },
   "feats": [],
-  "spells": [],
+  "spells": [
+    {
+      "id": "divine-smite",
+      "class": "paladin",
+      "prepared": true,
+      "always": false
+    },
+    {
+      "id": "command",
+      "class": "paladin",
+      "prepared": true,
+      "always": false
+    }
+  ],
   "slotsUsed": [
     0,
     0,
@@ -171,7 +184,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T03:52:42.449Z",
+  "updated": "2026-11-13T03:58:26.896Z",
   "levelOrder": [
     "paladin"
   ]
