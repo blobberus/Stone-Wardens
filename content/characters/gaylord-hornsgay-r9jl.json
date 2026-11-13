@@ -6,7 +6,7 @@
   "species": {
     "id": "human",
     "subspecies": null,
-    "size": null
+    "size": "Medium"
   },
   "background": {
     "id": "charlatan",
@@ -39,7 +39,11 @@
     "paladin-weapon-mastery@paladin:1": [
       "glaive",
       "longsword"
-    ]
+    ],
+    "species:skillful": [
+      "persuasion"
+    ],
+    "species:size": "Medium"
   },
   "skills": [
     "intimidation",
@@ -152,7 +156,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T02:03:51.010Z",
+  "updated": "2026-11-13T02:04:07.609Z",
   "levelOrder": [
     "paladin"
   ]
