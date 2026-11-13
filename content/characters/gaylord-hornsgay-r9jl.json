@@ -123,7 +123,7 @@
   "conditions": [],
   "exhaustion": 0,
   "heroicInspiration": false,
-  "xp": 0,
+  "xp": 80,
   "abilities": [],
   "favorites": {
     "items": [],
@@ -186,8 +186,16 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T04:26:05.937Z",
+  "updated": "2026-11-13T04:26:30.312Z",
   "levelOrder": [
     "paladin"
+  ],
+  "xpLog": [
+    {
+      "at": "2026-11-13T04:26:30.310Z",
+      "delta": 80,
+      "total": 80,
+      "note": "gay stuff"
+    }
   ]
 }
