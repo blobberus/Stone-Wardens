@@ -39,8 +39,7 @@
       "persuasion"
     ],
     "paladin-weapon-mastery@paladin:1": [
-      "glaive",
-      "longsword"
+      "glaive"
     ],
     "species:skillful": [
       "persuasion"
@@ -186,7 +185,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T04:04:52.892Z",
+  "updated": "2026-11-13T04:05:05.809Z",
   "levelOrder": [
     "paladin"
   ]
