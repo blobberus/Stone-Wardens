@@ -9,7 +9,7 @@
     "size": null
   },
   "background": {
-    "id": null,
+    "id": "acolyte",
     "abilityBonuses": {}
   },
   "classes": [
@@ -152,7 +152,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T02:03:15.473Z",
+  "updated": "2026-11-13T02:03:39.313Z",
   "levelOrder": [
     "paladin"
   ]
