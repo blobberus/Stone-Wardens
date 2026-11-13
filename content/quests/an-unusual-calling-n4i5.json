@@ -14,7 +14,7 @@
     {
       "id": "o2",
       "text": "Find if there are fellow awakened souls",
-      "done": false
+      "done": true
     },
     {
       "id": "o3",
@@ -26,7 +26,7 @@
   "rewards": "Unlock the next Main Quest.",
   "image": null,
   "created": "2026-10-26T01:19:03.708Z",
-  "updated": "2026-11-13T02:13:56.335Z",
+  "updated": "2026-11-13T02:25:12.655Z",
   "createdBy": "Blobberus",
   "order": null
 }
