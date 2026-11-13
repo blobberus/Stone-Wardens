@@ -153,7 +153,7 @@
   "conditions": [],
   "exhaustion": 0,
   "heroicInspiration": false,
-  "xp": 0,
+  "xp": 80,
   "abilities": [],
   "favorites": {
     "items": [],
@@ -216,5 +216,12 @@
   },
   "createdBy": "Mark",
   "created": "2026-11-07T23:42:05.453Z",
-  "updated": "2026-11-13T04:18:03.954Z"
+  "updated": "2026-11-13T04:26:37.473Z",
+  "xpLog": [
+    {
+      "at": "2026-11-13T04:26:37.470Z",
+      "delta": 80,
+      "total": 80
+    }
+  ]
 }
