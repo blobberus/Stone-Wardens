@@ -121,7 +121,7 @@
     "lay-on-hands": 0
   },
   "conditions": [],
-  "exhaustion": 0,
+  "exhaustion": 1,
   "heroicInspiration": false,
   "xp": 80,
   "abilities": [],
@@ -186,7 +186,7 @@
   },
   "createdBy": "Blobberus",
   "created": "2026-11-06T02:29:18.748Z",
-  "updated": "2026-11-13T04:26:30.312Z",
+  "updated": "2026-11-13T04:27:46.487Z",
   "levelOrder": [
     "paladin"
   ],
