@@ -164,8 +164,8 @@
     "mentalTraits": "Persistence, aptitude, vulnerablility to sickness. ",
     "ideals": "Loyalty, perseverance, fighting. ",
     "bonds": "",
-    "flaws": "",
-    "likes": "",
+    "flaws": "Stubbornness, arrogance. ",
+    "likes": "Gold, dwarves, armor, swords",
     "dislikes": "",
     "resistances": "",
     "backstory": "",
@@ -173,5 +173,5 @@
   },
   "createdBy": "Rohan",
   "created": "2026-11-06T02:48:16.859Z",
-  "updated": "2026-11-13T02:07:12.069Z"
+  "updated": "2026-11-13T02:07:28.308Z"
 }
